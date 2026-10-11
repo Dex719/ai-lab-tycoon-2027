@@ -38,13 +38,33 @@ export const TOKENS_B_MIN = 0.5;
 // Исследования
 export const RP_BASE = 10;
 export const RP_K = 25;
-export const TECH_COST: Record<Exclude<TechId, ChainTech>, number> = { attention: 4000, scaling: 15000, rlhf: 30000 };
+export const TECH_COST: Record<Exclude<TechId, ChainTech>, number> = {
+  attention: 4000,
+  scaling: 15000,
+  rlhf: 30000,
+  distill: 8000,
+  moe: 20000,
+  codetrain: 12000,
+  instruct: 14000,
+  cot: 24000,
+  quant: 16000,
+  multimodal: 40000,
+  synthetic: 45000,
+};
 export const TECH_REQUIRES: Record<TechId, TechId[]> = {
   attention: [],
   scaling: ['attention'],
   rlhf: ['attention'],
   algo: [],
   context: ['attention'],
+  distill: ['attention'],
+  moe: ['scaling'],
+  codetrain: ['attention'],
+  instruct: ['attention'],
+  cot: ['instruct'],
+  quant: ['distill'],
+  multimodal: ['instruct'],
+  synthetic: ['codetrain'],
 };
 export const ALGO_BASE_COST = 5000;
 export const ALGO_COST_GROWTH = 1.6;
@@ -56,6 +76,14 @@ export const TECH_HISTORY_DATE: Record<Exclude<TechId, ChainTech>, string> = {
   attention: '2017-06-12',
   scaling: '2020-01-23',
   rlhf: '2022-01-27',
+  distill: '2019-10-02', // DistilBERT
+  moe: '2021-01-11', // Switch Transformer
+  codetrain: '2021-07-07', // Codex
+  instruct: '2021-09-03', // FLAN
+  cot: '2022-01-28', // цепочки рассуждений в подсказках
+  quant: '2022-08-15', // LLM.int8()
+  multimodal: '2023-03-14', // GTP-4 с изображениями
+  synthetic: '2023-06-20', // «Учебников достаточно» (phi-1)
 };
 export const ALGO_HISTORY_START = '2017-01-01'; // уровень k «исторически» достигается через k × ALGO_LEVEL_DAYS дней
 export const ALGO_LEVEL_DAYS = 243; // ≈ 1,5 уровня в год: 12-й уровень - к концу 2024 года
@@ -66,7 +94,28 @@ export const EARLY_PENALTY_PER_YEAR: Record<TechId, number> = {
   rlhf: 10, // было 6: с большой мощностью RLHF успевали на год раньше истории и забирали весь рынок 2021-2022 годов
   algo: 2.5,
   context: 2.5,
+  distill: 2.5,
+  moe: 2.5,
+  codetrain: 2.5,
+  instruct: 2.5,
+  cot: 2.5,
+  quant: 2.5,
+  multimodal: 2.5,
+  synthetic: 2.5,
 };
+
+// Эффекты новых технологий (по одному на технологию). «Снимок» - действует на модели, обучение которых началось
+// после исследования (TrainingRun.techs); остальные действуют сразу.
+// Размеры подобраны по опорам баланса (balance.test.ts): с большими прибавками «разумный» бот выходил на 1-е место
+// и зарабатывал больше $2 млрд; эффект на обслуживание сильнее всего поднимает выручку.
+export const INSTRUCT_ELO = 20; // снимок: +Эло на «Арене» у моделей без RLHF (RLHF его перекрывает)
+export const CODE_TRAIN_CAP = 3; // снимок: +способность «Код»
+export const COT_REASONING_CAP = 3; // снимок: +способность «Математика и наука»
+export const DISTILL_LIGHT_CAP = 4; // снимок: +способность по всем областям у лёгких моделей
+export const MOE_SERVING_MULT = 1.1; // снимок: токенов на один H100e при обслуживании × 1,1
+export const MULTIMODAL_CONSUMER_UTILITY = 0.1; // снимок: + полезность у обычных пользователей
+export const QUANT_SERVING_COST = 0.9; // сразу: мощность на обслуживание всех моделей × 0,9
+export const SYNTHETIC_TOKENS_MULT = 1.5; // сразу: наибольший объём данных года × 1,5
 
 // Длинный контекст: уровень → [токенов, дата, когда такой контекст появился в истории]
 export const CONTEXT_LEVELS: [number, string][] = [

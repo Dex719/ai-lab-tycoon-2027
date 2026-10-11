@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { newGame } from './actions';
-import { botAct, botChoice, chinchillaPlan, runBot } from './bots';
+import { botAct, botChoice, chinchillaPlan, nextTech, runBot } from './bots';
 import { setRent } from './compute';
 import { FAIL_ROLLBACK, TRAIN_FLOP_PER_H100E_DAY } from './constants';
 import { minPrice } from './market';
@@ -245,5 +245,35 @@ describe('runBot и сложность', () => {
     expect(s.day).toBeGreaterThan(dateToDay('2018-05-01'));
     // Касса ни в один конец месяца не уходила в минус.
     expect(s.finance.history.every((h) => h.cashEnd >= 0)).toBe(true);
+  });
+});
+
+describe('исследования бота', () => {
+  it('новые технологии - после исторической даты, по порядку; раньше даты - алгоритмы', () => {
+    const s = newGame('Бот', 1);
+    s.research.done = ['attention', 'scaling', 'rlhf'];
+    s.research.algoLevel = 5;
+    s.research.contextLevel = 7;
+    s.research.done.push('context');
+    s.day = dateToDay('2019-10-01');
+    expect(nextTech(s)).toBe('algo');
+    s.day = dateToDay('2019-10-02');
+    expect(nextTech(s)).toBe('distill');
+    s.research.done.push('distill');
+    s.day = dateToDay('2021-09-03');
+    expect(nextTech(s)).toBe('moe');
+    s.research.done.push('moe', 'codetrain');
+    expect(nextTech(s)).toBe('instruct');
+    s.research.done.push('instruct');
+    expect(nextTech(s)).toBe('algo'); // «Цепочки рассуждений» - только с 28.01.2022
+    s.day = dateToDay('2023-07-01');
+    const order: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      const t = nextTech(s);
+      if (t === 'algo') break;
+      order.push(t);
+      s.research.done.push(t);
+    }
+    expect(order).toEqual(['cot', 'quant', 'multimodal', 'synthetic']);
   });
 });

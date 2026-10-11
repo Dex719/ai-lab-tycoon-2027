@@ -15,7 +15,6 @@ import {
   EXPOSE_HYPE_MULT,
   EXPOSE_REP,
   MAX_BENCH_TARGETS,
-  MAX_TOKENS_B,
   MAX_TRAININGS,
   PARAMS_B_MAX,
   PARAMS_B_MIN,
@@ -26,8 +25,8 @@ import {
   TOKENS_PER_USER_DAY,
   TRAIN_FLOP_PER_H100E_DAY,
 } from '../../sim/constants';
-import { byYear, END_DAY, formatDateShort, yearOf } from '../../sim/time';
-import { refContext, refPrice, servingTokensPerH100eDay, subsOpen } from '../../sim/market';
+import { END_DAY, formatDateShort, yearOf } from '../../sim/time';
+import { refContext, refPrice, servingMult, servingTokensPerH100eDay, subsOpen } from '../../sim/market';
 import { CONTEXT_MAX_LEVEL, contextLabel, maxContext } from '../../sim/research';
 import {
   archFor,
@@ -35,6 +34,8 @@ import {
   contextFlopMult,
   estimate,
   labelersCost,
+  maxTokensB,
+  modelTechs,
   tierAvailable,
   tierOf,
   tierPreset,
@@ -554,7 +555,7 @@ function TierOption(props: { s: GameState; tier: Tier; selected: boolean; onPick
   const [lo, hi] = tierSpan(s.day, tier);
   const preset = tierPreset(s, tier);
   const apiPrice = TIER_API_PRICE_MULT[tier] * refPrice(s.day);
-  const users = servingTokensPerH100eDay(preset.paramsB) / TOKENS_PER_USER_DAY;
+  const users = (servingTokensPerH100eDay(preset.paramsB) * servingMult(s, { techs: modelTechs(s) })) / TOKENS_PER_USER_DAY;
   return (
     // Заблокированная кнопка не получает наведения, поэтому подсказка висит на обёртке.
     <div className="nm-tier-wrap" title={avail ? undefined : 'Передний край ещё мал для этого уровня.'}>
@@ -614,7 +615,7 @@ export default function TrainingWindow({ s, open }: WindowProps) {
   const [sizeMin, sizeMax] = tierSpan(s.day, tier);
   const slotsFull = s.trainings.length >= MAX_TRAININGS;
   const year = yearOf(s.day);
-  const maxTokens = byYear(MAX_TOKENS_B, year);
+  const maxTokens = maxTokensB(s);
   const tokens = Math.min(d.tokensB, maxTokens);
   const benches = introducedBenchmarks(s);
   const rlhfDone = s.research.done.includes('rlhf');

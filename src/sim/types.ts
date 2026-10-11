@@ -17,8 +17,35 @@ export type HypeOwner = LabId | 'player';
 export type GpuId = 'p100' | 'v100' | 'a100' | 'h100' | 'h200';
 export const GPU_IDS: readonly GpuId[] = ['p100', 'v100', 'a100', 'h100', 'h200'];
 
-export type TechId = 'attention' | 'scaling' | 'rlhf' | 'algo' | 'context';
-export const TECH_IDS: readonly TechId[] = ['attention', 'scaling', 'rlhf', 'algo', 'context'];
+export type TechId =
+  | 'attention'
+  | 'scaling'
+  | 'rlhf'
+  | 'algo'
+  | 'context'
+  | 'distill'
+  | 'moe'
+  | 'codetrain'
+  | 'instruct'
+  | 'cot'
+  | 'quant'
+  | 'multimodal'
+  | 'synthetic';
+export const TECH_IDS: readonly TechId[] = [
+  'attention',
+  'scaling',
+  'rlhf',
+  'algo',
+  'context',
+  'distill',
+  'moe',
+  'codetrain',
+  'instruct',
+  'cot',
+  'quant',
+  'multimodal',
+  'synthetic',
+];
 /** Исследования-цепочки с уровнями: «Алгоритмические улучшения» (без конца) и «Длинный контекст» (до последнего уровня). */
 export type ChainTech = 'algo' | 'context';
 
@@ -158,6 +185,8 @@ export interface TrainingRun {
   plan: TrainingPlan;
   arch: 'lstm' | 'transformer';
   algoLevel: number; // снимок на старте
+  /** Снимок изученных технологий на старте (те, что влияют на модель: training.MODEL_TECHS); нет поля - никаких. */
+  techs?: TechId[];
   flopTotal: number;
   flopDone: number;
   startedDay: number;
@@ -171,6 +200,8 @@ export interface PlayerModel {
   plan: TrainingPlan;
   arch: 'lstm' | 'transformer';
   algoLevel: number;
+  /** Технологии, с которыми модель обучена (снимок на старте проекта); нет поля - никаких. */
+  techs?: TechId[];
   trainedDay: number;
   releasedDay: number | null;
   caps: Record<DomainId, number>; // настоящие способности

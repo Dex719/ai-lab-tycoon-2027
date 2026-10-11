@@ -1,4 +1,4 @@
-/* Окно «Исследования»: серый холст с узлами, как дерево в Processor Tycoon. */
+/* Окно «Исследования»: серый холст с картой технологий, как дерево в Processor Tycoon. */
 
 .rs { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 
@@ -11,9 +11,31 @@
 .rs-state { margin-left: auto; display: flex; align-items: center; gap: 12px; min-width: 0; color: #50545b; }
 .rs-state b { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Холст */
-.rs-canvas { flex: 1; min-height: 0; display: flex; overflow: auto; background: var(--line); user-select: none; }
-.rs-stage { position: relative; flex: none; margin: auto; }
+/* Масштаб */
+.rs-zoom { display: flex; align-items: center; gap: 6px; }
+.rs-zoom .btn.small { min-width: 28px; padding: 0 8px; }
+.rs-zoom-val { min-width: 48px; text-align: center; font-size: 13px; color: var(--text-body); font-variant-numeric: tabular-nums; }
+
+/* Направления */
+.rs-legend {
+  flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 5px 14px;
+  background: var(--panel); border-bottom: 1px solid var(--line); font-size: 12px; color: var(--text-body);
+}
+.rs-legend-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.rs-legend-item i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; }
+.rs-legend-hint { margin-left: auto; color: var(--text-dim); white-space: nowrap; }
+
+/* Холст: прокрутка, перетаскивание и масштаб. touch-action: none - палец двигает карту, а не страницу. */
+.rs-canvas { position: relative; flex: 1; min-height: 0; overflow: auto; background: var(--line); user-select: none; cursor: grab; touch-action: none; }
+.rs-canvas.dragging { cursor: grabbing; }
+.rs-canvas.dragging .rs-node { cursor: grabbing; }
+.rs-space { position: relative; }
+.rs-stage { position: absolute; transform-origin: 0 0; }
+
+/* Столбцы лет */
+.rs-col { position: absolute; border-radius: 4px; }
+.rs-col.alt { background: rgba(255, 255, 255, 0.22); }
+.rs-year { position: absolute; left: 0; right: 0; top: 4px; text-align: center; font-size: 13px; font-weight: 600; color: #3c3f45; font-variant-numeric: tabular-nums; }
 .rs-lines { position: absolute; left: 0; top: 0; pointer-events: none; }
 .rs-lines path { fill: none; stroke: #868a91; stroke-width: 2; stroke-linejoin: round; }
 .rs-lines path.on { stroke: #2f3135; }
@@ -29,10 +51,8 @@
   transition: border-color 100ms ease-out;
 }
 .rs-node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.rs-node.available:hover { border-color: #8db8f0; }
-.rs-node.current { border-color: var(--accent); }
-.rs-node.done { background: #45474c; color: #f2f2f2; cursor: default; }
-.rs-node.blocked { background: #b3b6bc; color: #34373c; cursor: default; }
+.rs-node.done { cursor: default; }
+.rs-node.blocked { cursor: default; }
 
 .rs-name { display: block; height: 18px; font-size: 14px; font-weight: 500; line-height: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rs-main { display: flex; gap: 10px; margin-top: 6px; }
@@ -41,17 +61,13 @@
   flex: none; width: 52px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   background: #e6e8eb; color: #4a4d53; border-radius: 3px; font: 600 12px/1 var(--mono);
 }
-.rs-node.current .rs-thumb { background: var(--accent); color: #fff; }
-.rs-node.done .rs-thumb { background: #34363a; color: #c9ccd1; }
-.rs-node.blocked .rs-thumb { background: #a3a6ac; color: #34373c; }
+.rs-node.blocked .rs-thumb { background: #b0b3b9; color: #34373c; }
 
 .rs-kv { flex: 1; min-width: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-content: start; font-size: 12.5px; line-height: 17px; }
 .rs-kv > :nth-child(odd) { color: var(--text-dim); }
 .rs-kv > :nth-child(even) { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.rs-node.done .rs-kv > :nth-child(odd) { color: #b5b8be; }
-.rs-node.blocked .rs-kv > :nth-child(odd) { color: #50545b; }
-.rs-node .rs-kv > .rs-done { grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; color: var(--good-on-dark); font-weight: 600; text-align: left; }
-.rs-node.done .rs-kv > .rs-done { color: var(--good-on-dark); }
+.rs-node.blocked .rs-kv > :nth-child(odd) { color: #45484e; }
+.rs-node .rs-kv > .rs-done { grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; font-weight: 600; text-align: left; }
 
 .rs-prog { display: block; height: 4px; margin-top: auto; background: #d9dce1; border-radius: 2px; overflow: hidden; }
 .rs-prog > span { display: block; height: 100%; background: var(--accent); }
@@ -105,11 +121,19 @@
 
 /* ---------- Цвет ---------- */
 .rs-title { font-weight: 500; color: var(--text-title); }
-.rs-node.available { border-color: #d3c8f3; }
-.rs-node.available:hover { border-color: var(--c-purple); }
-.rs-node.current { border-color: var(--c-purple); box-shadow: 0 0 0 2px rgba(123, 92, 214, 0.25); }
-.rs-node.done { border-color: var(--c-green); }
-.rs-node.current .rs-thumb { background: var(--c-purple); }
+/* Цвет направления: --br (рамка), --br-fill (заливка изученного узла) задаются в разметке. */
+.rs-node { border-left-width: 6px; }
+.rs-node.available { border-color: var(--br); }
+.rs-node.available:hover { box-shadow: 0 0 0 2px var(--br); }
+.rs-node.current { border-color: var(--br); box-shadow: 0 0 0 3px var(--br), 0 4px 12px rgba(0, 0, 0, 0.25); }
+.rs-node.current .rs-thumb { background: var(--br-fill); color: #fff; }
+.rs-node.current .rs-prog > span { background: var(--br-fill); }
+.rs-node.done { background: var(--br-fill); border-color: var(--br-fill); color: #fff; }
+.rs-node.done .rs-thumb { background: rgba(255, 255, 255, 0.18); color: #fff; }
+.rs-node.done .rs-kv > :nth-child(odd) { color: rgba(255, 255, 255, 0.8); }
+.rs-node.done .rs-kv > .rs-done { color: #fff; }
+.rs-node.blocked { background: #c4c7cc; color: #34373c; border-color: #a9acb2; border-left-color: var(--br); }
+.rs-node.blocked .rs-name, .rs-node.blocked .rs-kv { opacity: 0.85; }
 .rs-d-title { color: var(--text-title); border-left: 4px solid var(--c-purple); padding-left: 10px; }
 .rs-d-desc { color: var(--text-body); }
 .rs-d-h b { color: #6244c0; }

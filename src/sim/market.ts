@@ -22,7 +22,10 @@ import {
   HYPE_LOST_DEMAND_K,
   HYPE_OWNERS,
   INF_FLOP_PER_H100E_DAY,
+  MOE_SERVING_MULT,
+  MULTIMODAL_CONSUMER_UTILITY,
   PLAYER_BRAND_K,
+  QUANT_SERVING_COST,
   REF_PRICE,
   REF_QUALITY,
   SEGMENT_DEF,
@@ -42,7 +45,7 @@ import { marketRivals, rivalSubsPrice, rivalTier } from './rivals';
 import { rivalContextIn, rivalEloIn, rivalPriceIn } from './rivalry';
 import { byYear, dateToDay, lerpByDate, yearOf } from './time';
 import { SEGMENT_IDS } from './types';
-import type { Channel, GameState, HypeOwner, ModelRef, SegmentId, SegmentShares, Tier } from './types';
+import type { Channel, GameState, HypeOwner, ModelRef, SegmentId, SegmentShares, TechId, Tier } from './types';
 
 export interface MarketEntry {
   key: string; // 'player:<id>' | 'rival:<id>'
@@ -114,6 +117,7 @@ interface Candidate {
   tier: Tier;
   exposed: boolean;
   codeLevel: number | null;
+  multimodal: boolean; // модель игрока обучена с «Мультимодальностью»
   onApi: boolean;
   onSubs: boolean;
 }
@@ -189,6 +193,15 @@ export function servingTokensPerH100eDay(paramsB: number): number {
   return INF_FLOP_PER_H100E_DAY / (2 * paramsB * 1e9);
 }
 
+/**
+ * Множитель токенов на один H100e для модели игрока: × MOE_SERVING_MULT, если модель обучена со «Смесью экспертов»,
+ * и ÷ QUANT_SERVING_COST после «Квантизации» (действует сразу на все модели).
+ */
+export function servingMult(s: GameState, m: { techs?: readonly TechId[] }): number {
+  const moe = m.techs?.includes('moe') ? MOE_SERVING_MULT : 1;
+  return s.research.done.includes('quant') ? moe / QUANT_SERVING_COST : moe;
+}
+
 /** Опорное качество внешнего варианта (линейная интерполяция). */
 export function refQuality(day: number): number {
   return lerpByDate(REF_QUALITY, day, false);
@@ -246,6 +259,7 @@ function candidates(s: GameState): Candidate[] {
       tier: m.plan.tier,
       exposed: m.exposed,
       codeLevel: codeLevel(s, { kind: 'player', id: m.id }),
+      multimodal: m.techs?.includes('multimodal') ?? false,
       onApi: m.onApi,
       onSubs,
     });
@@ -269,6 +283,7 @@ function candidates(s: GameState): Candidate[] {
           tier: rivalTier(def),
           exposed: false,
           codeLevel: codeLevel(s, { kind: 'rival', id: def.id }),
+          multimodal: false,
           onApi: false,
           onSubs: false,
         };
@@ -310,7 +325,8 @@ function segmentSnapshot(s: GameState, seg: SegmentId, cands: Candidate[], total
       def.wPrice * priceTerm +
       def.wCtx * contextLogRatio(c.context, s.day) +
       def.wCode * codeTerm +
-      (def.tier[c.tier] ?? 0) -
+      (def.tier[c.tier] ?? 0) +
+      (seg === 'consumers' && c.multimodal ? MULTIMODAL_CONSUMER_UTILITY : 0) -
       (c.exposed ? def.exposedPenalty : 0);
     // Нечисловая полезность (например, из-за битого Эло) даёт почти нулевую долю, а не портит весь расчёт.
     return Number.isFinite(u) ? u : -1e9;
@@ -376,7 +392,7 @@ export function inferenceNeed(s: GameState, snap: MarketSnapshot): { api: number
       const id = e.ref.id;
       const m = s.models.find((x) => x.id === id);
       if (!m || !(m.plan.paramsB > 0)) continue;
-      need[segSnap.channel] += e.tokens / servingTokensPerH100eDay(m.plan.paramsB);
+      need[segSnap.channel] += e.tokens / (servingTokensPerH100eDay(m.plan.paramsB) * servingMult(s, m));
     }
   }
   return need;

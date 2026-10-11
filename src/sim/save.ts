@@ -21,6 +21,7 @@ import type {
   MonthRecord,
   PlayerModel,
   SegmentShares,
+  TechId,
   Tender,
   Tier,
   TrainingPlan,
@@ -170,6 +171,7 @@ const trainingRun = shapeOf<TrainingRun>({
   plan: trainingPlan,
   arch: oneOf(ARCHS),
   algoLevel: num,
+  techs: optional(arrayOf(oneOf(TECH_IDS))),
   flopTotal: num,
   flopDone: num,
   startedDay: num,
@@ -183,6 +185,7 @@ const playerModel = shapeOf<PlayerModel>({
   plan: trainingPlan,
   arch: oneOf(ARCHS),
   algoLevel: num,
+  techs: optional(arrayOf(oneOf(TECH_IDS))),
   trainedDay: num,
   releasedDay: nullable(num),
   caps: record(DOMAINS, num),
@@ -406,6 +409,9 @@ function problemText(p: Problem): string {
     : `Сохранение повреждено или от другой версии игры: поле «${p.path}» имеет неверный вид`;
 }
 
+/** Технологии, добавленные после первой версии: в старых сохранениях очков по ним нет. */
+const LATER_TECHS: readonly TechId[] = ['context', 'distill', 'moe', 'codetrain', 'instruct', 'cot', 'quant', 'multimodal', 'synthetic'];
+
 /** Контекст и выручка моделей появились позже: старые сохранения получают 512 токенов, уровень 0 и выручку 0. */
 function migrateContext(data: Record<string, unknown>): void {
   const plan = (p: unknown) => {
@@ -414,7 +420,8 @@ function migrateContext(data: Record<string, unknown>): void {
   const research = data.research;
   if (isRec(research)) {
     if (research.contextLevel === undefined) research.contextLevel = 0;
-    if (isRec(research.points) && research.points.context === undefined) research.points.context = 0;
+    // Контекст и новые технологии появились позже: очков по ним в старом сохранении нет - 0.
+    if (isRec(research.points)) for (const id of LATER_TECHS) if (research.points[id] === undefined) research.points[id] = 0;
   }
   if (isRec(data.training)) plan(data.training.plan);
   if (Array.isArray(data.trainings)) for (const run of data.trainings) if (isRec(run)) plan(run.plan);

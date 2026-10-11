@@ -14,6 +14,9 @@ import {
   CAP_BASE_OFFSET,
   CHIN_K,
   CHIN_OPT_RATIO,
+  CODE_TRAIN_CAP,
+  COT_REASONING_CAP,
+  DISTILL_LIGHT_CAP,
   ELO_BASE,
   ELO_PER_CAP,
   ELO_RLHF_BASE,
@@ -29,6 +32,7 @@ import {
   FAIL_JUMP_RATIO,
   FAIL_ROLLBACK,
   FRONTIER_PARAMS_B,
+  INSTRUCT_ELO,
   MAX_BENCH_TARGETS,
   MAX_TOKENS_B,
   MAX_TRAININGS,
@@ -46,6 +50,7 @@ import {
   RLHF_LABELERS_BASE,
   RLHF_LABELERS_PER_B,
   RLHF_LANGUAGE_BONUS,
+  SYNTHETIC_TOKENS_MULT,
   TIER_PARAMS_RATIO,
   TIER_PRESET_RATIO,
   TIER_SUBS_PRICE,
@@ -61,7 +66,7 @@ import { chance, randRange } from './rng';
 import { endSentence } from './text';
 import { byYear, dateToDay, formatDate, lerpByDate, yearOf } from './time';
 import { DOMAINS, TIER_NAMES } from './types';
-import type { BenchmarkId, DomainId, GameState, PlayerModel, Result, Tier, TrainingPlan, TrainingRun } from './types';
+import type { BenchmarkId, DomainId, GameState, PlayerModel, Result, TechId, Tier, TrainingPlan, TrainingRun } from './types';
 
 export type Arch = 'lstm' | 'transformer';
 
@@ -129,6 +134,22 @@ function fmtParams(x: number): string {
   return String(r).replace('.', ',');
 }
 
+// ---------- Технологии, влияющие на модель ----------
+
+/** Технологии, чей эффект задаётся при старте обучения и остаётся с моделью (снимок TrainingRun.techs / PlayerModel.techs). */
+export const MODEL_TECHS: readonly TechId[] = ['distill', 'moe', 'codetrain', 'instruct', 'cot', 'multimodal'];
+
+/** Снимок для нового проекта: изученные технологии из MODEL_TECHS. */
+export function modelTechs(s: GameState): TechId[] {
+  return MODEL_TECHS.filter((t) => s.research.done.includes(t));
+}
+
+/** Наибольший объём данных в этом году, млрд токенов: MAX_TOKENS_B × SYNTHETIC_TOKENS_MULT после «Синтетических данных». */
+export function maxTokensB(s: GameState): number {
+  const base = byYear(MAX_TOKENS_B, yearOf(s.day));
+  return s.research.done.includes('synthetic') ? base * SYNTHETIC_TOKENS_MULT : base;
+}
+
 // ---------- Уровни моделей (design market-v2, раздел 3) ----------
 
 /** Передний край по параметрам на день, млрд (FRONTIER_PARAMS_B, интерполяция в логарифме). */
@@ -161,7 +182,7 @@ export function tierAvailable(day: number, tier: Tier): boolean {
 export function tierPreset(s: GameState, tier: Tier): { paramsB: number; tokensB: number } {
   const [lo, hi] = tierRange(s.day, tier);
   const paramsB = Math.min(hi, Math.max(lo, TIER_PRESET_RATIO[tier] * frontierParams(s.day)));
-  const maxTokens = byYear(MAX_TOKENS_B, yearOf(s.day));
+  const maxTokens = maxTokensB(s);
   const tokensB = Math.min(maxTokens, Math.max(TOKENS_B_MIN, CHIN_OPT_RATIO * paramsB));
   return { paramsB, tokensB };
 }
@@ -209,8 +230,26 @@ export function baseLevel(effective: number): number {
   return 10 * (Math.log10(effective) - CAP_BASE_OFFSET);
 }
 
-/** cap_d = base + 8·(3·m_d − 1) − 15·b − failPenalty; у языка ещё +2 при RLHF. */
-export function capsFromPlan(plan: TrainingPlan, algoLevel: number, arch: Arch, failPenalty = 0): Record<DomainId, number> {
+/** Прибавка к способности от технологий снимка: код, рассуждения, дистилляция лёгких моделей. */
+export function techCapBonus(plan: TrainingPlan, d: DomainId, techs: readonly TechId[]): number {
+  let bonus = 0;
+  if (d === 'code' && techs.includes('codetrain')) bonus += CODE_TRAIN_CAP;
+  if (d === 'reasoning' && techs.includes('cot')) bonus += COT_REASONING_CAP;
+  if (plan.tier === 'light' && techs.includes('distill')) bonus += DISTILL_LIGHT_CAP;
+  return bonus;
+}
+
+/**
+ * cap_d = base + 8·(3·m_d − 1) − 15·b − failPenalty; у языка ещё +2 при RLHF; плюс прибавки технологий снимка
+ * (techs: «Обучение на коде», «Цепочки рассуждений», «Дистилляция» у лёгких).
+ */
+export function capsFromPlan(
+  plan: TrainingPlan,
+  algoLevel: number,
+  arch: Arch,
+  failPenalty = 0,
+  techs: readonly TechId[] = [],
+): Record<DomainId, number> {
   const base = baseLevel(effectiveCompute(plan, algoLevel, arch));
   const caps = {} as Record<DomainId, number>;
   for (const d of DOMAINS) {
@@ -219,7 +258,8 @@ export function capsFromPlan(plan: TrainingPlan, algoLevel: number, arch: Arch, 
       MIX_K * (3 * plan.mix[d] - 1) -
       BENCH_DATA_PENALTY * plan.benchShare -
       failPenalty +
-      (d === 'language' && plan.rlhf ? RLHF_LANGUAGE_BONUS : 0);
+      (d === 'language' && plan.rlhf ? RLHF_LANGUAGE_BONUS : 0) +
+      techCapBonus(plan, d, techs);
   }
   return caps;
 }
@@ -234,11 +274,20 @@ export function overfitFromPlan(plan: TrainingPlan): Partial<Record<BenchmarkId,
   return out;
 }
 
-/** Elo = ELO_BASE + ELO_PER_CAP × capA + (rlhf ? ELO_RLHF_BASE + ELO_RLHF_PER_ALGO × algoLevel : 0). Подгонка не участвует. */
-export function arenaElo(caps: Record<DomainId, number>, rlhf: boolean, algoLevel: number): number {
+/**
+ * Elo = ELO_BASE + ELO_PER_CAP × capA + (rlhf ? ELO_RLHF_BASE + ELO_RLHF_PER_ALGO × algoLevel : 0)
+ * + INSTRUCT_ELO у моделей без RLHF, если в снимке есть «Дообучение на инструкциях» (RLHF его перекрывает).
+ * Подгонка не участвует.
+ */
+export function arenaElo(caps: Record<DomainId, number>, rlhf: boolean, algoLevel: number, techs: readonly TechId[] = []): number {
   let capA = 0;
   for (const d of DOMAINS) capA += ARENA_WEIGHTS[d] * caps[d];
-  return ELO_BASE + ELO_PER_CAP * capA + (rlhf ? ELO_RLHF_BASE + ELO_RLHF_PER_ALGO * algoLevel : 0);
+  return (
+    ELO_BASE +
+    ELO_PER_CAP * capA +
+    (rlhf ? ELO_RLHF_BASE + ELO_RLHF_PER_ALGO * algoLevel : 0) +
+    (!rlhf && techs.includes('instruct') ? INSTRUCT_ELO : 0)
+  );
 }
 
 /** Балл модели игрока: honest - без подгонки; иначе с подгонкой, если модель не разоблачена. */
@@ -278,7 +327,7 @@ export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
     return `Размер модели не соответствует уровню «${TIER_NAMES[plan.tier]}»: в этом году от ${fmtParams(lo)} до ${fmtParams(hi)} млрд параметров.`;
   }
   const year = yearOf(s.day);
-  const maxTokens = byYear(MAX_TOKENS_B, year);
+  const maxTokens = maxTokensB(s);
   if (!Number.isFinite(plan.tokensB) || plan.tokensB < TOKENS_B_MIN) {
     return `Объём данных - не меньше ${fmtNum(TOKENS_B_MIN)} млрд токенов.`;
   }
@@ -337,13 +386,14 @@ export function estimate(s: GameState, plan: TrainingPlan): TrainingEstimate {
   if (!sane || !s.research.done.includes('scaling')) return result;
 
   const algoLevel = s.research.algoLevel;
-  const caps = capsFromPlan(plan, algoLevel, arch, 0);
+  const techs = modelTechs(s);
+  const caps = capsFromPlan(plan, algoLevel, arch, 0, techs);
   const overfit = overfitFromPlan(plan);
   const scores: Partial<Record<BenchmarkId, number>> = {};
   for (const bid of introducedBenchmarks(s)) {
     scores[bid] = benchScore(bid, caps[benchDef(bid).domain], overfit[bid] ?? 0);
   }
-  result.forecast = { caps, scores, elo: arenaElo(caps, plan.rlhf, algoLevel) };
+  result.forecast = { caps, scores, elo: arenaElo(caps, plan.rlhf, algoLevel, techs) };
 
   // Для того же объёма вычислений: 6·N·D = 120·N² при D = 20·N (надбавка RLHF остаётся за рамками).
   const baseFlop = flop / ((plan.rlhf ? 1 + RLHF_FLOP_EXTRA : 1) * contextFlopMult(plan.context));
@@ -374,6 +424,7 @@ export function startTraining(s: GameState, plan: TrainingPlan): Result {
     plan: copy,
     arch: archFor(s),
     algoLevel: s.research.algoLevel,
+    techs: modelTechs(s),
     flopTotal: flop,
     flopDone: 0,
     startedDay: s.day,
@@ -410,19 +461,21 @@ function keyScores(s: GameState, model: PlayerModel): string {
 }
 
 function finishTraining(s: GameState, t: TrainingRun): void {
-  const caps = capsFromPlan(t.plan, t.algoLevel, t.arch, t.failPenalty);
+  const techs = t.techs ?? [];
+  const caps = capsFromPlan(t.plan, t.algoLevel, t.arch, t.failPenalty, techs);
   const model: PlayerModel = {
     id: `p${s.nextModelNum++}`,
     name: t.plan.name,
     plan: t.plan,
     arch: t.arch,
     algoLevel: t.algoLevel,
+    techs: [...techs],
     trainedDay: s.day,
     releasedDay: null,
     caps,
     overfit: overfitFromPlan(t.plan),
     rlhf: t.plan.rlhf,
-    arenaElo: arenaElo(caps, t.plan.rlhf, t.algoLevel),
+    arenaElo: arenaElo(caps, t.plan.rlhf, t.algoLevel, techs),
     price: 0,
     onApi: false,
     exposed: false,

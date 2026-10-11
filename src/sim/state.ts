@@ -3,14 +3,21 @@
 import { DEFAULT_ALLOC, HYPE_OWNERS, START_CASH, START_REPUTATION } from './constants';
 import { emptyRivalry } from './rivalry';
 import type { Difficulty } from './rivalry';
-import type { BenchmarkId, GameState, HypeOwner, MonthLedger, SegmentId, SegmentShares } from './types';
-import { BENCHMARK_IDS, SEGMENT_IDS } from './types';
+import type { BenchmarkId, GameState, HypeOwner, MonthLedger, SegmentId, SegmentShares, TechId } from './types';
+import { BENCHMARK_IDS, SEGMENT_IDS, TECH_IDS } from './types';
 
 export function emptyLedger(): MonthLedger {
   return {
     income: { api: 0, subs: 0, contracts: 0, investors: 0 },
     expense: { rent: 0, overhead: 0, labelers: 0, penalties: 0, review: 0 },
   };
+}
+
+/** Очки по всем технологиям, по нулям. */
+export function emptyTechPoints(): Record<TechId, number> {
+  const out = {} as Record<TechId, number>;
+  for (const t of TECH_IDS) out[t] = 0;
+  return out;
 }
 
 function emptyLabShares(): Record<HypeOwner | 'none', number> {
@@ -61,7 +68,7 @@ export function createInitialState(labName: string, seed: number, difficulty: Di
     monthsFirst: 0,
     hype,
     compute: { rented: { p100: 0, v100: 0, a100: 0, h100: 0, h200: 0 }, alloc: { ...DEFAULT_ALLOC } },
-    research: { current: null, points: { attention: 0, scaling: 0, rlhf: 0, algo: 0, context: 0 }, done: [], algoLevel: 0, contextLevel: 0 },
+    research: { current: null, points: emptyTechPoints(), done: [], algoLevel: 0, contextLevel: 0 },
     trainings: [],
     nextRunNum: 1,
     bestFlop: 0,

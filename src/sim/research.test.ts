@@ -11,6 +11,8 @@ import {
   RP_BASE,
   RP_K,
   TECH_COST,
+  TECH_HISTORY_DATE,
+  TECH_REQUIRES,
 } from './constants';
 import { addModifier, FOREVER } from './events';
 import {
@@ -59,8 +61,7 @@ function researchDay(s: GameState): void {
 const researchMail = (s: GameState) => s.mail.filter((m) => m.kind === 'research');
 
 describe('каталог технологий', () => {
-  it('пять технологий в порядке показа с русскими названиями', () => {
-    expect(TECHS.map((t) => t.id)).toEqual(['attention', 'scaling', 'rlhf', 'algo', 'context']);
+  it('тринадцать технологий в порядке показа с русскими названиями', () => {
     expect(TECHS.map((t) => t.id)).toEqual([...TECH_IDS]);
     expect(TECHS.map((t) => t.name)).toEqual([
       'Механизм внимания',
@@ -68,8 +69,75 @@ describe('каталог технологий', () => {
       'Обучение на отзывах людей (RLHF)',
       'Алгоритмические улучшения',
       'Длинный контекст',
+      'Дистилляция',
+      'Смесь экспертов',
+      'Обучение на коде',
+      'Дообучение на инструкциях',
+      'Цепочки рассуждений',
+      'Квантизация',
+      'Мультимодальность',
+      'Синтетические данные',
     ]);
-    for (const t of TECHS) expect(t.description.length).toBeGreaterThan(20);
+    for (const t of TECHS) {
+      expect(t.description.length).toBeGreaterThan(20);
+      // Без длинных и средних тире (правило текста).
+      expect(t.description).not.toMatch(/[–—]/);
+      expect(t.code.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('новые технологии: даты, цены, требования', () => {
+  const NEW: [TechId, string, number, TechId[]][] = [
+    ['distill', '2019-10-02', 8000, ['attention']],
+    ['moe', '2021-01-11', 20_000, ['scaling']],
+    ['codetrain', '2021-07-07', 12_000, ['attention']],
+    ['instruct', '2021-09-03', 14_000, ['attention']],
+    ['cot', '2022-01-28', 24_000, ['instruct']],
+    ['quant', '2022-08-15', 16_000, ['distill']],
+    ['multimodal', '2023-03-14', 40_000, ['instruct']],
+    ['synthetic', '2023-06-20', 45_000, ['codetrain']],
+  ];
+
+  it.each(NEW)('%s: дата %s, цена %i, требования %j', (id, date, cost, req) => {
+    const s = createInitialState('Тест', 1);
+    expect(techHistoryDay(s, id)).toBe(dateToDay(date));
+    expect(TECH_REQUIRES[id]).toEqual(req);
+    s.day = dateToDay(date);
+    expect(techCost(s, id)).toBe(cost);
+    // За год до даты - × (1 + 2,5).
+    s.day = dateToDay(date) - 365;
+    expect(earlyPenalty(s, id)).toBeCloseTo(3.5, 6);
+    expect(techCost(s, id)).toBeCloseTo(cost * 3.5, 6);
+  });
+
+  it.each(NEW)('%s: без требований нельзя, с требованиями можно, после изучения - в done', (id, date, cost, req) => {
+    const s = createInitialState('Тест', 1);
+    s.day = dateToDay(date);
+    expect(canResearch(s, id)).toBe(false);
+    expect(researchBlockReason(s, id)).toMatch(/^Требуется исследование: /);
+    s.research.done.push(...req);
+    expect(canResearch(s, id)).toBe(true);
+    expect(setResearch(s, id).ok).toBe(true);
+    s.research.points[id] = cost - 1;
+    s.compute.alloc.experiments = 0;
+    progressDay(s);
+    expect(s.research.done).toContain(id);
+    expect(s.research.current).toBeNull();
+    expect(researchMail(s).at(-1)?.title).toBe(`Исследование завершено: ${TECHS.find((t) => t.id === id)!.name}`);
+    expect(canResearch(s, id)).toBe(false);
+  });
+
+  it('у каждой технологии есть направление, требования ссылаются на существующие технологии без циклов', () => {
+    for (const id of TECH_IDS) {
+      for (const r of TECH_REQUIRES[id]) expect(TECH_IDS).toContain(r);
+      // Требование появилось в истории не позже самой технологии (кроме цепочек).
+      if (id === 'algo' || id === 'context') continue;
+      for (const r of TECH_REQUIRES[id]) {
+        if (r === 'algo' || r === 'context') continue;
+        expect(dateToDay(TECH_HISTORY_DATE[r])).toBeLessThanOrEqual(dateToDay(TECH_HISTORY_DATE[id]));
+      }
+    }
   });
 });
 
@@ -118,7 +186,7 @@ describe('techCost', () => {
   });
 
   it('раньше исторической даты дороже: × (1 + k × лет опережения), у RLHF k = 10, у остальных 2,5', () => {
-    expect(EARLY_PENALTY_PER_YEAR).toEqual({ attention: 2.5, scaling: 2.5, rlhf: 10, algo: 2.5, context: 2.5 });
+    for (const id of TECH_IDS) expect(EARLY_PENALTY_PER_YEAR[id]).toBe(id === 'rlhf' ? 10 : 2.5);
     const s = createInitialState('Тест', 1);
     s.day = dateToDay('2021-01-27'); // RLHF - за год до InstructGTP (27.01.2022)
     expect(earlyPenalty(s, 'rlhf')).toBeCloseTo(1 + 10 * (365 / 365), 6);

@@ -8,10 +8,17 @@ import {
   ALGO_MULT,
   CONTEXT_BASE_COST,
   CONTEXT_COST_GROWTH,
+  CODE_TRAIN_CAP,
   CONTEXT_LEVELS,
+  COT_REASONING_CAP,
+  DISTILL_LIGHT_CAP,
   EARLY_PENALTY_PER_YEAR,
+  INSTRUCT_ELO,
+  MOE_SERVING_MULT,
+  QUANT_SERVING_COST,
   RP_BASE,
   RP_K,
+  SYNTHETIC_TOKENS_MULT,
   TECH_COST,
   TECH_HISTORY_DATE,
   TECH_REQUIRES,
@@ -22,40 +29,130 @@ import { dateToDay } from './time';
 import type { ChainTech, GameState, Result, TechId } from './types';
 import { TECH_IDS } from './types';
 
+/** Направление исследований: цвет рамки узла на карте. */
+export type TechBranch = 'architecture' | 'scale' | 'alignment' | 'data' | 'efficiency' | 'product';
+
+export const BRANCH_NAMES: Record<TechBranch, string> = {
+  architecture: 'Архитектура',
+  scale: 'Масштаб',
+  alignment: 'Согласование',
+  data: 'Данные',
+  efficiency: 'Эффективность',
+  product: 'Продукт',
+};
+
 export interface TechInfo {
   id: TechId;
   name: string; // «Механизм внимания»
   description: string; // что даёт, одна-две фразы
+  branch: TechBranch;
+  code: string; // короткая метка на карте: «ATT»
 }
 
-/** Четыре технологии в порядке показа. */
+/** Все технологии в порядке показа. */
 export const TECHS: TechInfo[] = [
   {
     id: 'attention',
     name: 'Механизм внимания',
     description: 'Архитектура «Трансформер» вместо LSTM. Обучение эффективнее примерно в 7 раз.',
+    branch: 'architecture',
+    code: 'ATT',
   },
   {
     id: 'scaling',
     name: 'Законы масштабирования',
     description: 'Прогноз баллов модели до начала обучения и оптимальный размер модели.',
+    branch: 'scale',
+    code: 'SCL',
   },
   {
     id: 'rlhf',
     name: 'Обучение на отзывах людей (RLHF)',
     description: 'Модели с RLHF получают более высокое Эло на «Арене». Открываются RLHF-тендеры.',
+    branch: 'alignment',
+    code: 'RLHF',
   },
   {
     id: 'algo',
     name: 'Алгоритмические улучшения',
     description: 'Каждый уровень повышает эффективность обучения в 1,25 раза. У моделей с RLHF растёт и Эло.',
+    branch: 'efficiency',
+    code: 'ALG',
   },
   {
     id: 'context',
     name: 'Длинный контекст',
     description: 'Каждый уровень увеличивает контекст новых моделей. Модели с длинным контекстом покупают охотнее.',
+    branch: 'product',
+    code: 'CTX',
+  },
+  {
+    id: 'distill',
+    name: 'Дистилляция',
+    description: `Лёгкие модели учатся у больших: у новых лёгких моделей способности выше на ${DISTILL_LIGHT_CAP} по всем областям.`,
+    branch: 'efficiency',
+    code: 'DST',
+  },
+  {
+    id: 'moe',
+    name: 'Смесь экспертов',
+    description: `Новые модели обслуживают в ${fmtFactor(MOE_SERVING_MULT)} раза больше токенов на ту же мощность.`,
+    branch: 'architecture',
+    code: 'MoE',
+  },
+  {
+    id: 'codetrain',
+    name: 'Обучение на коде',
+    description: `У новых моделей способность «Код» выше на ${CODE_TRAIN_CAP}. Разработчики ценят баллы по коду.`,
+    branch: 'data',
+    code: 'CODE',
+  },
+  {
+    id: 'instruct',
+    name: 'Дообучение на инструкциях',
+    description: `Новые модели лучше выполняют просьбы: +${INSTRUCT_ELO} Эло на «Арене» у моделей без RLHF.`,
+    branch: 'alignment',
+    code: 'INS',
+  },
+  {
+    id: 'cot',
+    name: 'Цепочки рассуждений',
+    description: `Модель решает задачи по шагам: у новых моделей способность «Математика и наука» выше на ${COT_REASONING_CAP}.`,
+    branch: 'alignment',
+    code: 'CoT',
+  },
+  {
+    id: 'quant',
+    name: 'Квантизация',
+    description: `Веса в 8 битах: мощность на обслуживание всех моделей ×${fmtFactor(QUANT_SERVING_COST)} сразу после исследования.`,
+    branch: 'efficiency',
+    code: 'INT8',
+  },
+  {
+    id: 'multimodal',
+    name: 'Мультимодальность',
+    description: 'Новые модели понимают изображения. Обычные пользователи выбирают их охотнее.',
+    branch: 'product',
+    code: 'IMG',
+  },
+  {
+    id: 'synthetic',
+    name: 'Синтетические данные',
+    description: `Данные, созданные моделями: наибольший объём данных года ×${fmtFactor(SYNTHETIC_TOKENS_MULT)}.`,
+    branch: 'data',
+    code: 'SYN',
   },
 ];
+
+/** Технологии, которые нужны для исследования (из TECH_REQUIRES). */
+export function techRequires(tech: TechId): TechId[] {
+  return TECH_REQUIRES[tech] ?? [];
+}
+
+/** Требования, которые ещё не изучены. */
+export function missingRequirements(s: GameState, tech: TechId): TechId[] {
+  return techRequires(tech).filter((t) => !s.research.done.includes(t));
+}
 
 /** Наибольший контекст, доступный для обучения сейчас. */
 export function maxContext(s: GameState): number {
@@ -82,10 +179,23 @@ const EFFECT_LINE: Record<Exclude<TechId, ChainTech>, string> = {
   attention: 'Доступна архитектура «Трансформер». Обучение эффективнее, чем на LSTM, примерно в 7 раз.',
   scaling: 'В окне «Новая модель» отображаются прогноз баллов до запуска и оптимальный размер модели.',
   rlhf: 'Доступно обучение с RLHF: Эло на «Арене» выше, открыты RLHF-тендеры.',
+  distill: `Новые лёгкие модели получат +${DISTILL_LIGHT_CAP} к способностям по всем областям.`,
+  moe: `Новые модели обслуживают в ${fmtFactor(MOE_SERVING_MULT)} раза больше токенов на ту же мощность.`,
+  codetrain: `Новые модели получат +${CODE_TRAIN_CAP} к способности «Код».`,
+  instruct: `Новые модели без RLHF получат +${INSTRUCT_ELO} Эло на «Арене».`,
+  cot: `Новые модели получат +${COT_REASONING_CAP} к способности «Математика и наука».`,
+  quant: `Мощность на обслуживание всех моделей уменьшилась: ×${fmtFactor(QUANT_SERVING_COST)}.`,
+  multimodal: 'Новые модели понимают изображения: обычные пользователи выбирают их охотнее.',
+  synthetic: `Наибольший объём данных для обучения вырос в ${fmtFactor(SYNTHETIC_TOKENS_MULT)} раза.`,
 };
 
 function techName(tech: TechId): string {
   return TECHS.find((t) => t.id === tech)?.name ?? tech;
+}
+
+/** 1.5 → «1,5»: множитель без лишних нулей. */
+function fmtFactor(x: number): string {
+  return String(x).replace('.', ',');
 }
 
 /** 1,25 → «1,25» (запятая, как принято в тексте игры). */
@@ -130,7 +240,7 @@ export function researchBlockReason(s: GameState, tech: TechId): string | null {
   if (!TECH_IDS.includes(tech)) return 'Нет такого исследования';
   if (tech === 'context' && s.research.contextLevel >= CONTEXT_MAX_LEVEL) return 'Достигнут наибольший контекст';
   if (tech !== 'algo' && s.research.done.includes(tech)) return 'Это исследование уже завершено';
-  const missing = TECH_REQUIRES[tech].filter((t) => !s.research.done.includes(t));
+  const missing = missingRequirements(s, tech);
   if (missing.length > 0) return `Требуется исследование: ${missing.map(techName).join(', ')}`;
   return null;
 }

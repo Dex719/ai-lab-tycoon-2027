@@ -8,6 +8,9 @@ import {
   HYPE_K_AFTER_ARENA,
   HYPE_K_BEFORE_ARENA,
   HYPE_OWNERS,
+  MOE_SERVING_MULT,
+  MULTIMODAL_CONSUMER_UTILITY,
+  QUANT_SERVING_COST,
   SEGMENT_DEF,
   SUBS_REF_PRICE,
   TOKENS_PER_USER_DAY,
@@ -33,6 +36,7 @@ import {
   segBrand,
   segmentDemand,
   servedShares,
+  servingMult,
   servingTokensPerH100eDay,
   subsOpen,
   subsUsers,
@@ -1418,5 +1422,39 @@ describe('поправки ходов соперников в снимке', () 
     const [e] = marketSnapshot(s).segments.developers.entries;
     expect(e.price).toBeCloseTo(refPrice(s.day) / refPrice(s.day - 100), 9);
     expect(e.price).toBeLessThan(1);
+  });
+});
+
+describe('технологии на рынке', () => {
+  it('«Смесь экспертов» (снимок модели) и «Квантизация» (сразу) уменьшают мощность на обслуживание', () => {
+    const s = makeState();
+    rivalState.list = [rival()];
+    s.models.push(player({ onSubs: true }));
+    const base = inferenceNeed(s, marketSnapshot(s));
+    expect(servingMult(s, s.models[0])).toBe(1);
+    s.models[0].techs = ['moe'];
+    const moe = inferenceNeed(s, marketSnapshot(s));
+    expect(moe.api).toBeCloseTo(base.api / MOE_SERVING_MULT, 6);
+    expect(moe.subs).toBeCloseTo(base.subs / MOE_SERVING_MULT, 6);
+    s.models[0].techs = [];
+    s.research.done.push('quant');
+    const quant = inferenceNeed(s, marketSnapshot(s));
+    expect(quant.api).toBeCloseTo(base.api * QUANT_SERVING_COST, 6);
+    s.models[0].techs = ['moe'];
+    expect(servingMult(s, s.models[0])).toBeCloseTo(MOE_SERVING_MULT / QUANT_SERVING_COST, 9);
+  });
+
+  it('«Мультимодальность» поднимает полезность модели только у обычных пользователей', () => {
+    const s = makeState();
+    rivalState.list = [rival()];
+    s.models.push(player({ onSubs: true }));
+    const before = marketSnapshot(s);
+    s.models[0].techs = ['multimodal'];
+    const after = marketSnapshot(s);
+    const u = (snap: MarketSnapshot, seg: SegmentId) => entryOf(snap, seg, 'player:p1')!.utility;
+    expect(u(after, 'consumers') - u(before, 'consumers')).toBeCloseTo(MULTIMODAL_CONSUMER_UTILITY, 9);
+    expect(u(after, 'enterprise')).toBe(u(before, 'enterprise'));
+    expect(u(after, 'developers')).toBe(u(before, 'developers'));
+    expect(entryOf(after, 'consumers', 'player:p1')!.share).toBeGreaterThan(entryOf(before, 'consumers', 'player:p1')!.share);
   });
 });

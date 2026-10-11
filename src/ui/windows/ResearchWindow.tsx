@@ -1,49 +1,103 @@
-// Окно «Исследования»: дерево технологий на сером холсте (образец - «Исследования» в Processor Tycoon).
+// Окно «Исследования»: карта всех технологий на сером холсте (образец - «Исследования» в Processor Tycoon).
+// Столбцы - годы появления в истории, линии - требования. Карту можно двигать мышью или пальцем и масштабировать.
 
-import { useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
 import { GPUS } from '../../data/gpus';
 import { pool, rentPerDay, totalH100e } from '../../sim/compute';
 import { ALGO_MULT, CONTEXT_LEVELS, RP_BASE, RP_K } from '../../sim/constants';
 import {
+  BRANCH_NAMES,
   CONTEXT_MAX_LEVEL,
   contextLabel,
   earlyPenalty,
   maxContext,
+  missingRequirements,
   researchBlockReason,
   rpPerDay,
   TECHS,
   techCost,
   techHistoryDay,
+  techRequires,
 } from '../../sim/research';
-import { dayToDate, formatDateShort } from '../../sim/time';
+import type { TechBranch } from '../../sim/research';
+import { formatDateShort } from '../../sim/time';
 import type { GameState, TechId } from '../../sim/types';
 import { percentsOf, toAllocation, withPercent } from '../alloc';
 import { Alert, Dialog, ErrorText, Range } from '../components/common';
 import { fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
 import { IconCheck, IconLock } from '../icons';
 import { actions, store } from '../store';
+import {
+  BRANCH_COLOR,
+  clampZoom,
+  GRAPH_ROW,
+  GRAPH_ROWS,
+  GRAPH_TECHS,
+  graphCol,
+  graphEdges,
+  graphYears,
+  ZOOM_MAX,
+  ZOOM_MIN,
+  ZOOM_STEP,
+} from './researchMap';
+import type { GraphTech } from './researchMap';
 import './ResearchWindow.css';
 
 type Status = 'done' | 'current' | 'available' | 'blocked';
 
-// Размеры холста, px.
-const NW = 264; // ширина узла
-const NH = 110; // высота узла
-const PAD = 40; // поля слева и справа
-const TOP = 12; // верх первой строки
-const COL_GAP = 100; // между столбцами дерева
-const BRANCH_GAP = 34; // между двумя ветками
-const ROW_GAP = 40; // между строками
-const CAPTION_H = 18; // строка «Раньше истории» под узлом
+// Размеры холста при масштабе 1, px.
+const NW = 240; // ширина узла
+const NH = 100; // высота узла
+const PAD = 32; // поля
+const YEAR_H = 30; // строка годов над картой
+const COL_GAP = 64; // между столбцами
+const ROW_GAP = 30; // между строками (в нём подпись «Раньше истории»)
+const CHAIN_GAP = 56; // от карты до цепочек
 const CHIP_W = 60;
 const CHIP_H = 36;
 const CHIP_GAP = 8;
 const CHIP_LINK = 28; // от последнего значка до узла
 const MAX_CHIPS = 8;
 
-const CODES: Record<Exclude<TechId, 'algo'>, string> = { attention: 'ATT', scaling: 'SCL', rlhf: 'RLHF', context: 'CTX' };
+const COL_W = NW + COL_GAP;
+const ROW_H = NH + ROW_GAP;
+
+// Сохранённый вид карты: масштаб и прокрутка.
+const VIEW_KEY = 'ai-lab-tycoon:research-view';
+const DRAG_THRESHOLD = 4; // px: меньше - это щелчок, а не перетаскивание
+
+interface SavedView {
+  zoom: number;
+  left: number;
+  top: number;
+}
+
+function loadView(): SavedView | null {
+  try {
+    const raw = localStorage.getItem(VIEW_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as Partial<SavedView>;
+    if (typeof v.zoom !== 'number' || typeof v.left !== 'number' || typeof v.top !== 'number') return null;
+    return { zoom: clampZoom(v.zoom), left: Math.max(0, v.left), top: Math.max(0, v.top) };
+  } catch {
+    return null;
+  }
+}
+
+function saveView(v: SavedView): void {
+  try {
+    localStorage.setItem(VIEW_KEY, JSON.stringify(v));
+  } catch {
+    // Хранилище недоступно: вид просто не запомнится.
+  }
+}
+
+function techInfo(id: TechId) {
+  return TECHS.find((t) => t.id === id)!;
+}
 
 function techName(id: TechId): string {
   return TECHS.find((t) => t.id === id)?.name ?? id;
@@ -53,6 +107,13 @@ function statusOf(s: GameState, id: TechId, reason: string | null): Status {
   if (id !== 'algo' && s.research.done.includes(id)) return 'done';
   if (s.research.current === id) return 'current';
   return reason ? 'blocked' : 'available';
+}
+
+/** Подсказка к закрытому узлу: «Нужно: «A», «B»» или причина из sim. */
+function lockText(s: GameState, id: TechId, reason: string | null): string {
+  const missing = missingRequirements(s, id);
+  if (missing.length > 0) return `Нужно: ${missing.map((t) => `«${techName(t)}»`).join(', ')}`;
+  return reason ?? 'Исследование недоступно';
 }
 
 /** Дней до конца технологии при текущей скорости очков; null, если очки не копятся. */
@@ -83,38 +144,46 @@ function contextChips(level: number): Chip[] {
   });
 }
 
+function chipsWidth(n: number): number {
+  return n > 0 ? n * CHIP_W + (n - 1) * CHIP_GAP : 0;
+}
+
 interface NodeProps {
   s: GameState;
   id: TechId;
   label?: string;
+  code?: string;
   rp: number;
   x: number;
   y: number;
-  code: string;
   onPick: (id: TechId, status: Status, reason: string | null) => void;
 }
 
-function TechNode({ s, id, label, rp, x, y, code, onPick }: NodeProps) {
-  const info = TECHS.find((t) => t.id === id);
-  if (!info) return null;
-
+function TechNode({ s, id, label, code, rp, x, y, onPick }: NodeProps) {
+  const info = techInfo(id);
   const reason = researchBlockReason(s, id);
   const status = statusOf(s, id, reason);
   const points = s.research.points[id] ?? 0;
   const cost = techCost(s, id);
   const days = daysLeft(s, id, rp);
   const penalty = earlyPenalty(s, id);
-  const year = dayToDate(techHistoryDay(s, id)).year;
   const share = status === 'done' ? 1 : cost > 0 ? Math.min(1, points / cost) : 0;
+  const color = BRANCH_COLOR[info.branch];
+  const branch = BRANCH_NAMES[info.branch];
 
-  const title = status === 'blocked' ? (reason ?? info.name) : info.description;
+  const title =
+    status === 'blocked'
+      ? `${info.name}. ${lockText(s, id, reason)}`
+      : `${info.name}. ${info.description} Направление: ${branch}.`;
 
   return (
     <div className="rs-slot" style={{ left: x, top: y, width: NW, height: NH }}>
       <button
         type="button"
         className={`rs-node ${status}`}
+        style={{ '--br': color.line, '--br-fill': color.fill } as CSSProperties}
         data-tutorial={id === 'attention' ? 'tech-attention' : undefined}
+        data-tech={id}
         title={title}
         aria-disabled={status === 'blocked' || status === 'done'}
         onClick={() => onPick(id, status, reason)}
@@ -123,11 +192,11 @@ function TechNode({ s, id, label, rp, x, y, code, onPick }: NodeProps) {
         <span className="rs-main">
           <span className="rs-thumb">
             {status === 'blocked' && <IconLock size={16} />}
-            <span>{code}</span>
+            <span>{code ?? info.code}</span>
           </span>
           <span className="rs-kv">
-            <span>Год</span>
-            <span>{year}</span>
+            <span>Дата</span>
+            <span>{formatDateShort(techHistoryDay(s, id))}</span>
             {status === 'done' ? (
               <span className="rs-done">
                 <IconCheck size={14} />
@@ -135,7 +204,7 @@ function TechNode({ s, id, label, rp, x, y, code, onPick }: NodeProps) {
               </span>
             ) : (
               <>
-                <span>Стоимость</span>
+                <span>Цена</span>
                 <span>{fmtNum(cost)} очков</span>
                 <span>Срок</span>
                 <span>{days === null ? '-' : `${fmtNum(days)} дн.`}</span>
@@ -150,13 +219,21 @@ function TechNode({ s, id, label, rp, x, y, code, onPick }: NodeProps) {
         )}
       </button>
       {status !== 'done' && penalty > 1 && (
-        <span className="rs-caption" title="Цена снижается по мере приближения к году выхода">
+        <span className="rs-caption" title="Цена снижается по мере приближения к дате появления в истории">
           Раньше истории: цена ×{fmtMult(penalty)}
         </span>
       )}
     </div>
   );
 }
+
+/** Ломаная от требования к технологии: вправо от источника, вертикаль в промежутке перед столбцом цели, вправо к цели. */
+function edgePath(x1: number, y1: number, x2: number, y2: number): string {
+  const mid = x2 - COL_GAP / 2;
+  return y1 === y2 ? `M${x1} ${y1} H${x2}` : `M${x1} ${y1} H${mid} V${y2} H${x2}`;
+}
+
+const BRANCH_ORDER: TechBranch[] = ['architecture', 'scale', 'alignment', 'data', 'efficiency', 'product'];
 
 export default function ResearchWindow({ s, open }: WindowProps) {
   // Сообщение об отказе висит до следующего действия (выбор узла или остановка).
@@ -170,7 +247,7 @@ export default function ResearchWindow({ s, open }: WindowProps) {
   const pick = (id: TechId, status: Status, reason: string | null) => {
     if (status === 'done') return;
     if (status === 'blocked') {
-      setNote(reason ?? 'Исследование недоступно');
+      setNote(lockText(s, id, reason));
       return;
     }
     setNote(null);
@@ -182,38 +259,207 @@ export default function ResearchWindow({ s, open }: WindowProps) {
     setNote(r.ok ? null : r.error);
   };
 
-  // Раскладка холста.
-  const colX = PAD + NW + COL_GAP;
-  const scalingY = TOP;
-  const rlhfY = TOP + NH + BRANCH_GAP;
-  const attentionY = (scalingY + rlhfY) / 2;
-  const algoY = rlhfY + NH + ROW_GAP;
+  // ---------- Раскладка ----------
+  const years = graphYears();
+  const graphTop = PAD + YEAR_H;
+  const posOf = (t: GraphTech) => ({ x: PAD + graphCol(t, years) * COL_W, y: graphTop + GRAPH_ROW[t] * ROW_H });
+  const graphW = years.length * COL_W - COL_GAP;
+  const graphBottom = graphTop + GRAPH_ROWS * ROW_H - ROW_GAP;
+
   const chips = algoChips(level);
-  const chipsW = chips.length > 0 ? chips.length * CHIP_W + (chips.length - 1) * CHIP_GAP : 0;
-  const algoX = PAD + (chips.length > 0 ? chipsW + CHIP_LINK : 0);
+  const algoY = graphBottom + CHAIN_GAP;
+  const algoX = PAD + (chips.length > 0 ? chipsWidth(chips.length) + CHIP_LINK : 0);
+  const algoCy = algoY + NH / 2;
+
   const ctxLevel = s.research.contextLevel;
-  const ctxY = algoY + NH + ROW_GAP + CAPTION_H;
   const ctxChips = contextChips(ctxLevel);
-  const ctxChipsW = ctxChips.length > 0 ? ctxChips.length * CHIP_W + (ctxChips.length - 1) * CHIP_GAP : 0;
-  const ctxX = PAD + (ctxChips.length > 0 ? ctxChipsW + CHIP_LINK : 0);
+  const ctxY = algoY + NH + CHAIN_GAP;
+  const ctxX = PAD + (ctxChips.length > 0 ? chipsWidth(ctxChips.length) + CHIP_LINK : 0);
   const ctxCy = ctxY + NH / 2;
   const ctxDone = ctxLevel >= CONTEXT_MAX_LEVEL;
   const ctxNext = CONTEXT_LEVELS[Math.min(ctxLevel + 1, CONTEXT_MAX_LEVEL)][0];
-  const width = Math.max(colX + NW + PAD, algoX + NW + PAD, ctxX + NW + PAD);
-  const height = ctxY + NH + CAPTION_H + 12;
 
-  const midX = PAD + NW + COL_GAP / 2;
-  const attentionCy = attentionY + NH / 2;
-  const algoCy = algoY + NH / 2;
-  const attentionDone = s.research.done.includes('attention');
-  const branch = (toY: number) => `M${PAD + NW} ${attentionCy} H${midX} V${toY + NH / 2} H${colX}`;
+  const width = Math.max(PAD + graphW + PAD, algoX + NW + PAD, ctxX + NW + PAD);
+  const height = ctxY + NH + ROW_GAP + PAD / 2;
 
   const currentDays = current ? daysLeft(s, current, rp) : null;
+
+  // ---------- Масштаб и перемещение ----------
+  const viewRef = useRef<HTMLDivElement>(null);
+  const [saved] = useState(loadView);
+  const [zoom, setZoom] = useState<number>(saved?.zoom ?? 1);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  // Точка, которая должна остаться на месте после смены масштаба (координаты в окне карты).
+  const anchor = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
+  const restored = useRef(false);
+  const fitOnFirst = useRef(saved === null);
+  const drag = useRef<{ id: number; x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
+  const suppressClick = useRef(false);
+  const [dragging, setDragging] = useState(false);
+  const saveTimer = useRef<number | null>(null);
+
+  const offX = Math.max(0, (size.w - width * zoom) / 2);
+  const offY = Math.max(0, (size.h - height * zoom) / 2);
+
+  useLayoutEffect(() => {
+    const el = viewRef.current;
+    if (!el) return;
+    const measure = () => setSize({ w: el.clientWidth, h: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const fitZoom = useCallback(
+    () => (size.w > 0 && size.h > 0 ? clampZoom(Math.min(size.w / width, size.h / height)) : 1),
+    [size.w, size.h, width, height],
+  );
+
+  // Первое открытие без сохранённого вида - вся карта по размеру окна; иначе - сохранённая прокрутка.
+  useLayoutEffect(() => {
+    const el = viewRef.current;
+    if (!el || restored.current || size.w === 0) return;
+    restored.current = true;
+    if (fitOnFirst.current) {
+      setZoom(fitZoom());
+      return;
+    }
+    if (saved) {
+      el.scrollLeft = saved.left;
+      el.scrollTop = saved.top;
+    }
+  }, [size.w, fitZoom, saved]);
+
+  // После смены масштаба точка под курсором (или центр окна) остаётся на месте.
+  useLayoutEffect(() => {
+    const el = viewRef.current;
+    const a = anchor.current;
+    if (!el || !a) return;
+    anchor.current = null;
+    el.scrollLeft = a.x * zoom + offX - a.cx;
+    el.scrollTop = a.y * zoom + offY - a.cy;
+  }, [zoom, offX, offY]);
+
+  const remember = useCallback(() => {
+    if (saveTimer.current !== null) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      const el = viewRef.current;
+      if (el) saveView({ zoom, left: el.scrollLeft, top: el.scrollTop });
+    }, 150);
+  }, [zoom]);
+
+  useEffect(() => {
+    remember();
+  }, [zoom, remember]);
+
+  useEffect(
+    () => () => {
+      if (saveTimer.current !== null) window.clearTimeout(saveTimer.current);
+    },
+    [],
+  );
+
+  const zoomTo = useCallback(
+    (next: number, cx?: number, cy?: number) => {
+      const el = viewRef.current;
+      const z = clampZoom(next);
+      if (!el || z === zoom) return;
+      const px = cx ?? el.clientWidth / 2;
+      const py = cy ?? el.clientHeight / 2;
+      anchor.current = {
+        x: (el.scrollLeft + px - offX) / zoom,
+        y: (el.scrollTop + py - offY) / zoom,
+        cx: px,
+        cy: py,
+      };
+      setZoom(z);
+    },
+    [zoom, offX, offY],
+  );
+
+  const fit = () => {
+    anchor.current = null;
+    setZoom(fitZoom());
+    const el = viewRef.current;
+    if (el) {
+      el.scrollLeft = 0;
+      el.scrollTop = 0;
+    }
+  };
+
+  // Ctrl + колесо - масштаб вокруг курсора. Слушатель не пассивный: иначе браузер масштабирует всю страницу.
+  useEffect(() => {
+    const el = viewRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      zoomTo(zoom * (e.deltaY < 0 ? 1 + ZOOM_STEP : 1 / (1 + ZOOM_STEP)), e.clientX - r.left, e.clientY - r.top);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [zoom, zoomTo]);
+
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const el = viewRef.current;
+    if (!el) return;
+    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop, moved: false };
+  };
+
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    const el = viewRef.current;
+    if (!d || !el || d.id !== e.pointerId) return;
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    if (!d.moved) {
+      if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+      d.moved = true;
+      setDragging(true);
+      // Захват - только когда началось перетаскивание: иначе щелчок по узлу ушёл бы холсту.
+      el.setPointerCapture(e.pointerId);
+    }
+    el.scrollLeft = d.left - dx;
+    el.scrollTop = d.top - dy;
+  };
+
+  const endDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    drag.current = null;
+    if (d.moved) {
+      suppressClick.current = true;
+      setDragging(false);
+      window.setTimeout(() => {
+        suppressClick.current = false;
+      }, 0);
+    }
+  };
+
+  const pct = Math.round(zoom * 100);
+  const edges = graphEdges();
 
   return (
     <div className="rs">
       <div className="rs-head">
         <h2 className="rs-title">Технологии</h2>
+        <div className="rs-zoom" role="group" aria-label="Масштаб карты">
+          <button type="button" className="btn small" title="Уменьшить" aria-label="Уменьшить" disabled={zoom <= ZOOM_MIN} onClick={() => zoomTo(zoom - ZOOM_STEP)}>
+            −
+          </button>
+          <span className="rs-zoom-val num" title="Масштаб. Ctrl + колесо мыши - изменить">
+            {pct} %
+          </span>
+          <button type="button" className="btn small" title="Увеличить" aria-label="Увеличить" disabled={zoom >= ZOOM_MAX} onClick={() => zoomTo(zoom + ZOOM_STEP)}>
+            +
+          </button>
+          <button type="button" className="btn small" title="Показать всю карту" onClick={fit}>
+            По размеру
+          </button>
+        </div>
         <div className="rs-state">
           {current ? (
             <>
@@ -231,61 +477,103 @@ export default function ResearchWindow({ s, open }: WindowProps) {
         </div>
       </div>
 
-      <div className="rs-canvas">
-        <div className="rs-stage" style={{ width, height }}>
-          <svg className="rs-lines" width={width} height={height} aria-hidden="true">
-            <path className={attentionDone ? 'on' : undefined} d={branch(scalingY)} />
-            <path className={attentionDone ? 'on' : undefined} d={branch(rlhfY)} />
-            {chips.length > 0 && <path className="on" d={`M${PAD + CHIP_W / 2} ${algoCy} H${algoX}`} />}
-            {ctxChips.length > 0 && <path className="on" d={`M${PAD + CHIP_W / 2} ${ctxCy} H${ctxX}`} />}
-          </svg>
+      <div className="rs-legend">
+        {BRANCH_ORDER.map((b) => (
+          <span key={b} className="rs-legend-item">
+            <i style={{ background: BRANCH_COLOR[b].line }} />
+            {BRANCH_NAMES[b]}
+          </span>
+        ))}
+        <span className="rs-legend-hint">Перетащите карту мышью, Ctrl + колесо - масштаб</span>
+      </div>
 
-          <TechNode s={s} id="attention" rp={rp} x={PAD} y={attentionY} code={CODES.attention} onPick={pick} />
-          <TechNode s={s} id="scaling" rp={rp} x={colX} y={scalingY} code={CODES.scaling} onPick={pick} />
-          <TechNode s={s} id="rlhf" rp={rp} x={colX} y={rlhfY} code={CODES.rlhf} onPick={pick} />
+      <div
+        ref={viewRef}
+        className={`rs-canvas${dragging ? ' dragging' : ''}`}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onScroll={remember}
+        onClickCapture={(e) => {
+          if (suppressClick.current) {
+            e.stopPropagation();
+            e.preventDefault();
+          }
+        }}
+      >
+        <div className="rs-space" style={{ width: width * zoom + 2 * offX, height: height * zoom + 2 * offY }}>
+          <div className="rs-stage" style={{ width, height, left: offX, top: offY, transform: `scale(${zoom})` }}>
+            {years.map((y, i) => (
+              <div
+                key={y}
+                className={`rs-col${i % 2 === 1 ? ' alt' : ''}`}
+                style={{ left: PAD + i * COL_W - COL_GAP / 2, top: PAD, width: COL_W, height: graphBottom - PAD + ROW_GAP / 2 }}
+              >
+                <span className="rs-year">{y}</span>
+              </div>
+            ))}
 
-          {chips.length > 0 && (
+            <svg className="rs-lines" width={width} height={height} aria-hidden="true">
+              {edges.map(([from, to]) => {
+                const a = posOf(from);
+                const b = posOf(to);
+                const on = s.research.done.includes(from);
+                return (
+                  <path
+                    key={`${from}-${to}`}
+                    className={on ? 'on' : undefined}
+                    d={edgePath(a.x + NW, a.y + NH / 2, b.x, b.y + NH / 2)}
+                  />
+                );
+              })}
+              {chips.length > 0 && <path className="on" d={`M${PAD + CHIP_W / 2} ${algoCy} H${algoX}`} />}
+              {ctxChips.length > 0 && <path className="on" d={`M${PAD + CHIP_W / 2} ${ctxCy} H${ctxX}`} />}
+            </svg>
+
+            {GRAPH_TECHS.map((t) => {
+              const p = posOf(t);
+              return <TechNode key={t} s={s} id={t} rp={rp} x={p.x} y={p.y} onPick={pick} />;
+            })}
+
             <span className="rs-caption free" style={{ left: PAD, top: algoCy - CHIP_H / 2 - 22 }}>
-              Эффективность обучения ×{fmtMult(ALGO_MULT ** level)}
+              {chips.length > 0 ? `Эффективность обучения ×${fmtMult(ALGO_MULT ** level)}` : 'Цепочка: алгоритмические улучшения'}
             </span>
-          )}
-          {chips.map((c, i) => (
-            <span
-              key={c.label}
-              className="rs-chip"
-              title={c.title}
-              style={{ left: PAD + i * (CHIP_W + CHIP_GAP), top: algoCy - CHIP_H / 2, width: CHIP_W, height: CHIP_H }}
-            >
-              {c.label}
-            </span>
-          ))}
-          <TechNode s={s} id="algo" rp={rp} x={algoX} y={algoY} code={`ALG ${level + 1}`} onPick={pick} />
+            {chips.map((c, i) => (
+              <span
+                key={c.label}
+                className="rs-chip"
+                title={c.title}
+                style={{ left: PAD + i * (CHIP_W + CHIP_GAP), top: algoCy - CHIP_H / 2, width: CHIP_W, height: CHIP_H }}
+              >
+                {c.label}
+              </span>
+            ))}
+            <TechNode s={s} id="algo" code={`ALG ${level + 1}`} rp={rp} x={algoX} y={algoY} onPick={pick} />
 
-          {ctxChips.length > 0 && (
             <span className="rs-caption free" style={{ left: PAD, top: ctxCy - CHIP_H / 2 - 22 }}>
-              Наибольший контекст: {contextLabel(CONTEXT_LEVELS[ctxLevel][0])} токенов
+              {`Наибольший контекст: ${contextLabel(CONTEXT_LEVELS[ctxLevel][0])} токенов`}
             </span>
-          )}
-          {ctxChips.map((c, i) => (
-            <span
-              key={c.label}
-              className="rs-chip"
-              title={c.title}
-              style={{ left: PAD + i * (CHIP_W + CHIP_GAP), top: ctxCy - CHIP_H / 2, width: CHIP_W, height: CHIP_H }}
-            >
-              {c.label}
-            </span>
-          ))}
-          <TechNode
-            s={s}
-            id="context"
-            label={ctxDone ? 'Длинный контекст' : `Длинный контекст: ${contextLabel(ctxNext)}`}
-            rp={rp}
-            x={ctxX}
-            y={ctxY}
-            code={CODES.context}
-            onPick={pick}
-          />
+            {ctxChips.map((c, i) => (
+              <span
+                key={c.label}
+                className="rs-chip"
+                title={c.title}
+                style={{ left: PAD + i * (CHIP_W + CHIP_GAP), top: ctxCy - CHIP_H / 2, width: CHIP_W, height: CHIP_H }}
+              >
+                {c.label}
+              </span>
+            ))}
+            <TechNode
+              s={s}
+              id="context"
+              label={ctxDone ? 'Длинный контекст' : `Длинный контекст: ${contextLabel(ctxNext)}`}
+              rp={rp}
+              x={ctxX}
+              y={ctxY}
+              onPick={pick}
+            />
+          </div>
         </div>
       </div>
 
@@ -410,6 +698,16 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
         </div>
 
         <dl className="rs-d-kv">
+          <dt>Направление</dt>
+          <dd>{BRANCH_NAMES[info.branch]}</dd>
+          <dt>Дата в истории</dt>
+          <dd>{formatDateShort(techHistoryDay(s, id))}</dd>
+          {techRequires(id).length > 0 && (
+            <>
+              <dt>Требуется</dt>
+              <dd>{techRequires(id).map((t) => `«${techName(t)}»`).join(', ')}</dd>
+            </>
+          )}
           <dt>Стоимость</dt>
           <dd>
             {fmtNum(cost)} очков

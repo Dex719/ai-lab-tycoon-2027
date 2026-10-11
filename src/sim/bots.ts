@@ -3,7 +3,7 @@
 import { newGame, releaseModel, setOnApi, setOnSubs, startReview } from './actions';
 import { activeBenchmarks } from './benchmarks';
 import { availableGpus, pool, rentCapFor, rentMaxFor, rentPerGpuDay, setAllocation, setRent, totalH100e } from './compute';
-import { FAIL_ROLLBACK, MAX_TOKENS_B, RENT_OVER_CAP_MULT, ROUND_COOLDOWN_DAYS, TIER_API_PRICE_MULT, TRAIN_FLOP_PER_H100E_DAY } from './constants';
+import { FAIL_ROLLBACK, RENT_OVER_CAP_MULT, ROUND_COOLDOWN_DAYS, TIER_API_PRICE_MULT, TRAIN_FLOP_PER_H100E_DAY } from './constants';
 import { applyTender, canApply, contractWorkFor } from './contracts';
 import { applyChoice, pendingChoice } from './events';
 import { overheadPerDay } from './finance';
@@ -13,8 +13,20 @@ import { canResearch, maxContext, setResearch, techHistoryDay, yearsEarly } from
 import { botPriceReflex } from './rivalry';
 import type { Difficulty } from './rivalry';
 import { advanceDay } from './tick';
-import { byYear, END_DAY, yearOf } from './time';
-import { archFor, arenaElo, capsFromPlan, contextFlopMult, labelersCost, reviewCost, startTraining, tierOf, trainingPoolPerRun } from './training';
+import { END_DAY } from './time';
+import {
+  archFor,
+  arenaElo,
+  capsFromPlan,
+  contextFlopMult,
+  labelersCost,
+  maxTokensB,
+  modelTechs,
+  reviewCost,
+  startTraining,
+  tierOf,
+  trainingPoolPerRun,
+} from './training';
 import type { Allocation, GameState, GpuId, TechId, TrainingPlan } from './types';
 
 export type BotKind = 'idle' | 'reasonable' | 'strong' | 'benchmaxx';
@@ -52,7 +64,10 @@ const BOT_SERVE_TOTAL_MAX = 0.7;
 // Внешнюю проверку бот начинает, когда денег хватает на столько проверок.
 const BOT_REVIEW_CASH_MULT = 3;
 
-function nextTech(s: GameState): TechId {
+// Новые технологии бот берёт после их исторической даты (без переплаты), в порядке дат.
+const BOT_HISTORIC_TECHS: readonly TechId[] = ['distill', 'moe', 'codetrain', 'instruct', 'cot', 'quant', 'multimodal', 'synthetic'];
+
+export function nextTech(s: GameState): TechId {
   const done = (t: TechId) => s.research.done.includes(t);
   if (!done('attention')) return 'attention';
   if (s.research.algoLevel < 2) return 'algo';
@@ -60,6 +75,7 @@ function nextTech(s: GameState): TechId {
   // Следующий уровень контекста - как только он появился в истории (без переплаты за опережение).
   if (canResearch(s, 'context') && techHistoryDay(s, 'context') <= s.day) return 'context';
   if (!done('rlhf') && yearsEarly(s, 'rlhf') <= BOT_RLHF_YEARS_EARLY) return 'rlhf';
+  for (const t of BOT_HISTORIC_TECHS) if (canResearch(s, t) && techHistoryDay(s, t) <= s.day) return t;
   return 'algo';
 }
 
@@ -194,7 +210,7 @@ function manageAlloc(s: GameState): void {
 
 /** План по Шиншилле на бюджет FLOP с учётом лимита данных года. */
 export function chinchillaPlan(s: GameState, budget: number, name: string, benchShare: number): TrainingPlan {
-  const maxTokens = byYear(MAX_TOKENS_B, yearOf(s.day));
+  const maxTokens = maxTokensB(s);
   // Надбавка за контекст входит в бюджет: модель должна уложиться в тот же срок.
   const flop = budget / contextFlopMult(maxContext(s));
   let paramsB = Math.sqrt(flop / 120) / 1e9;
@@ -236,7 +252,8 @@ function manageTraining(s: GameState, p: BotProfile): void {
   const flop = trainPool * TRAIN_FLOP_PER_H100E_DAY * trainDays;
   const plan = chinchillaPlan(s, flop, `Бот-${s.nextModelNum}`, p.benchShare);
   if (plan.rlhf && s.cash < labelersCost(plan) * 3) plan.rlhf = false;
-  const elo = arenaElo(capsFromPlan(plan, s.research.algoLevel, archFor(s)), plan.rlhf, s.research.algoLevel);
+  const techs = modelTechs(s);
+  const elo = arenaElo(capsFromPlan(plan, s.research.algoLevel, archFor(s), 0, techs), plan.rlhf, s.research.algoLevel, techs);
   if (elo < bestReleasedElo(s) + 15) return;
   if (startTraining(s, plan).ok) {
     manageAlloc(s);

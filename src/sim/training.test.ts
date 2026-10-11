@@ -18,6 +18,10 @@ import {
   FAIL_BIG_JUMP,
   FAIL_CONTINUE_PENALTY,
   FAIL_ROLLBACK,
+  CODE_TRAIN_CAP,
+  COT_REASONING_CAP,
+  DISTILL_LIGHT_CAP,
+  INSTRUCT_ELO,
   MAX_TOKENS_B,
   OVERFIT_K,
   RLHF_LABELERS_BASE,
@@ -44,7 +48,9 @@ import {
   exposureChance,
   frontierParams,
   labelersCost,
+  maxTokensB,
   modelScore,
+  modelTechs,
   monthlyExposure,
   overfitFromPlan,
   planFlop,
@@ -1908,5 +1914,81 @@ describe('внешняя проверка сильной модели', () => {
     expect(mail.body).toContain('Подписку можно включить');
     reviewDay(s);
     expect(s.mail).toHaveLength(1);
+  });
+});
+
+// ---------- Новые технологии: эффекты на модель (снимок на старте) и лимит данных ----------
+
+describe('технологии в обучении', () => {
+  it('«Обучение на коде» и «Цепочки рассуждений» поднимают свою область, остальные не трогают', () => {
+    const p = plan({ paramsB: 200, tier: 'mid' });
+    const base = capsFromPlan(p, 0, 'transformer');
+    const code = capsFromPlan(p, 0, 'transformer', 0, ['codetrain']);
+    expect(code.code - base.code).toBeCloseTo(CODE_TRAIN_CAP, 9);
+    expect(code.language).toBe(base.language);
+    expect(code.reasoning).toBe(base.reasoning);
+    const cot = capsFromPlan(p, 0, 'transformer', 0, ['cot']);
+    expect(cot.reasoning - base.reasoning).toBeCloseTo(COT_REASONING_CAP, 9);
+    expect(cot.code).toBe(base.code);
+  });
+
+  it('«Дистилляция» поднимает все области только у лёгких моделей', () => {
+    const light = plan({ paramsB: 10, tier: 'light' });
+    const mid = plan({ paramsB: 200, tier: 'mid' });
+    const a = capsFromPlan(light, 0, 'transformer');
+    const b = capsFromPlan(light, 0, 'transformer', 0, ['distill']);
+    for (const d of ['language', 'code', 'reasoning'] as const) expect(b[d] - a[d]).toBeCloseTo(DISTILL_LIGHT_CAP, 9);
+    expect(capsFromPlan(mid, 0, 'transformer', 0, ['distill'])).toEqual(capsFromPlan(mid, 0, 'transformer'));
+  });
+
+  it('«Дообучение на инструкциях» даёт +INSTRUCT_ELO на «Арене» моделям без RLHF', () => {
+    const caps = { language: 50, code: 50, reasoning: 50 };
+    expect(arenaElo(caps, false, 0, ['instruct']) - arenaElo(caps, false, 0)).toBe(INSTRUCT_ELO);
+    expect(arenaElo(caps, true, 3, ['instruct'])).toBe(arenaElo(caps, true, 3));
+  });
+
+  it('снимок технологий берётся на старте: изученное после старта на проект не влияет', () => {
+    const s = lateState();
+    s.research.done.push('codetrain', 'scaling', 'quant');
+    expect(modelTechs(s)).toEqual(['codetrain']);
+    expect(startTraining(s, plan()).ok).toBe(true);
+    expect(s.trainings[0].techs).toEqual(['codetrain']);
+    s.research.done.push('instruct');
+    s.trainings[0].failAtFraction = null;
+    s.compute.rented.h100 = 1e12;
+    progressDay(s);
+    const m = s.models[0];
+    expect(m.techs).toEqual(['codetrain']);
+    expect(m.caps).toEqual(capsFromPlan(m.plan, 0, 'transformer', 0, ['codetrain']));
+    expect(m.arenaElo).toBeCloseTo(arenaElo(m.caps, false, 0), 9); // без «инструкций»
+  });
+
+  it('проект из старого сохранения без снимка обучается без прибавок', () => {
+    const s = lateState();
+    s.research.done.push('codetrain');
+    startTraining(s, plan());
+    delete s.trainings[0].techs;
+    s.trainings[0].failAtFraction = null;
+    s.compute.rented.h100 = 1e12;
+    progressDay(s);
+    expect(s.models[0].caps).toEqual(capsFromPlan(plan(), 0, 'transformer'));
+  });
+
+  it('прогноз в форме учитывает изученные технологии', () => {
+    const s = lateState();
+    s.research.done.push('scaling', 'instruct', 'cot');
+    const e = estimate(s, plan());
+    const caps = capsFromPlan(plan(), 0, 'transformer', 0, ['instruct', 'cot']);
+    expect(e.forecast!.caps).toEqual(caps);
+    expect(e.forecast!.elo).toBeCloseTo(arenaElo(caps, false, 0, ['instruct']), 9);
+  });
+
+  it('«Синтетические данные»: наибольший объём данных года × 1,5', () => {
+    const s = lateState();
+    expect(maxTokensB(s)).toBe(MAX_TOKENS_B[2024]);
+    expect(validatePlan(s, plan({ tokensB: MAX_TOKENS_B[2024] * 1.2 }))).toContain('Максимальный объём данных');
+    s.research.done.push('synthetic');
+    expect(maxTokensB(s)).toBe(MAX_TOKENS_B[2024] * 1.5);
+    expect(validatePlan(s, plan({ tokensB: MAX_TOKENS_B[2024] * 1.2 }))).toBeNull();
   });
 });

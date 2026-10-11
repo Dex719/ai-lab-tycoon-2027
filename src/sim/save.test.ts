@@ -598,6 +598,7 @@ const OPTIONAL_FIELDS = new Set([
   'deferred', 'autoChosen', 'context', 'contextLevel', 'earned', 'monthsFirst', 'autoApply', 'difficulty', 'rivalry',
   'tier', 'onSubs', 'subsPrice', 'review', 'reviewEndDay', 'earnedSubs', 'subs', 'subscribers', 'playerSubs', 'totalSubs',
   'lostApi', 'lostSubs', 'segments', 'consumers', 'enterprise', 'developers', 'trainings', 'nextRunNum',
+  'techs', 'distill', 'moe', 'codetrain', 'instruct', 'cot', 'quant', 'multimodal', 'synthetic',
 ]);
 /** Необязательные поля по полному пути: имя поля (modelId, price) в других местах обязательно. */
 const OPTIONAL_PATHS = new Set(['tenders[].application.work', 'contracts[].tender.application.work', 'rivalry.pending[].modelId', 'rivalry.choice.modelId']);
@@ -658,5 +659,27 @@ describe('проверка покрывает каждое поле живого
     }
     expect(survivors).toEqual([]);
     expect(rejectedOptional).toEqual([]);
+  });
+});
+
+describe('сохранение до новых технологий', () => {
+  it('нет очков по новым технологиям и снимков у моделей - загружается, очки 0, снимок пустой', () => {
+    const o = parsed(richState());
+    const points = (o.research as { points: Json }).points;
+    for (const id of ['distill', 'moe', 'codetrain', 'instruct', 'cot', 'quant', 'multimodal', 'synthetic']) delete points[id];
+    for (const m of o.models as Json[]) delete m.techs;
+    for (const r of o.trainings as Json[]) delete r.techs;
+    const r = load(o);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.research.points.moe).toBe(0);
+    expect(r.state.research.points.synthetic).toBe(0);
+    expect(r.state.models.every((m) => (m.techs ?? []).length === 0)).toBe(true);
+  });
+
+  it('снимок с неизвестной технологией отклоняется', () => {
+    const o = parsed(richState());
+    (o.models as Json[])[0].techs = ['teleport'];
+    expectRejected(o, 'techs');
   });
 });

@@ -798,7 +798,7 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
   // Аренда доли «Обучение» делится между проектами: на этот проект приходится его часть.
   const rentDay = (rentPerDay(s) * s.compute.alloc.training) / Math.max(1, s.trainings.length);
   const forecast = s.research.done.includes('scaling')
-    ? forecastElo(capsFromPlan(t.plan, t.algoLevel, t.arch, t.failPenalty), t.plan.rlhf, t.algoLevel)
+    ? forecastElo(capsFromPlan(t.plan, t.algoLevel, t.arch, t.failPenalty, t.techs ?? []), t.plan.rlhf, t.algoLevel, t.techs ?? [])
     : null;
   const sub = [t.arch === 'transformer' ? 'Трансформер' : 'LSTM', `${fmtParams(t.plan.paramsB)} параметров`, `контекст ${contextLabel(t.plan.context)}`]
     .join(' · ');
