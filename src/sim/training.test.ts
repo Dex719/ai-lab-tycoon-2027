@@ -36,6 +36,7 @@ import {
   cancelTraining,
   capsFromPlan,
   chinchillaFactor,
+  contextFlopMult,
   effectiveCompute,
   estimate,
   exposureChance,
@@ -85,6 +86,7 @@ function plan(over: Partial<TrainingPlan> = {}): TrainingPlan {
     benchShare: 0,
     benchTargets: [],
     rlhf: false,
+    context: 512,
     ...over,
   };
 }
@@ -123,6 +125,7 @@ function playerModel(over: Partial<PlayerModel> = {}): PlayerModel {
     price: 10,
     onApi: true,
     exposed: false,
+    earned: 0,
     ...over,
   };
 }
@@ -1488,5 +1491,33 @@ describe('детерминизм', () => {
     const outcomes = new Set<string>();
     for (let seed = 1; seed <= 40; seed++) outcomes.add(scenario(seed));
     expect(outcomes.size).toBeGreaterThan(1);
+  });
+});
+
+describe('контекст в обучении', () => {
+  it('каждое удвоение сверх 512 добавляет 5 % вычислений', () => {
+    expect(contextFlopMult(512)).toBe(1);
+    expect(contextFlopMult(1024)).toBeCloseTo(1.05, 10);
+    expect(contextFlopMult(8192)).toBeCloseTo(1.2, 10);
+    expect(planFlop(plan({ context: 2048 }))).toBeCloseTo(planFlop(plan()) * 1.1, 0);
+  });
+
+  it('контекст больше открытого или нестандартный не принимается', () => {
+    const s = lateState();
+    expect(validatePlan(s, plan({ context: 2048 }))).toContain('Длинный контекст');
+    expect(validatePlan(s, plan({ context: 3000 }))).toContain('Неизвестная');
+    s.research.contextLevel = 2;
+    expect(validatePlan(s, plan({ context: 2048 }))).toBeNull();
+  });
+
+  it('готовая модель хранит контекст плана, выручка начинается с нуля', () => {
+    const s = lateState();
+    s.research.contextLevel = 1;
+    startTraining(s, plan({ context: 1024 }));
+    s.training!.failAtFraction = null;
+    s.compute.rented.h100 = 1e12;
+    progressDay(s);
+    expect(s.models[0].plan.context).toBe(1024);
+    expect(s.models[0].earned).toBe(0);
   });
 });

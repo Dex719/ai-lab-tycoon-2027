@@ -150,6 +150,7 @@ const trainingPlan = shapeOf<TrainingPlan>({
   benchShare: num,
   benchTargets: arrayOf(oneOf(BENCHMARK_IDS)),
   rlhf: bool,
+  context: num,
 });
 
 const trainingRun = shapeOf<TrainingRun>({
@@ -178,6 +179,7 @@ const playerModel = shapeOf<PlayerModel>({
   price: num,
   onApi: bool,
   exposed: bool,
+  earned: num,
 });
 
 const tender = shapeOf<Tender>({
@@ -272,6 +274,7 @@ const STATE: Record<keyof GameState, Check> = {
     points: record(TECH_IDS, num),
     done: arrayOf(oneOf(TECH_IDS)),
     algoLevel: num,
+    contextLevel: num,
   }),
   training: nullable(trainingRun),
   bestFlop: num,
@@ -322,6 +325,26 @@ function problemText(p: Problem): string {
     : `Сохранение повреждено или от другой версии игры: поле «${p.path}» имеет неверный вид`;
 }
 
+/** Контекст и выручка моделей появились позже: старые сохранения получают 512 токенов, уровень 0 и выручку 0. */
+function migrateContext(data: Record<string, unknown>): void {
+  const plan = (p: unknown) => {
+    if (isRec(p) && p.context === undefined) p.context = 512;
+  };
+  const research = data.research;
+  if (isRec(research)) {
+    if (research.contextLevel === undefined) research.contextLevel = 0;
+    if (isRec(research.points) && research.points.context === undefined) research.points.context = 0;
+  }
+  if (isRec(data.training)) plan(data.training.plan);
+  if (Array.isArray(data.models)) {
+    for (const m of data.models) {
+      if (!isRec(m)) continue;
+      plan(m.plan);
+      if (m.earned === undefined) m.earned = 0;
+    }
+  }
+}
+
 export function deserialize(json: string): { ok: true; state: GameState } | { ok: false; error: string } {
   let data: unknown;
   try {
@@ -334,6 +357,7 @@ export function deserialize(json: string): { ok: true; state: GameState } | { ok
   // Поля, добавленные после первой версии: старые сохранения получают значения по умолчанию.
   if (data.founderName === undefined) data.founderName = '';
   if (data.tutorial === undefined) data.tutorial = { step: 0, active: false };
+  migrateContext(data);
   const problem = WHOLE_STATE(data, '') ?? pendingChoiceProblem(data.mail as Mail[]);
   if (problem) return { ok: false, error: problemText(problem) };
   return { ok: true, state: data as unknown as GameState };

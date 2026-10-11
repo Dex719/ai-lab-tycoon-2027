@@ -8,10 +8,10 @@ import { applyTender, canApply } from './contracts';
 import { applyChoice, pendingChoice } from './events';
 import { canRaise, raiseRound } from './investors';
 import { inferenceNeed, marketSnapshot, refPrice } from './market';
-import { canResearch, setResearch } from './research';
+import { canResearch, maxContext, setResearch, techHistoryDay } from './research';
 import { advanceDay } from './tick';
 import { byYear, yearOf } from './time';
-import { archFor, arenaElo, capsFromPlan, labelersCost, startTraining } from './training';
+import { archFor, arenaElo, capsFromPlan, contextFlopMult, labelersCost, startTraining } from './training';
 import type { Allocation, GameState, GpuId, TechId, TrainingPlan } from './types';
 
 export type BotKind = 'idle' | 'reasonable' | 'strong' | 'benchmaxx';
@@ -35,6 +35,8 @@ function nextTech(s: GameState): TechId {
   if (!done('attention')) return 'attention';
   if (s.research.algoLevel < 2) return 'algo';
   if (!done('scaling')) return 'scaling';
+  // Следующий уровень контекста - как только он появился в истории (без переплаты за опережение).
+  if (canResearch(s, 'context') && techHistoryDay(s, 'context') <= s.day) return 'context';
   if (!done('rlhf')) return 'rlhf';
   return 'algo';
 }
@@ -78,8 +80,10 @@ function manageAlloc(s: GameState): void {
 }
 
 /** План по Шиншилле на бюджет FLOP с учётом лимита данных года. */
-export function chinchillaPlan(s: GameState, flop: number, name: string, benchShare: number): TrainingPlan {
+export function chinchillaPlan(s: GameState, budget: number, name: string, benchShare: number): TrainingPlan {
   const maxTokens = byYear(MAX_TOKENS_B, yearOf(s.day));
+  // Надбавка за контекст входит в бюджет: модель должна уложиться в тот же срок.
+  const flop = budget / contextFlopMult(maxContext(s));
   let paramsB = Math.sqrt(flop / 120) / 1e9;
   let tokensB = 20 * paramsB;
   if (tokensB > maxTokens) {
@@ -97,6 +101,7 @@ export function chinchillaPlan(s: GameState, flop: number, name: string, benchSh
     benchShare: targets.length ? benchShare : 0,
     benchTargets: targets,
     rlhf: s.research.done.includes('rlhf'),
+    context: maxContext(s),
   };
 }
 

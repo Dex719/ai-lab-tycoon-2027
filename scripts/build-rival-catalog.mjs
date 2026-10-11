@@ -20,6 +20,15 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CATALOG_DIR = join(ROOT, 'research', 'catalog');
+// Контекст на момент выхода (токенов): собран отдельно, с источниками - research/rival_context.json.
+const CONTEXT_FILE = join(ROOT, 'research', 'rival_context.json');
+let contextMap = null;
+function contextOf(id) {
+  contextMap ??= JSON.parse(readFileSync(CONTEXT_FILE, 'utf8'));
+  const v = contextMap[id]?.context;
+  if (typeof v !== 'number') throw new Error(`Нет контекста для ${id} в research/rival_context.json`);
+  return v;
+}
 const OUT_FILE = join(ROOT, 'src', 'data', 'rivalModels.ts');
 
 const FROM = '2016-06-01';
@@ -344,6 +353,7 @@ function main() {
       arenaElo,
       arenaEstimated,
       contaminated: Boolean(m.benchContaminationSuspected),
+      context: contextOf(m.id),
       notes,
     };
   });
@@ -387,7 +397,7 @@ function render(defs) {
     lines.push('  {');
     lines.push(`    id: ${q(d.id)}, lab: ${q(d.lab)}, gameName: ${q(d.gameName)}, realName: ${q(d.realName)}, released: ${q(d.released)},`);
     lines.push(`    api: ${d.api}, openWeights: ${d.openWeights}, chat: ${d.chat}, paramsB: ${num(d.paramsB)}, priceIn: ${num(d.priceIn)}, priceOut: ${num(d.priceOut)},`);
-    lines.push(`    scores: ${scoresLiteral(d.scores)}, arenaElo: ${num(d.arenaElo)}, arenaEstimated: ${d.arenaEstimated}, contaminated: ${d.contaminated},`);
+    lines.push(`    scores: ${scoresLiteral(d.scores)}, arenaElo: ${num(d.arenaElo)}, arenaEstimated: ${d.arenaEstimated}, contaminated: ${d.contaminated}, context: ${num(d.context)},`);
     lines.push(`    notes: ${q(d.notes)},`);
     lines.push('  },');
   }

@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from 'react';
 import type { WindowProps } from '.';
+import { TOKENS_PER_USER_DAY } from '../../sim/constants';
 import { marketSnapshot, type MarketEntry } from '../../sim/market';
+import { contextLabel } from '../../sim/research';
 import { dayToDate, formatDateShort } from '../../sim/time';
 import type { PlayerModel } from '../../sim/types';
 import { fmtElo, fmtMoney, fmtNum, fmtPrice, fmtShare } from '../format';
 import './AnalyticsWindow.css';
-import { buildChartData, ChartPanel, liveMonthLabel, safe, type SeriesDef } from './analyticsShared';
+import { buildChartData, ChartPanel, finite, liveMonthLabel, safe, type SeriesDef } from './analyticsShared';
 import FinanceTab from './FinanceWindow';
 import MarketTab, { LabsTab } from './MarketWindow';
 import { ArenaTab, BenchmarksTab } from './RatingsWindow';
@@ -109,15 +111,25 @@ function YourModelsTab({ s, open }: WindowProps) {
   );
 }
 
+const USERS_TIP = `Оценка: токены в день / ${TOKENS_PER_USER_DAY.toLocaleString('ru-RU')}`;
+
+/** Контекст модели: «128 тыс.», «1 млн»; если контекст неизвестен - «-». */
+const ctxLabel = (tokens: number): string => (tokens > 0 ? contextLabel(tokens) : '-');
+
+/** Оценка числа пользователей в день по спросу в токенах. */
+const fmtUsers = (tokens: number): string => fmtNum(Math.round(tokens / TOKENS_PER_USER_DAY));
+
 function ModelsTable({ models, byKey }: { models: PlayerModel[]; byKey: Map<string, MarketEntry> }) {
   let share = 0;
   let tokens = 0;
+  let earned = 0;
   for (const m of models) {
     const e = byKey.get(`player:${m.id}`);
     if (e) {
       share += e.share;
       tokens += e.tokens;
     }
+    earned += finite(m.earned);
   }
   return (
     <table className="grid an-grid">
@@ -126,11 +138,20 @@ function ModelsTable({ models, byKey }: { models: PlayerModel[]; byKey: Map<stri
           <th>Модель</th>
           <th>Состояние</th>
           <th>Выпущена</th>
+          <th className="num" title="Длина контекста, токенов">
+            Контекст
+          </th>
           <th className="num">Эло</th>
           <th className="num">Цена за 1 млн токенов</th>
           <th className="num">Доля рынка</th>
           <th className="num" title="Спрос на модель до ограничения вашей мощностью">
             Токенов в день
+          </th>
+          <th className="num" title={USERS_TIP}>
+            Пользователей в день
+          </th>
+          <th className="num" title="Выручка API с момента выпуска">
+            Заработала
           </th>
         </tr>
       </thead>
@@ -142,10 +163,13 @@ function ModelsTable({ models, byKey }: { models: PlayerModel[]; byKey: Map<stri
               <td>{m.name}</td>
               <td>{m.onApi ? <span className="good">В продаже</span> : <span className="muted">Снята с продажи</span>}</td>
               <td>{m.releasedDay !== null ? formatDateShort(m.releasedDay) : '-'}</td>
+              <td className="num">{ctxLabel(m.plan.context)}</td>
               <td className="num">{fmtElo(m.arenaElo)}</td>
               <td className="num">{fmtPrice(m.price)}</td>
               <td className="num">{e ? fmtShare(e.share) : '-'}</td>
               <td className="num">{e ? fmtNum(e.tokens) : '-'}</td>
+              <td className="num">{e ? fmtUsers(e.tokens) : '-'}</td>
+              <td className="num">{fmtMoney(finite(m.earned))}</td>
             </tr>
           );
         })}
@@ -153,9 +177,11 @@ function ModelsTable({ models, byKey }: { models: PlayerModel[]; byKey: Map<stri
       {models.length > 1 && (
         <tfoot>
           <tr>
-            <td colSpan={5}>Всего</td>
+            <td colSpan={6}>Всего</td>
             <td className="num">{fmtShare(share)}</td>
             <td className="num">{fmtNum(tokens)}</td>
+            <td className="num">{fmtUsers(tokens)}</td>
+            <td className="num">{fmtMoney(earned)}</td>
           </tr>
         </tfoot>
       )}

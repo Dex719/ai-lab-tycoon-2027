@@ -295,7 +295,7 @@ function collect(value: unknown, path: (string | number)[], norm: string, seen: 
 
 /** Поля, которых может не быть (необязательные в типах), и словари, в которых ключи приходят и уходят. */
 // founderName и tutorial появились позже: в старых сохранениях их нет, загрузка подставляет значения по умолчанию.
-const OPTIONAL_FIELDS = new Set(['eventId', 'choices', 'chosen', 'important', 'target', 'mult', 'add', 'founderName', 'tutorial', 'replyByDay', 'defaultChoice', 'deferred', 'autoChosen']);
+const OPTIONAL_FIELDS = new Set(['eventId', 'choices', 'chosen', 'important', 'target', 'mult', 'add', 'founderName', 'tutorial', 'replyByDay', 'defaultChoice', 'deferred', 'autoChosen', 'context', 'contextLevel', 'earned']);
 const DICTS = new Set(['flags', 'market.shares', 'models[].overfit']);
 
 describe('проверка покрывает каждое поле живого состояния', () => {

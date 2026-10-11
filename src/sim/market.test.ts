@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { HYPE_OWNERS } from './constants';
 import { addModifier, FOREVER } from './events';
 import {
+  contextUtility,
   demandTokens,
   dayStep,
   hypeK,
@@ -9,6 +10,7 @@ import {
   labBrand,
   marketSnapshot,
   perceivedQuality,
+  refContext,
   refPrice,
   refQuality,
 } from './market';
@@ -52,6 +54,7 @@ function player(over: Partial<PlayerModel> = {}): PlayerModel {
       benchShare: 0,
       benchTargets: [],
       rlhf: false,
+      context: 512,
     },
     arch: 'transformer',
     algoLevel: 0,
@@ -64,6 +67,7 @@ function player(over: Partial<PlayerModel> = {}): PlayerModel {
     price: 3,
     onApi: true,
     exposed: false,
+    earned: 0,
     ...over,
   };
 }
@@ -85,6 +89,7 @@ function rival(over: Partial<RivalModelDef> = {}): RivalModelDef {
     arenaElo: 1150,
     arenaEstimated: false,
     contaminated: false,
+    context: 512,
     ...over,
   };
 }
@@ -404,19 +409,22 @@ describe('marketSnapshot', () => {
     expect(snap.entries[0].owner).toBe('player');
   });
 
-  it('формула: U = (Q−1000)/100 + бренд − 1,2·ln(цена/P_ref), доля - softmax', () => {
+  it('формула: U = (Q−1000)/100 + бренд − 1,2·ln(цена/P_ref) + 0,25·ln(контекст/обычный), доля - softmax', () => {
     // 1 января 2024: P_ref = 3 $/1М, Q_ref = 1150, значит U_0 = 1,5
     const s = makeState(dateToDay('2024-01-01'));
+    const ref = refContext(s.day);
     s.reputation = 50; // бренд игрока 0
     s.hype.openbrain = 10;
     s.hype.player = 20;
-    s.models.push(player({ price: 3, arenaElo: 1150 }));
-    rivalState.list = [rival({ priceIn: 6, priceOut: 6, arenaElo: 1250 })]; // openbrain, бренд 0,5
+    const pl = player({ price: 3, arenaElo: 1150 });
+    pl.plan.context = 8192;
+    s.models.push(pl);
+    rivalState.list = [rival({ priceIn: 6, priceOut: 6, arenaElo: 1250, context: 128000 })]; // openbrain, бренд 0,5
     const snap = marketSnapshot(s);
 
     const uNone = (1150 - 1000) / 100;
-    const uPlayer = (1150 + 1.5 * 20 - 1000) / 100 + 0 - 1.2 * Math.log(3 / 3);
-    const uRival = (1250 + 1.5 * 10 - 1000) / 100 + 0.5 - 1.2 * Math.log(6 / 3);
+    const uPlayer = (1150 + 1.5 * 20 - 1000) / 100 + 0 - 1.2 * Math.log(3 / 3) + 0.25 * Math.log(8192 / ref);
+    const uRival = (1250 + 1.5 * 10 - 1000) / 100 + 0.5 - 1.2 * Math.log(6 / 3) + 0.25 * Math.log(128000 / ref);
     const sum = Math.exp(uNone) + Math.exp(uPlayer) + Math.exp(uRival);
 
     const p = snap.entries.find((e) => e.owner === 'player')!;
@@ -706,5 +714,46 @@ describe('dayStep', () => {
     dayStep(s);
     expect(s.cash).toBe(cash0);
     expect(s.market.shares['player:p1']).toBeUndefined();
+  });
+});
+
+describe('контекст на рынке', () => {
+  it('обычный контекст растёт по истории', () => {
+    expect(refContext(dateToDay('2017-01-01'))).toBeCloseTo(512, 6);
+    expect(refContext(dateToDay('2020-06-11'))).toBeCloseTo(2048, 6);
+    expect(refContext(dateToDay('2024-06-01'))).toBeCloseTo(128000, 6);
+  });
+
+  it('прибавка к полезности: 0 при обычном контексте, ограничена с двух сторон', () => {
+    const day = dateToDay('2024-06-01');
+    expect(contextUtility(128000, day)).toBeCloseTo(0, 10);
+    expect(contextUtility(1_000_000, day)).toBeCloseTo(0.25 * Math.log(1_000_000 / 128000), 10);
+    expect(contextUtility(10_000_000, day)).toBeCloseTo(0.25 * Math.log(8), 10);
+    expect(contextUtility(512, day)).toBeCloseTo(0.25 * Math.log(1 / 64), 10);
+  });
+
+  it('при прочих равных модель с длинным контекстом получает большую долю', () => {
+    const s = makeState(dateToDay('2024-01-01'));
+    s.reputation = 50;
+    const short = player({ id: 'p1', price: 3, arenaElo: 1150 });
+    const long = player({ id: 'p2', price: 3, arenaElo: 1150 });
+    short.plan = { ...short.plan, context: 2048 };
+    long.plan = { ...long.plan, context: 128000 };
+    s.models.push(short, long);
+    rivalState.list = [];
+    const snap = marketSnapshot(s);
+    const a = snap.entries.find((e) => e.key === 'player:p1')!;
+    const b = snap.entries.find((e) => e.key === 'player:p2')!;
+    expect(b.share).toBeGreaterThan(a.share * 2);
+  });
+
+  it('выручка копится в модели', () => {
+    const s = makeState(dateToDay('2024-01-01'));
+    s.models.push(player({ price: 3, arenaElo: 1150 }));
+    s.compute.rented.h100 = 1e9;
+    s.compute.alloc = { training: 0, contracts: 0, experiments: 0, inference: 1 };
+    rivalState.list = [];
+    dayStep(s);
+    expect(s.models[0].earned).toBeGreaterThan(0);
   });
 });

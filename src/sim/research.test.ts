@@ -1,9 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { GPUS } from '../data/gpus';
 import { setAllocation, setRent } from './compute';
-import { ALGO_BASE_COST, ALGO_COST_GROWTH, RP_BASE, RP_K, TECH_COST } from './constants';
+import { ALGO_BASE_COST, ALGO_COST_GROWTH, CONTEXT_BASE_COST, CONTEXT_COST_GROWTH, CONTEXT_LEVELS, RP_BASE, RP_K, TECH_COST } from './constants';
 import { addModifier, FOREVER } from './events';
-import { canResearch, earlyPenalty, progressDay, researchBlockReason, rpPerDay, setResearch, TECHS, techCost } from './research';
+import {
+  canResearch,
+  CONTEXT_MAX_LEVEL,
+  contextLabel,
+  earlyPenalty,
+  maxContext,
+  progressDay,
+  researchBlockReason,
+  rpPerDay,
+  setResearch,
+  TECHS,
+  techCost,
+  techHistoryDay,
+} from './research';
 import { createInitialState } from './state';
 import { dateToDay } from './time';
 import type { GameState, GpuId, TechId } from './types';
@@ -36,14 +49,15 @@ function researchDay(s: GameState): void {
 const researchMail = (s: GameState) => s.mail.filter((m) => m.kind === 'research');
 
 describe('каталог технологий', () => {
-  it('четыре технологии в порядке показа с русскими названиями', () => {
-    expect(TECHS.map((t) => t.id)).toEqual(['attention', 'scaling', 'rlhf', 'algo']);
+  it('пять технологий в порядке показа с русскими названиями', () => {
+    expect(TECHS.map((t) => t.id)).toEqual(['attention', 'scaling', 'rlhf', 'algo', 'context']);
     expect(TECHS.map((t) => t.id)).toEqual([...TECH_IDS]);
     expect(TECHS.map((t) => t.name)).toEqual([
       'Механизм внимания',
       'Законы масштабирования',
       'Обучение на отзывах людей (RLHF)',
       'Алгоритмические улучшения',
+      'Длинный контекст',
     ]);
     for (const t of TECHS) expect(t.description.length).toBeGreaterThan(20);
   });
@@ -511,5 +525,59 @@ describe('опорный сценарий: внимание успеть до 12
     const deadline = dateToDay('2017-06-12');
     while (s.day < deadline) researchDay(s);
     expect(s.research.done).toEqual([]);
+  });
+});
+
+describe('длинный контекст', () => {
+  function withAttention(): GameState {
+    const s = labWithExperiments(ANCHOR_P100);
+    s.research.done.push('attention');
+    return s;
+  }
+
+  it('нужен «Механизм внимания»', () => {
+    const s = labWithExperiments(ANCHOR_P100);
+    expect(researchBlockReason(s, 'context')).toContain('Механизм внимания');
+    expect(canResearch(withAttention(), 'context')).toBe(true);
+  });
+
+  it('цена растёт с уровнем, историческая дата - дата следующего уровня', () => {
+    const s = withAttention();
+    s.day = dateToDay('2024-12-31'); // без надбавки за опережение
+    expect(techCost(s, 'context')).toBeCloseTo(CONTEXT_BASE_COST, 6);
+    s.research.contextLevel = 2;
+    expect(techCost(s, 'context')).toBeCloseTo(CONTEXT_BASE_COST * CONTEXT_COST_GROWTH ** 2, 6);
+    expect(techHistoryDay(s, 'context')).toBe(dateToDay(CONTEXT_LEVELS[3][1]));
+  });
+
+  it('уровень повышает наибольший контекст, исследование останавливается, приходит письмо', () => {
+    const s = withAttention();
+    expect(maxContext(s)).toBe(512);
+    setResearch(s, 'context');
+    s.research.points.context = techCost(s, 'context');
+    progressDay(s);
+    expect(s.research.contextLevel).toBe(1);
+    expect(maxContext(s)).toBe(CONTEXT_LEVELS[1][0]);
+    expect(s.research.current).toBeNull();
+    expect(s.research.points.context).toBe(0);
+    expect(researchMail(s).at(-1)!.title).toContain('1 тыс.');
+  });
+
+  it('после последнего уровня исследование закрыто', () => {
+    const s = withAttention();
+    s.research.contextLevel = CONTEXT_MAX_LEVEL - 1;
+    setResearch(s, 'context');
+    s.research.points.context = techCost(s, 'context');
+    progressDay(s);
+    expect(maxContext(s)).toBe(1_000_000);
+    expect(s.research.done).toContain('context');
+    expect(canResearch(s, 'context')).toBe(false);
+  });
+
+  it('подписи контекста', () => {
+    expect(contextLabel(512)).toBe('512');
+    expect(contextLabel(2048)).toBe('2 тыс.');
+    expect(contextLabel(128000)).toBe('128 тыс.');
+    expect(contextLabel(1_000_000)).toBe('1 млн');
   });
 });

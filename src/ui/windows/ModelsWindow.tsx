@@ -1,16 +1,28 @@
 // Окно «Модели»: список моделей игрока слева, карточка выбранной справа.
 // Образец - «Инспектор» и «Проект завершён» из Processor Tycoon.
 
-import { useId, useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 import type { WindowProps } from '.';
 import { benchDef, DOMAIN_NAMES, introducedBenchmarks } from '../../sim/benchmarks';
-import { pool } from '../../sim/compute';
+import { pool, rentPerDay } from '../../sim/compute';
+import { TOKENS_PER_USER_DAY, TRAIN_FLOP_PER_H100E_DAY } from '../../sim/constants';
+import { awaitingEvent } from '../../sim/events';
+import { contextLabel } from '../../sim/research';
 import { arenaRank, benchRank } from '../../sim/leaderboard';
 import { refPrice } from '../../sim/market';
 import { formatDateShort } from '../../sim/time';
-import { modelScore } from '../../sim/training';
-import { DOMAINS, type BenchmarkId, type GameState, type ModelRef, type PlayerModel, type Result } from '../../sim/types';
-import { ErrorText } from '../components/common';
+import { arenaElo as forecastElo, capsFromPlan, modelScore } from '../../sim/training';
+import {
+  DOMAINS,
+  type BenchmarkId,
+  type GameState,
+  type ModelRef,
+  type PlayerModel,
+  type Result,
+  type TrainingPlan,
+  type TrainingRun,
+} from '../../sim/types';
+import { ErrorText, ProgressBar } from '../components/common';
 import { fmtElo, fmtMoney, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare, fmtTokens } from '../format';
 import { IconModels } from '../icons';
 import { actions, store } from '../store';
@@ -55,14 +67,46 @@ function versusMarket(price: number, ref: number): string {
   return `${rel > 0 ? '+' : '−'}${fmtPct(Math.abs(rel), 0)} к рынку`;
 }
 
+/** Продажи модели сегодня: доля, токены, пользователи, выручка в день (undefined - не в продаже). */
+function salesOf(s: GameState, m: PlayerModel) {
+  const share: number | undefined = m.onApi ? s.market.shares[`player:${m.id}`] : undefined;
+  const tokens = share !== undefined ? share * s.market.totalTokens * (1 - s.market.lostFraction) : undefined;
+  const users = tokens !== undefined ? tokens / TOKENS_PER_USER_DAY : undefined;
+  const revenue = tokens !== undefined ? (tokens * m.price) / 1e6 : undefined;
+  return { share, tokens, users, revenue };
+}
+
+/** Модель, план которой ещё обучается: id для списка. */
+const TRAINING_ID = 'training';
+
 const PRICE_TITLE = 'Цена за 1 млн токенов в долларах. Чем ниже цена, тем больше доля рынка и выше нагрузка на мощности «Клиенты».';
 
 // ---------- Левая колонка ----------
 
-function ModelList(props: { models: PlayerModel[]; selectedId: string; onSelect: (id: string) => void; open: WindowProps['open'] }) {
+function ModelList(props: {
+  models: PlayerModel[];
+  training: TrainingRun | null;
+  selectedId: string;
+  onSelect: (id: string) => void;
+  open: WindowProps['open'];
+}) {
+  const t = props.training;
   return (
     <aside className="mw-side">
       <div className="mw-list">
+        {t && (
+          <button
+            className={`mw-item${props.selectedId === TRAINING_ID ? ' on' : ''}`}
+            aria-current={props.selectedId === TRAINING_ID}
+            onClick={() => props.onSelect(TRAINING_ID)}
+          >
+            <span className="mw-dot train" />
+            <span className="mw-item-text">
+              <span className="mw-item-name" title={t.plan.name}>{t.plan.name}</span>
+              <span className="mw-item-state">Обучается, {fmtShare(t.flopTotal > 0 ? t.flopDone / t.flopTotal : 0, 0)}</span>
+            </span>
+          </button>
+        )}
         {props.models.map((m) => {
           const st = saleState(m);
           return (
@@ -193,9 +237,8 @@ function SalesBlock({ s, m, open }: { s: GameState; m: PlayerModel; open: Window
   const price = parsePrice(text);
   const error = priceError(text);
 
-  const share: number | undefined = m.onApi ? s.market.shares[`player:${m.id}`] : undefined;
+  const { share, tokens } = salesOf(s, m);
   const lost = s.market.lostFraction;
-  const tokens = share !== undefined ? share * s.market.totalTokens * (1 - lost) : undefined;
   const noInference = m.onApi && pool(s, 'inference') <= 0;
   const losing = m.onApi && !noInference && lost > 0.01;
 
@@ -244,8 +287,13 @@ function SalesBlock({ s, m, open }: { s: GameState; m: PlayerModel; open: Window
           </div>
         </div>
         <div className="mw-panel-foot">
-          <span className="mw-sub" title="Сколько токенов модель обслуживает за день">
-            Токенов в день: <b className="num">{tokens !== undefined ? fmtNum(tokens) : '-'}</b>
+          <span className="mw-sub mw-sales-line">
+            <span>
+              Доля рынка: <b>{share !== undefined ? fmtShare(share, share < 0.01 ? 2 : 1) : '-'}</b>
+            </span>
+            <span title="Сколько токенов модель обслуживает за день">
+              Токенов в день: <b>{tokens !== undefined ? fmtNum(tokens) : '-'}</b>
+            </span>
           </span>
           <button className={`btn small${m.onApi ? ' danger' : ' primary'}`} onClick={toggleSale}>
             {m.onApi ? 'Снять с продажи' : 'Вернуть в продажу'}
@@ -309,68 +357,170 @@ function ScoresBlock({ s, m, benches }: { s: GameState; m: PlayerModel; benches:
 function Kpis({ s, m }: { s: GameState; m: PlayerModel }) {
   const released = m.releasedDay !== null;
   const rank = released ? arenaRank(s, { kind: 'player', id: m.id }) : null;
-  const share: number | undefined = m.onApi ? s.market.shares[`player:${m.id}`] : undefined;
-  const tokens = share !== undefined ? share * s.market.totalTokens * (1 - s.market.lostFraction) : undefined;
-  const revenue = tokens !== undefined ? (tokens * m.price) / 1e6 : undefined;
-  const items: { label: string; value: string; title?: string }[] = released
+  const { users, revenue } = salesOf(s, m);
+  const items: Kpi[] = released
     ? [
-        { label: 'Место на «Арене»', value: rank !== null ? String(rank) : '-' },
-        { label: 'Эло', value: fmtElo(m.arenaElo), title: 'Рейтинг на «Арене». Подгонка под бенчмарки его не повышает.' },
-        { label: 'Доля рынка', value: share !== undefined ? fmtShare(share, share < 0.01 ? 2 : 1) : '-' },
-        { label: 'Выручка в день', value: revenue !== undefined ? fmtMoney(revenue) : '-' },
+        {
+          label: 'Место на «Арене»',
+          value: rank !== null ? String(rank) : '-',
+          sub: `Эло ${fmtElo(m.arenaElo)}`,
+          title: 'Рейтинг на «Арене». Подгонка под бенчмарки его не повышает.',
+        },
+        {
+          label: 'Пользователей в день',
+          value: users !== undefined ? `≈ ${fmtNum(Math.round(users))}` : '-',
+          title: `Оценка: токены в день / ${fmtNum(TOKENS_PER_USER_DAY)}`,
+        },
+        {
+          label: 'Выручка в день',
+          value: revenue !== undefined ? fmtMoney(revenue) : '-',
+          sub: revenue !== undefined ? `≈ ${fmtMoney(revenue * 30)} в месяц` : undefined,
+        },
+        { label: 'Заработала всего', value: fmtMoney(m.earned), title: 'Выручка API с момента выпуска' },
       ]
     : [
         { label: 'Эло', value: fmtElo(m.arenaElo), title: 'Рейтинг на «Арене». Подгонка под бенчмарки его не повышает.' },
         { label: 'Параметры', value: fmtParams(m.plan.paramsB) },
-        { label: 'Данные', value: `${fmtTokens(m.plan.tokensB)} ток.` },
+        { label: 'Контекст', value: contextLabel(m.plan.context), sub: 'токенов' },
         { label: 'Обучена', value: formatDateShort(m.trainedDay) },
       ];
+  return <KpiRow items={items} />;
+}
+
+interface Kpi {
+  label: string;
+  value: string;
+  sub?: string;
+  title?: string;
+}
+
+function KpiRow({ items }: { items: Kpi[] }) {
   return (
     <div className="mw-kpis">
       {items.map((k) => (
         <div key={k.label} className="mw-kpi" title={k.title}>
           <span className="mw-kpi-l">{k.label}</span>
           <span className="mw-kpi-v">{k.value}</span>
+          {k.sub && <span className="mw-kpi-s">{k.sub}</span>}
         </div>
       ))}
     </div>
   );
 }
 
-function Specs({ m }: { m: PlayerModel }) {
-  const mix = DOMAINS.map((d) => `${DOMAIN_NAMES[d]} ${fmtShare(m.plan.mix[d], 0)}`).join(', ');
+function Specs(props: { arch: 'lstm' | 'transformer'; plan: TrainingPlan; dates: [string, number][] }) {
+  const { arch, plan } = props;
+  const mix = DOMAINS.map((d) => `${DOMAIN_NAMES[d]} ${fmtShare(plan.mix[d], 0)}`).join(', ');
   return (
     <section>
       <h3 className="mw-h">Характеристики</h3>
       <dl className="mw-specs">
         <dt>Архитектура</dt>
-        <dd>{m.arch === 'transformer' ? 'Трансформер' : 'LSTM'}</dd>
+        <dd>{arch === 'transformer' ? 'Трансформер' : 'LSTM'}</dd>
         <dt>Параметры</dt>
-        <dd>{fmtParams(m.plan.paramsB)}</dd>
+        <dd>{fmtParams(plan.paramsB)}</dd>
+        <dt>Контекст</dt>
+        <dd>{contextLabel(plan.context)} токенов</dd>
         <dt>Данные</dt>
         <dd>
-          {fmtTokens(m.plan.tokensB)} токенов
+          {fmtTokens(plan.tokensB)} токенов
           <small>{mix}</small>
         </dd>
         <dt>RLHF</dt>
-        <dd>{m.rlhf ? 'Да' : 'Нет'}</dd>
-        <dt>Обучена</dt>
-        <dd>{formatDateShort(m.trainedDay)}</dd>
-        {m.releasedDay !== null && (
-          <>
-            <dt>Выпущена</dt>
-            <dd>{formatDateShort(m.releasedDay)}</dd>
-          </>
-        )}
+        <dd>{plan.rlhf ? 'Да' : 'Нет'}</dd>
+        {props.dates.map(([label, day]) => (
+          <Fragment key={label}>
+            <dt>{label}</dt>
+            <dd>{formatDateShort(day)}</dd>
+          </Fragment>
+        ))}
       </dl>
     </section>
+  );
+}
+
+// ---------- Модель в обучении ----------
+
+const DAYS_IN_MONTH = 30;
+
+function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: WindowProps['open'] }) {
+  const frac = t.flopTotal > 0 ? Math.min(1, t.flopDone / t.flopTotal) : 0;
+  const power = pool(s, 'training');
+  const perDay = power * TRAIN_FLOP_PER_H100E_DAY;
+  const waiting = awaitingEvent(s, 'training-fail');
+  const left = perDay > 0 ? Math.max(1, Math.ceil((t.flopTotal - t.flopDone) / perDay)) : null;
+  const rentDay = rentPerDay(s) * s.compute.alloc.training;
+  const forecast = s.research.done.includes('scaling')
+    ? forecastElo(capsFromPlan(t.plan, t.algoLevel, t.arch, t.failPenalty), t.plan.rlhf, t.algoLevel)
+    : null;
+  const sub = [t.arch === 'transformer' ? 'Трансформер' : 'LSTM', `${fmtParams(t.plan.paramsB)} параметров`, `контекст ${contextLabel(t.plan.context)}`]
+    .join(' · ');
+  const items: Kpi[] = [
+    { label: 'Готово', value: fmtShare(frac, 0) },
+    {
+      label: 'Осталось',
+      value: waiting ? 'ждёт решения' : left !== null ? `${fmtNum(left)} дн.` : 'нет мощности',
+      sub: !waiting && left !== null ? `до ${formatDateShort(s.day + left)}` : undefined,
+    },
+    {
+      label: 'Аренда в месяц',
+      value: fmtMoney(rentDay * DAYS_IN_MONTH),
+      sub: left !== null ? `≈ ${fmtMoney(rentDay * left)} до конца` : undefined,
+      title: 'Доля «Обучение» от аренды всех карт',
+    },
+    {
+      label: 'Прогноз Эло',
+      value: forecast !== null ? fmtElo(forecast) : '-',
+      sub: forecast !== null ? undefined : 'нужны «Законы масштабирования»',
+    },
+  ];
+
+  return (
+    <div className="mw-main">
+      <header className="mw-head">
+        <Chip lab={s.labName} name={t.plan.name} tone="idle" />
+        <div className="mw-head-text">
+          <h2 className="mw-name" title={t.plan.name}>
+            {t.plan.name}
+          </h2>
+          <div className="mw-head-sub">{sub}</div>
+        </div>
+        <span className="mw-pill train">Обучается</span>
+      </header>
+      <KpiRow items={items} />
+      <section>
+        <h3 className="mw-h">Ход обучения</h3>
+        <div className="mw-panel">
+          <ProgressBar value={frac} />
+          <div className="mw-panel-foot">
+            <span className="mw-sub">
+              Мощность на обучение: <b>{fmtNum(power)} H100e</b>
+            </span>
+            <span className="mw-btns">
+              <button className="btn small" onClick={() => open('compute')}>
+                Мощности
+              </button>
+              <button className="btn small" onClick={() => open('newModel')}>
+                Открыть «Новая модель»
+              </button>
+            </span>
+          </div>
+        </div>
+      </section>
+      <Specs arch={t.arch} plan={t.plan} dates={[['Начато', t.startedDay]]} />
+    </div>
   );
 }
 
 function ModelCard({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowProps['open'] }) {
   const released = m.releasedDay !== null;
   const st = saleState(m);
-  const sub = [m.arch === 'transformer' ? 'Трансформер' : 'LSTM', `${fmtParams(m.plan.paramsB)} параметров`, m.rlhf ? 'RLHF' : '']
+  const sub = [
+    m.arch === 'transformer' ? 'Трансформер' : 'LSTM',
+    `${fmtParams(m.plan.paramsB)} параметров`,
+    `контекст ${contextLabel(m.plan.context)}`,
+    m.rlhf ? 'RLHF' : '',
+  ]
     .filter(Boolean)
     .join(' · ');
 
@@ -390,7 +540,11 @@ function ModelCard({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowP
       <Kpis s={s} m={m} />
       {released ? <SalesBlock s={s} m={m} open={open} /> : <ReleaseBlock s={s} m={m} />}
       <ScoresBlock s={s} m={m} benches={introducedBenchmarks(s)} />
-      <Specs m={m} />
+      <Specs
+        arch={m.arch}
+        plan={m.plan}
+        dates={m.releasedDay !== null ? [['Обучена', m.trainedDay], ['Выпущена', m.releasedDay]] : [['Обучена', m.trainedDay]]}
+      />
     </div>
   );
 }
@@ -400,26 +554,25 @@ function ModelCard({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowP
 export default function ModelsWindow({ s, open }: WindowProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  if (s.models.length === 0) {
-    const t = s.training;
-    const done = t && t.flopTotal > 0 ? t.flopDone / t.flopTotal : 0;
+  const t = s.training;
+  if (s.models.length === 0 && !t) {
     return (
       <div className="mw-empty">
         <IconModels size={64} />
         <div className="mw-empty-title">Моделей нет.</div>
-        {t && <div className="small">Идёт обучение: «{t.plan.name}», {fmtShare(done, 0)}.</div>}
         <button className="btn primary" onClick={() => open('newModel')}>Новая модель</button>
       </div>
     );
   }
 
   const models = [...s.models].reverse(); // новые сверху
-  const m = models.find((x) => x.id === selectedId) ?? models[0];
+  const picked = selectedId === TRAINING_ID && t ? null : (models.find((x) => x.id === selectedId) ?? models[0] ?? null);
+  const current = picked ? picked.id : TRAINING_ID;
 
   return (
     <div className="mw">
-      <ModelList models={models} selectedId={m.id} onSelect={setSelectedId} open={open} />
-      <ModelCard key={m.id} s={s} m={m} open={open} />
+      <ModelList models={models} training={t} selectedId={current} onSelect={setSelectedId} open={open} />
+      {picked ? <ModelCard key={picked.id} s={s} m={picked} open={open} /> : t && <TrainingCard s={s} t={t} open={open} />}
     </div>
   );
 }

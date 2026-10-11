@@ -51,6 +51,7 @@ function model(over: Partial<PlayerModel> = {}): PlayerModel {
       benchShare: 0,
       benchTargets: [],
       rlhf: true,
+      context: 512,
     },
     arch: 'transformer',
     algoLevel: 0,
@@ -63,6 +64,7 @@ function model(over: Partial<PlayerModel> = {}): PlayerModel {
     price: 10,
     onApi: true,
     exposed: false,
+    earned: 0,
     ...over,
   };
 }

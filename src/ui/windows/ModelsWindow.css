@@ -26,6 +26,7 @@
 .mw-dot { flex: none; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: #aab0b8; }
 .mw-dot.sale { background: var(--good); }
 .mw-dot.off { background: var(--warn); }
+.mw-dot.train { background: #7b5cd6; }
 
 /* ---------- Карточка ---------- */
 /* Порядок внимания: название и состояние → четыре крупных показателя → цена → баллы → характеристики. */
@@ -39,6 +40,7 @@
 .mw-pill.sale { background: #dcf1e3; color: #1d6b36; }
 .mw-pill.idle { background: #e3eefc; color: #1f5fae; }
 .mw-pill.off { background: #f1e6cf; color: #7a5200; }
+.mw-pill.train { background: #ece6fb; color: #5a3fb8; }
 
 /* Маленький кристалл у названия: тёмный корпус и выводы, без подписей. */
 .mw-chip { flex: none; width: 64px; height: 64px; display: grid; place-items: center; border-radius: 6px; background: #e1e3e7; }
@@ -63,7 +65,11 @@
 .mw-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
 .mw-kpi { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px; background: #fff; border: 1px solid var(--line-soft); border-radius: 4px; }
 .mw-kpi-l { font-size: 12px; color: #5f636a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mw-kpi-v { font-size: 22px; font-weight: 600; line-height: 1.2; color: #1f2023; text-align: left; }
+.mw-kpi-v { font-size: 22px; font-weight: 600; line-height: 1.2; color: #1f2023; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mw-kpi-s { font-size: 12px; color: #5f636a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mw-sales-line { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.mw-panel .progress { height: 10px; }
+.mw-btns { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* ---------- Блоки ---------- */
 .mw-h { margin: 22px 0 8px; font-size: 17px; font-weight: 600; color: #1f2023; }

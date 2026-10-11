@@ -11,6 +11,7 @@ import {
   ARCH_MULT,
   BENCH_SHARE_MAX,
   CHIN_OPT_RATIO,
+  CONTEXT_LEVELS,
   EXPOSE_HYPE_MULT,
   EXPOSE_REP,
   MAX_BENCH_TARGETS,
@@ -22,12 +23,14 @@ import {
   TRAIN_FLOP_PER_H100E_DAY,
 } from '../../sim/constants';
 import { byYear, END_DAY, formatDateShort, yearOf } from '../../sim/time';
-import { archFor, chinchillaFactor, estimate, labelersCost } from '../../sim/training';
+import { refContext } from '../../sim/market';
+import { CONTEXT_MAX_LEVEL, contextLabel, maxContext } from '../../sim/research';
+import { archFor, chinchillaFactor, contextFlopMult, estimate, labelersCost } from '../../sim/training';
 import { DOMAINS } from '../../sim/types';
 import type { BenchmarkId, DomainId, GameState, TrainingPlan, TrainingRun } from '../../sim/types';
 import { ErrorText, ProgressBar, Range } from '../components/common';
 import { endSentence, fmtCardDays, fmtElo, fmtMoney, fmtNum, fmtParams, fmtPct, fmtTokens } from '../format';
-import { IconAlert } from '../icons';
+import { IconAlert, IconLock } from '../icons';
 import { actions, store } from '../store';
 import './TrainingWindow.css';
 
@@ -65,6 +68,7 @@ interface Draft {
   share: number; // целые проценты
   targets: BenchmarkId[];
   rlhf: boolean;
+  context: number | null; // null - наибольший открытый
 }
 
 /** Черновик живёт вне компонента: свёрнутое окно закрывается полностью, а настройки должны остаться. */
@@ -86,6 +90,7 @@ function initialDraft(s: GameState): Draft {
     share: 0,
     targets: [],
     rlhf: prev?.rlhf ?? false,
+    context: null,
   };
 }
 
@@ -208,6 +213,55 @@ function NoComputeAlert({ s, open }: { s: GameState; open: OpenFn }) {
         Открыть «Мощности»
       </button>
     </div>
+  );
+}
+
+// ---------- Контекст ----------
+
+/** Выбор длины контекста: открытые уровни и следующий закрытый. */
+function ContextBlock(props: { s: GameState; value: number; onChange: (v: number) => void; open: OpenFn }) {
+  const { s, value, onChange, open } = props;
+  const level = s.research.contextLevel;
+  const shown = CONTEXT_LEVELS.slice(0, Math.min(CONTEXT_MAX_LEVEL, level + 1) + 1);
+  const market = refContext(s.day);
+  return (
+    <section className="nm-block">
+      <h2 className="nm-h">Контекст</h2>
+      <div className="nm-ctx" role="radiogroup" aria-label="Длина контекста">
+        {shown.map(([tokens], i) => {
+          const locked = i > level;
+          const extra = Math.round((contextFlopMult(tokens) - 1) * 100);
+          return (
+            <button
+              key={tokens}
+              type="button"
+              role="radio"
+              aria-checked={value === tokens}
+              disabled={locked}
+              className={`nm-ctx-opt${value === tokens ? ' on' : ''}`}
+              title={locked ? 'Нужен следующий уровень исследования «Длинный контекст».' : undefined}
+              onClick={() => onChange(tokens)}
+            >
+              <b>
+                {locked && <IconLock size={12} />}
+                {contextLabel(tokens)}
+              </b>
+              <span>{extra > 0 ? `+${extra} % вычислений` : 'без надбавки'}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="nm-ctx-foot">
+        <span title="Модели с контекстом длиннее обычного покупают охотнее, с коротким - реже.">
+          Обычный контекст на рынке: <b>{contextLabel(market)}</b> токенов
+        </span>
+        {level < CONTEXT_MAX_LEVEL && (
+          <button className="nm-link" onClick={() => open('research')}>
+            Исследования
+          </button>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -403,6 +457,7 @@ export default function TrainingWindow({ s, open }: WindowProps) {
   const benches = introducedBenchmarks(s);
   const rlhfDone = s.research.done.includes('rlhf');
   const nameValue = d.name ?? `Модель ${s.nextModelNum}`;
+  const ctxMax = maxContext(s);
 
   const plan: TrainingPlan = {
     name: nameValue,
@@ -412,6 +467,7 @@ export default function TrainingWindow({ s, open }: WindowProps) {
     benchShare: d.share / 100,
     benchTargets: d.share > 0 ? d.targets : [],
     rlhf: d.rlhf && rlhfDone,
+    context: d.context !== null && d.context <= ctxMax ? d.context : ctxMax,
   };
 
   let est: Est | null = null;
@@ -572,6 +628,8 @@ export default function TrainingWindow({ s, open }: WindowProps) {
               </div>
             </div>
           </section>
+
+          <ContextBlock s={s} value={plan.context} onChange={(context) => patch({ context })} open={open} />
 
           <section className="nm-block">
             <h2 className="nm-h" title="Доли в сумме дают 100 %: при движении одного ползунка остальные подстраиваются.">

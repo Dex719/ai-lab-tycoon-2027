@@ -5,6 +5,7 @@ import type { WindowProps } from '.';
 import { HYPE_OWNERS } from '../../sim/constants';
 import { bestElo } from '../../sim/leaderboard';
 import { marketSnapshot, refPrice, type MarketEntry } from '../../sim/market';
+import { contextLabel } from '../../sim/research';
 import { findRivalDef, rivalDay } from '../../sim/rivals';
 import { dayToDate, formatDateShort } from '../../sim/time';
 import type { GameState, HypeOwner } from '../../sim/types';
@@ -71,6 +72,9 @@ function ShareBars({ s, demand }: { s: GameState; demand: number }) {
   );
 }
 
+/** Контекст модели: «128 тыс.», «1 млн»; если контекст неизвестен - «-». */
+const ctxLabel = (tokens: number): string => (tokens > 0 ? contextLabel(tokens) : '-');
+
 function MarketTable({ s, entries }: { s: GameState; entries: MarketEntry[] | null }) {
   if (entries === null) return <div className="an-empty">Не удалось рассчитать список моделей.</div>;
   if (entries.length === 0) return <div className="an-empty">На рынке нет моделей.</div>;
@@ -81,6 +85,9 @@ function MarketTable({ s, entries }: { s: GameState; entries: MarketEntry[] | nu
           <th>Модель</th>
           <th>Лаборатория</th>
           <th className="num">Эло</th>
+          <th className="num" title="Длина контекста, токенов">
+            Контекст
+          </th>
           <th className="num">Цена за 1 млн токенов</th>
           <th className="num">Доля</th>
           <th className="num" title="Спрос на модель до ограничения мощностью">
@@ -96,6 +103,7 @@ function MarketTable({ s, entries }: { s: GameState; entries: MarketEntry[] | nu
               <OwnerTag s={s} owner={e.owner} />
             </td>
             <td className="num">{fmtElo(e.elo)}</td>
+            <td className="num">{ctxLabel(e.context)}</td>
             <td className="num">{fmtPrice(e.price)}</td>
             <td className="num">{fmtShare(e.share)}</td>
             <td className="num">{fmtNum(e.tokens)}</td>

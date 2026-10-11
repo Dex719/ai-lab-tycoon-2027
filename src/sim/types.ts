@@ -14,8 +14,10 @@ export type HypeOwner = LabId | 'player';
 export type GpuId = 'p100' | 'v100' | 'a100' | 'h100' | 'h200';
 export const GPU_IDS: readonly GpuId[] = ['p100', 'v100', 'a100', 'h100', 'h200'];
 
-export type TechId = 'attention' | 'scaling' | 'rlhf' | 'algo';
-export const TECH_IDS: readonly TechId[] = ['attention', 'scaling', 'rlhf', 'algo'];
+export type TechId = 'attention' | 'scaling' | 'rlhf' | 'algo' | 'context';
+export const TECH_IDS: readonly TechId[] = ['attention', 'scaling', 'rlhf', 'algo', 'context'];
+/** Исследования-цепочки с уровнями: «Алгоритмические улучшения» (без конца) и «Длинный контекст» (до последнего уровня). */
+export type ChainTech = 'algo' | 'context';
 
 export type Speed = 0 | 1 | 2 | 4;
 export type Outcome = null | 'victory' | 'finished' | 'bankrupt';
@@ -71,6 +73,7 @@ export interface RivalModelDef {
   arenaElo: number;
   arenaEstimated: boolean;
   contaminated: boolean; // были сообщения об утечке тестов
+  context: number; // контекст на момент выхода, токенов
   notes?: string;
 }
 
@@ -97,6 +100,7 @@ export interface TrainingPlan {
   benchShare: number; // 0..0.5
   benchTargets: BenchmarkId[]; // 0..3 целевых бенчмарка
   rlhf: boolean;
+  context: number; // длина контекста, токенов (одно из CONTEXT_LEVELS)
 }
 
 export interface TrainingRun {
@@ -125,6 +129,7 @@ export interface PlayerModel {
   price: number; // $ за 1М токенов
   onApi: boolean;
   exposed: boolean; // разоблачена подгонка
+  earned: number; // выручка API с момента выпуска, $
 }
 
 // Ссылка на модель в рейтингах/рынке
@@ -217,7 +222,7 @@ export interface GameState {
   lastRoundDay: number | null;
   hype: Record<HypeOwner, number>; // 0..100
   compute: { rented: Record<GpuId, number>; alloc: Allocation };
-  research: { current: TechId | null; points: Record<TechId, number>; done: TechId[]; algoLevel: number };
+  research: { current: TechId | null; points: Record<TechId, number>; done: TechId[]; algoLevel: number; contextLevel: number };
   training: TrainingRun | null;
   bestFlop: number;
   nextModelNum: number;

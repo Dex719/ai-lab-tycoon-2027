@@ -9,6 +9,8 @@ import {
   ARENA_WEIGHTS,
   BENCH_DATA_PENALTY,
   BENCH_SHARE_MAX,
+  CONTEXT_FLOP_PER_DOUBLING,
+  CONTEXT_LEVELS,
   CAP_BASE_OFFSET,
   CHIN_K,
   CHIN_OPT_RATIO,
@@ -41,6 +43,7 @@ import {
 } from './constants';
 import { addMail, awaitingEvent, dropChoices, triggerEvent } from './events';
 import { spend } from './finance';
+import { contextLabel, maxContext } from './research';
 import { chance, randRange } from './rng';
 import { endSentence } from './text';
 import { byYear, dateToDay, yearOf } from './time';
@@ -99,9 +102,15 @@ function pointsWord(n: number): string {
 
 // ---------- Формулы ----------
 
-/** 6 × N × D × (1 + RLHF_FLOP_EXTRA, если rlhf). */
+/** Надбавка за контекст: +CONTEXT_FLOP_PER_DOUBLING за каждое удвоение сверх 512 токенов. */
+export function contextFlopMult(context: number): number {
+  const ratio = context > 512 ? context / 512 : 1;
+  return 1 + CONTEXT_FLOP_PER_DOUBLING * Math.log2(ratio);
+}
+
+/** 6 × N × D × (1 + RLHF_FLOP_EXTRA, если rlhf) × надбавка за контекст. */
 export function planFlop(plan: TrainingPlan): number {
-  return 6 * plan.paramsB * 1e9 * plan.tokensB * 1e9 * (plan.rlhf ? 1 + RLHF_FLOP_EXTRA : 1);
+  return 6 * plan.paramsB * 1e9 * plan.tokensB * 1e9 * (plan.rlhf ? 1 + RLHF_FLOP_EXTRA : 1) * contextFlopMult(plan.context);
 }
 
 /** Трансформер доступен после «Механизма внимания», раньше - LSTM. */
@@ -209,6 +218,10 @@ export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
     if (!s.benchmarks[t]?.introduced) return 'Нельзя подгонять под бенчмарк, который ещё не вышел.';
   }
   if (plan.rlhf && !s.research.done.includes('rlhf')) return 'Требуется исследование «Обучение на отзывах людей (RLHF)».';
+  if (!CONTEXT_LEVELS.some(([tokens]) => tokens === plan.context)) return 'Неизвестная длина контекста.';
+  if (plan.context > maxContext(s)) {
+    return `Контекст ${contextLabel(plan.context)} токенов ещё не открыт: нужно исследование «Длинный контекст».`;
+  }
   const labelers = labelersCost(plan);
   // Деньги нужны только тем, кто платит разметчикам: без RLHF (labelers = 0) проект можно начать и при минусе на счету.
   if (labelers > 0 && labelers > s.cash) {
@@ -252,7 +265,7 @@ export function estimate(s: GameState, plan: TrainingPlan): TrainingEstimate {
   result.forecast = { caps, scores, elo: arenaElo(caps, plan.rlhf, algoLevel) };
 
   // Для того же объёма вычислений: 6·N·D = 120·N² при D = 20·N (надбавка RLHF остаётся за рамками).
-  const baseFlop = flop / (plan.rlhf ? 1 + RLHF_FLOP_EXTRA : 1);
+  const baseFlop = flop / ((plan.rlhf ? 1 + RLHF_FLOP_EXTRA : 1) * contextFlopMult(plan.context));
   const n = Math.sqrt(baseFlop / (6 * CHIN_OPT_RATIO)) / 1e9;
   result.optimal = { paramsB: n, tokensB: CHIN_OPT_RATIO * n };
   return result;
@@ -329,6 +342,7 @@ function finishTraining(s: GameState): void {
     price: 0,
     onApi: false,
     exposed: false,
+    earned: 0,
   };
   s.models.push(model);
   s.bestFlop = Math.max(s.bestFlop, t.flopTotal);

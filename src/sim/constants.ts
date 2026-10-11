@@ -1,7 +1,7 @@
 // Все числа баланса среза. Формулы - в design.md, раздел «Формулы и баланс».
 // Точки кривых: [дата 'YYYY-MM-DD', значение]; между точками - lerpByDate (линейно или в логарифме).
 
-import type { Allocation, DomainId, HypeOwner, TechId } from './types';
+import type { Allocation, ChainTech, DomainId, HypeOwner, TechId } from './types';
 
 export const START_DATE = '2017-01-01';
 export const END_DATE = '2024-12-31';
@@ -27,15 +27,21 @@ export const TOKENS_B_MIN = 0.5;
 // Исследования
 export const RP_BASE = 10;
 export const RP_K = 25;
-export const TECH_COST: Record<Exclude<TechId, 'algo'>, number> = { attention: 4000, scaling: 15000, rlhf: 30000 };
-export const TECH_REQUIRES: Record<TechId, TechId[]> = { attention: [], scaling: ['attention'], rlhf: ['attention'], algo: [] };
+export const TECH_COST: Record<Exclude<TechId, ChainTech>, number> = { attention: 4000, scaling: 15000, rlhf: 30000 };
+export const TECH_REQUIRES: Record<TechId, TechId[]> = {
+  attention: [],
+  scaling: ['attention'],
+  rlhf: ['attention'],
+  algo: [],
+  context: ['attention'],
+};
 export const ALGO_BASE_COST = 5000;
 export const ALGO_COST_GROWTH = 1.6;
 export const ALGO_MULT = 1.25;
 export const ATTENTION_PAPER_DISCOUNT = 0.4;
 // Исследование раньше своего исторического времени дороже (как в Processor Tycoon):
 // цена × (1 + EARLY_PENALTY_PER_YEAR × лет до исторической даты).
-export const TECH_HISTORY_DATE: Record<Exclude<TechId, 'algo'>, string> = {
+export const TECH_HISTORY_DATE: Record<Exclude<TechId, ChainTech>, string> = {
   attention: '2017-06-12',
   scaling: '2020-01-23',
   rlhf: '2022-01-27',
@@ -43,6 +49,29 @@ export const TECH_HISTORY_DATE: Record<Exclude<TechId, 'algo'>, string> = {
 export const ALGO_HISTORY_START = '2017-01-01'; // уровень k «исторически» достигается через k × ALGO_LEVEL_DAYS дней
 export const ALGO_LEVEL_DAYS = 243; // ≈ 1,5 уровня в год: 12-й уровень - к концу 2024 года
 export const EARLY_PENALTY_PER_YEAR = 2.5;
+
+// Длинный контекст: уровень → [токенов, дата, когда такой контекст появился в истории]
+export const CONTEXT_LEVELS: [number, string][] = [
+  [512, '2017-01-01'], // исходный «Трансформер»
+  [1024, '2019-02-14'], // GTP-2
+  [2048, '2020-06-11'], // GTP-3
+  [4096, '2022-11-30'], // ChatGTP
+  [8192, '2023-03-14'], // GTP-4
+  [32768, '2023-05-11'], // GTP-4-32k, Clade 100k
+  [128000, '2023-11-06'], // GTP-4 Turbo
+  [1000000, '2024-02-15'], // Gemeni 1.5 Pro
+];
+export const CONTEXT_BASE_COST = 6000;
+export const CONTEXT_COST_GROWTH = 1.7;
+export const CONTEXT_FLOP_PER_DOUBLING = 0.05; // обучение дороже на 5 % за каждое удвоение контекста сверх 512
+// Рынок: полезность + CONTEXT_MARKET_K × ln(контекст / обычный контекст на рынке), отношение в пределах [1/64; 8]
+export const CONTEXT_MARKET_K = 0.25;
+export const CONTEXT_RATIO_MIN = 1 / 64;
+export const CONTEXT_RATIO_MAX = 8;
+export const CONTEXT_REF: [string, number][] = [
+  ['2017-01-01', 512], ['2019-02-14', 1024], ['2020-06-11', 2048], ['2022-11-30', 4096],
+  ['2023-03-14', 8192], ['2023-11-06', 32000], ['2024-06-01', 128000], ['2024-12-31', 128000],
+];
 
 // Обучение
 export const ARCH_MULT = { transformer: 1, lstm: 0.15 } as const;
@@ -86,6 +115,7 @@ export const HYPE_LOST_DEMAND_K = 0.3;
 
 // Рынок
 export const PRICE_ELASTICITY = 1.2;
+export const TOKENS_PER_USER_DAY = 10_000; // для оценки числа пользователей модели
 export const MARKET_MODELS_PER_LAB = 3;
 export const MARKET_MAX_AGE_DAYS = 365 * 3;
 export const DEMAND_TOKENS: [string, number][] = [

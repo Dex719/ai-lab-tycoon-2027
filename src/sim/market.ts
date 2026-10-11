@@ -4,6 +4,10 @@ import { LABS } from '../data/labs';
 import { pool } from './compute';
 import {
   ARENA_OPEN_DATE,
+  CONTEXT_MARKET_K,
+  CONTEXT_RATIO_MAX,
+  CONTEXT_RATIO_MIN,
+  CONTEXT_REF,
   DEMAND_TOKENS,
   HYPE_K_AFTER_ARENA,
   HYPE_K_BEFORE_ARENA,
@@ -28,6 +32,7 @@ export interface MarketEntry {
   name: string;
   price: number; // $ за 1М токенов
   elo: number;
+  context: number; // токенов
   quality: number; // Q = Elo + k_h × hype[owner]
   utility: number;
   share: number; // доля токенов, 0..1
@@ -54,6 +59,7 @@ interface Candidate {
   name: string;
   price: number;
   elo: number;
+  context: number;
 }
 
 /** T(t): lerpByDate(DEMAND_TOKENS, log) × модификатор demand. */
@@ -64,6 +70,17 @@ export function demandTokens(s: GameState): number {
 /** Опорная цена $ за 1М токенов (интерполяция в логарифме). */
 export function refPrice(day: number): number {
   return lerpByDate(REF_PRICE, day, true);
+}
+
+/** Обычный контекст на рынке в этот день (интерполяция в логарифме). */
+export function refContext(day: number): number {
+  return lerpByDate(CONTEXT_REF, day, true);
+}
+
+/** Прибавка к полезности за контекст: CONTEXT_MARKET_K × ln(контекст / обычный), отношение в пределах [1/64; 8]. */
+export function contextUtility(context: number, day: number): number {
+  const ratio = context > 0 ? context / refContext(day) : CONTEXT_RATIO_MIN;
+  return CONTEXT_MARKET_K * Math.log(Math.min(CONTEXT_RATIO_MAX, Math.max(CONTEXT_RATIO_MIN, ratio)));
 }
 
 /** Опорное качество внешнего варианта (линейная интерполяция). */
@@ -109,6 +126,7 @@ export function marketSnapshot(s: GameState): MarketSnapshot {
       name: m.name,
       price: m.price,
       elo: m.arenaElo,
+      context: m.plan.context,
     });
   }
   for (const def of marketRivals(s)) {
@@ -119,6 +137,7 @@ export function marketSnapshot(s: GameState): MarketSnapshot {
       name: def.gameName,
       price: rivalPrice(def, s.day),
       elo: def.arenaElo,
+      context: def.context,
     });
   }
 
@@ -132,7 +151,7 @@ export function marketSnapshot(s: GameState): MarketSnapshot {
       brands.set(r.owner, brand);
     }
     const price = r.price > PRICE_FLOOR ? r.price : PRICE_FLOOR;
-    const u = (quals[i] - 1000) / 100 + brand - PRICE_ELASTICITY * Math.log(price / pRef);
+    const u = (quals[i] - 1000) / 100 + brand - PRICE_ELASTICITY * Math.log(price / pRef) + contextUtility(r.context, s.day);
     // Нечисловая полезность (например, из-за битого Эло) даёт почти нулевую долю, а не портит весь расчёт.
     return Number.isFinite(u) ? u : -1e9;
   });
@@ -152,6 +171,7 @@ export function marketSnapshot(s: GameState): MarketSnapshot {
       name: r.name,
       price: r.price,
       elo: r.elo,
+      context: r.context,
       quality: quals[i],
       utility: utils[i],
       share,
@@ -194,7 +214,10 @@ export function dayStep(s: GameState): void {
     playerTokens += tokens;
     // Битая цена (NaN, минус) не должна съедать выручку других моделей.
     const price = Number.isFinite(e.price) && e.price > 0 ? e.price : 0;
-    revenue += (tokens * price) / 1e6;
+    const earned = (tokens * price) / 1e6;
+    revenue += earned;
+    const model = s.models.find((m) => m.id === e.ref.id);
+    if (model) model.earned += earned;
   }
   earn(s, 'api', revenue);
 

@@ -77,7 +77,7 @@ function makeModel(over: Partial<PlayerModel> = {}): PlayerModel {
     name: 'Модель-1',
     plan: {
       name: 'Модель-1', paramsB: 1, tokensB: 20, mix: { language: 1, code: 0, reasoning: 0 },
-      benchShare: 0, benchTargets: [], rlhf: false,
+      benchShare: 0, benchTargets: [], rlhf: false, context: 512,
     },
     arch: 'transformer',
     algoLevel: 0,
@@ -90,6 +90,7 @@ function makeModel(over: Partial<PlayerModel> = {}): PlayerModel {
     price: 10,
     onApi: true,
     exposed: false,
+    earned: 0,
     ...over,
   };
 }

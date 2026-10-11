@@ -6,6 +6,9 @@ import {
   ALGO_HISTORY_START,
   ALGO_LEVEL_DAYS,
   ALGO_MULT,
+  CONTEXT_BASE_COST,
+  CONTEXT_COST_GROWTH,
+  CONTEXT_LEVELS,
   EARLY_PENALTY_PER_YEAR,
   RP_BASE,
   RP_K,
@@ -16,7 +19,7 @@ import {
 import { pool } from './compute';
 import { addMail, modValue } from './events';
 import { dateToDay } from './time';
-import type { GameState, Result, TechId } from './types';
+import type { ChainTech, GameState, Result, TechId } from './types';
 import { TECH_IDS } from './types';
 
 export interface TechInfo {
@@ -47,10 +50,30 @@ export const TECHS: TechInfo[] = [
     name: 'Алгоритмические улучшения',
     description: 'Каждый уровень повышает эффективность обучения в 1,25 раза. У моделей с RLHF растёт и Эло.',
   },
+  {
+    id: 'context',
+    name: 'Длинный контекст',
+    description: 'Каждый уровень увеличивает контекст новых моделей. Модели с длинным контекстом покупают охотнее.',
+  },
 ];
 
+/** Наибольший контекст, доступный для обучения сейчас. */
+export function maxContext(s: GameState): number {
+  return CONTEXT_LEVELS[Math.min(s.research.contextLevel, CONTEXT_LEVELS.length - 1)][0];
+}
+
+/** Последний уровень «Длинного контекста». */
+export const CONTEXT_MAX_LEVEL = CONTEXT_LEVELS.length - 1;
+
+/** 512 → «512», 2048 → «2 тыс.», 128000 → «128 тыс.», 1000000 → «1 млн». */
+export function contextLabel(tokens: number): string {
+  if (tokens >= 1e6) return `${String(Math.round((tokens / 1e6) * 10) / 10).replace('.', ',')} млн`;
+  if (tokens >= 1000) return `${Math.round(tokens / 1000)} тыс.`;
+  return String(Math.round(tokens));
+}
+
 /** Одна строка о том, что изменилось, - для письма о завершении. */
-const EFFECT_LINE: Record<Exclude<TechId, 'algo'>, string> = {
+const EFFECT_LINE: Record<Exclude<TechId, ChainTech>, string> = {
   attention: 'Доступна архитектура «Трансформер». Обучение эффективнее, чем на LSTM, примерно в 7 раз.',
   scaling: 'В окне «Новая модель» отображаются прогноз баллов до запуска и оптимальный размер модели.',
   rlhf: 'Доступно обучение с RLHF: Эло на «Арене» выше, открыты RLHF-тендеры.',
@@ -68,6 +91,7 @@ function fmtMult(x: number): string {
 /** День, когда технология (для algo - следующий уровень) появилась в истории. */
 export function techHistoryDay(s: GameState, tech: TechId): number {
   if (tech === 'algo') return dateToDay(ALGO_HISTORY_START) + s.research.algoLevel * ALGO_LEVEL_DAYS;
+  if (tech === 'context') return dateToDay(CONTEXT_LEVELS[Math.min(s.research.contextLevel + 1, CONTEXT_MAX_LEVEL)][1]);
   return dateToDay(TECH_HISTORY_DATE[tech]);
 }
 
@@ -87,13 +111,19 @@ export function earlyPenalty(s: GameState, tech: TechId): number {
  * поэтому с приближением исторической даты она падает.
  */
 export function techCost(s: GameState, tech: TechId): number {
-  const base = tech === 'algo' ? ALGO_BASE_COST * ALGO_COST_GROWTH ** s.research.algoLevel : TECH_COST[tech];
+  const base =
+    tech === 'algo'
+      ? ALGO_BASE_COST * ALGO_COST_GROWTH ** s.research.algoLevel
+      : tech === 'context'
+        ? CONTEXT_BASE_COST * CONTEXT_COST_GROWTH ** s.research.contextLevel
+        : TECH_COST[tech];
   return base * modValue(s, 'researchCost', tech).mult * earlyPenalty(s, tech);
 }
 
 /** Почему сейчас нельзя исследовать (null - можно). Текст готов для показа игроку. */
 export function researchBlockReason(s: GameState, tech: TechId): string | null {
   if (!TECH_IDS.includes(tech)) return 'Нет такого исследования';
+  if (tech === 'context' && s.research.contextLevel >= CONTEXT_MAX_LEVEL) return 'Достигнут наибольший контекст';
   if (tech !== 'algo' && s.research.done.includes(tech)) return 'Это исследование уже завершено';
   const missing = TECH_REQUIRES[tech].filter((t) => !s.research.done.includes(t));
   if (missing.length > 0) return `Требуется исследование: ${missing.map(techName).join(', ')}`;
@@ -139,6 +169,22 @@ export function progressDay(s: GameState): void {
   s.research.points[tech] += rpPerDay(s);
   if (s.research.points[tech] < techCost(s, tech)) return;
 
+  if (tech === 'context') {
+    s.research.contextLevel += 1;
+    s.research.points.context = 0;
+    s.research.current = null;
+    const level = s.research.contextLevel;
+    const last = level >= CONTEXT_MAX_LEVEL;
+    if (last) s.research.done.push('context');
+    addMail(s, {
+      kind: 'research',
+      title: `Исследование завершено: ${techName(tech)}, ${contextLabel(maxContext(s))} токенов`,
+      body:
+        `Новые модели можно обучать с контекстом до ${contextLabel(maxContext(s))} токенов. Контекст выбирается в окне «Новая модель».` +
+        (last ? '' : ' Следующий уровень можно начать в окне «Исследования».'),
+    });
+    return;
+  }
   if (tech === 'algo') {
     s.research.algoLevel += 1;
     s.research.points.algo = 0;

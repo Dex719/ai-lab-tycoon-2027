@@ -30,7 +30,7 @@ export function createInitialState(labName: string, seed: number): GameState {
     lastRoundDay: null,
     hype,
     compute: { rented: { p100: 0, v100: 0, a100: 0, h100: 0, h200: 0 }, alloc: { ...DEFAULT_ALLOC } },
-    research: { current: null, points: { attention: 0, scaling: 0, rlhf: 0, algo: 0 }, done: [], algoLevel: 0 },
+    research: { current: null, points: { attention: 0, scaling: 0, rlhf: 0, algo: 0, context: 0 }, done: [], algoLevel: 0, contextLevel: 0 },
     training: null,
     bestFlop: 0,
     nextModelNum: 1,

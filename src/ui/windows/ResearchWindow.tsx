@@ -5,8 +5,18 @@ import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
 import { GPUS } from '../../data/gpus';
 import { pool, rentPerDay, totalH100e } from '../../sim/compute';
-import { ALGO_MULT, RP_BASE, RP_K } from '../../sim/constants';
-import { earlyPenalty, researchBlockReason, rpPerDay, TECHS, techCost, techHistoryDay } from '../../sim/research';
+import { ALGO_MULT, CONTEXT_LEVELS, RP_BASE, RP_K } from '../../sim/constants';
+import {
+  CONTEXT_MAX_LEVEL,
+  contextLabel,
+  earlyPenalty,
+  maxContext,
+  researchBlockReason,
+  rpPerDay,
+  TECHS,
+  techCost,
+  techHistoryDay,
+} from '../../sim/research';
 import { dayToDate, formatDateShort } from '../../sim/time';
 import type { GameState, TechId } from '../../sim/types';
 import { percentsOf, toAllocation, withPercent } from '../alloc';
@@ -33,7 +43,7 @@ const CHIP_GAP = 8;
 const CHIP_LINK = 28; // от последнего значка до узла
 const MAX_CHIPS = 8;
 
-const CODES: Record<Exclude<TechId, 'algo'>, string> = { attention: 'ATT', scaling: 'SCL', rlhf: 'RLHF' };
+const CODES: Record<Exclude<TechId, 'algo'>, string> = { attention: 'ATT', scaling: 'SCL', rlhf: 'RLHF', context: 'CTX' };
 
 function techName(id: TechId): string {
   return TECHS.find((t) => t.id === id)?.name ?? id;
@@ -65,9 +75,18 @@ function algoChips(level: number): Chip[] {
   return [{ label: `Ур. 1-${folded}`, title: `Уровни 1-${folded} изучены` }, ...all.slice(folded)];
 }
 
+/** Значки изученных уровней контекста: «1 тыс.», «2 тыс.»… */
+function contextChips(level: number): Chip[] {
+  return Array.from({ length: level }, (_, i) => {
+    const label = contextLabel(CONTEXT_LEVELS[i + 1][0]);
+    return { label, title: `Уровень ${i + 1}: контекст до ${label} токенов` };
+  });
+}
+
 interface NodeProps {
   s: GameState;
   id: TechId;
+  label?: string;
   rp: number;
   x: number;
   y: number;
@@ -75,7 +94,7 @@ interface NodeProps {
   onPick: (id: TechId, status: Status, reason: string | null) => void;
 }
 
-function TechNode({ s, id, rp, x, y, code, onPick }: NodeProps) {
+function TechNode({ s, id, label, rp, x, y, code, onPick }: NodeProps) {
   const info = TECHS.find((t) => t.id === id);
   if (!info) return null;
 
@@ -100,7 +119,7 @@ function TechNode({ s, id, rp, x, y, code, onPick }: NodeProps) {
         aria-disabled={status === 'blocked' || status === 'done'}
         onClick={() => onPick(id, status, reason)}
       >
-        <span className="rs-name">{info.name}</span>
+        <span className="rs-name">{label ?? info.name}</span>
         <span className="rs-main">
           <span className="rs-thumb">
             {status === 'blocked' && <IconLock size={16} />}
@@ -178,8 +197,16 @@ export default function ResearchWindow({ s, open }: WindowProps) {
   const chips = algoChips(level);
   const chipsW = chips.length > 0 ? chips.length * CHIP_W + (chips.length - 1) * CHIP_GAP : 0;
   const algoX = PAD + (chips.length > 0 ? chipsW + CHIP_LINK : 0);
-  const width = Math.max(colX + NW + PAD, algoX + NW + PAD);
-  const height = algoY + NH + CAPTION_H + 12;
+  const ctxLevel = s.research.contextLevel;
+  const ctxY = algoY + NH + ROW_GAP + CAPTION_H;
+  const ctxChips = contextChips(ctxLevel);
+  const ctxChipsW = ctxChips.length > 0 ? ctxChips.length * CHIP_W + (ctxChips.length - 1) * CHIP_GAP : 0;
+  const ctxX = PAD + (ctxChips.length > 0 ? ctxChipsW + CHIP_LINK : 0);
+  const ctxCy = ctxY + NH / 2;
+  const ctxDone = ctxLevel >= CONTEXT_MAX_LEVEL;
+  const ctxNext = CONTEXT_LEVELS[Math.min(ctxLevel + 1, CONTEXT_MAX_LEVEL)][0];
+  const width = Math.max(colX + NW + PAD, algoX + NW + PAD, ctxX + NW + PAD);
+  const height = ctxY + NH + CAPTION_H + 12;
 
   const midX = PAD + NW + COL_GAP / 2;
   const attentionCy = attentionY + NH / 2;
@@ -216,6 +243,7 @@ export default function ResearchWindow({ s, open }: WindowProps) {
             <path className={attentionDone ? 'on' : undefined} d={branch(scalingY)} />
             <path className={attentionDone ? 'on' : undefined} d={branch(rlhfY)} />
             {chips.length > 0 && <path className="on" d={`M${PAD + CHIP_W / 2} ${algoCy} H${algoX}`} />}
+            {ctxChips.length > 0 && <path className="on" d={`M${PAD + CHIP_W / 2} ${ctxCy} H${ctxX}`} />}
           </svg>
 
           <TechNode s={s} id="attention" rp={rp} x={PAD} y={attentionY} code={CODES.attention} onPick={pick} />
@@ -238,6 +266,32 @@ export default function ResearchWindow({ s, open }: WindowProps) {
             </span>
           ))}
           <TechNode s={s} id="algo" rp={rp} x={algoX} y={algoY} code={`ALG ${level + 1}`} onPick={pick} />
+
+          {ctxChips.length > 0 && (
+            <span className="rs-caption free" style={{ left: PAD, top: ctxCy - CHIP_H / 2 - 22 }}>
+              Наибольший контекст: {contextLabel(CONTEXT_LEVELS[ctxLevel][0])} токенов
+            </span>
+          )}
+          {ctxChips.map((c, i) => (
+            <span
+              key={c.label}
+              className="rs-chip"
+              title={c.title}
+              style={{ left: PAD + i * (CHIP_W + CHIP_GAP), top: ctxCy - CHIP_H / 2, width: CHIP_W, height: CHIP_H }}
+            >
+              {c.label}
+            </span>
+          ))}
+          <TechNode
+            s={s}
+            id="context"
+            label={ctxDone ? 'Длинный контекст' : `Длинный контекст: ${contextLabel(ctxNext)}`}
+            rp={rp}
+            x={ctxX}
+            y={ctxY}
+            code={CODES.context}
+            onPick={pick}
+          />
         </div>
       </div>
 
@@ -363,6 +417,14 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
               </small>
             )}
           </dd>
+          {id === 'context' && s.research.contextLevel < CONTEXT_MAX_LEVEL && (
+            <>
+              <dt>Контекст</dt>
+              <dd>
+                {contextLabel(maxContext(s))} → {contextLabel(CONTEXT_LEVELS[s.research.contextLevel + 1][0])} токенов
+              </dd>
+            </>
+          )}
           {points > 0 && (
             <>
               <dt>Накоплено</dt>

@@ -5,13 +5,15 @@ import type { WindowProps } from '.';
 import { BENCHMARKS } from '../../data/benchmarks';
 import { ARENA_OPEN_DATE } from '../../sim/constants';
 import { leaderboard, type BoardRow } from '../../sim/leaderboard';
+import { contextLabel } from '../../sim/research';
+import { findRivalDef } from '../../sim/rivals';
 import { dateToDay, END_DAY, formatDateShort } from '../../sim/time';
 import type { BenchmarkDef, BenchmarkId, GameState } from '../../sim/types';
 import { fmtElo, fmtNum, fmtPct } from '../format';
 import { IconAlert, IconLock } from '../icons';
 import { ownerColor, ownerName, OwnerTag, safe, StatStrip } from './analyticsShared';
 
-type SortKey = 'name' | 'owner' | 'date' | BenchmarkId;
+type SortKey = 'name' | 'owner' | 'date' | 'context' | BenchmarkId;
 type SortDir = 'asc' | 'desc';
 interface Sort {
   key: SortKey;
@@ -22,6 +24,18 @@ const TIP_ESTIMATE = 'Оценка: лаборатория не публиков
 const TIP_SATURATED = 'Бенчмарк насыщен: не влияет на шумиху и тендеры.';
 
 const rowKey = (r: BoardRow) => `${r.ref.kind}:${r.ref.id}`;
+
+const TIP_CONTEXT = 'Длина контекста, токенов';
+
+/** Контекст модели из строки рейтинга: у соперника - из каталога, у вашей - из плана обучения; 0, если неизвестен. */
+function rowContext(s: GameState, r: BoardRow): number {
+  if (r.ref.kind === 'rival') return findRivalDef(r.ref.id)?.context ?? 0;
+  const id = r.ref.id;
+  return s.models.find((m) => m.id === id)?.plan.context ?? 0;
+}
+
+/** Контекст модели: «128 тыс.», «1 млн»; если контекст неизвестен - «-». */
+const ctxLabel = (tokens: number): string => (tokens > 0 ? contextLabel(tokens) : '-');
 
 /** Подсказка к значку предупреждения: у вашей модели - раскрытая подгонка, у соперника - сообщения об утечке. */
 function flagTitle(r: BoardRow): string {
@@ -47,7 +61,7 @@ function defaultSort(s: GameState, active: BenchmarkDef[]): Sort {
 }
 
 function isStaticKey(k: SortKey): boolean {
-  return k === 'name' || k === 'owner' || k === 'date';
+  return k === 'name' || k === 'owner' || k === 'date' || k === 'context';
 }
 
 function Th(props: {
@@ -83,6 +97,8 @@ function compareRows(s: GameState, sort: Sort, a: BoardRow, b: BoardRow): number
       return sign * ownerName(s, a.owner).localeCompare(ownerName(s, b.owner), 'ru');
     case 'date':
       return sign * (a.releasedDay - b.releasedDay);
+    case 'context':
+      return sign * (rowContext(s, a) - rowContext(s, b));
     default: {
       const va = a.scores[sort.key]?.value;
       const vb = b.scores[sort.key]?.value;
@@ -143,6 +159,9 @@ export function BenchmarksTab({ s }: WindowProps) {
               <Th id="date" sort={sort} onSort={onSort}>
                 Выпущена
               </Th>
+              <Th id="context" sort={sort} onSort={onSort} num title={TIP_CONTEXT}>
+                Контекст
+              </Th>
               {active.map((b) => {
                 const saturated = s.benchmarks[b.id].saturated;
                 return (
@@ -173,6 +192,7 @@ export function BenchmarksTab({ s }: WindowProps) {
                   <OwnerTag s={s} owner={r.owner} />
                 </td>
                 <td>{formatDateShort(r.releasedDay)}</td>
+                <td className="num">{ctxLabel(rowContext(s, r))}</td>
                 {active.map((b) => {
                   const sc = r.scores[b.id];
                   const cls = `num${s.benchmarks[b.id].saturated ? ' sat' : ''}`;
@@ -263,6 +283,9 @@ export function ArenaTab({ s }: WindowProps) {
               <th>Лаборатория</th>
               <th title="Рейтинг Эло: чем выше, тем чаще пользователи выбирают ответы модели">Эло</th>
               <th>Выпущена</th>
+              <th className="num" title={TIP_CONTEXT}>
+                Контекст
+              </th>
               <th>Рынок</th>
             </tr>
           </thead>
@@ -289,6 +312,7 @@ export function ArenaTab({ s }: WindowProps) {
                   </div>
                 </td>
                 <td>{formatDateShort(r.releasedDay)}</td>
+                <td className="num">{ctxLabel(rowContext(s, r))}</td>
                 <td>{r.onMarket ? <span className="good">На рынке</span> : ''}</td>
               </tr>
             ))}
