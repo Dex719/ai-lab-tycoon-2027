@@ -12,13 +12,15 @@ import {
   FAIL_CONTINUE_PENALTY,
   FAIL_ROLLBACK,
 } from '../sim/constants';
+import { availableGpus, rentPerGpuDay } from '../sim/compute';
 import { addModifier, FOREVER } from '../sim/events';
 import { spend } from '../sim/finance';
 import { bestElo } from '../sim/leaderboard';
 import { endSentence } from '../sim/text';
 import { dateToDay } from '../sim/time';
 import { applyFailChoice } from '../sim/training';
-import type { GameState, HypeOwner, Mail, PlayerModel } from '../sim/types';
+import type { GameState, GpuDef, HypeOwner, Mail, PlayerModel } from '../sim/types';
+import { GPUS } from './gpus';
 import { LABS } from './labs';
 
 export interface EventChoiceDef {
@@ -115,6 +117,31 @@ function exportControls(id: string, date: string, title: string, body: string): 
 }
 
 const CHINESE_NAMES = CHINESE_LABS.map((l) => l.name).join(', ');
+
+/** Новость о новом поколении GPU: насколько дешевле стал H100e-день по сравнению с лучшим прежним вариантом. */
+function gpuEvent(gpu: GpuDef): EventDef {
+  return {
+    id: `gpu-${gpu.id}`,
+    when: { date: gpu.availableFrom },
+    mail: (s) => {
+      const perH = (id: GpuDef['id']) => rentPerGpuDay(s, id) / GPUS.find((g) => g.id === id)!.h100e;
+      const older = availableGpus(s).filter((g) => g.id !== gpu.id);
+      const best = older.length ? Math.min(...older.map((g) => perH(g.id))) : null;
+      const now = perH(gpu.id);
+      const gain =
+        best !== null && best > now
+          ? ` На таких картах вычисления в ${String(Math.round((best / now) * 10) / 10).replace('.', ',')} раза дешевле, чем на лучших прежних.`
+          : '';
+      return {
+        kind: 'news',
+        title: `Fermi Systems: ${gpu.name} в облаке`,
+        body:
+          `В облаке можно арендовать ${gpu.name}: одна карта — это ${String(Math.round(gpu.h100e * 100) / 100).replace('.', ',')} H100e.${gain} ` +
+          'Старые карты не дешевеют так быстро: загляните в окно «Мощности» и подумайте о переезде.',
+      };
+    },
+  };
+}
 
 export const EVENTS: EventDef[] = [
   // 1. Статья о механизме внимания (12.06.2017): две ветки, срабатывает одна.
@@ -384,7 +411,7 @@ export const EVENTS: EventDef[] = [
       kind: 'news',
       title: 'Модели, которые думают',
       body:
-        'OpenBrain выпустила q1-preview — модель, которая перед ответом долго «размышляет». ' +
+        'OpenBrain выпустила q1-Previow — модель, которая перед ответом долго «размышляет». ' +
         'На GPQE и в математике (GSM8C) она обгоняет всех соперников. ' +
         'Теперь важно не только знать много, но и уметь рассуждать, и именно за этими баллами следят в первую очередь.',
     }),
@@ -437,4 +464,7 @@ export const EVENTS: EventDef[] = [
       },
     ],
   },
+
+  // Новые поколения GPU (P100 доступна с начала игры).
+  ...GPUS.filter((g) => g.id !== 'p100').map(gpuEvent),
 ];
