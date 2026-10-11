@@ -18,6 +18,7 @@ import {
 import { addMail } from './events';
 import { earn, spend } from './finance';
 import { chance, pick, randInt, randRange } from './rng';
+import { endSentence } from './text';
 import { byYear, dateToDay, lerpByDate, yearOf } from './time';
 import { modelScore } from './training';
 import type { BenchmarkId, Contract, GameState, PlayerModel, Result, Tender } from './types';
@@ -164,8 +165,8 @@ export function applyTender(s: GameState, tenderId: string, modelId: string): Re
   return { ok: true };
 }
 
-/** Контракт закрыт: штраф, падение репутации, письмо. */
-function failContract(s: GameState, c: Contract, title: string, reason: string): void {
+/** Контракт закрыт: штраф, падение репутации, письмо. Важное (игра встаёт на паузу), если провал случился не по воле игрока. */
+function failContract(s: GameState, c: Contract, title: string, reason: string, important = true): void {
   const t = c.tender;
   spend(s, 'penalties', t.penalty);
   addReputation(s, REP_CONTRACT_FAIL);
@@ -176,6 +177,7 @@ function failContract(s: GameState, c: Contract, title: string, reason: string):
     body:
       `${clientName(t.clientId)}: ${reason} ` +
       `Штраф ${fmtMoney(t.penalty)}, репутация −${Math.abs(REP_CONTRACT_FAIL)}.`,
+    important,
   });
 }
 
@@ -211,7 +213,7 @@ function finishContract(s: GameState, c: Contract): void {
 export function cancelContract(s: GameState, contractId: string): Result {
   const c = s.contracts.find((x) => x.id === contractId);
   if (!c) return { ok: false, error: 'Нет такого контракта' };
-  failContract(s, c, 'Контракт расторгнут', 'вы отказались от контракта.');
+  failContract(s, c, 'Контракт расторгнут', 'вы отказались от контракта.', false); // решение игрока: пауза не нужна
   return { ok: true };
 }
 
@@ -245,15 +247,19 @@ function resolveApplication(s: GameState, t: Tender): void {
   if (t.type === 'rlhf') {
     const labelers = RLHF_TENDER_LABELERS * t.payment;
     spend(s, 'labelers', labelers);
-    labelersNote = ` Разметчикам заплачено ${fmtMoney(labelers)}.`;
+    labelersNote = ` Разметчикам заплачено ${endSentence(fmtMoney(labelers))}`;
   }
+  // Пауза нужна, только если работать нечем: тендеры выигрываются часто, и пауза на каждом мешала бы.
+  const noCompute = s.compute.alloc.contracts <= 0;
   addMail(s, {
     kind: 'contract',
     title: 'Тендер выигран',
+    important: noCompute,
     body:
       `${client}: исполнителем выбрана ваша модель ${model.name}. ` +
-      `Срок — ${t.durationDays} дн., оплата после сдачи — ${fmtMoney(t.payment)}. ` +
-      `Мощность берётся из доли «Контракты».${labelersNote}`,
+      `Срок — ${t.durationDays} дн., оплата после сдачи — ${endSentence(fmtMoney(t.payment))} ` +
+      `Мощность берётся из доли «Контракты».${labelersNote}` +
+      (noCompute ? ' Сейчас эта доля — 0 %: выделите мощность в окне «Мощности», иначе работа не начнётся.' : ''),
   });
 }
 

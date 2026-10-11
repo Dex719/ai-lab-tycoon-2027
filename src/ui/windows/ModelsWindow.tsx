@@ -90,7 +90,12 @@ function ModelActions({ s, m }: { s: GameState; m: PlayerModel }) {
   const shown = text ?? String(released ? m.price : defaultPrice(s.day));
   const price = parsePrice(shown);
   const ref = safeRefPrice(s.day);
-  const priceHint = price === null ? `Цена — от больше нуля до ${fmtPrice(MAX_PRICE)} за 1 млн токенов.` : null;
+  const priceHint =
+    price === null
+      ? shown.trim() === ''
+        ? 'Введите цену за 1 млн токенов.'
+        : `Цена должна быть больше нуля и не выше ${fmtPrice(MAX_PRICE)} за 1 млн токенов.`
+      : null;
 
   function done(r: { ok: true } | { ok: false; error: string }) {
     if (r.ok) {
@@ -127,6 +132,8 @@ function ModelActions({ s, m }: { s: GameState; m: PlayerModel }) {
           value={shown}
           onChange={(e) => setText(e.target.value)}
           title="Цена за 1 млн токенов, в долларах"
+          aria-invalid={price === null}
+          style={price === null ? { borderColor: 'var(--bad)' } : undefined}
         />
         <span className="muted small">за 1 млн токенов</span>
         {price !== null && ref !== null && (
@@ -157,6 +164,7 @@ function ModelActions({ s, m }: { s: GameState; m: PlayerModel }) {
           Выпуск открывает продажу по API и даёт шумиху. Цена по умолчанию — 80 % от опорной цены рынка.
         </div>
       )}
+      {priceHint && <div className="error">{priceHint}</div>}
       <ErrorText error={err} />
     </div>
   );

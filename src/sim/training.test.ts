@@ -479,6 +479,54 @@ describe('validatePlan', () => {
   });
 });
 
+describe('validatePlan: минус на счету', () => {
+  it('проект без RLHF можно начать, даже если на счету минус (разметчики стоят $0)', () => {
+    const s = lateState();
+    s.cash = -250_000;
+    expect(validatePlan(s, plan())).toBeNull();
+    expect(estimate(s, plan()).error).toBeNull();
+    expect(startTraining(s, plan())).toEqual({ ok: true });
+    expect(s.training).not.toBeNull();
+    expect(s.cash).toBe(-250_000); // ничего не списано
+  });
+
+  it('минус в один доллар тоже не мешает проекту без RLHF', () => {
+    const s = lateState();
+    s.cash = -1;
+    expect(validatePlan(s, plan())).toBeNull();
+  });
+
+  it('проект с RLHF при минусе на счету отклоняется: разметчикам нечем платить', () => {
+    const s = lateState();
+    s.research.done = ['attention', 'rlhf'];
+    s.cash = -250_000;
+    const p = plan({ paramsB: 100, rlhf: true });
+    const error = validatePlan(s, p);
+    expect(error).toMatch(/разметчик/);
+    expect(error).toContain('нужно $400 тыс.');
+    expect(error).toContain('на счету −$250 тыс.');
+    expect(startTraining(s, p)).toMatchObject({ ok: false });
+    expect(s.training).toBeNull();
+  });
+
+  it('в тексте ошибки про разметчиков нет двойной точки после «тыс.»', () => {
+    const s = lateState();
+    s.research.done = ['attention', 'rlhf'];
+    const p = plan({ paramsB: 100, rlhf: true });
+    for (const cash of [0, 12_345, 250_000, -250_000, 399_999]) {
+      s.cash = cash;
+      const error = validatePlan(s, p)!;
+      expect(error, `cash = ${cash}`).not.toMatch(/\.\./);
+      expect(error.endsWith('.'), `cash = ${cash}`).toBe(true);
+    }
+    // суммы в миллионах и в долларах без сокращения тоже заканчиваются одной точкой
+    s.cash = 150;
+    expect(validatePlan(s, p)).toMatch(/на счету \$150\.$/);
+    s.cash = -2_000_000;
+    expect(validatePlan(s, p)).toMatch(/на счету −\$2 млн\.$/);
+  });
+});
+
 describe('estimate', () => {
   it('без «Законов масштабирования» нет прогноза и подсказки', () => {
     const s = lateState();
@@ -1298,6 +1346,17 @@ describe('письмо о готовой модели', () => {
     expect(all.body).toContain('SWE-banch');
   });
 
+  it('письмо «Модель готова» важное: игра встаёт на паузу', () => {
+    const s = lateState();
+    s.compute.rented.h100 = 1e7;
+    startTraining(s, plan({ name: 'Альфа' }));
+    s.training!.failAtFraction = null;
+    runToEnd(s);
+    const mail = s.mail[s.mail.length - 1];
+    expect(mail.title).toBe('Модель готова: Альфа');
+    expect(mail.important).toBe(true);
+  });
+
   it('слово «очко» согласуется с числом', () => {
     const word = (n: number): string => {
       const s = lateState();
@@ -1344,6 +1403,13 @@ describe('monthlyExposure: письмо и пределы', () => {
     const honest = benchScore('humaneval', m.caps.code).toFixed(1).replace('.', ',');
     expect(body).toContain('HumanEvol (Код)');
     expect(body).toContain(`вместо заявленных ${shown} % получилось ${honest} %`);
+  });
+
+  it('письмо «Подгонка раскрыта» важное', () => {
+    const s = exposedState();
+    const mail = s.mail[s.mail.length - 1];
+    expect(mail.title).toBe('Подгонка раскрыта: Тест-1');
+    expect(mail.important).toBe(true);
   });
 
   it('в письме указано реальное падение репутации и шумихи', () => {

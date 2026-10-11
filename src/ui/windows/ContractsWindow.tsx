@@ -7,6 +7,7 @@ import { benchDef } from '../../sim/benchmarks';
 import { pool } from '../../sim/compute';
 import { REP_CONTRACT_FAIL, TENDER_APPLY_DAYS } from '../../sim/constants';
 import { applyChance, canApply } from '../../sim/contracts';
+import { endSentence } from '../../sim/text';
 import { modelScore } from '../../sim/training';
 import type { Contract, GameState, PlayerModel, Tender } from '../../sim/types';
 import { Empty, ErrorText, ProgressBar, Tabs } from '../components/common';
@@ -45,12 +46,21 @@ function Fact({ label, value, tone }: { label: string; value: ReactNode; tone?: 
   );
 }
 
-/** Лучшая модель для заявки: сначала те, что проходят требования, среди них — с наибольшим показанным баллом. */
+
+/** Показанный балл проходит, а настоящий (без подгонки) ниже требования: на сдаче контракт будет провален. */
+function isTrap(m: PlayerModel, t: Tender): boolean {
+  return modelScore(m, t.benchmark, false) >= t.requirement && modelScore(m, t.benchmark, true) < t.requirement;
+}
+
+/** Лучшая модель для заявки: сначала те, что проходят требования, затем те, у кого и настоящий балл проходит, среди них — с наибольшим показанным баллом. */
 function bestCandidate(s: GameState, t: Tender, released: PlayerModel[]): PlayerModel {
   let best = released[0];
   let bestKey = -Infinity;
   for (const m of released) {
-    const key = (canApply(s, t, m) === null ? 1000 : 0) + modelScore(m, t.benchmark, false);
+    const key =
+      (canApply(s, t, m) === null ? 1000 : 0) +
+      (modelScore(m, t.benchmark, true) >= t.requirement ? 500 : 0) +
+      modelScore(m, t.benchmark, false);
     if (key > bestKey) {
       best = m;
       bestKey = key;
@@ -66,10 +76,25 @@ function ApplyForm({ s, t, released }: { s: GameState; t: Tender; released: Play
   const [err, setErr] = useState<string | null>(null);
   const model = released.find((m) => m.id === pick) ?? bestCandidate(s, t, released);
   const shown = modelScore(model, t.benchmark, false);
+  // Заказчик при сдаче проверяет настоящий балл (без подгонки), а заявку пускают по показанному.
+  const honest = modelScore(model, t.benchmark, true);
   const reason = canApply(s, t, model);
   const chance = reason === null ? applyChance(s, t, model) : null;
+  const trap = reason === null && honest < t.requirement;
+  const rep = Math.abs(REP_CONTRACT_FAIL);
 
   function apply() {
+    if (
+      trap &&
+      !window.confirm(
+        `Настоящий балл модели «${model.name}» — ${fmtPct(honest)}, а требуется ${fmtPct(t.requirement, 0)}.\n` +
+          `Заказчик проверяет настоящий балл, поэтому в случае победы контракт будет провален: репутация упадёт на ${rep}, ` +
+          `и придётся заплатить штраф ${endSentence(fmtMoney(t.penalty))}\n` +
+          'Подать заявку всё равно?',
+      )
+    ) {
+      return;
+    }
     const r = store.dispatch(actions.applyTender, t.id, model.id);
     setErr(r.ok ? null : r.error);
   }
@@ -80,7 +105,7 @@ function ApplyForm({ s, t, released }: { s: GameState; t: Tender; released: Play
         <select value={model.id} onChange={(e) => setPick(e.target.value)} aria-label="Модель для заявки">
           {released.map((m) => (
             <option key={m.id} value={m.id}>
-              {`${m.name} — ${fmtPct(modelScore(m, t.benchmark, false))}`}
+              {`${m.name} — ${fmtPct(modelScore(m, t.benchmark, false))}${isTrap(m, t) ? ' ⚠ настоящий балл ниже' : ''}`}
             </option>
           ))}
         </select>
@@ -99,6 +124,19 @@ function ApplyForm({ s, t, released }: { s: GameState; t: Tender; released: Play
           </>
         )}
       </div>
+      {Math.abs(shown - honest) > 0.05 && (
+        <div className="small">
+          <span className="muted">Настоящий балл (без подгонки): </span>
+          <span className={`num ${honest >= t.requirement ? 'good' : 'bad'}`}>{fmtPct(honest)}</span>
+        </div>
+      )}
+      {trap && (
+        <div className="small bad">
+          ⚠ Заказчик проверяет настоящий балл, а у этой модели он {fmtPct(honest)} при требовании {fmtPct(t.requirement, 0)}. Если вы
+          выиграете тендер, контракт будет провален: репутация упадёт на {rep}, и придётся заплатить штраф {endSentence(fmtMoney(t.penalty))}{' '}
+          Отказаться от контракта без штрафа нельзя.
+        </div>
+      )}
       {reason !== null && <div className="small warn">{reason}</div>}
       <ErrorText error={err} />
     </div>
@@ -191,7 +229,7 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
   function cancel() {
     const ok = window.confirm(
       `Отказаться от контракта с ${clientName(t.clientId)}?\n` +
-        `Вы заплатите штраф ${fmtMoney(t.penalty)} и потеряете ${Math.abs(REP_CONTRACT_FAIL)} репутации.`,
+        `Репутация упадёт на ${Math.abs(REP_CONTRACT_FAIL)}, и вы заплатите штраф ${endSentence(fmtMoney(t.penalty))}`,
     );
     if (!ok) return;
     const r = store.dispatch(actions.cancelContract, c.id);

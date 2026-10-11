@@ -1047,3 +1047,96 @@ describe('cancelContract: детали', () => {
     expect(s.contracts.map((c) => c.id)).toEqual(['c2']);
   });
 });
+
+describe('письма контрактов: точка после суммы и важность', () => {
+  /** Заявка с гарантированным исходом, день решения — сегодня. */
+  function applied(over: Partial<Tender> = {}, chance = 1): GameState {
+    const s = newState();
+    s.day = 25;
+    s.models.push(makeModel());
+    s.tenders.push(
+      makeTender({ expiresDay: 35, application: { modelId: 'p1', appliedDay: 5, resolveDay: 25, chance }, ...over }),
+    );
+    return s;
+  }
+
+  const doubleDot = /(?<!\.)\.\.(?!\.)/;
+
+  it('победа: после суммы в тысячах одна точка, а не «тыс..»', () => {
+    const s = applied({ payment: 350_000 });
+    progressDay(s);
+    const body = lastMail(s).body;
+    expect(body).toContain('оплата после сдачи — $350 тыс. Мощность');
+    expect(body).not.toMatch(doubleDot);
+  });
+
+  it('победа: после суммы в миллионах предложение всё равно заканчивается точкой', () => {
+    const s = applied({ payment: 1_200_000 });
+    progressDay(s);
+    expect(lastMail(s).body).toContain('оплата после сдачи — $1,2 млн. Мощность');
+  });
+
+  it('победа в RLHF-тендере: разметчики заплачены, двойной точки нет ни в тысячах, ни в миллионах', () => {
+    const small = applied({ type: 'rlhf', payment: 360_000 });
+    progressDay(small);
+    expect(lastMail(small).body.endsWith('Разметчикам заплачено $90 тыс.')).toBe(true);
+    expect(lastMail(small).body).not.toMatch(doubleDot);
+
+    const big = applied({ type: 'rlhf', payment: 4_800_000 });
+    progressDay(big);
+    expect(lastMail(big).body.endsWith('Разметчикам заплачено $1,2 млн.')).toBe(true);
+  });
+
+  it('«Тендер выигран» важное только без мощности на контракты, «Тендер проигран» — нет', () => {
+    const won = applied();
+    won.compute.alloc = { training: 0.5, contracts: 0, experiments: 0.5, inference: 0 };
+    progressDay(won);
+    expect(lastMail(won).title).toBe('Тендер выигран');
+    expect(lastMail(won).important).toBe(true);
+    expect(lastMail(won).body).toContain('0 %');
+
+    const wonWithCompute = applied();
+    wonWithCompute.compute.alloc = { training: 0.4, contracts: 0.2, experiments: 0.4, inference: 0 };
+    progressDay(wonWithCompute);
+    expect(lastMail(wonWithCompute).title).toBe('Тендер выигран');
+    expect(lastMail(wonWithCompute).important).toBe(false);
+
+    const lost = applied({}, 0);
+    progressDay(lost);
+    expect(lastMail(lost).title).toBe('Тендер проигран');
+    expect(lastMail(lost).important).toBeFalsy();
+  });
+
+  it('просрочка и провал на проверке честного балла: письма важные', () => {
+    const late = withContract(makeContract({ deadlineDay: 60 }, { work: 1000 }));
+    poolValue = 1;
+    late.day = 60;
+    progressDay(late);
+    expect(lastMail(late).title).toBe('Контракт просрочен');
+    expect(lastMail(late).important).toBe(true);
+
+    shownScore = 80;
+    honestScore = 40;
+    const failed = withContract(makeContract({}, { work: 10, requirement: 60 }));
+    poolValue = 10;
+    failed.day = 3;
+    progressDay(failed);
+    expect(lastMail(failed).title).toBe('Контракт провален');
+    expect(lastMail(failed).important).toBe(true);
+  });
+
+  it('отказ от контракта — решение игрока: письмо не важное; сдача контракта тоже', () => {
+    const cancelled = withContract();
+    cancelContract(cancelled, 'c1');
+    expect(lastMail(cancelled).title).toBe('Контракт расторгнут');
+    expect(lastMail(cancelled).important).toBeFalsy();
+
+    honestScore = 90;
+    const done = withContract(makeContract({}, { work: 10, requirement: 50 }));
+    poolValue = 10;
+    done.day = 3;
+    progressDay(done);
+    expect(lastMail(done).title).toBe('Контракт выполнен');
+    expect(lastMail(done).important).toBeFalsy();
+  });
+});

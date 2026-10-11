@@ -7,7 +7,7 @@ import { AUTOSAVE_KEY, deserialize, SAVE_KEY } from '../sim/save';
 import { playerBestArenaRank } from '../sim/tick';
 import { formatDate } from '../sim/time';
 import type { GameState } from '../sim/types';
-import { ErrorText } from './components/common';
+import { ErrorText, useModalFocus } from './components/common';
 import { fmtElo, fmtMoney, fmtShare } from './format';
 import { readSave, store } from './store';
 
@@ -20,6 +20,7 @@ export function NewGameScreen() {
 
   function load(json: string | null) {
     if (!json) return;
+    setError(null);
     const r = deserialize(json);
     if (r.ok) store.start(r.state);
     else setError(r.error);
@@ -27,6 +28,7 @@ export function NewGameScreen() {
 
   function loadFile(file: File | undefined) {
     if (!file) return;
+    setError(null);
     file.text().then(load, () => setError('Не удалось прочитать файл'));
   }
 
@@ -62,7 +64,17 @@ export function NewGameScreen() {
           <button className="btn" onClick={() => fileRef.current?.click()}>
             Загрузить из файла…
           </button>
-          <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={(e) => loadFile(e.target.files?.[0])} />
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".json,application/json"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = ''; // сбрасываем выбор, чтобы тот же файл можно было выбрать ещё раз
+              loadFile(file);
+            }}
+          />
           <ErrorText error={error} />
           <div className="muted small">
             Вы основываете ИИ-лабораторию 1 января 2017 года с $3 млн. Семь настоящих лабораторий выпускают свои модели
@@ -80,10 +92,11 @@ export function EndScreen({ s, onWatch }: { s: GameState; onWatch: () => void })
   const best = rows.reduce<(typeof rows)[number] | null>((b, r) => (!b || r.elo > b.elo ? r : b), null);
   const v = valuation(s);
   const title =
-    s.outcome === 'victory' ? '🏆 Победа: №1 на «Арене»' : s.outcome === 'bankrupt' ? '💀 Банкротство' : '🏁 Срез пройден';
+    s.outcome === 'victory' ? '🏆 Победа: №1 на «Арене»' : s.outcome === 'bankrupt' ? '💀 Банкротство' : '🏁 Конец 2024 года';
+  const { ref, onKeyDown } = useModalFocus<HTMLDivElement>();
   return (
     <div className="modal-backdrop">
-      <div className="modal">
+      <div className="modal" ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} onKeyDown={onKeyDown}>
         <div className="titlebar">
           <span className="t">{title}</span>
         </div>

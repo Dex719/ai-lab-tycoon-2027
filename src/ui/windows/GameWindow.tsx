@@ -87,6 +87,12 @@ export default function GameWindow({ s }: WindowProps) {
         <div className="muted small">Дата в игре: {formatDate(s.day)}</div>
       </div>
 
+      {store.autosaveError && (
+        <div className="card" style={{ borderColor: 'var(--bad)' }}>
+          <ErrorText error={store.autosaveError} />
+        </div>
+      )}
+
       <div className="col" style={{ gap: 4 }}>
         <div className="section-title">Сохранение в браузере</div>
         <div className="row">

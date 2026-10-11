@@ -43,7 +43,10 @@ input, select, textarea { user-select: text; }
     radial-gradient(ellipse at 70% 30%, rgba(78, 161, 255, 0.08), transparent 60%),
     linear-gradient(160deg, var(--bg-desk-2), var(--bg-desk));
 }
-.icons { position: absolute; left: 8px; top: 8px; display: grid; grid-auto-flow: column; grid-template-rows: repeat(6, 82px); gap: 4px 6px; }
+.icons {
+  position: absolute; left: 5px; top: 5px; padding: 3px; display: grid; grid-auto-flow: column; grid-template-rows: repeat(6, 82px); gap: 4px 6px;
+  max-height: calc(100% - 10px); overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; /* на низком экране иконки прокручиваются, а не обрезаются */
+}
 .icon {
   width: 84px; display: flex; flex-direction: column; align-items: center; gap: 2px;
   padding: 6px 2px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; color: var(--text);
@@ -64,6 +67,11 @@ input, select, textarea { user-select: text; }
 .topbar .stat .k { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
 .topbar .stat .v { font-size: 14px; font-variant-numeric: tabular-nums; }
 .topbar .spacer { flex: 1; }
+.topbar-alert { font-size: 18px; line-height: 1; cursor: help; }
+.topbar-note {
+  padding: 2px 8px; border: 1px solid var(--warn); border-radius: 3px; color: var(--warn);
+  background: rgba(255, 200, 87, 0.1); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
 .speed { display: flex; gap: 2px; }
 .speed .btn { min-width: 34px; }
 .speed .btn.on { background: var(--accent-2); border-color: var(--accent); color: #fff; }
@@ -158,6 +166,7 @@ table.grid td.num, table.grid th.num { text-align: right; }
   width: min(560px, calc(100vw - 32px)); background: var(--bg-win); border: 1px solid var(--border-light);
   border-radius: 4px; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
 }
+.modal:focus { outline: none; }
 .modal .titlebar { cursor: default; background: linear-gradient(var(--title-a), var(--title-b)); color: #fff; }
 .modal .body { padding: 14px 16px; white-space: pre-wrap; user-select: text; }
 .modal .choices { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 16px; }

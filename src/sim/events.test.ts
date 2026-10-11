@@ -125,6 +125,18 @@ describe('данные событий', () => {
     }
   });
 
+  it('в письмах и подсказках нет двойной точки: «$300 тыс..» (многоточие допустимо)', () => {
+    const s = newState();
+    const doubleDot = /(?<!\.)\.\.(?!\.)/;
+    for (const def of EVENTS) {
+      const m = def.mail(s);
+      const texts = [m.title, m.body, ...(def.choices ?? []).flatMap((c) => [c.label, c.hint])];
+      for (const text of texts) expect(text, def.id).not.toMatch(doubleDot);
+    }
+    const gpt3 = EVENTS.find((e) => e.id === 'gpt3-api')!.mail(s);
+    expect(gpt3.body.endsWith('реклама вашего API обойдётся в $300 тыс.')).toBe(true);
+  });
+
   it('подсказки названы по ТЗ', () => {
     const byId = (id: string) => EVENTS.find((e) => e.id === id)!;
     expect(byId('gpt3-api').choices![0].hint).toBe('−$300 тыс., +15 шумихи');

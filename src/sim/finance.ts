@@ -55,6 +55,7 @@ export function dayStep(s: GameState): void {
       addMail(s, {
         kind: 'finance',
         title: 'Деньги кончились',
+        important: true,
         body: `На счету минус. Если за ${BANKRUPT_DAYS} дней не выйти в плюс, лаборатория обанкротится. Сократите аренду, возьмите тендеры или привлеките инвесторов.`,
       });
     }

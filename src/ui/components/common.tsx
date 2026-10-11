@@ -1,6 +1,6 @@
 // Общие мелкие компоненты для окон.
 
-import type { ReactNode } from 'react';
+import { useCallback, useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 
 export function Tabs<T extends string>(props: { tabs: { id: T; label: ReactNode }[]; value: T; onChange: (id: T) => void }) {
   return (
@@ -44,4 +44,42 @@ export function ErrorText({ error }: { error: string | null | undefined }) {
 
 export function Empty({ children }: { children: ReactNode }) {
   return <div className="muted" style={{ padding: '12px 0' }}>{children}</div>;
+}
+
+const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Фокус для модального окна. Фокус уходит на само окно (а не на кнопку: случайный Enter не должен
+ * выбирать вариант), Tab и Shift+Tab ходят по кнопкам внутри окна по кругу. resetKey — когда он
+ * меняется (пришло другое письмо), фокус возвращается на окно.
+ */
+export function useModalFocus<T extends HTMLElement>(resetKey?: string) {
+  const ref = useRef<T>(null);
+
+  useEffect(() => {
+    ref.current?.focus();
+  }, [resetKey]);
+
+  const onKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key !== 'Tab') return;
+    const root = ref.current;
+    if (!root) return;
+    const items = Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE));
+    if (items.length === 0) {
+      e.preventDefault();
+      return;
+    }
+    const first = items[0];
+    const last = items[items.length - 1];
+    const cur = document.activeElement;
+    if (e.shiftKey && (cur === first || cur === root)) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && cur === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }, []);
+
+  return { ref, onKeyDown };
 }

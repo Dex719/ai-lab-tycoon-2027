@@ -15,6 +15,7 @@ import {
 import { addModifier, FOREVER } from '../sim/events';
 import { spend } from '../sim/finance';
 import { bestElo } from '../sim/leaderboard';
+import { endSentence } from '../sim/text';
 import { dateToDay } from '../sim/time';
 import { applyFailChoice } from '../sim/training';
 import type { GameState, HypeOwner, Mail, PlayerModel } from '../sim/types';
@@ -220,7 +221,7 @@ export const EVENTS: EventDef[] = [
       body:
         'Теперь любой разработчик может подключить GTP-3 за пару минут и платить за каждый запрос. ' +
         'Рынок языковых моделей вырос в разы, клиенты начали сравнивать цены и качество. ' +
-        `Самое время напомнить о себе: реклама вашего API обойдётся в ${money(AD_COST)}.`,
+        `Самое время напомнить о себе: реклама вашего API обойдётся в ${endSentence(money(AD_COST))}`,
     }),
     choices: [
       {

@@ -1,6 +1,8 @@
 // Верхняя панель: дата, деньги, репутация, шумиха, скорость (FR-1, FR-14.1).
 
 import { useEffect } from 'react';
+import { BANKRUPT_DAYS } from '../sim/constants';
+import { pendingChoice } from '../sim/events';
 import { formatDate } from '../sim/time';
 import type { GameState, Speed } from '../sim/types';
 import { fmtMoney } from './format';
@@ -28,7 +30,12 @@ export function TopBar({ s }: { s: GameState }) {
     function onKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName;
       if (e.code !== 'Space' || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      e.preventDefault();
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      // Над игрой окно выбора или итог: пробел достаётся им (нажать выбранную кнопку), а не часам.
+      const st = store.state;
+      if (!st || st.outcome || pendingChoice(st)) return;
+      e.preventDefault(); // и при удержании тоже: пробел не должен прокручивать страницу или нажимать кнопку в окне
+      if (e.repeat) return;
       store.togglePause();
     }
     window.addEventListener('keydown', onKey);
@@ -47,6 +54,12 @@ export function TopBar({ s }: { s: GameState }) {
         <span className="k">Деньги</span>
         <span className={`v${s.cash < 0 ? ' bad' : ''}`}>{fmtMoney(s.cash)}</span>
       </div>
+      {s.finance.negativeDays > 0 && !s.outcome && (
+        <div className="stat" title={`Деньги в минусе уже ${s.finance.negativeDays} дн. подряд. Если ${BANKRUPT_DAYS} дней не выйти в плюс, лаборатория обанкротится`}>
+          <span className="k">До банкротства</span>
+          <span className="v bad">{Math.max(0, BANKRUPT_DAYS - s.finance.negativeDays)} дн.</span>
+        </div>
+      )}
       <div className="stat" title="Доходы минус расходы с начала месяца">
         <span className="k">За месяц</span>
         <span className={`v ${delta >= 0 ? 'good' : 'bad'}`}>
@@ -62,6 +75,16 @@ export function TopBar({ s }: { s: GameState }) {
         <span className="k">Шумиха</span>
         <span className="v">{Math.round(s.hype.player)}</span>
       </div>
+      {store.autosaveError && (
+        <span className="topbar-alert bad" title={store.autosaveError}>
+          ⚠
+        </span>
+      )}
+      {store.pauseReason && !s.outcome && (
+        <span className="topbar-note" title="Нажмите пробел или ▶, чтобы продолжить">
+          Пауза: {store.pauseReason}
+        </span>
+      )}
       <div className="spacer" />
       <div className="speed">
         {SPEEDS.map((b) => (

@@ -1,18 +1,30 @@
 // Форматирование чисел по-русски: $1,2 млн, 43,9 %, 1,2·10²⁵.
 
+// Форматтеры создаются один раз на число знаков: toLocaleString с параметрами строит новый на каждый вызов,
+// а таблицы окон печатают сотни чисел за кадр.
+const formatters = new Map<number, Intl.NumberFormat>();
+
 function dec(n: number, digits: number): string {
-  return n.toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: digits });
+  let f = formatters.get(digits);
+  if (!f) {
+    f = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: digits });
+    formatters.set(digits, f);
+  }
+  return f.format(n);
 }
+
+// Границы единиц чуть ниже круглых чисел: значение, которое округлится до «1000» в своей единице,
+// сразу переходит в следующую («$999,6 тыс.» → «$1 млн», а не «$1 000 тыс.»).
 
 /** $950, $12 тыс., $1,2 млн, $3,4 млрд, $1,1 трлн */
 export function fmtMoney(n: number): string {
   if (!Number.isFinite(n)) return '—';
   const sign = n < 0 ? '−' : '';
   const a = Math.abs(n);
-  if (a < 1e3) return `${sign}$${dec(a, 0)}`;
-  if (a < 1e6) return `${sign}$${dec(a / 1e3, a < 1e4 ? 1 : 0)} тыс.`;
-  if (a < 1e9) return `${sign}$${dec(a / 1e6, a < 1e8 ? 1 : 0)} млн`;
-  if (a < 1e12) return `${sign}$${dec(a / 1e9, a < 1e11 ? 1 : 0)} млрд`;
+  if (a < 999.5) return `${sign}$${dec(a, 0)}`;
+  if (a < 999_500) return `${sign}$${dec(a / 1e3, a < 1e4 ? 1 : 0)} тыс.`;
+  if (a < 999_500_000) return `${sign}$${dec(a / 1e6, a < 1e8 ? 1 : 0)} млн`;
+  if (a < 999_500_000_000) return `${sign}$${dec(a / 1e9, a < 1e11 ? 1 : 0)} млрд`;
   return `${sign}$${dec(a / 1e12, 1)} трлн`;
 }
 
@@ -39,9 +51,9 @@ export function fmtNum(n: number): string {
   const sign = n < 0 ? '−' : '';
   const a = Math.abs(n);
   if (a < 1e4) return sign + dec(a, a < 10 ? 2 : 0);
-  if (a < 1e6) return `${sign}${dec(a / 1e3, 1)} тыс.`;
-  if (a < 1e9) return `${sign}${dec(a / 1e6, 1)} млн`;
-  if (a < 1e12) return `${sign}${dec(a / 1e9, 1)} млрд`;
+  if (a < 999_950) return `${sign}${dec(a / 1e3, 1)} тыс.`;
+  if (a < 999_950_000) return `${sign}${dec(a / 1e6, 1)} млн`;
+  if (a < 999_950_000_000) return `${sign}${dec(a / 1e9, 1)} млрд`;
   return `${sign}${dec(a / 1e12, 1)} трлн`;
 }
 
@@ -50,16 +62,21 @@ const SUP: Record<string, string> = { '0': '⁰', '1': '¹', '2': '²', '3': '³
 /** 1.2e25 → «1,2·10²⁵» */
 export function fmtSci(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return '0';
-  const e = Math.floor(Math.log10(n));
-  const m = n / 10 ** e;
+  let e = Math.floor(Math.log10(n));
+  let m = n / 10 ** e;
+  if (Number(m.toFixed(1)) >= 10) {
+    // 9,96·10²⁵ округляется до 10,0 — переносим в следующий порядок
+    m /= 10;
+    e += 1;
+  }
   const exp = String(e).split('').map((c) => SUP[c] ?? c).join('');
   return `${dec(m, 1)}·10${exp}`;
 }
 
 /** Параметры в млрд: 0.117 → «117 млн», 175 → «175 млрд», 1500 → «1,5 трлн» */
 export function fmtParams(paramsB: number): string {
-  if (paramsB < 1) return `${dec(paramsB * 1000, 0)} млн`;
-  if (paramsB < 1000) return `${dec(paramsB, paramsB < 10 ? 1 : 0)} млрд`;
+  if (paramsB < 0.9995) return `${dec(paramsB * 1000, 0)} млн`;
+  if (paramsB < 999.5) return `${dec(paramsB, paramsB < 10 ? 1 : 0)} млрд`;
   return `${dec(paramsB / 1000, 1)} трлн`;
 }
 

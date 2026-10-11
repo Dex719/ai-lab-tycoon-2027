@@ -63,8 +63,8 @@ function TechCard({ s, id, rp }: { s: GameState; id: TechId; rp: number }) {
 
       {id === 'algo' && (
         <div className="small" style={{ marginBottom: 6 }}>
-          <b>Уровень {s.research.algoLevel}</b>. Сейчас обучение эффективнее в{' '}
-          <b className="num">{fmtNum(ALGO_MULT ** s.research.algoLevel)}</b> раза (1,25
+          <b>Уровень {s.research.algoLevel}</b>. Эффективность обучения сейчас:{' '}
+          <b className="num">×{fmtNum(ALGO_MULT ** s.research.algoLevel)}</b> (1,25
           <sup>{s.research.algoLevel}</sup>).{' '}
           <span className="muted">
             Исследование повторяется: после каждого уровня следующий стоит в {fmtNum(ALGO_COST_GROWTH)} раза дороже.

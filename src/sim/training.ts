@@ -42,6 +42,7 @@ import {
 import { addMail, triggerEvent } from './events';
 import { spend } from './finance';
 import { chance, randRange } from './rng';
+import { endSentence } from './text';
 import { byYear, dateToDay, yearOf } from './time';
 import { DOMAINS } from './types';
 import type { BenchmarkId, DomainId, GameState, PlayerModel, Result, TrainingPlan } from './types';
@@ -209,8 +210,9 @@ export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
   }
   if (plan.rlhf && !s.research.done.includes('rlhf')) return 'Обучение на отзывах людей (RLHF) ещё не изучено.';
   const labelers = labelersCost(plan);
-  if (labelers > s.cash) {
-    return `Не хватает денег на разметчиков: нужно ${fmtMoney(labelers)}, на счету ${fmtMoney(s.cash)}.`;
+  // Деньги нужны только тем, кто платит разметчикам: без RLHF (labelers = 0) проект можно начать и при минусе на счету.
+  if (labelers > 0 && labelers > s.cash) {
+    return `Не хватает денег на разметчиков: нужно ${fmtMoney(labelers)}, на счету ${endSentence(fmtMoney(s.cash))}`;
   }
   return null;
 }
@@ -342,7 +344,7 @@ function finishTraining(s: GameState): void {
     lines.push(`Из-за срыва обучения способности модели ниже на ${fmtNum(t.failPenalty)} ${pointsWord(t.failPenalty)}.`);
   }
   lines.push('Чтобы продавать доступ, выпустите модель в окне «Модели».');
-  addMail(s, { kind: 'training', title: `Модель готова: ${model.name}`, body: lines.join(' ') });
+  addMail(s, { kind: 'training', title: `Модель готова: ${model.name}`, body: lines.join(' '), important: true });
 }
 
 /** Ежедневно: прогресс; срыв (triggerEvent 'training-fail'); завершение → PlayerModel в s.models, bestFlop, письмо. */
@@ -405,6 +407,7 @@ export function monthlyExposure(s: GameState): void {
     addMail(s, {
       kind: 'news',
       title: `Подгонка раскрыта: ${m.name}`,
+      important: true,
       body:
         `Независимые исследователи заново проверили «${m.name}» на свежих вопросах, которых не было в публичных тестах.${example} ` +
         `Репутация лаборатории упала на ${fmtNum(Math.round(repBefore - s.reputation))}, шумиха — на ${hypeDropPct} %. ` +

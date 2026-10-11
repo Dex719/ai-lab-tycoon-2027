@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import type { WindowProps } from '.';
 import { benchDef, benchScore, introducedBenchmarks } from '../../sim/benchmarks';
-import { pool } from '../../sim/compute';
+import { pool, rentPerDay, totalH100e } from '../../sim/compute';
 import {
   ARCH_MULT,
   BENCH_SHARE_MAX,
@@ -17,7 +17,8 @@ import {
   TRAIN_FLOP_PER_H100E_DAY,
 } from '../../sim/constants';
 import { byYear, END_DAY, formatDateShort, yearOf } from '../../sim/time';
-import { estimate } from '../../sim/training';
+import { endSentence } from '../../sim/text';
+import { chinchillaFactor, estimate } from '../../sim/training';
 import { DOMAINS } from '../../sim/types';
 import type { BenchmarkId, DomainId, GameState, TrainingPlan, TrainingRun } from '../../sim/types';
 import { ErrorText, ProgressBar } from '../components/common';
@@ -29,6 +30,9 @@ type OpenFn = WindowProps['open'];
 
 const DOMAIN_RU: Record<DomainId, string> = { language: 'Язык', code: 'Код', reasoning: 'Рассуждения' };
 const POS_MAX = 1000;
+// Доля полезных вычислений (множитель Шиншиллы): от 80 % баланс считаем хорошим, ниже 40 % — плохим.
+const RATIO_GOOD_EFF = 0.8;
+const RATIO_BAD_EFF = 0.4;
 
 // ---------- Мелкие помощники ----------
 
@@ -130,6 +134,67 @@ function PctSlider({ value, max = 100, onChange }: { value: number; max?: number
   );
 }
 
+/** Нет мощности на обучение: либо не арендовано ни одной карты, либо доля «Обучение» равна нулю. */
+function NoComputeNote({ s, open, lead }: { s: GameState; open: OpenFn; lead: string }) {
+  const noGpu = totalH100e(s) <= 0;
+  return (
+    <div className="col" style={{ gap: 4 }}>
+      <div className="row">
+        <span className="warn">
+          {lead}: {noGpu ? 'не арендовано ни одного GPU' : 'доля «Обучение» равна нулю'}.
+        </span>
+        <button className="btn small" onClick={() => open('compute')}>Открыть «Мощности»</button>
+      </div>
+      <div className="muted small">
+        {noGpu
+          ? 'Арендуйте видеокарты в окне «Мощности»: без них ни один проект не продвигается.'
+          : 'Поднимите ползунок «Обучение» в окне «Мощности»: сейчас вся арендованная мощность отдана другим задачам.'}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Соотношение данных и размера: ориентир около 20 токенов на параметр (CHIN_OPT_RATIO).
+ * Показываем всегда; точный оптимум для бюджета и прогноз открывают «Законы масштабирования».
+ */
+function RatioField({ s, plan, maxTokens }: { s: GameState; plan: TrainingPlan; maxTokens: number }) {
+  const ratio = plan.tokensB / plan.paramsB;
+  const eff = chinchillaFactor(plan.paramsB, plan.tokensB);
+  const good = eff >= RATIO_GOOD_EFF;
+  const tone = good ? 'good' : eff >= RATIO_BAD_EFF ? 'warn' : 'bad';
+  const tooFewData = ratio < CHIN_OPT_RATIO;
+  const dataCapped = plan.tokensB >= maxTokens * 0.999;
+  const advice = tooFewData
+    ? dataCapped
+      ? `Больше данных в ${yearOf(s.day)} году в мире нет, поэтому лучше уменьшить размер модели.`
+      : 'Добавьте данных или уменьшите размер модели.'
+    : 'Увеличьте размер модели или уменьшите объём данных.';
+
+  return (
+    <Field
+      label="Токенов на параметр"
+      hint={
+        <>
+          Правило: на каждый параметр нужно около {CHIN_OPT_RATIO} токенов данных. Если размер и данные сильно расходятся,
+          часть вычислений пропадает впустую.
+          {!s.research.done.includes('scaling') && ' Точный оптимум для вашего бюджета и прогноз качества покажут «Законы масштабирования».'}
+        </>
+      }
+    >
+      <span className={tone}>
+        <b className="num">{fmtNum(ratio)}</b>
+        {good ? ' — баланс хороший' : ' — баланс нарушен'}
+      </span>
+      {!good && (
+        <div className={`small ${tone}`}>
+          В дело идёт только около {fmtPct(eff * 100, 0)} потраченных вычислений. {advice}
+        </div>
+      )}
+    </Field>
+  );
+}
+
 // ---------- Идущий проект ----------
 
 function RunningCard({ s, t, open }: { s: GameState; t: TrainingRun; open: OpenFn }) {
@@ -165,10 +230,7 @@ function RunningCard({ s, t, open }: { s: GameState; t: TrainingRun; open: OpenF
           {s.day + eta > END_DAY && <span className="warn"> — это позже конца игры</span>}
         </div>
       ) : (
-        <div className="row">
-          <span className="warn">Обучение стоит: доля «Обучение» = 0.</span>
-          <button className="btn small" onClick={() => open('compute')}>Открыть «Мощности»</button>
-        </div>
+        <NoComputeNote s={s} open={open} lead="Обучение стоит" />
       )}
       <div className="muted small">
         {t.arch === 'transformer' ? 'Трансформер' : 'LSTM'} · {fmtParams(p.paramsB)} параметров · {fmtTokens(p.tokensB)} токенов
@@ -251,9 +313,12 @@ function EstimateCard(props: {
   }
 
   const trainPool = pool(s, 'training');
+  const total = totalH100e(s);
   const opt = est.optimal;
   const limited = opt !== null && (opt.tokensB > maxTokens || opt.tokensB < TOKENS_B_MIN || opt.paramsB > PARAMS_B_MAX || opt.paramsB < PARAMS_B_MIN);
   const lateFinish = est.days !== null && s.day + est.days > END_DAY;
+  // Деньги проекта: часть аренды парка, занятая обучением, за весь срок (приблизительно: по сегодняшней аренде) плюс разметчики.
+  const rentShare = est.days !== null && total > 0 ? est.days * rentPerDay(s) * (trainPool / total) : null;
 
   return (
     <div className="card col">
@@ -280,14 +345,41 @@ function EstimateCard(props: {
             {lateFinish && <span className="warn"> — не успеет до конца игры</span>}
           </>
         ) : (
-          <span className="row">
-            <span className="warn">Обучение не пойдёт: доля «Обучение» = 0.</span>
-            <button className="btn small" onClick={() => open('compute')}>Открыть «Мощности»</button>
-          </span>
+          <NoComputeNote s={s} open={open} lead="Обучение не пойдёт" />
         )}
       </Field>
+      {rentShare !== null && (
+        <Field
+          label="Стоимость проекта"
+          hint={
+            [
+              plan.rlhf
+                ? `Аренда доли «Обучение» за весь срок — ${fmtMoney(rentShare)}`
+                : 'Это аренда доли «Обучение» за весь срок',
+              ...(plan.rlhf ? [`Разметчики — ${fmtMoney(est.labelers)}`] : []),
+              'Оценка по сегодняшним ценам: аренду вы платите и без проекта, проект лишь занимает часть парка',
+            ]
+              .map(endSentence)
+              .join(' ')
+          }
+        >
+          ≈ {fmtMoney(rentShare + est.labelers)}
+        </Field>
+      )}
       {plan.rlhf && (
-        <Field label="Разметчики (RLHF)" hint={`На счету: ${fmtMoney(s.cash)}. Вычислений станет больше на ${fmtPct(RLHF_FLOP_EXTRA * 100, 0)}.`}>
+        <Field
+          label="Разметчики (RLHF)"
+          hint={
+            <>
+              {endSentence(`На счету: ${fmtMoney(s.cash)}`)} Вычислений станет больше на {fmtPct(RLHF_FLOP_EXTRA * 100, 0)}.
+              {trainPool <= 0 && (
+                <div className="warn">
+                  Запуск закрыт: разметчикам платят сразу, а без мощности на обучение проект стоит. Сначала выделите мощность на обучение.
+                </div>
+              )}
+            </>
+          }
+        >
           <span className={est.labelers > s.cash ? 'bad' : undefined}>{fmtMoney(est.labelers)}</span> при старте
         </Field>
       )}
@@ -311,8 +403,7 @@ function EstimateCard(props: {
             <button className="btn small" onClick={onApplyOptimal}>Подставить</button>
           </div>
           <Hint>
-            Сейчас на один параметр приходится {fmtNum(plan.tokensB / plan.paramsB)} токенов; при заданном объёме вычислений лучше всего около{' '}
-            {CHIN_OPT_RATIO}.
+            Тот же объём вычислений с оптимальным балансом: около {CHIN_OPT_RATIO} токенов на параметр.
             {limited && ` Оптимум выходит за допустимые границы (данных в мире в ${yearOf(s.day)} году не больше ${fmtTokens(maxTokens)}): подставится ближайшее допустимое.`}
           </Hint>
         </div>
@@ -363,7 +454,10 @@ export default function TrainingWindow({ s, open }: WindowProps) {
   } catch {
     est = null;
   }
-  const canStart = est !== null && est.error === null;
+  // RLHF платит разметчикам сразу, а без мощности на обучение проект не движется: такой запуск закрываем.
+  const rlhfNoCompute = plan.rlhf && pool(s, 'training') <= 0;
+  const canStart = est !== null && est.error === null && !rlhfNoCompute;
+  const startBlock = est?.error ?? (rlhfNoCompute ? 'Сначала выделите мощность на обучение: разметчикам платят при старте, а без мощности проект стоит.' : null);
 
   function toggleTarget(b: BenchmarkId) {
     setTargets((t) => (t.includes(b) ? t.filter((x) => x !== b) : t.length >= MAX_BENCH_TARGETS ? t : [...t, b]));
@@ -400,17 +494,25 @@ export default function TrainingWindow({ s, open }: WindowProps) {
           <input type="text" style={{ width: '100%' }} maxLength={40} value={nameValue} onChange={(e) => setName(e.target.value)} />
         </Field>
 
-        <Field label="Размер (параметры)" hint="Больше параметров — умнее модель, но обучение дороже, а каждый токен клиента тратит больше вычислений.">
+        <Field
+          label="Размер (параметры)"
+          hint="Качество зависит от общего объёма вычислений и от баланса между размером и данными: большая модель на малом объёме данных выходит слабой. Чем больше параметров, тем дороже обучение, а каждый токен клиента тратит больше вычислений."
+        >
           <LogSlider value={paramsB} min={PARAMS_B_MIN} max={PARAMS_B_MAX} onChange={setParamsB} format={fmtParams} />
         </Field>
 
-        <Field label="Данные (токены)" hint={`Объём обучающих текстов. В ${yearOf(s.day)} году в мире набирается не больше ${fmtTokens(maxTokens)} токенов.`}>
+        <Field
+          label="Данные (токены)"
+          hint={`Объём обучающих текстов. В ${yearOf(s.day)} году в мире набирается не больше ${fmtTokens(maxTokens)} токенов. Чем больше модель, тем больше данных ей нужно.`}
+        >
           <LogSlider value={tokens} min={TOKENS_B_MIN} max={maxTokens} onChange={setTokensB} format={fmtTokens} />
         </Field>
 
+        <RatioField s={s} plan={plan} maxTokens={maxTokens} />
+
         <div>
           <div className="section-title">Состав данных</div>
-          <Hint>Чему учить модель. Доли всегда дают в сумме 100 %: при движении одной ползунок остальные подстраиваются. На «Арене» язык весит вдвое больше, чем код или рассуждения.</Hint>
+          <Hint>Чему учить модель. Доли всегда дают в сумме 100 %: при движении одного ползунка остальные подстраиваются. На «Арене» язык весит вдвое больше, чем код или рассуждения.</Hint>
         </div>
         {DOMAINS.map((d) => (
           <Field key={d} label={DOMAIN_RU[d]}>
@@ -480,10 +582,17 @@ export default function TrainingWindow({ s, open }: WindowProps) {
       <EstimateCard s={s} plan={plan} est={est} maxTokens={maxTokens} open={open} onApplyOptimal={applyOptimal} />
 
       <div className="row">
-        <button className="btn primary" disabled={!canStart} title={canStart ? undefined : (est?.error ?? 'Оценка проекта недоступна')} onClick={start}>
+        <button className="btn primary" disabled={!canStart} title={canStart ? undefined : (startBlock ?? 'Оценка проекта недоступна')} onClick={start}>
           Начать обучение
         </button>
-        {!canStart && <span className="muted small">Сначала исправьте ошибку в оценке проекта.</span>}
+        {!canStart && (
+          <span className="muted small">
+            {est?.error || est === null ? 'Сначала исправьте ошибку в оценке проекта.' : 'Сначала выделите мощность на обучение в окне «Мощности».'}
+          </span>
+        )}
+        {canStart && est?.days === null && (
+          <span className="warn small">Проект начнётся, но будет стоять, пока на обучение нет мощности.</span>
+        )}
       </div>
       <ErrorText error={err} />
     </div>

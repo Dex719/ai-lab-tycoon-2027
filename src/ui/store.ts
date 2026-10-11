@@ -17,6 +17,8 @@ export class GameStore {
   version = 0;
   /** Текст ошибки последнего автосохранения (например, переполнено хранилище браузера) или null. */
   autosaveError: string | null = null;
+  /** Почему игра встала на паузу сама (заголовок важного письма и т. п.) или null. Пропадает, когда игрок продолжает игру. */
+  pauseReason: string | null = null;
   private listeners = new Set<Listener>();
   private timer: ReturnType<typeof setInterval> | null = null;
 
@@ -35,6 +37,8 @@ export class GameStore {
   /** Начать игру с готовым состоянием (новая игра или загрузка). */
   start(state: GameState): void {
     this.state = state;
+    this.autosaveError = null;
+    this.pauseReason = null;
     this.setSpeed(0);
     this.bump();
   }
@@ -44,6 +48,8 @@ export class GameStore {
   }
 
   quit(): void {
+    this.autosaveError = null;
+    this.pauseReason = null;
     this.setSpeed(0);
     this.state = null;
     this.bump();
@@ -59,15 +65,28 @@ export class GameStore {
 
   setSpeed(speed: Speed): void {
     this.speed = speed;
-    if (speed !== 0) this.lastSpeed = speed;
+    if (speed !== 0) {
+      this.lastSpeed = speed;
+      this.pauseReason = null; // игрок продолжил игру — причина паузы больше не нужна
+    }
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
     if (speed !== 0) this.timer = setInterval(() => this.tick(), TICK_MS[speed]);
     this.bump();
   }
 
+  /** Пауза/продолжение. В законченной игре и пока в почте ждёт выбор, часы не трогаем. */
   togglePause(): void {
+    const s = this.state;
+    if (!s || s.outcome || blockedByChoice(s)) return;
     this.setSpeed(this.speed === 0 ? this.lastSpeed : 0);
+  }
+
+  /** Вкладка браузера скрыта: браузер замедляет таймеры, а игра за это время ушла бы вперёд. Сами не продолжаем. */
+  pauseForHidden(): void {
+    if (!this.state || this.state.outcome || this.speed === 0) return;
+    this.pauseReason = 'Вкладка была скрыта';
+    this.setSpeed(0);
   }
 
   private tick(): void {
@@ -78,19 +97,40 @@ export class GameStore {
       return;
     }
     if (blockedByChoice(s)) return; // ждём выбора в почте, скорость сохраняется
+    const mark = this.markAdvance(s);
     advanceDay(s);
-    this.afterAdvance();
+    this.afterAdvance(mark);
   }
 
   /** Перемотка на n дней (отладка и проверка агентом). */
   advance(n: number): number {
     if (!this.state) return 0;
+    const mark = this.markAdvance(this.state);
     const done = advanceDays(this.state, n);
-    this.afterAdvance();
+    this.afterAdvance(mark);
     return done;
   }
 
-  private afterAdvance(): void {
+  /** Запомнить, что было до шага симуляции, чтобы после него увидеть новые важные письма и уход денег в минус. */
+  private markAdvance(s: GameState): AdvanceMark {
+    return { mailNum: s.nextMailNum, wasNegative: s.finance.negativeDays > 0 };
+  }
+
+  /** Причина, по которой после шага надо поставить паузу, или null. */
+  private alertReason(s: GameState, mark: AdvanceMark): string | null {
+    // Письма лежат по порядку номеров: новые — в хвосте списка.
+    const fresh: string[] = [];
+    for (let i = s.mail.length - 1; i >= 0; i--) {
+      const m = s.mail[i];
+      if (Number(m.id.slice(1)) < mark.mailNum) break;
+      if (m.important) fresh.unshift(m.title);
+    }
+    if (fresh.length > 0) return fresh.length === 1 ? fresh[0] : `${fresh[0]} (и ещё ${fresh.length - 1})`;
+    if (!mark.wasNegative && s.finance.negativeDays > 0) return 'Деньги ушли в минус';
+    return null;
+  }
+
+  private afterAdvance(mark?: AdvanceMark): void {
     const s = this.state;
     if (!s) return;
     if (s.flags.autosaveDue) {
@@ -100,9 +140,24 @@ export class GameStore {
         this.autosaveError = saveTo(AUTOSAVE_KEY, s) ? null : 'Автосохранение не удалось: хранилище браузера недоступно или переполнено. Выгрузите игру в файл.';
       }
     }
-    if (s.outcome) this.setSpeed(0);
+    if (s.outcome) {
+      this.setSpeed(0);
+    } else if (mark && this.speed !== 0) {
+      const reason = this.alertReason(s, mark);
+      if (reason !== null) {
+        this.pauseReason = reason;
+        this.setSpeed(0); // lastSpeed сохраняется: пробел продолжит с прежней скоростью
+      }
+    }
     this.bump();
   }
+}
+
+interface AdvanceMark {
+  /** Номер, который получит следующее письмо (s.nextMailNum до шага). */
+  mailNum: number;
+  /** Деньги уже были в минусе до шага. */
+  wasNegative: boolean;
 }
 
 export function saveTo(key: string, s: GameState): boolean {

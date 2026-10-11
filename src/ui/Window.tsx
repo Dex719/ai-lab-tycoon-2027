@@ -10,6 +10,26 @@ export interface WinGeom {
   z: number;
 }
 
+/** Размер рабочего стола, внутри которого живут окна. */
+export interface DeskArea {
+  w: number;
+  h: number;
+}
+
+/** Размер рабочего стола, которому принадлежит элемент (запасной вариант — окно браузера без верхней панели). */
+export function deskAreaOf(el: Element | null): DeskArea {
+  const d = el?.closest('.desktop');
+  return d ? { w: d.clientWidth, h: d.clientHeight } : { w: window.innerWidth, h: window.innerHeight - 40 };
+}
+
+/** Положение окна, при котором заголовок остаётся на столе и за него можно взяться. */
+export function clampPos(g: Pick<WinGeom, 'x' | 'y' | 'w'>, area: DeskArea): Pick<WinGeom, 'x' | 'y'> {
+  return {
+    x: Math.min(area.w - 80, Math.max(-g.w + 120, g.x)),
+    y: Math.min(area.h - 40, Math.max(0, g.y)),
+  };
+}
+
 interface Props {
   title: string;
   icon: string;
@@ -25,18 +45,13 @@ export function Window({ title, icon, geom, active, onFocus, onClose, onMove, ch
   const drag = useRef<{ dx: number; dy: number } | null>(null);
 
   function startDrag(e: React.PointerEvent) {
-    if ((e.target as HTMLElement).closest('button')) return;
+    if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return;
     drag.current = { dx: e.clientX - geom.x, dy: e.clientY - geom.y };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
   function moveDrag(e: React.PointerEvent) {
     if (!drag.current) return;
-    const maxX = window.innerWidth - 80;
-    const maxY = window.innerHeight - 70;
-    onMove({
-      x: Math.min(maxX, Math.max(-geom.w + 120, e.clientX - drag.current.dx)),
-      y: Math.min(maxY, Math.max(0, e.clientY - drag.current.dy)),
-    });
+    onMove(clampPos({ x: e.clientX - drag.current.dx, y: e.clientY - drag.current.dy, w: geom.w }, deskAreaOf(e.currentTarget as HTMLElement)));
   }
   function endDrag() {
     drag.current = null;
@@ -44,7 +59,8 @@ export function Window({ title, icon, geom, active, onFocus, onClose, onMove, ch
 
   const resize = useRef<{ sx: number; sy: number; w: number; h: number } | null>(null);
   function startResize(e: React.PointerEvent) {
-    e.stopPropagation();
+    // Без stopPropagation: нажатие доходит до окна и выводит его на передний план.
+    if (e.button !== 0) return;
     resize.current = { sx: e.clientX, sy: e.clientY, w: geom.w, h: geom.h };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }

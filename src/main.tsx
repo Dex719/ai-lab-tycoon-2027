@@ -37,6 +37,12 @@ if (import.meta.env.DEV) {
   };
 }
 
+// Скрытая вкладка: браузер замедляет её таймеры, а игра за это время уходит вперёд (аренда, сроки, банкротство).
+// Ставим на паузу и сами не продолжаем; blur не используем: окно может быть просто неактивным, но видимым.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) store.pauseForHidden();
+});
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

@@ -48,13 +48,13 @@ export function advanceDay(s: GameState): void {
 
   if (s.rivalsReleased.length !== releasedBefore) updateSaturation(s);
 
-  if (isMonthStart(s.day + 1)) {
+  const monthEnd = isMonthStart(s.day + 1);
+  if (monthEnd) {
     closeMonth(s);
     for (const o of HYPE_OWNERS) s.hype[o] *= HYPE_MONTHLY_DECAY;
     monthlyExposure(s);
     updateSaturation(s);
     pruneModifiers(s);
-    s.flags.autosaveDue = true;
   }
 
   if (s.outcome) return; // банкротство
@@ -62,6 +62,8 @@ export function advanceDay(s: GameState): void {
     s.outcome = playerBestArenaRank(s) === 1 ? 'victory' : 'finished';
     return;
   }
+  // Автосохранение просим только у живой игры: конец игры не должен затирать последнее сохранение, с которого можно играть дальше.
+  if (monthEnd) s.flags.autosaveDue = true;
   s.day += 1;
 }
 

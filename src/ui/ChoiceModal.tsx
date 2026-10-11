@@ -3,14 +3,18 @@
 import { pendingChoice } from '../sim/events';
 import { formatDate } from '../sim/time';
 import type { GameState } from '../sim/types';
+import { useModalFocus } from './components/common';
 import { actions, store } from './store';
 
 export function ChoiceModal({ s }: { s: GameState }) {
   const mail = pendingChoice(s);
+  // Остальной интерфейс закрыт (inert в App), фокус внутри окна; на само окно, а не на первый вариант:
+  // случайный Enter не должен молча выбирать необратимое решение.
+  const { ref, onKeyDown } = useModalFocus<HTMLDivElement>(mail?.id);
   if (!mail || !mail.choices) return null;
   return (
-    <div className="modal-backdrop">
-      <div className="modal" role="dialog" aria-label={mail.title}>
+    <div className="modal-backdrop" key={mail.id}>
+      <div className="modal" ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={mail.title} onKeyDown={onKeyDown}>
         <div className="titlebar">
           <span>📨</span>
           <span className="t">{mail.title}</span>

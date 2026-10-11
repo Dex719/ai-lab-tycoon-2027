@@ -1,6 +1,6 @@
 // Окно «Почта» (FR-11.3): список писем с фильтром по виду, текст выбранного письма, «Прочитать все».
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { WindowProps } from '.';
 import { unreadCount } from '../../sim/events';
 import { formatDate, formatDateShort } from '../../sim/time';
@@ -64,12 +64,13 @@ export default function MailWindow({ s }: WindowProps) {
   // По умолчанию открыто самое новое письмо из текущего фильтра.
   const selected: Mail | undefined = list.find((m) => m.id === picked) ?? list[0];
 
-  // Открытое письмо, в том числе выбранное по умолчанию, становится прочитанным.
-  const selId = selected?.id;
-  const selRead = selected?.read;
-  useEffect(() => {
-    if (selId !== undefined && selRead === false) store.dispatch(actions.markMailRead, selId);
-  }, [selId, selRead]);
+  // Письмо становится прочитанным, только когда игрок сам на него нажал. Письмо, открытое по умолчанию, остаётся
+  // непрочитанным: иначе окно, забытое под другими, гасило бы значок новых писем на рабочем столе и лишний раз
+  // перерисовывало всё приложение.
+  function pick(m: Mail) {
+    setPicked(m.id);
+    if (!m.read) store.dispatch(actions.markMailRead, m.id);
+  }
 
   const unread = unreadCount(s);
   // «Прочитать все» не трогает письма с выбором, которые ещё ждут решения (как в sim).
@@ -122,8 +123,8 @@ export default function MailWindow({ s }: WindowProps) {
                       key={m.id}
                       tabIndex={0}
                       style={{ cursor: 'pointer' }}
-                      onClick={() => setPicked(m.id)}
-                      onKeyDown={(e) => e.key === 'Enter' && setPicked(m.id)}
+                      onClick={() => pick(m)}
+                      onKeyDown={(e) => e.key === 'Enter' && pick(m)}
                     >
                       <td style={{ background: bg, width: 28 }} title={KIND_NAME[m.kind]}>
                         {KIND_ICON[m.kind]}
@@ -147,7 +148,8 @@ export default function MailWindow({ s }: WindowProps) {
       </div>
 
       <div className="muted small">
-        Непрочитанные письма выделены жирным. Письма с выбором открываются поверх окон: игра стоит, пока вы не выберете вариант.
+        Непрочитанные письма выделены жирным; письмо становится прочитанным, когда вы нажмёте на него. Письма с выбором открываются
+        поверх окон: игра стоит, пока вы не выберете вариант.
       </div>
     </div>
   );
