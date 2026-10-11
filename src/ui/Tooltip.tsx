@@ -1,5 +1,6 @@
-// Свои подсказки вместо встроенных браузерных: у элемента с атрибутом title текст переносится в data-tip
-// (встроенная подсказка больше не всплывает), а слой рисует подсказку рядом с элементом. Наведение показывает её
+// Свои подсказки вместо встроенных браузерных: пока курсор над элементом, его title лежит в data-tip
+// (встроенная подсказка не всплывает), а слой рисует подсказку рядом. Когда курсор уходит, title возвращается:
+// React дальше сам меняет или снимает его, и устаревший текст не остаётся. Наведение показывает подсказку
 // с задержкой, касание на телефоне - сразу и на 2,5 с.
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -16,14 +17,21 @@ interface Tip {
   below: boolean;
 }
 
-/** Текст подсказки элемента: title переносится в data-tip при первом наведении. */
+/** Текст подсказки элемента: на время наведения title переносится в data-tip. */
 function tipOf(el: HTMLElement): string | null {
   const title = el.getAttribute('title');
   if (title !== null) {
     el.dataset.tip = title;
     el.removeAttribute('title');
   }
-  return el.dataset.tip ?? null;
+  return el.dataset.tip || null;
+}
+
+/** Вернуть title на место (если React не поставил новый за время наведения). */
+function restore(el: HTMLElement | null): void {
+  if (!el || el.dataset.tip === undefined) return;
+  if (!el.hasAttribute('title')) el.setAttribute('title', el.dataset.tip);
+  delete el.dataset.tip;
 }
 
 function placeFor(el: HTMLElement, text: string): Tip {
@@ -42,6 +50,7 @@ export function TooltipLayer() {
     let anchor: HTMLElement | null = null;
     const hide = () => {
       window.clearTimeout(timer);
+      restore(anchor);
       anchor = null;
       setTip(null);
     };
@@ -53,8 +62,13 @@ export function TooltipLayer() {
     const onOver = (e: Event) => {
       const el = target(e);
       if (!el) return;
+      if (el === anchor) return;
       const text = tipOf(el);
-      if (!text || el === anchor) return;
+      if (!text) {
+        restore(el);
+        return;
+      }
+      restore(anchor);
       anchor = el;
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
@@ -74,8 +88,13 @@ export function TooltipLayer() {
         return;
       }
       const el = target(e);
-      const text = el ? tipOf(el) : null;
-      if (!el || !text) {
+      if (!el) {
+        hide();
+        return;
+      }
+      if (el !== anchor) restore(anchor);
+      const text = tipOf(el);
+      if (!text) {
         hide();
         return;
       }

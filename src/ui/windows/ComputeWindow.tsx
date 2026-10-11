@@ -1,7 +1,7 @@
 // Окно «Мощности» (FR-2): сведения, арендованные карты, диалог аренды и распределение мощности.
 // Раскладка по образцу «Производство» и «Управление линиями» в Processor Tycoon.
 
-import { useState, type CSSProperties } from 'react';
+import { Fragment, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
 import { GPUS } from '../../data/gpus';
@@ -20,9 +20,23 @@ import { RENT_HARD_CAP_MULT, RENT_OVER_CAP_MULT } from '../../sim/constants';
 import { inferenceNeed, marketSnapshot } from '../../sim/market';
 import { dateToDay, formatDateShort } from '../../sim/time';
 import type { GameState, GpuDef, GpuId } from '../../sim/types';
-import { ALLOC_ROWS, percentsOf, samePercents, toAllocation, withPercent, type Percents } from '../alloc';
-import { Alert, Dialog, ErrorText, Range } from '../components/common';
-import { fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
+import {
+  ALLOC_ROWS,
+  checkAllocation,
+  occupancy,
+  percentsOf,
+  samePercents,
+  setPercent,
+  soldChannels,
+  toAllocation,
+  ZERO_SHARE_WARNING,
+  type AllocKey,
+  type Percents,
+  type SoldChannels,
+} from '../alloc';
+import { Cards } from '../components/Cards';
+import { Alert, ConfirmDialog, Dialog, ErrorText, Range } from '../components/common';
+import { fmtH100e as fmtH, fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
 import { actions, store } from '../store';
 import './ComputeWindow.css';
 
@@ -33,17 +47,6 @@ const DAYS_IN_MONTH = 30;
 const OVER_MULT_TEXT = `×${fmtMult(RENT_OVER_CAP_MULT)}`;
 /** Подсказка к лимиту: что будет сверх него и где жёсткий потолок. */
 const CAP_HINT = `Карты сверх лимита стоят дороже: ${OVER_MULT_TEXT}. Больше ×${fmtMult(RENT_HARD_CAP_MULT)} от лимита арендовать нельзя`;
-
-// Мощность одной карты - доли H100e (0,021), у всей аренды - десятки и тысячи: знаков нужно по-разному.
-const H_FORMATS = [0, 1, 2, 3].map((d) => new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: d }));
-
-/** H100e: «0,021», «2,03», «45,6», «1 234», «12 тыс.» */
-function fmtH(n: number): string {
-  if (!Number.isFinite(n)) return '-';
-  if (n >= 1e4) return fmtNum(n);
-  const digits = n < 1 ? 3 : n < 10 ? 2 : n < 1000 ? 1 : 0;
-  return H_FORMATS[digits].format(n);
-}
 
 /** Аренда count карт за 30 дней с надбавкой за карты сверх лимита (rentCostPerDay). */
 function monthlyCost(s: GameState, id: GpuId, count: number): number {
@@ -85,33 +88,40 @@ function Summary({ s, onRent }: { s: GameState; onRent: () => void }) {
 
   return (
     <header className="cw-info">
-      <h2 className="cw-h">Сведения о мощностях</h2>
+      <div className="cw-info-head">
+        <h2 className="cw-h">Сведения о мощностях</h2>
+        <button className="btn primary" onClick={onRent} data-tutorial="rent-button">
+          Арендовать
+        </button>
+      </div>
       <div className="cw-info-grid">
         <dl className="cw-kv">
           <dt title="H100e: мощность в эквивалентах одной карты H100">Всего мощности</dt>
-          <dd>{fmtH(totalH100e(s))} H100e</dd>
+          <dd>
+            {fmtH(totalH100e(s))} H100e
+            <Cards s={s} h100e={totalH100e(s)} />
+          </dd>
           <dt>Арендовано карт</dt>
           <dd>{fmtNum(cards)}</dd>
           <dt title="Аренда за сутки × 30, с надбавкой за карты сверх лимита">Аренда в месяц</dt>
-          <dd>{fmtMoney(rentPerDay(s) * DAYS_IN_MONTH)}</dd>
+          <dd className="cw-cost">{fmtMoney(rentPerDay(s) * DAYS_IN_MONTH)}</dd>
           <dt title={CAP_HINT}>Лимит по обычной цене</dt>
           <dd className={over > 0 ? 'warn' : undefined}>{capText}</dd>
         </dl>
         <dl className="cw-kv">
-          <dt>Обучение</dt>
-          <dd>{fmtH(pool(s, 'training'))} H100e</dd>
-          <dt>Контракты</dt>
-          <dd>{fmtH(pool(s, 'contracts'))} H100e</dd>
-          <dt>Исследования</dt>
-          <dd>{fmtH(pool(s, 'experiments'))} H100e</dd>
-          <dt>Клиенты</dt>
-          <dd>{fmtH(pool(s, 'api'))} H100e</dd>
+          {ALLOC_ROWS.map((r) => (
+            <Fragment key={r.key}>
+              <dt title={r.hint}>
+                <span className="cw-dot" style={{ background: r.color }} />
+                {r.label}
+              </dt>
+              <dd>
+                {fmtH(pool(s, r.key))} H100e
+                <Cards s={s} h100e={pool(s, r.key)} />
+              </dd>
+            </Fragment>
+          ))}
         </dl>
-        <div className="cw-info-act">
-          <button className="btn primary" onClick={onRent} data-tutorial="rent-button">
-            Арендовать
-          </button>
-        </div>
       </div>
     </header>
   );
@@ -138,7 +148,7 @@ function RentedCard({ s, g, onEdit, onGiveBack }: { s: GameState; g: GpuDef; onE
         <dt>Мощность</dt>
         <dd>{fmtH(count * g.h100e)} H100e</dd>
         <dt title="Аренда за сутки × 30, с надбавкой за карты сверх лимита">В месяц</dt>
-        <dd>{fmtMoney(monthlyCost(s, g.id, count))}</dd>
+        <dd className="cw-cost">{fmtMoney(monthlyCost(s, g.id, count))}</dd>
         <dt title={CAP_HINT}>Лимит по обычной цене</dt>
         <dd className={over > 0 ? 'warn' : undefined}>{fmtNum(cap)}</dd>
         {over > 0 && (
@@ -268,9 +278,13 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
           <div
             className={`cw-qty-range${capFrac === null ? '' : ' has-cap'}`}
             style={{ '--cap': capFrac ?? 1 } as CSSProperties}
-            title={capFrac === null ? undefined : `Лимит по обычной цене: ${fmtNum(cap)} шт.`}
           >
             <Range value={count ?? 0} min={0} max={max} label="Количество карт" onChange={(v) => setCount(String(v))} />
+            {capFrac !== null && (
+              <span className="cw-cap-label" aria-hidden="true">
+                {fmtNum(cap)} шт.: дальше {OVER_MULT_TEXT}
+              </span>
+            )}
           </div>
           <input
             id="cw-qty-num"
@@ -283,18 +297,23 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
             onBlur={normalize}
             onKeyDown={(e) => e.key === 'Enter' && submit()}
           />
+          {capFrac !== null && (
+            <div className="cw-qty-legend">
+              <span className="cw-sw" />
+              До {fmtNum(cap)} шт. - обычная цена,
+              <span className="cw-sw over" />
+              сверх лимита - в {fmtMult(RENT_OVER_CAP_MULT)} раза дороже, максимум {fmtNum(max)} шт.
+            </div>
+          )}
           <div className={`cw-qty-note${count === null ? ' bad' : ''}`}>
             {count === null ? (
               `Введите целое число от 0 до ${fmtNum(max)}`
             ) : (
-              <>
-                <span title={CAP_HINT}>Лимит по обычной цене: {fmtNum(cap)} шт.</span>
-                {over > 0 && (
-                  <span className="warn">
-                    Сверх лимита: {fmtNum(over)} шт. по цене {OVER_MULT_TEXT}
-                  </span>
-                )}
-              </>
+              over > 0 && (
+                <span className="warn">
+                  Сверх лимита: {fmtNum(over)} шт. по цене {OVER_MULT_TEXT}
+                </span>
+              )
             )}
           </div>
         </div>
@@ -304,7 +323,7 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
             <dt>Мощность</dt>
             <dd>{count === null ? '-' : `${fmtH(count * g.h100e)} H100e`}</dd>
             <dt title="Аренда за сутки × 30, с надбавкой за карты сверх лимита">Стоимость</dt>
-            <dd>{count === null ? '-' : `${fmtMoney(monthlyCost(s, g.id, count))} в месяц`}</dd>
+            <dd className="cw-cost">{count === null ? '-' : `${fmtMoney(monthlyCost(s, g.id, count))} в месяц`}</dd>
             {over > 0 && (
               <>
                 <dt title={`Надбавка за ${fmtNum(over)} шт. сверх лимита: цена ${OVER_MULT_TEXT}`}>Из них надбавка</dt>
@@ -316,7 +335,7 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
             {count !== null && count !== rented && (
               <>
                 <dt title="Разница с текущей арендой этого типа карт">Изменение</dt>
-                <dd className={lowering ? 'good' : undefined}>
+                <dd className={lowering ? 'good' : 'bad'}>
                   {fmtChange(monthlyCost(s, g.id, count) - monthlyCost(s, g.id, rented), (count - rented) * g.h100e)}
                 </dd>
               </>
@@ -331,90 +350,203 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
 
 // ---------- Распределение мощности ----------
 
-/** Мощность, которая нужна клиентам API; если расчёт рынка недоступен, null. */
-function safeInferenceNeed(s: GameState): number | null {
+type NeedChannel = 'api' | 'subs';
+
+/** Мощность, которая нужна клиентам по каналам; если расчёт рынка недоступен, null. */
+function safeInferenceNeed(s: GameState): Record<NeedChannel, number> | null {
   try {
-    const need = inferenceNeed(s, marketSnapshot(s)).api;
-    return Number.isFinite(need) ? need : null;
+    const need = inferenceNeed(s, marketSnapshot(s));
+    return Number.isFinite(need.api) && Number.isFinite(need.subs) ? need : null;
   } catch {
     return null;
   }
 }
 
-function ClientNeed({ s, have }: { s: GameState; have: number }) {
-  const need = safeInferenceNeed(s);
-  if (need === null || need <= 0) return null;
+/**
+ * Подсказка «Нужно клиентам» под строкой API или «Подписки». Одна строка постоянной высоты: нехватка при перетаскивании
+ * ползунка только меняет цвет и добавляет слово справа, ошибкой не считается и размер окна не меняет.
+ */
+function ClientNeed({ s, need, have }: { s: GameState; need: number | undefined; have: number }) {
+  if (need === undefined || !(need > 0)) return null;
   const short = need > have * (1 + 1e-9) + 1e-9;
-  if (short) {
-    return (
-      <Alert tone="warn">
-        Нужно клиентам: {fmtH(need)} H100e, не хватает {fmtH(need - have)}
-      </Alert>
-    );
-  }
-  return <div className="cw-need">Нужно клиентам: {fmtH(need)} H100e</div>;
+  return (
+    <div className={`cw-need${short ? ' short' : ''}`}>
+      <span className="cw-need-t">
+        Нужно клиентам: <b>{fmtH(need)} H100e</b>
+        <Cards s={s} h100e={need} />
+      </span>
+      {short && <span className="cw-need-short">не хватает {fmtH(need - have)}</span>}
+    </div>
+  );
+}
+
+/** Поле процента рядом с ползунком: пока в нём печатают, показывается набранный текст, после ухода из поля - долю. */
+function PercentInput(props: {
+  value: number;
+  label: string;
+  changed: boolean;
+  onChange: (v: number) => void;
+  onEnter: () => void;
+}) {
+  const [text, setText] = useState<string | null>(null);
+  return (
+    <label className={`cw-pct${props.changed ? ' changed' : ''}`}>
+      <input
+        type="number"
+        min={0}
+        max={100}
+        step={1}
+        inputMode="numeric"
+        value={text ?? String(props.value)}
+        aria-label={`${props.label}, процент`}
+        onChange={(e) => {
+          const raw = e.target.value;
+          setText(raw);
+          if (raw.trim() === '') return;
+          const n = Number(raw);
+          if (!Number.isFinite(n)) return;
+          props.onChange(n);
+          if (n < 0 || n > 100) setText(String(Math.max(0, Math.min(100, Math.round(n)))));
+        }}
+        onBlur={() => setText(null)}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter') return;
+          setText(null);
+          props.onEnter();
+        }}
+      />
+      <span>%</span>
+    </label>
+  );
 }
 
 function AllocPanel({ s }: { s: GameState }) {
   const [draft, setDraft] = useState<Percents | null>(null);
+  // Ошибка показывается только после «Распределить»; любое изменение долей её убирает.
   const [error, setError] = useState<string | null>(null);
+  const [zero, setZero] = useState<(keyof SoldChannels)[] | null>(null);
   const current = percentsOf(s.compute.alloc);
   const shown = draft ?? current;
   const changed = draft !== null && !samePercents(draft, current);
   const total = totalH100e(s);
+  const occ = occupancy(shown);
+  const need = safeInferenceNeed(s);
 
-  const apply = () => {
+  const edit = (key: AllocKey, value: number) => {
+    setError(null);
+    setDraft(setPercent(shown, key, value));
+  };
+
+  const commit = () => {
     if (!draft) return;
     const r = store.dispatch(actions.setAllocation, toAllocation(draft));
     setError(r.ok ? null : r.error);
     if (r.ok) setDraft(null);
   };
 
+  // «Распределить»: сумма должна быть 100 %; нулевую долю API или подписок при продажах в канале игрок подтверждает.
+  const apply = () => {
+    if (!draft || !changed) return;
+    const check = checkAllocation(draft, soldChannels(s.models));
+    if (check.error) {
+      setError(check.error);
+      return;
+    }
+    if (check.zero.length > 0) {
+      setZero(check.zero);
+      return;
+    }
+    commit();
+  };
+
   return (
     <section className="cw-panel" data-tutorial="alloc">
-      <h2 className="cw-h">Распределение мощности</h2>
-      <div className="cw-allocbar" aria-hidden="true">
-        {ALLOC_ROWS.map((r) => (
-          <div key={r.key} style={{ width: `${shown[r.key]}%`, background: r.color }} />
-        ))}
+      <div className="cw-panel-head">
+        <h2 className="cw-h">Распределение мощности</h2>
+        <div className="cw-allocbar" aria-hidden="true">
+          {ALLOC_ROWS.map((r) => (
+            <div key={r.key} style={{ width: `${shown[r.key]}%`, background: r.color }} />
+          ))}
+        </div>
+        <div className={`cw-occ ${occ.tone}`} role="status">
+          {occ.text}
+        </div>
       </div>
       {total <= 0 && <p className="cw-panel-note">Мощность появится после аренды карт.</p>}
-      {ALLOC_ROWS.map((r) => (
-        <div key={r.key} className="cw-alloc-row" title={r.hint}>
-          <div className="cw-alloc-top">
-            <span className="cw-dot" style={{ background: r.color }} />
-            <span className="cw-alloc-name">{r.label}</span>
-            <span className="cw-alloc-val">{fmtH((total * shown[r.key]) / 100)} H100e</span>
-            <span className={`cw-alloc-pct${draft && shown[r.key] !== current[r.key] ? ' changed' : ''}`}>{fmtPct(shown[r.key], 0)}</span>
+      {ALLOC_ROWS.map((r) => {
+        const h = (total * shown[r.key]) / 100;
+        return (
+          <div key={r.key} className="cw-alloc-row" title={r.hint}>
+            <div className="cw-alloc-top">
+              <span className="cw-dot" style={{ background: r.color }} />
+              <span className="cw-alloc-name">{r.label}</span>
+              <span className="cw-alloc-val">
+                {fmtH(h)} H100e
+                <Cards s={s} h100e={h} />
+              </span>
+            </div>
+            <div className="cw-alloc-ctl">
+              <Range
+                value={shown[r.key]}
+                min={0}
+                max={100}
+                color={r.color}
+                label={r.label}
+                valueText={fmtPct(shown[r.key], 0)}
+                onChange={(v) => edit(r.key, v)}
+              />
+              <PercentInput
+                value={shown[r.key]}
+                label={r.label}
+                changed={draft !== null && shown[r.key] !== current[r.key]}
+                onChange={(v) => edit(r.key, v)}
+                onEnter={() => occupancy(shown).total === 100 && apply()}
+              />
+            </div>
+            {(r.key === 'api' || r.key === 'subs') && <ClientNeed s={s} need={need?.[r.key]} have={h} />}
           </div>
-          <Range
-            value={shown[r.key]}
-            min={0}
-            max={100}
-            color={r.color}
-            label={r.label}
-            valueText={fmtPct(shown[r.key], 0)}
-            onChange={(v) => {
-              setError(null);
-              setDraft(withPercent(shown, r.key, v));
-            }}
-          />
-          {r.key === 'api' && <ClientNeed s={s} have={(total * shown.api) / 100} />}
-        </div>
-      ))}
-      <ErrorText error={error} />
-      <div className="cw-alloc-foot">
-        {changed ? (
-          <button className="btn" onClick={() => setDraft(null)}>
-            Сбросить
+        );
+      })}
+      <div className="cw-panel-foot">
+        <div className="cw-alloc-msg" title={error ?? undefined}>
+            {error && <Alert tone="bad">{error}</Alert>}
+          </div>
+        <div className="cw-alloc-foot">
+          {changed ? (
+            <button
+              className="btn"
+              onClick={() => {
+                setDraft(null);
+                setError(null);
+              }}
+            >
+              Сбросить
+            </button>
+          ) : (
+            <span className="cw-alloc-hint">Двигайте ползунки</span>
+          )}
+          <button className="btn primary" disabled={!changed} onClick={apply}>
+            Распределить
           </button>
-        ) : (
-          <span className="cw-alloc-hint">Двигайте ползунки</span>
-        )}
-        <button className="btn primary" disabled={!changed} onClick={apply}>
-          Распределить
-        </button>
+        </div>
       </div>
+      {zero && (
+        <ConfirmDialog
+          title="Нулевая доля мощности"
+          confirmLabel="Распределить"
+          onConfirm={() => {
+            setZero(null);
+            commit();
+          }}
+          onClose={() => setZero(null)}
+        >
+          {zero.map((k) => (
+            <p key={k} className="cw-confirm-line">
+              {ZERO_SHARE_WARNING[k]}
+            </p>
+          ))}
+        </ConfirmDialog>
+      )}
     </section>
   );
 }

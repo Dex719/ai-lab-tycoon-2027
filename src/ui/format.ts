@@ -1,5 +1,9 @@
 // Форматирование чисел по-русски: $1,2 млн, 43,9 %, 1,2·10²⁵.
 
+import { GPUS } from '../data/gpus';
+import { availableGpus } from '../sim/compute';
+import type { GameState } from '../sim/types';
+
 // Форматтеры создаются один раз на число знаков: toLocaleString с параметрами строит новый на каждый вызов,
 // а таблицы окон печатают сотни чисел за кадр.
 const formatters = new Map<number, Intl.NumberFormat>();
@@ -105,4 +109,63 @@ export function endSentence(text: string): string {
 
 export function fmtElo(elo: number): string {
   return Number.isFinite(elo) ? String(Math.round(elo)) : '-';
+}
+
+/** Форма слова по числу: ruPlural(1, 'карта', 'карты', 'карт') → «карта», 3 → «карты», 5 и 11 → «карт», 21 → «карта». */
+export function ruPlural(n: number, one: string, few: string, many: string): string {
+  const a = Math.abs(Math.trunc(n));
+  const m10 = a % 10;
+  const m100 = a % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+}
+
+/** «1 день», «3 дня», «45 дней». */
+export function fmtDays(n: number): string {
+  return `${dec(n, 0)} ${ruPlural(n, 'день', 'дня', 'дней')}`;
+}
+
+// Мощность одной карты - доли H100e (0,021), у всей аренды - десятки и тысячи: знаков нужно по-разному.
+const H_FORMATS = [0, 1, 2, 3].map((d) => new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: d }));
+
+/** Мощность в H100e без единицы: «0,021», «2,03», «45,6», «1 234», «12 тыс.» */
+export function fmtH100e(n: number): string {
+  if (!Number.isFinite(n)) return '-';
+  if (n >= 1e4) return fmtNum(n);
+  const digits = n < 1 ? 3 : n < 10 ? 2 : n < 1000 ? 1 : 0;
+  return H_FORMATS[digits].format(n);
+}
+
+/** Подпись числа карт: «≈ 17 карт», «≈ 1 карта», «≈ 3 карты», «≈ 12,5 тыс. карт»; ноль - «0 карт», меньше половины карты - «< 1 карты». */
+export function cardsLabel(cards: number): string {
+  if (!Number.isFinite(cards) || cards <= 0) return '0 карт';
+  if (cards < 0.5) return '< 1 карты';
+  const n = Math.round(cards);
+  if (n >= 10_000) return `≈ ${fmtNum(n)} карт`;
+  return `≈ ${dec(n, 0)} ${ruPlural(n, 'карта', 'карты', 'карт')}`;
+}
+
+/**
+ * Мощность одной карты в H100e для пересчёта в число карт: средняя по арендованному набору;
+ * если ничего не арендовано - лучшая из карт, доступных в этот день.
+ */
+export function h100ePerCard(s: GameState): number {
+  let cards = 0;
+  let h100e = 0;
+  for (const g of GPUS) {
+    const n = s.compute.rented[g.id];
+    if (n > 0) {
+      cards += n;
+      h100e += n * g.h100e;
+    }
+  }
+  if (cards > 0) return h100e / cards;
+  const best = availableGpus(s).reduce((m, g) => Math.max(m, g.h100e), 0);
+  return best > 0 ? best : GPUS[0].h100e;
+}
+
+/** Сколько карт даёт мощность h100e при текущей аренде: «≈ 17 карт». */
+export function fmtCards(s: GameState, h100e: number): string {
+  return cardsLabel(h100e / h100ePerCard(s));
 }

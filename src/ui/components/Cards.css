@@ -1,0 +1,9 @@
+/* Число карт рядом с H100e: мелко и приглушённо (не светлее #6b6f76, чтобы читалось на белом и сером). */
+.cards-note {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #6b6f76;
+  white-space: nowrap;
+}
+.cards-note.block { display: block; margin-left: 0; }

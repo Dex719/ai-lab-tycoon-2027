@@ -1,7 +1,22 @@
 // Тесты форматирования чисел (границы единиц, кэш форматтеров), подписей из labels.ts и геометрии окон на столе.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fmtMoney, fmtMult, fmtNum, fmtParams, fmtPct, fmtSci } from './format';
+import { newGame } from '../sim/actions';
+import { dateToDay } from '../sim/time';
+import {
+  cardsLabel,
+  fmtCards,
+  fmtDays,
+  fmtH100e,
+  fmtMoney,
+  fmtMult,
+  fmtNum,
+  fmtParams,
+  fmtPct,
+  fmtSci,
+  h100ePerCard,
+  ruPlural,
+} from './format';
 import { EXPENSE_KINDS, EXPENSE_LABELS, fmtRank, INCOME_KINDS, INCOME_LABELS } from './labels';
 import { clampPos, deskAreaOf, TITLEBAR_H } from './Window';
 
@@ -85,6 +100,79 @@ describe('fmtMult', () => {
     expect(norm(fmtMult(14.55))).toBe('14,6');
     expect(norm(fmtMult(120.4))).toBe('120');
     expect(fmtMult(NaN)).toBe('-');
+  });
+});
+
+describe('ruPlural и fmtDays', () => {
+  it('одна, две-четыре, пять и больше', () => {
+    const w = (n: number) => ruPlural(n, 'карта', 'карты', 'карт');
+    expect([1, 21, 101, 1001].map(w)).toEqual(['карта', 'карта', 'карта', 'карта']);
+    expect([2, 3, 4, 22, 34, 102].map(w)).toEqual(['карты', 'карты', 'карты', 'карты', 'карты', 'карты']);
+    expect([0, 5, 9, 10, 20, 25, 100, 111].map(w).every((x) => x === 'карт')).toBe(true);
+  });
+
+  it('11-14 всегда «карт», даже когда число оканчивается на 1-4', () => {
+    for (const n of [11, 12, 13, 14, 111, 112, 113, 114]) expect(ruPlural(n, 'карта', 'карты', 'карт')).toBe('карт');
+  });
+
+  it('fmtDays', () => {
+    expect(fmtDays(1)).toBe('1 день');
+    expect(fmtDays(3)).toBe('3 дня');
+    expect(fmtDays(45)).toBe('45 дней');
+    expect(fmtDays(31)).toBe('31 день');
+  });
+});
+
+describe('fmtH100e', () => {
+  it('знаков столько, сколько нужно по величине', () => {
+    expect(norm(fmtH100e(0.0214))).toBe('0,021');
+    expect(norm(fmtH100e(2.03))).toBe('2,03');
+    expect(norm(fmtH100e(45.64))).toBe('45,6');
+    expect(norm(fmtH100e(1234.4))).toBe('1 234');
+    expect(norm(fmtH100e(12_000))).toBe('12 тыс.');
+    expect(fmtH100e(NaN)).toBe('-');
+  });
+});
+
+describe('число карт мелкими цифрами', () => {
+  it('cardsLabel: склонение «карта / карты / карт»', () => {
+    expect(norm(cardsLabel(1))).toBe('≈ 1 карта');
+    expect(norm(cardsLabel(3))).toBe('≈ 3 карты');
+    expect(norm(cardsLabel(17))).toBe('≈ 17 карт');
+    expect(norm(cardsLabel(21))).toBe('≈ 21 карта');
+    expect(norm(cardsLabel(22))).toBe('≈ 22 карты');
+    expect(norm(cardsLabel(11))).toBe('≈ 11 карт');
+    expect(norm(cardsLabel(112))).toBe('≈ 112 карт');
+    expect(norm(cardsLabel(1234))).toBe('≈ 1 234 карты');
+  });
+
+  it('cardsLabel: ноль, меньше половины карты, большие числа, мусор', () => {
+    expect(cardsLabel(0)).toBe('0 карт');
+    expect(cardsLabel(-3)).toBe('0 карт');
+    expect(cardsLabel(NaN)).toBe('0 карт');
+    expect(cardsLabel(0.3)).toBe('< 1 карты');
+    expect(norm(cardsLabel(0.6))).toBe('≈ 1 карта');
+    expect(norm(cardsLabel(12_500))).toBe('≈ 12,5 тыс. карт');
+  });
+
+  it('если ничего не арендовано, берётся лучшая карта этого года', () => {
+    const s = newGame('Тест', 1);
+    expect(h100ePerCard(s)).toBeCloseTo(0.0214, 4); // 01.01.2017: доступна только P100
+    expect(norm(fmtCards(s, 0.0214 * 17))).toBe('≈ 17 карт');
+    s.day = dateToDay('2024-07-01'); // H200 вышла в июне 2024
+    expect(h100ePerCard(s)).toBeCloseTo(1.4, 4);
+    expect(norm(fmtCards(s, 4.2))).toBe('≈ 3 карты');
+    expect(norm(fmtCards(s, 1.4))).toBe('≈ 1 карта');
+  });
+
+  it('при аренде берётся средняя мощность карты набора', () => {
+    const s = newGame('Тест', 1);
+    s.day = dateToDay('2024-07-01');
+    s.compute.rented.h100 = 10; // 10 H100e
+    s.compute.rented.h200 = 10; // 14 H100e
+    expect(h100ePerCard(s)).toBeCloseTo(1.2, 6); // 24 H100e на 20 карт
+    expect(norm(fmtCards(s, 24))).toBe('≈ 20 карт');
+    expect(norm(fmtCards(s, 12))).toBe('≈ 10 карт');
   });
 });
 

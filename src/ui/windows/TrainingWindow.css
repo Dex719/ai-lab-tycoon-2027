@@ -18,7 +18,9 @@
   gap: 8px 24px; padding: 10px 18px; background: #fff; border-bottom: 1px solid var(--line);
 }
 .nm-run-l { font-size: 13px; color: var(--text-dim); }
-.nm-run-t { font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nm-run-t { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 16px; font-weight: 600; }
+.nm-run-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nm-run-pct { font-weight: 600; color: var(--accent-dark); }
 .nm-run-s { font-size: 13px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nm-run-bar .progress { height: 10px; }
 .nm-run-meta { display: flex; flex-wrap: wrap; gap: 2px 18px; margin-top: 4px; font-size: 13px; }
@@ -37,7 +39,16 @@
 .nm-item-v { font-size: 18px; line-height: 1.3; color: var(--text); }
 .nm-item-v small { font-size: 13px; color: var(--text-dim); }
 .nm-item-s { font-size: 13px; line-height: 1.35; color: var(--text-dim); }
-.nm-item-s.warn { color: var(--warn); }
+/* Срок обучения - главное число левой колонки (владелец хочет видеть его сразу): крупно, с датой и мощностью под ним. */
+.nm-eta { margin: 4px 0 6px; padding: 7px 12px 9px; background: #fff; border: 1px solid var(--line-soft); border-left: 4px solid var(--accent); border-radius: 3px; }
+.nm-eta-v { font-size: 26px; font-weight: 600; line-height: 1.25; color: #1f2023; }
+.nm-eta-v small { font-size: 13px; font-weight: 400; color: #4a4d54; }
+.nm-eta-s { font-size: 13px; line-height: 1.4; color: #4a4d54; }
+.nm-eta.late { border-left-color: #e8891c; }
+.nm-eta.late > :nth-child(3) { color: #a85a00; font-weight: 600; }
+.nm-eta.none { border-left-color: #aab0b8; }
+.nm-eta.none .nm-eta-v { color: var(--text-dim); }
+.nm-eta.none > :nth-child(3) { color: #a85a00; font-weight: 600; }
 .nm-scores { margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
 .nm-scores .kv { margin-top: 3px; font-size: 13px; }
 .nm-side-foot { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 10px 22px 18px; }
@@ -49,6 +60,11 @@
 .nm-link:hover { text-decoration: underline; }
 .nm-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* Цвета со смыслом: тёмные оттенки зелёного, оранжевого и красного, чтобы текст читался на белом и сером. */
+.nm-item-v.good, .nm-eff .good, .nm-ratio .good { color: #1d6b36; }
+.nm-item-v.warn, .nm-item-s.warn, .nm-reason.warn, .nm-note.warn, .nm-run-meta .warn, .nm-eff .warn, .nm-ratio .warn { color: #a85a00; }
+.nm-item-v.bad, .nm-item-v.cost, .nm-eff .bad, .nm-ratio .bad, .nm-ft-col .kv .bad { color: #b32f2f; }
+
 /* ---------- Правая область ---------- */
 .nm-area {
   flex: 1; min-width: 0; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px;
@@ -58,6 +74,28 @@
 .nm-h { margin: 0 0 8px; font-size: 20px; font-weight: 300; line-height: 1.3; color: #2a2c30; }
 /* Предупреждение «нет мощности» (компонент Alert) не сжимается в столбце блоков. */
 .nm-area > .alert { flex: none; }
+/* Форма: при двух идущих проектах fieldset disabled отключает все поля, блоки бледнеют. */
+.nm-fields { display: flex; flex-direction: column; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.nm-fields:disabled .nm-block { opacity: 0.55; }
+
+/* Уровень: три варианта в ряд, у каждого свой цвет (лёгкая - бирюзовый, средняя - синий, флагман - фиолетовый) */
+.nm-tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.nm-tier-wrap { display: flex; min-width: 0; }
+.nm-tier {
+  --tier: var(--accent); --tier-text: #1f5fae; --tier-hover: #f1f6fd; --tier-on: #e3eefc;
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 9px 12px 10px; text-align: left;
+  background: #fff; color: #4a4d54; border: 1px solid var(--line); border-left: 5px solid var(--tier); border-radius: 3px; cursor: pointer;
+  font-size: 13px; line-height: 1.35; transition: background-color 100ms ease-out, border-color 100ms ease-out;
+}
+.nm-tier.light { --tier: #1fa8a0; --tier-text: #0e655f; --tier-hover: #f0faf9; --tier-on: #dff3f1; }
+.nm-tier.flagship { --tier: #7b5cd6; --tier-text: #5a3fb8; --tier-hover: #f6f3fd; --tier-on: #ece6fb; }
+.nm-tier:hover:not(:disabled) { background: var(--tier-hover); }
+.nm-tier.on { background: var(--tier-on); border-color: var(--tier); box-shadow: inset 0 0 0 1px var(--tier); }
+.nm-tier:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.nm-tier:disabled { cursor: default; background: #eceef1; color: #6b6f76; border-left-color: #aab0b8; }
+.nm-tier-name { font-size: 17px; font-weight: 600; color: var(--tier-text); }
+.nm-tier:disabled .nm-tier-name { color: #6b6f76; }
+.nm-tier-range { color: #1f2023; }
 
 /* Размер */
 .nm-size { display: grid; grid-template-columns: 188px minmax(0, 1fr); gap: 8px 24px; align-items: start; }
@@ -131,6 +169,11 @@
   .nm-mix-row { grid-template-columns: 140px minmax(0, 1fr) 44px; }
   .nm-chip { max-width: 188px; }
   .nm-ft > div + div { padding-left: 0; padding-top: 14px; border-left: none; border-top: 1px solid var(--line-soft); }
+}
+
+/* Совсем узкое окно: уровни друг под другом */
+@container (max-width: 600px) {
+  .nm-tiers { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {

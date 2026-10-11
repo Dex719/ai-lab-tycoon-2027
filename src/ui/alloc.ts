@@ -1,6 +1,6 @@
 // Доли мощности в целых процентах: общие помощники для окна «Мощности» и диалога исследования.
 
-import type { Allocation } from '../sim/types';
+import type { Allocation, PlayerModel } from '../sim/types';
 
 export type AllocKey = keyof Allocation;
 
@@ -64,4 +64,43 @@ export function toAllocation(p: Percents): Allocation {
 
 export function samePercents(a: Percents, b: Percents): boolean {
   return ALLOC_ROWS.every((r) => a[r.key] === b[r.key]);
+}
+
+/** Строка «Занято: N %»: tone full - ровно 100, free - есть свободные проценты, over - лишние. */
+export function occupancy(p: Percents): { total: number; tone: 'full' | 'free' | 'over'; text: string } {
+  const total = totalPercent(p);
+  if (total === 100) return { total, tone: 'full', text: 'Занято: 100 %' };
+  if (total < 100) return { total, tone: 'free', text: `Занято: ${total} %, свободно: ${100 - total} %` };
+  return { total, tone: 'over', text: `Занято: ${total} %, лишние: ${total - 100} %` };
+}
+
+/** Каналы, в которых сейчас что-то продаётся: хотя бы одна выпущенная модель с включённым каналом. */
+export type SoldChannels = { api: boolean; subs: boolean };
+
+export function soldChannels(models: readonly Pick<PlayerModel, 'releasedDay' | 'onApi' | 'onSubs'>[]): SoldChannels {
+  const sold = models.filter((m) => m.releasedDay !== null);
+  return { api: sold.some((m) => m.onApi), subs: sold.some((m) => m.onSubs) };
+}
+
+/** Что сказать игроку, если доле канала выставили 0 %, а в канале есть что продавать. */
+export const ZERO_SHARE_WARNING: Record<keyof SoldChannels, string> = {
+  api: 'Клиентам API не будет выделено мощности: продажи по API остановятся.',
+  subs: 'Подписчикам не будет выделено мощности: подписки остановятся.',
+};
+
+export interface AllocCheck {
+  /** Текст ошибки (сумма не 100 %) или null: действие вызывать нельзя. */
+  error: string | null;
+  /** Каналы с долей 0 %, в которых есть продажи: нужно подтверждение игрока. Пусто, пока есть ошибка. */
+  zero: (keyof SoldChannels)[];
+}
+
+/** Проверка перед «Распределить»: сумма ровно 100 %, затем нули в каналах с продажами. Ошибки показывают только после нажатия. */
+export function checkAllocation(p: Percents, sold: SoldChannels): AllocCheck {
+  const total = totalPercent(p);
+  if (total !== 100) return { error: `Сумма долей должна быть 100 %. Сейчас ${total} %.`, zero: [] };
+  const zero: (keyof SoldChannels)[] = [];
+  if (sold.api && p.api === 0) zero.push('api');
+  if (sold.subs && p.subs === 0) zero.push('subs');
+  return { error: null, zero };
 }

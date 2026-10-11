@@ -1,19 +1,37 @@
 // Окно «Модели»: список моделей игрока слева, карточка выбранной справа.
 // Образец - «Инспектор» и «Проект завершён» из Processor Tycoon.
+// Две панели продаж: «API» (цена за 1 млн токенов) и «Подписка» (цена в месяц, внешняя проверка сильных моделей).
 
 import { Fragment, useId, useState } from 'react';
 import type { WindowProps } from '.';
 import { benchDef, DOMAIN_NAMES, introducedBenchmarks } from '../../sim/benchmarks';
 import { pool, rentPerDay } from '../../sim/compute';
-import { TOKENS_PER_USER_DAY, TRAIN_FLOP_PER_H100E_DAY } from '../../sim/constants';
+import {
+  CHAT_MOMENT_DATE,
+  SUBS_PRICE_MAX,
+  SUBS_PRICE_MIN,
+  TIER_API_PRICE_MULT,
+  TIER_SUBS_PRICE,
+  TOKENS_PER_USER_DAY,
+  TRAIN_FLOP_PER_H100E_DAY,
+} from '../../sim/constants';
 import { awaitingEvent } from '../../sim/events';
 import { contextLabel } from '../../sim/research';
 import { arenaRank, benchRank } from '../../sim/leaderboard';
-import { minPrice, playerSales, refPrice } from '../../sim/market';
-import { formatDateShort } from '../../sim/time';
-import { arenaElo as forecastElo, capsFromPlan, modelScore, trainingPoolPerRun } from '../../sim/training';
+import { minPrice, playerSales, refPrice, subsOpen } from '../../sim/market';
+import { dateToDay, formatDateShort } from '../../sim/time';
+import {
+  arenaElo as forecastElo,
+  capsFromPlan,
+  modelScore,
+  reviewCost,
+  reviewDays,
+  reviewReason,
+  trainingPoolPerRun,
+} from '../../sim/training';
 import {
   DOMAINS,
+  TIER_NAMES,
   type BenchmarkId,
   type GameState,
   type ModelRef,
@@ -22,8 +40,10 @@ import {
   type TrainingPlan,
   type TrainingRun,
 } from '../../sim/types';
-import { Alert, ErrorText, ProgressBar } from '../components/common';
-import { fmtElo, fmtMoney, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare, fmtTokens } from '../format';
+import { Cards } from '../components/Cards';
+import { Alert, ConfirmDialog, ErrorText, ProgressBar } from '../components/common';
+import { TierBadge } from '../components/TierBadge';
+import { fmtDays, fmtElo, fmtH100e, fmtMoney, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare, fmtTokens } from '../format';
 import { IconModels } from '../icons';
 import { fmtRank } from '../labels';
 import { actions, store } from '../store';
@@ -31,18 +51,40 @@ import './ModelsWindow.css';
 
 const MAX_PRICE = 10_000;
 
-/** Рекомендуемые цены относительно опорной цены рынка. */
-const TIERS = [
+/** Три готовые цены относительно типичной цены уровня модели. */
+const PRICE_STEPS = [
   { id: 'cheap', label: 'Дешевле рынка', k: 0.6 },
   { id: 'market', label: 'Рынок', k: 1 },
   { id: 'dear', label: 'Дороже рынка', k: 1.5 },
 ] as const;
 
+const PRICE_TITLE = 'Цена за 1 млн токенов в долларах. Чем ниже цена, тем больше доля рынка и выше нагрузка на мощности «API».';
+const SUBS_PRICE_TITLE = 'Цена подписки в долларах в месяц. Чем ниже цена, тем больше подписчиков и выше нагрузка на мощности «Подписки».';
+const SUBS_CLOSED = `Подписки появятся после выхода чат-ботов (${formatDateShort(dateToDay(CHAT_MOMENT_DATE))}).`;
+const REVIEW_FIRST = 'Сначала пройдите внешнюю проверку.';
+
 type Tone = 'idle' | 'sale' | 'off';
 
-function saleState(m: PlayerModel): { text: string; tone: Tone } {
+/** Состояние продажи для списка и значка: «Обучена», «В продаже: API, подписка», «Снята». */
+export function saleState(m: PlayerModel): { text: string; tone: Tone } {
   if (m.releasedDay === null) return { text: 'Обучена', tone: 'idle' };
-  return m.onApi ? { text: 'В продаже', tone: 'sale' } : { text: 'Снята', tone: 'off' };
+  if (m.onApi && m.onSubs) return { text: 'В продаже: API, подписка', tone: 'sale' };
+  if (m.onApi) return { text: 'В продаже: API', tone: 'sale' };
+  if (m.onSubs) return { text: 'В продаже: подписка', tone: 'sale' };
+  return { text: 'Снята', tone: 'off' };
+}
+
+/** Строка про внешнюю проверку для списка и значка (null - проверка не нужна или не требовалась). */
+export function reviewState(m: PlayerModel): { text: string; tone: 'warn' | 'info' | 'good' } | null {
+  if (m.review === 'required') return { text: 'Нужна проверка', tone: 'warn' };
+  if (m.review === 'pending' && m.reviewEndDay !== null) return { text: `Проверка до ${formatDateShort(m.reviewEndDay)}`, tone: 'info' };
+  if (m.review === 'passed') return { text: 'Проверка пройдена', tone: 'good' };
+  return null;
+}
+
+/** Типичная цена API для уровня модели: множитель уровня × опорная цена дня. */
+function tierPrice(day: number, m: PlayerModel): number {
+  return TIER_API_PRICE_MULT[m.plan.tier] * refPrice(day);
 }
 
 /** Округление до тех знаков, которые показывает fmtPrice: подставленная цена совпадает с видимой. */
@@ -51,11 +93,13 @@ function roundPrice(v: number): number {
   return Math.round(v * k) / k;
 }
 
+const priceText = (v: number): string => String(roundPrice(v)).replace('.', ',');
+
 /**
- * Цена из поля и причина отказа. price - null, если поле пустое или цена не годится.
+ * Цена API из поля и причина отказа. price - null, если поле пустое или цена не годится.
  * Границы и слова те же, что в проверке симуляции (actions.ts): нижняя - minPrice(day), опорная цена / 100.
  */
-function parsePrice(text: string, day: number): { price: number | null; error: string | null } {
+export function parsePrice(text: string, day: number): { price: number | null; error: string | null } {
   if (text.trim() === '') return { price: null, error: null };
   const v = Number(text.replace(',', '.'));
   if (!Number.isFinite(v)) return { price: null, error: 'Цена должна быть числом.' };
@@ -65,56 +109,80 @@ function parsePrice(text: string, day: number): { price: number | null; error: s
   return { price: v, error: null };
 }
 
-function versusMarket(price: number, ref: number): string {
+/** Цена подписки из поля: границы те же, что в actions.setSubsPrice (от SUBS_PRICE_MIN до SUBS_PRICE_MAX, до центов). */
+export function parseSubsPrice(text: string): { price: number | null; error: string | null } {
+  if (text.trim() === '') return { price: null, error: null };
+  const v = Number(text.replace(',', '.'));
+  if (!Number.isFinite(v)) return { price: null, error: 'Цена должна быть числом.' };
+  if (v < SUBS_PRICE_MIN || v > SUBS_PRICE_MAX) {
+    return { price: null, error: `Цена подписки - от ${fmtPrice(SUBS_PRICE_MIN)} до ${fmtPrice(SUBS_PRICE_MAX)} в месяц.` };
+  }
+  return { price: Math.round(v * 100) / 100, error: null };
+}
+
+export function versusMarket(price: number, ref: number): string {
   const rel = Math.round((price / ref - 1) * 100);
   if (rel === 0) return 'На уровне рынка';
   return `${rel > 0 ? '+' : '−'}${fmtPct(Math.abs(rel), 0)} к рынку`;
 }
 
-/** Продажи модели сегодня: общая доля, токены API, пользователи API, выручка в день по обоим каналам (undefined - не в продаже). */
+/** Продажи модели игрока за вчера по каналам; у выключенного канала значения нет (undefined). */
 function salesOf(s: GameState, m: PlayerModel) {
-  const share: number | undefined = m.onApi ? s.market.shares[`player:${m.id}`] : undefined;
-  // Доли в s.market уже после ограничения мощностью (market.ts servedShares), отдельно на served не умножаем.
   const sales = playerSales(s, m.id);
-  const tokens = m.onApi ? sales.apiTokens : undefined;
-  const users = tokens !== undefined ? tokens / TOKENS_PER_USER_DAY : undefined;
-  const revenue = m.onApi || m.onSubs ? sales.apiRevenueDay + sales.subsRevenueDay : undefined;
-  return { share, tokens, users, revenue };
+  const onAny = m.onApi || m.onSubs;
+  // Общая доля уже после ограничения мощностью (market.ts servedShares), отдельно на served не умножаем.
+  const share: number | undefined = onAny ? s.market.shares[`player:${m.id}`] : undefined;
+  const apiRevenue = m.onApi ? sales.apiRevenueDay : undefined;
+  const subsRevenue = m.onSubs ? sales.subsRevenueDay : undefined;
+  return {
+    share,
+    tokens: m.onApi ? sales.apiTokens : undefined,
+    users: m.onApi ? sales.apiTokens / TOKENS_PER_USER_DAY : undefined,
+    subscribers: m.onSubs ? sales.subsUsers : undefined,
+    apiRevenue,
+    subsRevenue,
+    revenue: onAny ? (apiRevenue ?? 0) + (subsRevenue ?? 0) : undefined,
+  };
 }
 
-/** Модель, план которой ещё обучается: id для списка. */
-const TRAINING_ID = 'training';
-
-const PRICE_TITLE = 'Цена за 1 млн токенов в долларах. Чем ниже цена, тем больше доля рынка и выше нагрузка на мощности «Клиенты».';
+/** Ключ проекта обучения в списке: у проекта нет id модели. */
+const RUN_PREFIX = 'run:';
 
 // ---------- Левая колонка ----------
 
 function ModelList(props: {
   models: PlayerModel[];
-  training: TrainingRun | null;
+  trainings: TrainingRun[];
   selectedId: string;
   onSelect: (id: string) => void;
   open: WindowProps['open'];
 }) {
-  const t = props.training;
   return (
     <aside className="mw-side">
       <div className="mw-list">
-        {t && (
-          <button
-            className={`mw-item${props.selectedId === TRAINING_ID ? ' is-selected' : ''}`}
-            aria-current={props.selectedId === TRAINING_ID}
-            onClick={() => props.onSelect(TRAINING_ID)}
-          >
-            <span className="mw-dot train" />
-            <span className="mw-item-text">
-              <span className="mw-item-name" title={t.plan.name}>{t.plan.name}</span>
-              <span className="mw-item-state">Обучается, {fmtShare(t.flopTotal > 0 ? t.flopDone / t.flopTotal : 0, 0)}</span>
-            </span>
-          </button>
-        )}
+        {props.trainings.map((t) => {
+          const id = RUN_PREFIX + t.id;
+          return (
+            <button
+              key={t.id}
+              className={`mw-item${props.selectedId === id ? ' is-selected' : ''}`}
+              aria-current={props.selectedId === id}
+              onClick={() => props.onSelect(id)}
+            >
+              <span className="mw-dot train" />
+              <span className="mw-item-text">
+                <span className="mw-item-name" title={t.plan.name}>{t.plan.name}</span>
+                <span className="mw-item-state">
+                  <TierBadge tier={t.plan.tier} />
+                  <span>Обучается, {fmtShare(t.flopTotal > 0 ? t.flopDone / t.flopTotal : 0, 0)}</span>
+                </span>
+              </span>
+            </button>
+          );
+        })}
         {props.models.map((m) => {
           const st = saleState(m);
+          const rv = reviewState(m);
           return (
             <button
               key={m.id}
@@ -125,7 +193,11 @@ function ModelList(props: {
               <span className={`mw-dot ${st.tone}`} />
               <span className="mw-item-text">
                 <span className="mw-item-name" title={m.name}>{m.name}</span>
-                <span className="mw-item-state">{st.text}</span>
+                <span className="mw-item-state">
+                  <TierBadge tier={m.plan.tier} />
+                  <span>{st.text}</span>
+                </span>
+                {rv && rv.tone !== 'good' && <span className={`mw-item-state ${rv.tone}`}>{rv.text}</span>}
                 {m.exposed && <span className="mw-item-state bad">Подгонка раскрыта</span>}
               </span>
             </button>
@@ -154,9 +226,17 @@ function Chip({ lab, name, tone }: { lab: string; name: string; tone: Tone }) {
   );
 }
 
-// ---------- Цена ----------
+// ---------- Поля и переключатели ----------
 
-function PriceInput(props: { label: string; value: string; onChange: (v: string) => void; onEnter: () => void; invalid: boolean }) {
+function PriceInput(props: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onEnter: () => void;
+  invalid: boolean;
+  title: string;
+  disabled?: boolean;
+}) {
   const id = useId();
   return (
     <div className="mw-field">
@@ -168,9 +248,10 @@ function PriceInput(props: { label: string; value: string; onChange: (v: string)
           type="text"
           inputMode="decimal"
           value={props.value}
+          disabled={props.disabled}
           className={`mw-price-input${props.invalid ? ' mw-bad' : ''}`}
           aria-invalid={props.invalid}
-          title={PRICE_TITLE}
+          title={props.title}
           onChange={(e) => props.onChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && props.onEnter()}
         />
@@ -179,54 +260,145 @@ function PriceInput(props: { label: string; value: string; onChange: (v: string)
   );
 }
 
+/** Переключатель канала продаж: флажок с подписью; причина, почему его нельзя включить, - в подсказке. */
+function Switch(props: { checked: boolean; label: string; title?: string; disabled?: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className={`mw-switch${props.checked ? ' on' : ''}${props.disabled ? ' disabled' : ''}`} title={props.title}>
+      <input type="checkbox" checked={props.checked} disabled={props.disabled} onChange={(e) => props.onChange(e.target.checked)} />
+      <span>{props.label}</span>
+    </label>
+  );
+}
+
 // ---------- Выпуск (модель обучена, но не продаётся) ----------
 
 function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
-  const ref = refPrice(s.day);
-  const tiers = TIERS.map((t) => ({ ...t, price: roundPrice(ref * t.k) }));
-  const [text, setText] = useState(() => String(roundPrice(ref)).replace('.', ','));
+  const tier = m.plan.tier;
+  const base = roundPrice(tierPrice(s.day, m));
+  const steps = PRICE_STEPS.map((t) => ({ ...t, price: roundPrice(base * t.k) }));
+  const [apiOn, setApiOn] = useState(true);
+  const [subsWanted, setSubsWanted] = useState(true);
+  const [text, setText] = useState(() => priceText(base));
+  const [subsText, setSubsText] = useState(() => priceText(TIER_SUBS_PRICE[tier] ?? TIER_SUBS_PRICE.mid));
   const [err, setErr] = useState<string | null>(null);
-  const { price, error } = parsePrice(text, s.day);
+  const api = parsePrice(text, s.day);
+  const subs = parseSubsPrice(subsText);
+
+  // Подписка при выпуске: канал открыт с чат-момента, а сильной модели сначала нужна внешняя проверка.
+  const reason = reviewReason(s, m);
+  const subsBlock = !subsOpen(s.day)
+    ? SUBS_CLOSED
+    : reason !== null
+      ? `Нужна внешняя проверка: ${reason}. Подписку можно включить после неё.`
+      : null;
+  const subsOn = subsWanted && subsBlock === null;
+
+  const canRelease = (apiOn || subsOn) && (!apiOn || api.price !== null) && (!subsOn || subs.price !== null);
+  const blockReason = !(apiOn || subsOn)
+    ? 'Выберите хотя бы один канал продаж.'
+    : apiOn && api.price === null
+      ? (api.error ?? 'Укажите цену API')
+      : subsOn && subs.price === null
+        ? (subs.error ?? 'Укажите цену подписки')
+        : null;
 
   function release() {
-    if (price === null) return;
-    const r = store.dispatch(actions.releaseModel, m.id, price);
+    if (!canRelease) return;
+    // releaseModel всегда включает API: если игрок снял флажок, выключаем канал сразу после выпуска.
+    const r = store.dispatch((st: GameState) => {
+      const res = actions.releaseModel(st, m.id, api.price ?? base, { onSubs: subsOn, subsPrice: subs.price ?? undefined });
+      if (res.ok && !apiOn) actions.setOnApi(st, m.id, false);
+      return res;
+    });
     setErr(r.ok ? null : r.error);
   }
 
   return (
     <section>
       <h3 className="mw-h">Выпуск на рынок</h3>
+      {reason !== null && subsOpen(s.day) && (
+        <Alert tone="info">
+          Нужна внешняя проверка: {reason}. До неё модель можно продавать только по API. Проверка займёт {fmtDays(reviewDays(s, m))} и стоит{' '}
+          {fmtMoney(reviewCost(m))}; начать её можно в этом окне после выпуска.
+        </Alert>
+      )}
       <div className="mw-panel">
-        <div className="mw-sub">Рекомендуемая цена за 1 млн токенов</div>
+        <div className="mw-sub">Уровень «{TIER_NAMES[tier]}»: типичная цена за 1 млн токенов - {fmtPrice(base)}</div>
         <div className="mw-tiers" role="radiogroup" aria-label="Рекомендуемая цена">
-          {tiers.map((t) => (
+          {steps.map((t) => (
             <button
               key={t.id}
               role="radio"
-              aria-checked={price === t.price}
-              className={`mw-tier${price === t.price ? ' on' : ''}`}
-              onClick={() => setText(String(t.price).replace('.', ','))}
+              aria-checked={api.price === t.price}
+              disabled={!apiOn}
+              className={`mw-tier${api.price === t.price ? ' on' : ''}`}
+              onClick={() => setText(priceText(t.price))}
             >
               <span>{t.label}</span>
               <b className="num">{fmtPrice(t.price)}</b>
             </button>
           ))}
         </div>
-        <div className="mw-edit">
-          <PriceInput label="Цена за 1 млн токенов" value={text} onChange={setText} onEnter={release} invalid={error !== null} />
+
+        <div className="mw-release-ch">
+          <div className="mw-release-row">
+            <Switch
+              checked={apiOn}
+              label="Продавать по API"
+              title="Корпоративные клиенты и разработчики покупают токены модели."
+              onChange={setApiOn}
+            />
+            <div className="mw-edit">
+              <PriceInput
+                label="Цена за 1 млн токенов"
+                value={text}
+                onChange={setText}
+                onEnter={release}
+                invalid={apiOn && api.error !== null}
+                title={PRICE_TITLE}
+                disabled={!apiOn}
+              />
+              {apiOn && api.price !== null && <span className="mw-sub mw-vs">{versusMarket(api.price, base)}</span>}
+            </div>
+          </div>
+          {apiOn && api.error && <div className="error">{api.error}</div>}
+
+          <div className="mw-release-row">
+            <Switch
+              checked={subsOn}
+              label="Продавать по подписке"
+              title={subsBlock ?? 'Обычные пользователи платят за чат с моделью каждый месяц.'}
+              disabled={subsBlock !== null}
+              onChange={setSubsWanted}
+            />
+            <div className="mw-edit">
+              <PriceInput
+                label="Цена подписки в месяц"
+                value={subsText}
+                onChange={setSubsText}
+                onEnter={release}
+                invalid={subsOn && subs.error !== null}
+                title={SUBS_PRICE_TITLE}
+                disabled={!subsOn}
+              />
+            </div>
+          </div>
+          {subsOn && subs.error && <div className="error">{subs.error}</div>}
+          {subsBlock !== null && <div className="mw-sub">{subsBlock}</div>}
+        </div>
+
+        <div className="mw-panel-foot">
+          <span className="mw-sub">Цены можно менять после выпуска.</span>
           <button
             className="btn primary"
             data-tutorial="release"
-            disabled={price === null}
-            title={price === null ? (error ?? 'Укажите цену') : undefined}
+            disabled={!canRelease}
+            title={canRelease ? 'Выпустить модель на рынок' : (blockReason ?? undefined)}
             onClick={release}
           >
             Выпустить
           </button>
         </div>
-        {price !== null && <div className="mw-sub">{versusMarket(price, ref)}</div>}
-        {error && <div className="error">{error}</div>}
         <ErrorText error={err} />
       </div>
     </section>
@@ -235,72 +407,229 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
 
 // ---------- Продажи (модель выпущена) ----------
 
-function SalesBlock({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowProps['open'] }) {
-  const ref = refPrice(s.day);
+/** Показатель панели канала: подпись, значение и необязательная приглушённая строка под ним. */
+function Metric(props: { label: string; value: string; sub?: string; tone?: 'income'; title?: string; off?: boolean }) {
+  return (
+    <div className="mw-metric" title={props.title}>
+      <span className="mw-metric-l">{props.label}</span>
+      <span className={`mw-metric-v${props.tone ? ` ${props.tone}` : ''}${props.off ? ' off' : ''}`}>{props.value}</span>
+      {props.sub && <span className="mw-metric-s">{props.sub}</span>}
+    </div>
+  );
+}
+
+function ApiPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowProps['open'] }) {
+  const typical = tierPrice(s.day, m);
   const [text, setText] = useState(() => String(Math.round(m.price * 100) / 100).replace('.', ','));
   const [err, setErr] = useState<string | null>(null);
   const { price, error } = parsePrice(text, s.day);
-
-  const { share, tokens } = salesOf(s, m);
-  const lost = s.market.lostFraction;
-  const noInference = m.onApi && pool(s, 'api') <= 0;
-  const losing = m.onApi && !noInference && lost > 0.01;
+  const { tokens, users, apiRevenue } = salesOf(s, m);
+  const noPool = m.onApi && pool(s, 'api') <= 0;
+  const lost = s.market.lostApi;
+  const losing = m.onApi && !noPool && lost > 0.01;
 
   function run(r: Result) {
     setErr(r.ok ? null : r.error);
   }
   const changePrice = () => price !== null && run(store.dispatch(actions.setModelPrice, m.id, price));
-  const toggleSale = () => run(store.dispatch(actions.setOnApi, m.id, !m.onApi));
-
   // Цена в поле округлена до центов, поэтому сравниваем с точностью до цента.
   const unchanged = price !== null && Math.round(price * 100) === Math.round(m.price * 100);
 
   return (
-    <section>
-      <h3 className="mw-h">Продажи</h3>
-      {noInference && (
+    <div className={`mw-ch api${m.onApi ? ' on' : ''}`}>
+      <div className="mw-ch-head">
+        <h4 className="mw-ch-title">API</h4>
+        <Switch
+          checked={m.onApi}
+          label="Продавать по API"
+          title="Корпоративные клиенты и разработчики покупают токены модели."
+          onChange={(v) => run(store.dispatch(actions.setOnApi, m.id, v))}
+        />
+      </div>
+      {noPool && (
         <Alert tone="warn" action={{ label: 'Открыть «Мощности»', onClick: () => open('compute') }}>
-          Доля «Клиенты» равна нулю: запросы не обслуживаются.
+          Доля «API» равна 0 %: запросы не обслуживаются.
         </Alert>
       )}
-      {losing && <Alert tone="warn">Не хватает мощности «Клиенты»: теряется {fmtShare(lost, 0)} спроса.</Alert>}
-      <div className="mw-panel">
-        <div className="mw-price">
-          <div className="mw-price-now">
-            <span className="mw-sub">Цена за 1 млн токенов</span>
-            <span className={`mw-price-v${m.onApi ? '' : ' muted'}`}>{fmtPrice(m.price)}</span>
-            <span className="mw-sub">{versusMarket(m.price, ref)}</span>
-          </div>
-          <div className="mw-price-side">
-            <div className="mw-edit">
-              <PriceInput label="Новая цена" value={text} onChange={setText} onEnter={changePrice} invalid={error !== null} />
-              <button
-                className="btn"
-                disabled={price === null || unchanged}
-                title={price === null ? (error ?? 'Укажите цену') : unchanged ? 'Цена не изменилась' : undefined}
-                onClick={changePrice}
-              >
-                Изменить цену
-              </button>
-            </div>
-            {price !== null && !unchanged && <div className="mw-sub">{versusMarket(price, ref)}</div>}
-            {error && <div className="error">{error}</div>}
-          </div>
-        </div>
-        <div className="mw-panel-foot">
-          <span className="mw-sub mw-sales-line">
+      {losing && <Alert tone="warn">Не хватает мощности «API»: теряется {fmtShare(lost, 0)} спроса.</Alert>}
+      <div className="mw-metrics">
+        <Metric label="Токенов в день" value={tokens !== undefined ? fmtNum(Math.round(tokens)) : '-'} off={tokens === undefined}
+          sub={users !== undefined ? `≈ ${fmtNum(Math.round(users))} пользователей` : undefined}
+          title={`Оценка пользователей: токены в день / ${fmtNum(TOKENS_PER_USER_DAY)}`} />
+        <Metric label="Цена за 1 млн" value={fmtPrice(m.price)} off={!m.onApi} sub={versusMarket(m.price, typical)}
+          title={`Типичная цена для уровня «${TIER_NAMES[m.plan.tier]}»: ${fmtPrice(typical)}`} />
+        <Metric label="Выручка в день" value={apiRevenue !== undefined ? fmtMoney(apiRevenue) : '-'} tone="income" off={apiRevenue === undefined} />
+      </div>
+      <div className="mw-edit mw-ch-edit">
+        <PriceInput label="Новая цена за 1 млн токенов" value={text} onChange={setText} onEnter={changePrice} invalid={error !== null} title={PRICE_TITLE} />
+        <button
+          className="btn"
+          disabled={price === null || unchanged}
+          title={price === null ? (error ?? 'Укажите цену') : unchanged ? 'Цена не изменилась' : 'Применить новую цену'}
+          onClick={changePrice}
+        >
+          Изменить цену
+        </button>
+      </div>
+      {price !== null && !unchanged && <div className="mw-sub">{versusMarket(price, typical)}</div>}
+      {error && <div className="error">{error}</div>}
+      <ErrorText error={err} />
+    </div>
+  );
+}
+
+/** Внешняя проверка сильной модели: что нужно, сколько стоит, кнопка «Начать проверку» с подтверждением. */
+function ReviewBox({ s, m }: { s: GameState; m: PlayerModel }) {
+  const [confirm, setConfirm] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  if (m.review === 'pending' && m.reviewEndDay !== null) {
+    return (
+      <div className="mw-review pending">
+        <b>Проверка до {formatDateShort(m.reviewEndDay)}</b>
+        <span>Независимые эксперты проверяют модель. Подписку можно будет включить после проверки.</span>
+      </div>
+    );
+  }
+  if (m.review === 'passed') {
+    return (
+      <div className="mw-review passed">
+        <b>Проверка пройдена</b>
+        <span>Замечаний нет.</span>
+      </div>
+    );
+  }
+  if (m.review !== 'required') return null;
+
+  const cost = reviewCost(m);
+  const days = reviewDays(s, m);
+  const short = cost > s.cash;
+  const reason = reviewReason(s, m);
+  const shortText = `Не хватает денег: нужно ${fmtMoney(cost)}, на счету ${fmtMoney(s.cash)}.`;
+
+  function start() {
+    const r = store.dispatch(actions.startReview, m.id);
+    setConfirm(false);
+    setErr(r.ok ? null : r.error);
+  }
+
+  return (
+    <div className="mw-review required">
+      <b>Нужна внешняя проверка</b>
+      <span>
+        {reason !== null ? `Модель заметно сильнее переднего края: ${reason}. ` : 'Модель заметно сильнее переднего края. '}
+        До проверки её можно продавать только по API.
+      </span>
+      <div className="mw-review-act">
+        <button
+          className="btn primary"
+          disabled={short}
+          title={short ? shortText : `Проверка займёт ${fmtDays(days)} и стоит ${fmtMoney(cost)}`}
+          onClick={() => setConfirm(true)}
+        >
+          Начать проверку
+        </button>
+        <span className="mw-sub">
+          <b className="mw-cost">{fmtMoney(cost)}</b>, {fmtDays(days)}
+        </span>
+      </div>
+      <ErrorText error={err} />
+      {confirm && (
+        <ConfirmDialog title="Внешняя проверка" confirmLabel="Начать проверку" onConfirm={start} onClose={() => setConfirm(false)}>
+          <div className="kv">
+            <span>Модель</span>
+            <span>{m.name}</span>
+            <span>Стоимость</span>
+            <span className="mw-cost">{fmtMoney(cost)}</span>
+            <span>Срок</span>
             <span>
-              Доля рынка: <b>{share !== undefined ? fmtShare(share, share < 0.01 ? 2 : 1) : '-'}</b>
+              {fmtDays(days)}, до {formatDateShort(s.day + days)}
             </span>
-            <span title="Сколько токенов модель обслуживает за день">
-              Токенов в день: <b>{tokens !== undefined ? fmtNum(tokens) : '-'}</b>
-            </span>
-          </span>
-          <button className={`btn small${m.onApi ? ' danger' : ' primary'}`} onClick={toggleSale}>
-            {m.onApi ? 'Снять с продажи' : 'Вернуть в продажу'}
-          </button>
-        </div>
-        <ErrorText error={err} />
+            <span>На счету</span>
+            <span>{fmtMoney(s.cash)}</span>
+          </div>
+          <div className="mw-sub">Пока проверка идёт, подписку включить нельзя. API продаётся как обычно.</div>
+        </ConfirmDialog>
+      )}
+    </div>
+  );
+}
+
+function SubsPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowProps['open'] }) {
+  const [text, setText] = useState(() => String(Math.round(m.subsPrice * 100) / 100).replace('.', ','));
+  const [err, setErr] = useState<string | null>(null);
+  const { price, error } = parseSubsPrice(text);
+  const { subscribers, subsRevenue } = salesOf(s, m);
+  const opened = subsOpen(s.day);
+  const noPool = m.onSubs && pool(s, 'subs') <= 0;
+  const lost = s.market.lostSubs;
+  const losing = m.onSubs && !noPool && lost > 0.01;
+
+  // Выключить подписку можно всегда; включить - после чат-момента и без незавершённой проверки.
+  const blocked = !m.onSubs && (!opened || m.review === 'required' || m.review === 'pending');
+  const blockTitle = !opened
+    ? SUBS_CLOSED
+    : m.review === 'required'
+      ? REVIEW_FIRST
+      : m.review === 'pending' && m.reviewEndDay !== null
+        ? `Проверка до ${formatDateShort(m.reviewEndDay)}.`
+        : undefined;
+
+  function run(r: Result) {
+    setErr(r.ok ? null : r.error);
+  }
+  const changePrice = () => price !== null && run(store.dispatch(actions.setSubsPrice, m.id, price));
+  const unchanged = price !== null && Math.round(price * 100) === Math.round(m.subsPrice * 100);
+
+  return (
+    <div className={`mw-ch subs${m.onSubs ? ' on' : ''}`}>
+      <div className="mw-ch-head">
+        <h4 className="mw-ch-title">Подписка</h4>
+        <Switch
+          checked={m.onSubs}
+          label="Продавать по подписке"
+          title={blocked ? blockTitle : 'Обычные пользователи платят за чат с моделью каждый месяц.'}
+          disabled={blocked}
+          onChange={(v) => run(store.dispatch(actions.setOnSubs, m.id, v))}
+        />
+      </div>
+      {!opened && <div className="mw-sub">{SUBS_CLOSED}</div>}
+      <ReviewBox s={s} m={m} />
+      {noPool && (
+        <Alert tone="warn" action={{ label: 'Открыть «Мощности»', onClick: () => open('compute') }}>
+          Доля «Подписки» равна 0 %: чат не обслуживается.
+        </Alert>
+      )}
+      {losing && <Alert tone="warn">Не хватает мощности «Подписки»: теряется {fmtShare(lost, 0)} спроса.</Alert>}
+      <div className="mw-metrics">
+        <Metric label="Подписчиков" value={subscribers !== undefined ? fmtNum(Math.round(subscribers)) : '-'} off={subscribers === undefined} />
+        <Metric label="Цена в месяц" value={fmtPrice(m.subsPrice)} off={!m.onSubs} />
+        <Metric label="Выручка в день" value={subsRevenue !== undefined ? fmtMoney(subsRevenue) : '-'} tone="income" off={subsRevenue === undefined} />
+      </div>
+      <div className="mw-edit mw-ch-edit">
+        <PriceInput label="Цена подписки в месяц" value={text} onChange={setText} onEnter={changePrice} invalid={error !== null} title={SUBS_PRICE_TITLE} />
+        <button
+          className="btn"
+          disabled={price === null || unchanged}
+          title={price === null ? (error ?? 'Укажите цену') : unchanged ? 'Цена не изменилась' : 'Применить новую цену'}
+          onClick={changePrice}
+        >
+          Изменить цену
+        </button>
+      </div>
+      {error && <div className="error">{error}</div>}
+      <ErrorText error={err} />
+    </div>
+  );
+}
+
+function SalesBlock({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowProps['open'] }) {
+  return (
+    <section>
+      <h3 className="mw-h">Продажи</h3>
+      <div className="mw-channels">
+        <ApiPanel s={s} m={m} open={open} />
+        <SubsPanel s={s} m={m} open={open} />
       </div>
     </section>
   );
@@ -354,11 +683,19 @@ function ScoresBlock({ s, m, benches }: { s: GameState; m: PlayerModel; benches:
 
 // ---------- Карточка модели ----------
 
+interface Kpi {
+  label: string;
+  value: string;
+  sub?: string;
+  title?: string;
+  tone?: 'income' | 'cost';
+}
+
 /** Крупные показатели под заголовком: на них взгляд падает первым. */
 function Kpis({ s, m }: { s: GameState; m: PlayerModel }) {
   const released = m.releasedDay !== null;
   const rank = released ? arenaRank(s, { kind: 'player', id: m.id }) : null;
-  const { users, revenue } = salesOf(s, m);
+  const { share, revenue, apiRevenue, subsRevenue } = salesOf(s, m);
   const items: Kpi[] = released
     ? [
         {
@@ -368,16 +705,27 @@ function Kpis({ s, m }: { s: GameState; m: PlayerModel }) {
           title: 'Рейтинг на «Арене». Подгонка под бенчмарки его не повышает.',
         },
         {
-          label: 'Пользователей в день',
-          value: users !== undefined ? `≈ ${fmtNum(Math.round(users))}` : '-',
-          title: `Оценка: токены в день / ${fmtNum(TOKENS_PER_USER_DAY)}`,
+          label: 'Доля рынка',
+          value: share !== undefined ? fmtShare(share, share < 0.01 ? 2 : 1) : '-',
+          title: 'Общая доля среди клиентов API и подписчиков, по выручке',
         },
         {
           label: 'Выручка в день',
           value: revenue !== undefined ? fmtMoney(revenue) : '-',
-          sub: revenue !== undefined ? `≈ ${fmtMoney(revenue * 30)} в месяц` : undefined,
+          sub:
+            revenue !== undefined
+              ? `API ${fmtMoney(apiRevenue ?? 0)}, подписки ${fmtMoney(subsRevenue ?? 0)}`
+              : undefined,
+          tone: 'income',
+          title: revenue !== undefined ? `≈ ${fmtMoney(revenue * 30)} в месяц` : undefined,
         },
-        { label: 'Заработала всего', value: fmtMoney(m.earned), title: 'Выручка API с момента выпуска' },
+        {
+          label: 'Заработала всего',
+          value: fmtMoney(m.earned),
+          sub: `из них подписки ${fmtMoney(m.earnedSubs)}`,
+          tone: 'income',
+          title: 'Выручка по обоим каналам с момента выпуска',
+        },
       ]
     : [
         { label: 'Эло', value: fmtElo(m.arenaElo), title: 'Рейтинг на «Арене». Подгонка под бенчмарки его не повышает.' },
@@ -388,20 +736,13 @@ function Kpis({ s, m }: { s: GameState; m: PlayerModel }) {
   return <KpiRow items={items} />;
 }
 
-interface Kpi {
-  label: string;
-  value: string;
-  sub?: string;
-  title?: string;
-}
-
 function KpiRow({ items }: { items: Kpi[] }) {
   return (
     <div className="mw-kpis">
       {items.map((k) => (
         <div key={k.label} className="mw-kpi" title={k.title}>
           <span className="mw-kpi-l">{k.label}</span>
-          <span className="mw-kpi-v">{k.value}</span>
+          <span className={`mw-kpi-v${k.tone ? ` ${k.tone}` : ''}`}>{k.value}</span>
           {k.sub && <span className="mw-kpi-s">{k.sub}</span>}
         </div>
       ))}
@@ -416,6 +757,10 @@ function Specs(props: { arch: 'lstm' | 'transformer'; plan: TrainingPlan; dates:
     <section>
       <h3 className="mw-h">Характеристики</h3>
       <dl className="mw-specs">
+        <dt>Уровень</dt>
+        <dd>
+          <TierBadge tier={plan.tier} />
+        </dd>
         <dt>Архитектура</dt>
         <dd>{arch === 'transformer' ? 'Трансформер' : 'LSTM'}</dd>
         <dt>Параметры</dt>
@@ -450,7 +795,8 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
   const perDay = power * TRAIN_FLOP_PER_H100E_DAY;
   const waiting = t.failed || awaitingEvent(s, 'training-fail');
   const left = perDay > 0 ? Math.max(1, Math.ceil((t.flopTotal - t.flopDone) / perDay)) : null;
-  const rentDay = rentPerDay(s) * s.compute.alloc.training;
+  // Аренда доли «Обучение» делится между проектами: на этот проект приходится его часть.
+  const rentDay = (rentPerDay(s) * s.compute.alloc.training) / Math.max(1, s.trainings.length);
   const forecast = s.research.done.includes('scaling')
     ? forecastElo(capsFromPlan(t.plan, t.algoLevel, t.arch, t.failPenalty), t.plan.rlhf, t.algoLevel)
     : null;
@@ -468,7 +814,8 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
       label: 'Аренда в месяц',
       value: fmtMoney(rentDay * DAYS_IN_MONTH),
       sub: left !== null ? `≈ ${fmtMoney(rentDay * left)} до конца` : undefined,
-      title: 'Доля «Обучение» от аренды всех карт',
+      tone: 'cost',
+      title: 'Часть аренды доли «Обучение», которая приходится на этот проект',
     },
     {
       label: 'Прогноз Эло',
@@ -487,7 +834,10 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
           </h2>
           <div className="mw-head-sub">{sub}</div>
         </div>
-        <span className="mw-pill train">Обучается</span>
+        <div className="mw-pills">
+          <span className="mw-pill train">Обучается</span>
+          <TierBadge tier={t.plan.tier} />
+        </div>
       </header>
       <KpiRow items={items} />
       <section>
@@ -496,7 +846,8 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
           <ProgressBar value={frac} />
           <div className="mw-panel-foot">
             <span className="mw-sub">
-              Мощность на обучение: <b>{fmtNum(power)} H100e</b>
+              Мощность на обучение: <b>{fmtH100e(power)} H100e</b>
+              <Cards s={s} h100e={power} />
             </span>
             <span className="mw-btns">
               <button className="btn small" onClick={() => open('compute')}>
@@ -517,6 +868,7 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
 function ModelCard({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowProps['open'] }) {
   const released = m.releasedDay !== null;
   const st = saleState(m);
+  const rv = reviewState(m);
   const sub = [
     m.arch === 'transformer' ? 'Трансформер' : 'LSTM',
     `${fmtParams(m.plan.paramsB)} параметров`,
@@ -536,7 +888,11 @@ function ModelCard({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowP
           </h2>
           <div className="mw-head-sub">{sub}</div>
         </div>
-        <span className={`mw-pill ${st.tone}`}>{st.text}</span>
+        <div className="mw-pills">
+          <span className={`mw-pill ${st.tone}`}>{st.text}</span>
+          <TierBadge tier={m.plan.tier} />
+          {rv && <span className={`mw-pill ${rv.tone}`}>{rv.text}</span>}
+        </div>
       </header>
       {m.exposed && <Alert tone="bad">Подгонка под бенчмарки раскрыта: показаны честные баллы.</Alert>}
       <Kpis s={s} m={m} />
@@ -556,9 +912,7 @@ function ModelCard({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowP
 export default function ModelsWindow({ s, open }: WindowProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // Пока в списке один проект обучения (первый); список проектов - в следующем срезе интерфейса.
-  const t = s.trainings[0] ?? null;
-  if (s.models.length === 0 && !t) {
+  if (s.models.length === 0 && s.trainings.length === 0) {
     return (
       <div className="mw-empty">
         <IconModels size={64} />
@@ -569,13 +923,16 @@ export default function ModelsWindow({ s, open }: WindowProps) {
   }
 
   const models = [...s.models].reverse(); // новые сверху
-  const picked = selectedId === TRAINING_ID && t ? null : (models.find((x) => x.id === selectedId) ?? models[0] ?? null);
-  const current = picked ? picked.id : TRAINING_ID;
+  // Выбран проект обучения, пока он идёт; закончился - выбор падает на первую модель (или на оставшийся проект).
+  const run = selectedId?.startsWith(RUN_PREFIX) ? s.trainings.find((t) => RUN_PREFIX + t.id === selectedId) : undefined;
+  const picked = run ? null : (models.find((x) => x.id === selectedId) ?? models[0] ?? null);
+  const shownRun = run ?? (picked ? undefined : s.trainings[0]);
+  const current = picked ? picked.id : shownRun ? RUN_PREFIX + shownRun.id : '';
 
   return (
     <div className="mw">
-      <ModelList models={models} training={t} selectedId={current} onSelect={setSelectedId} open={open} />
-      {picked ? <ModelCard key={picked.id} s={s} m={picked} open={open} /> : t && <TrainingCard s={s} t={t} open={open} />}
+      <ModelList models={models} trainings={s.trainings} selectedId={current} onSelect={setSelectedId} open={open} />
+      {picked ? <ModelCard key={picked.id} s={s} m={picked} open={open} /> : shownRun && <TrainingCard key={shownRun.id} s={s} t={shownRun} open={open} />}
     </div>
   );
 }

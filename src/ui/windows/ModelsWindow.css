@@ -17,8 +17,10 @@
 .mw-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .mw-item-text { flex: 1; min-width: 0; }
 .mw-item-name { display: block; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mw-item-state { display: block; font-size: 13px; color: var(--text-dim); }
-.mw-item-state.bad { color: var(--bad); }
+.mw-item-state { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font-size: 13px; color: var(--text-dim); }
+.mw-item-state.bad { color: #b32f2f; }
+.mw-item-state.warn { color: #a85a00; font-weight: 600; }
+.mw-item-state.info { color: #1f5fae; }
 .mw-side-foot {
   flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 8px 10px 8px 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--text-dim);
@@ -37,7 +39,11 @@
 .mw-head-text { flex: 1; min-width: 0; }
 .mw-name { margin: 0; font-size: 24px; font-weight: 600; line-height: 1.2; color: #1f2023; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mw-head-sub { margin-top: 2px; font-size: 13px; color: #4a4d54; }
+.mw-pills { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .mw-pill { flex: none; padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.mw-pill.warn { background: #fdebd0; color: #8a4a00; }
+.mw-pill.info { background: #e3eefc; color: #1f5fae; }
+.mw-pill.good { background: #dcf1e3; color: #1d6b36; }
 .mw-pill.sale { background: #dcf1e3; color: #1d6b36; }
 .mw-pill.idle { background: #e3eefc; color: #1f5fae; }
 .mw-pill.off { background: #f1e6cf; color: #7a5200; }
@@ -67,6 +73,8 @@
 .mw-kpi { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px; background: #fff; border: 1px solid var(--line-soft); border-radius: 4px; overflow-wrap: anywhere; }
 .mw-kpi-l { font-size: 12px; color: #5f636a; }
 .mw-kpi-v { font-size: 22px; font-weight: 600; line-height: 1.2; color: #1f2023; text-align: left; }
+.mw-kpi-v.income { color: #1d6b36; }
+.mw-kpi-v.cost { color: #b32f2f; }
 .mw-kpi-s { font-size: 12px; color: #5f636a; }
 .mw-sales-line { display: flex; flex-wrap: wrap; gap: 4px 18px; }
 .mw-panel .progress { height: 10px; }
@@ -131,3 +139,52 @@ table.grid.mw-scores th { position: static; }
 }
 .mw-empty svg { opacity: 0.4; }
 .mw-empty-title { font-size: 20px; font-weight: 300; color: var(--text); }
+
+/* ---------- Продажи: две панели каналов ---------- */
+.mw-cost { color: #b32f2f; font-weight: 600; }
+.mw-channels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+.mw-ch {
+  --ch: #2e9b4f; --ch-text: #1d6b36;
+  display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 10px 14px 14px;
+  background: #fff; border: 1px solid var(--line-soft); border-top: 4px solid var(--ch); border-radius: 4px;
+}
+.mw-ch.subs { --ch: #1fa8a0; --ch-text: #0e655f; }
+.mw-ch-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; }
+.mw-ch-title { margin: 0; font-size: 20px; font-weight: 300; color: var(--ch-text); }
+.mw-ch:not(.on) .mw-ch-title { color: #6b6f76; }
+.mw-switch { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: #1f2023; cursor: pointer; }
+.mw-switch.disabled { font-weight: 400; color: #6b6f76; cursor: default; }
+.mw-switch input:disabled { cursor: default; }
+
+.mw-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.mw-metric { display: flex; flex-direction: column; min-width: 0; padding: 6px 8px; background: var(--panel); border-radius: 3px; }
+.mw-metric-l { font-size: 12px; color: #5f636a; }
+.mw-metric-v { font-size: 17px; font-weight: 600; line-height: 1.3; color: #1f2023; overflow-wrap: anywhere; }
+.mw-metric-v.income { color: #1d6b36; }
+.mw-metric-v.off { font-weight: 400; color: #6b6f76; }
+.mw-metric-s { font-size: 12px; line-height: 1.3; color: #5f636a; }
+.mw-ch-edit { padding-top: 2px; }
+.mw-ch > .alert { padding: 6px 10px; font-size: 13px; }
+
+/* Внешняя проверка сильной модели */
+.mw-review { display: flex; flex-direction: column; gap: 3px; padding: 9px 12px; border-radius: 3px; font-size: 13px; line-height: 1.35; }
+.mw-review b { font-size: 14px; }
+.mw-review.required { background: #fff4e0; border: 1px solid #e3bf62; color: #4d3800; }
+.mw-review.pending { background: #eef4fc; border: 1px solid #aac3e8; color: #1f3f6b; }
+.mw-review.passed { background: #e9f6ee; border: 1px solid #a9d6b8; color: #1d6b36; }
+.mw-review-act { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 4px; }
+
+/* Выпуск: по строке на канал */
+.mw-release-ch { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
+.mw-release-row {
+  display: grid; grid-template-columns: minmax(170px, 210px) minmax(0, 1fr); align-items: end; gap: 6px 16px;
+  padding: 10px 12px; background: var(--panel); border-radius: 3px;
+}
+.mw-release-row .mw-switch { align-self: center; }
+.mw-vs { align-self: center; }
+.mw-tier:disabled { opacity: 0.5; cursor: default; }
+
+@container (max-width: 600px) {
+  .mw-channels { grid-template-columns: minmax(0, 1fr); }
+  .mw-release-row { grid-template-columns: minmax(0, 1fr); }
+}

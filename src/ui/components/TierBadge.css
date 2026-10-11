@@ -1,0 +1,8 @@
+/* Значок уровня модели: тёмный текст на светлой заливке, контраст не ниже 5:1. */
+.tier-badge {
+  display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 12px; font-weight: 600; line-height: 18px;
+  white-space: nowrap; vertical-align: middle;
+}
+.tier-badge.light { background: #d6f1ee; color: #0e655f; }
+.tier-badge.mid { background: #e3eefc; color: #1f5fae; }
+.tier-badge.flagship { background: #ece6fb; color: #5a3fb8; }

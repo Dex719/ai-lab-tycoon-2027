@@ -16,20 +16,48 @@ import {
   EXPOSE_REP,
   MAX_BENCH_TARGETS,
   MAX_TOKENS_B,
+  MAX_TRAININGS,
   PARAMS_B_MAX,
   PARAMS_B_MIN,
   RLHF_FLOP_EXTRA,
+  TIER_API_PRICE_MULT,
+  TIER_SUBS_PRICE,
   TOKENS_B_MIN,
+  TOKENS_PER_USER_DAY,
   TRAIN_FLOP_PER_H100E_DAY,
 } from '../../sim/constants';
 import { byYear, END_DAY, formatDateShort, yearOf } from '../../sim/time';
-import { refContext } from '../../sim/market';
+import { refContext, refPrice, servingTokensPerH100eDay, subsOpen } from '../../sim/market';
 import { CONTEXT_MAX_LEVEL, contextLabel, maxContext } from '../../sim/research';
-import { archFor, chinchillaFactor, contextFlopMult, estimate, labelersCost, tierOf, trainingPoolPerRun } from '../../sim/training';
-import { DOMAINS } from '../../sim/types';
-import type { BenchmarkId, DomainId, GameState, TrainingPlan, TrainingRun } from '../../sim/types';
+import {
+  archFor,
+  chinchillaFactor,
+  contextFlopMult,
+  estimate,
+  labelersCost,
+  tierAvailable,
+  tierOf,
+  tierPreset,
+  tierRange,
+  trainingPoolPerRun,
+} from '../../sim/training';
+import { DOMAINS, TIER_IDS, TIER_NAMES } from '../../sim/types';
+import type { BenchmarkId, DomainId, GameState, Tier, TrainingPlan, TrainingRun } from '../../sim/types';
+import { Cards } from '../components/Cards';
 import { Alert, ConfirmDialog, ErrorText, ProgressBar, Range } from '../components/common';
-import { endSentence, fmtCardDays, fmtElo, fmtMoney, fmtNum, fmtParams, fmtPct, fmtTokens } from '../format';
+import { TierBadge } from '../components/TierBadge';
+import {
+  endSentence,
+  fmtCardDays,
+  fmtElo,
+  fmtH100e,
+  fmtMoney,
+  fmtNum,
+  fmtParams,
+  fmtPct,
+  fmtPrice,
+  fmtTokens,
+} from '../format';
 import { IconLock } from '../icons';
 import { actions, store } from '../store';
 import './TrainingWindow.css';
@@ -59,9 +87,10 @@ const EFF_BAD = 0.4;
 
 // ---------- Черновик ----------
 
-interface Draft {
+export interface Draft {
   game: string; // партия, которой принадлежит черновик
   name: string | null; // null - название по умолчанию «Модель N»
+  tier: Tier;
   paramsB: number;
   tokensB: number;
   mix: Record<DomainId, number>; // целые проценты, сумма 100
@@ -74,16 +103,55 @@ interface Draft {
 /** Черновик живёт вне компонента: свёрнутое окно закрывается полностью, а настройки должны остаться. */
 let saved: Draft | null = null;
 
+/** Уровень по умолчанию: уровень прошлого проекта или «Средняя»; если он ещё недоступен - первый доступный. */
+export function pickTier(s: GameState, want: Tier): Tier {
+  return tierAvailable(s.day, want) ? want : (TIER_IDS.find((t) => tierAvailable(s.day, t)) ?? want);
+}
+
+/**
+ * Размеры, которые относятся к уровню: границы tierRange, подвинутые внутрь там, где граница не входит в уровень
+ * (верх у «Лёгкой» и «Средней») или теряет точность. Размер из этих границ всегда проходит проверку уровня в симуляции.
+ */
+export function tierSpan(day: number, tier: Tier): [number, number] {
+  const [lo, hi] = tierRange(day, tier);
+  const a = tierOf(lo, day) === tier ? lo : lo * (1 + 1e-9);
+  const b = tierOf(hi, day) === tier ? hi : hi * (1 - 1e-9);
+  return [a, Math.max(a, b)];
+}
+
+export function fitTier(paramsB: number, day: number, tier: Tier): number {
+  const [a, b] = tierSpan(day, tier);
+  return clamp(paramsB, a, b);
+}
+
+/** Пресет уровня внутри его границ: размер и данные по Шиншилле. */
+export function presetOf(s: GameState, tier: Tier): { paramsB: number; tokensB: number } {
+  const p = tierPreset(s, tier);
+  return { paramsB: fitTier(p.paramsB, s.day, tier), tokensB: p.tokensB };
+}
+
+/** Сохранённый черновик мог пережить смену года: уровень или размер больше не подходят - берём пресет уровня. */
+export function normalizeDraft(s: GameState, d: Draft): Draft {
+  const tier = pickTier(s, d.tier);
+  const [a, b] = tierSpan(s.day, tier);
+  if (tier === d.tier && d.paramsB >= a && d.paramsB <= b) return d;
+  return { ...d, tier, ...presetOf(s, tier) };
+}
+
 function initialDraft(s: GameState): Draft {
   const game = `${s.seed}:${s.labName}`;
-  if (saved && saved.game === game) return saved;
+  if (saved && saved.game === game) return normalizeDraft(s, saved);
   // Новый проект начинается с прошлого (или идущего): обычно следующую модель делают чуть больше.
   const prev = s.trainings.at(-1)?.plan ?? s.models.at(-1)?.plan;
+  const tier = pickTier(s, prev?.tier ?? 'mid');
+  const keep = prev !== undefined && prev.tier === tier && tierOf(prev.paramsB, s.day) === tier;
+  const preset = presetOf(s, tier);
   return {
     game,
     name: null,
-    paramsB: prev?.paramsB ?? 0.1,
-    tokensB: prev?.tokensB ?? 2,
+    tier,
+    paramsB: keep ? prev.paramsB : preset.paramsB,
+    tokensB: keep ? prev.tokensB : preset.tokensB,
     mix: prev
       ? { language: Math.round(prev.mix.language * 100), code: Math.round(prev.mix.code * 100), reasoning: Math.round(prev.mix.reasoning * 100) }
       : { language: 50, code: 25, reasoning: 25 },
@@ -269,7 +337,8 @@ function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
 
   const p = t.plan;
   const frac = t.flopTotal > 0 ? Math.min(1, t.flopDone / t.flopTotal) : 0;
-  const perDay = trainingPoolPerRun(s) * TRAIN_FLOP_PER_H100E_DAY; // доля «Обучение» делится между проектами
+  const power = trainingPoolPerRun(s); // доля «Обучение» делится между проектами
+  const perDay = power * TRAIN_FLOP_PER_H100E_DAY;
   const left = Math.max(0, t.flopTotal - t.flopDone);
   const eta = perDay > 0 ? Math.max(1, Math.ceil(left / perDay)) : null;
   const late = eta !== null && s.day + eta > END_DAY;
@@ -296,7 +365,10 @@ function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
     <div className="nm-run">
       <div style={{ minWidth: 0 }}>
         <div className="nm-run-l">Идёт обучение</div>
-        <div className="nm-run-t" title={p.name}>«{p.name}»</div>
+        <div className="nm-run-t" title={p.name}>
+          <span className="nm-run-name">«{p.name}»</span>
+          <TierBadge tier={p.tier} />
+        </div>
         <div className="nm-run-s" title={summary}>{summary}</div>
       </div>
       <div className="nm-run-bar">
@@ -305,7 +377,7 @@ function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
           title={`${fmtCardDays(t.flopDone / TRAIN_FLOP_PER_H100E_DAY)} из ${fmtCardDays(t.flopTotal / TRAIN_FLOP_PER_H100E_DAY)} H100e-дн.`}
         />
         <div className="nm-run-meta">
-          <span className="num">{fmtPct(frac * 100)}</span>
+          <span className="num nm-run-pct">{fmtPct(frac * 100)}</span>
           {waiting ? (
             <span className="warn">Проект стоит: ждёт решения в «Почте»</span>
           ) : eta !== null ? (
@@ -319,6 +391,10 @@ function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
           ) : (
             <span className="warn">Проект стоит: нет мощности на обучение</span>
           )}
+          <span className="muted" title="Доля «Обучение» делится между идущими проектами поровну">
+            Мощность: {fmtH100e(power)} H100e
+            <Cards s={s} h100e={power} />
+          </span>
         </div>
       </div>
       <div className="nm-run-act">
@@ -357,7 +433,9 @@ function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; ope
 
   const days = est.days;
   const share = s.compute.alloc.training;
-  const rentDay = rentPerDay(s) * share;
+  // Новый проект делит долю «Обучение» с идущими: его аренда - соответствующая часть аренды доли.
+  const power = trainingPoolPerRun(s, 1);
+  const rentDay = (rentPerDay(s) * share) / (s.trainings.length + 1);
   const rent = days !== null ? days * rentDay : null;
   const cost = rent !== null ? rent + est.labelers : null;
   const late = days !== null && s.day + days > END_DAY;
@@ -365,6 +443,7 @@ function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; ope
   const fc = est.forecast;
   const hasFit = plan.benchShare > 0 && plan.benchTargets.length > 0;
   const scoreIds = fc ? introducedBenchmarks(s).filter((b) => fc.scores[b] !== undefined) : [];
+  const [rangeLo, rangeHi] = tierSpan(s.day, plan.tier);
 
   const costTitle =
     rent !== null
@@ -373,7 +452,36 @@ function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; ope
 
   return (
     <>
-      <Item label="Стоимость проекта" title={costTitle}>
+      <Item label="Уровень" sub={`Размер от ${fmtParams(rangeLo)} до ${fmtParams(rangeHi)}`}>
+        <TierBadge tier={plan.tier} />
+      </Item>
+      <div className={`nm-eta${late ? ' late' : ''}${days === null ? ' none' : ''}`}>
+        <div className="nm-item-l">Срок обучения</div>
+        <div className="nm-eta-v">
+          {dayText ? (
+            <>
+              {dayText.main} {dayText.approx && <small>{dayText.approx}</small>}
+            </>
+          ) : (
+            '-'
+          )}
+        </div>
+        <div className="nm-eta-s">
+          {days !== null ? `Готово ${formatDateShort(s.day + days)}${late ? ', позже конца игры' : ''}` : 'Нет мощности на обучение'}
+        </div>
+        <div
+          className="nm-eta-s"
+          title={
+            s.trainings.length > 0
+              ? 'Доля «Обучение» делится поровну между идущими проектами и этим'
+              : 'Вся доля «Обучение» работает на этот проект'
+          }
+        >
+          Мощность: {fmtH100e(power)} H100e
+          <Cards s={s} h100e={power} block />
+        </div>
+      </div>
+      <Item label="Стоимость проекта" title={costTitle} tone="cost">
         {cost !== null ? (
           <>
             ≈ {fmtMoney(cost)} <small>({fmtMoney(rentDay * DAYS_IN_MONTH)}/мес.)</small>
@@ -381,18 +489,6 @@ function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; ope
         ) : (
           '-'
         )}
-      </Item>
-      <Item label="Срок" sub={late ? 'Позже конца игры' : undefined} tone={late ? 'warn' : undefined}>
-        {dayText ? (
-          <>
-            {dayText.main} {dayText.approx && <small>{dayText.approx}</small>}
-          </>
-        ) : (
-          '-'
-        )}
-      </Item>
-      <Item label="Дата готовности" tone={late ? 'warn' : undefined}>
-        {days !== null ? formatDateShort(s.day + days) : '-'}
       </Item>
       <Item
         label="Архитектура"
@@ -449,6 +545,59 @@ function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; ope
   );
 }
 
+// ---------- Уровень ----------
+
+/** Один вариант уровня: название, размеры, цены по умолчанию и сколько пользователей обслужит карта H100e. */
+function TierOption(props: { s: GameState; tier: Tier; selected: boolean; onPick: () => void }) {
+  const { s, tier, selected } = props;
+  const avail = tierAvailable(s.day, tier);
+  const [lo, hi] = tierSpan(s.day, tier);
+  const preset = tierPreset(s, tier);
+  const apiPrice = TIER_API_PRICE_MULT[tier] * refPrice(s.day);
+  const users = servingTokensPerH100eDay(preset.paramsB) / TOKENS_PER_USER_DAY;
+  return (
+    // Заблокированная кнопка не получает наведения, поэтому подсказка висит на обёртке.
+    <div className="nm-tier-wrap" title={avail ? undefined : 'Передний край ещё мал для этого уровня.'}>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={selected}
+        disabled={!avail}
+        className={`nm-tier ${tier}${selected ? ' on' : ''}`}
+        onClick={props.onPick}
+      >
+        <span className="nm-tier-name">{TIER_NAMES[tier]}</span>
+        <span className="nm-tier-range">
+          {avail ? `от ${fmtParams(lo)} до ${fmtParams(hi)} параметров` : 'Пока недоступна'}
+        </span>
+        <span className="nm-tier-price" title="Цены при выпуске по умолчанию: их можно изменить в окне «Модели».">
+          API ≈ {fmtPrice(apiPrice)} за 1 млн
+          {subsOpen(s.day) && `, подписка ${fmtPrice(TIER_SUBS_PRICE[tier])} в месяц`}
+        </span>
+        <span
+          className="nm-tier-users"
+          title={`Сколько пользователей (по ${fmtNum(TOKENS_PER_USER_DAY)} токенов в день) обслужит одна карта H100e на модели такого размера.`}
+        >
+          ≈ {fmtNum(Math.round(users))} пользователей на H100e
+        </span>
+      </button>
+    </div>
+  );
+}
+
+function TierBlock(props: { s: GameState; value: Tier; onChange: (t: Tier) => void }) {
+  return (
+    <section className="nm-block">
+      <h2 className="nm-h">Уровень</h2>
+      <div className="nm-tiers" role="radiogroup" aria-label="Уровень модели">
+        {TIER_IDS.map((t) => (
+          <TierOption key={t} s={props.s} tier={t} selected={props.value === t} onPick={() => props.onChange(t)} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // ---------- Окно ----------
 
 export default function TrainingWindow({ s, open }: WindowProps) {
@@ -459,26 +608,30 @@ export default function TrainingWindow({ s, open }: WindowProps) {
   }, [d]);
   const patch = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
 
-  const running = s.trainings.length > 0;
+  // Уровень и размер приводим к сегодняшним границам: черновик мог пережить смену года.
+  const tier = pickTier(s, d.tier);
+  const paramsB = fitTier(d.paramsB, s.day, tier);
+  const [sizeMin, sizeMax] = tierSpan(s.day, tier);
+  const slotsFull = s.trainings.length >= MAX_TRAININGS;
   const year = yearOf(s.day);
   const maxTokens = byYear(MAX_TOKENS_B, year);
   const tokens = Math.min(d.tokensB, maxTokens);
   const benches = introducedBenchmarks(s);
   const rlhfDone = s.research.done.includes('rlhf');
-  const nameValue = d.name ?? `Модель ${s.nextModelNum}`;
+  // Названия по умолчанию идут подряд, с учётом проектов, которые ещё обучаются.
+  const nameValue = d.name ?? `Модель ${s.nextModelNum + s.trainings.length}`;
   const ctxMax = maxContext(s);
 
   const plan: TrainingPlan = {
     name: nameValue,
-    paramsB: d.paramsB,
+    paramsB,
     tokensB: tokens,
     mix: { language: d.mix.language / 100, code: d.mix.code / 100, reasoning: d.mix.reasoning / 100 },
     benchShare: d.share / 100,
     benchTargets: d.share > 0 ? d.targets : [],
     rlhf: d.rlhf && rlhfDone,
     context: d.context !== null && d.context <= ctxMax ? d.context : ctxMax,
-    // Уровень пока выводится из размера; выбор уровня в форме - в следующем срезе интерфейса.
-    tier: tierOf(d.paramsB, s.day),
+    tier,
   };
 
   let est: Est | null = null;
@@ -504,7 +657,9 @@ export default function TrainingWindow({ s, open }: WindowProps) {
   const opt = est?.optimal ?? null;
   const optParams = opt ? clamp(roundSig(opt.paramsB), PARAMS_B_MIN, PARAMS_B_MAX) : 0;
   const optTokens = opt ? clamp(roundSig(opt.tokensB), TOKENS_B_MIN, maxTokens) : 0;
-  const atOptimum = opt !== null && Math.abs(optParams / d.paramsB - 1) < 0.01 && Math.abs(optTokens / tokens - 1) < 0.01;
+  const atOptimum = opt !== null && Math.abs(optParams / paramsB - 1) < 0.01 && Math.abs(optTokens / tokens - 1) < 0.01;
+  // Оптимум для того же объёма вычислений может не помещаться в границы выбранного уровня.
+  const optOutside = opt !== null && (optParams < sizeMin || optParams > sizeMax);
 
   const rlhfCost = labelersCost({ ...plan, rlhf: true });
   const rlhfShort = plan.rlhf && rlhfCost > s.cash;
@@ -516,8 +671,14 @@ export default function TrainingWindow({ s, open }: WindowProps) {
   }
 
   function applyOptimal() {
-    if (!opt) return;
+    if (!opt || optOutside) return;
     patch({ paramsB: optParams, tokensB: optTokens });
+  }
+
+  // Выбор уровня подставляет пресет: размер и данные. Повторный щелчок по выбранному уровню ничего не меняет.
+  function chooseTier(next: Tier) {
+    if (next === tier) return;
+    patch({ tier: next, ...presetOf(s, next) });
   }
 
   function start() {
@@ -564,7 +725,7 @@ export default function TrainingWindow({ s, open }: WindowProps) {
           </div>
 
           <div className="nm-side-foot">
-            {reason && <div className={`nm-reason ${running ? 'warn' : 'error'}`}>{reason}</div>}
+            {reason && (slotsFull ? <div className="nm-reason warn">{reason}</div> : <ErrorText error={reason} />)}
             <ErrorText error={err} />
             <button
               className="btn primary wide nm-start"
@@ -580,184 +741,195 @@ export default function TrainingWindow({ s, open }: WindowProps) {
 
         <div className="nm-area">
           {noCompute && <NoComputeAlert s={s} open={open} />}
+          {s.trainings.length === 1 && (
+            <Alert tone="info">Второй проект разделит долю «Обучение» пополам: срок текущего проекта вырастет вдвое.</Alert>
+          )}
+          {slotsFull && <Alert tone="info">Идут два проекта обучения: новый можно начать после завершения одного из них.</Alert>}
 
-          <section className="nm-block">
-            <h2 className="nm-h">Размер</h2>
-            <div className="nm-size">
-              <div>
-                <ModelChip name={nameValue} paramsB={d.paramsB} arch={archName(archFor(s))} />
-                <div
-                  className="nm-eff"
-                  title="Доля вычислений, которая идёт в качество модели при таком соотношении данных и параметров."
-                >
-                  <span>Полезные вычисления</span>
-                  <span className={`num ${effTone}`}>{fmtPct(eff * 100, 0)}</span>
+          {/* Два проекта уже идут: форма заблокирована целиком (disabled у fieldset отключает все поля внутри). */}
+          <fieldset className="nm-fields" disabled={slotsFull}>
+            <TierBlock s={s} value={tier} onChange={chooseTier} />
+
+            <section className="nm-block">
+              <h2 className="nm-h">Размер</h2>
+              <div className="nm-size">
+                <div>
+                  <ModelChip name={nameValue} paramsB={paramsB} arch={archName(archFor(s))} />
+                  <div
+                    className="nm-eff"
+                    title="Доля вычислений, которая идёт в качество модели при таком соотношении данных и параметров."
+                  >
+                    <span>Полезные вычисления</span>
+                    <span className={`num ${effTone}`}>{fmtPct(eff * 100, 0)}</span>
+                  </div>
+                </div>
+
+                <div className="nm-sliders">
+                  <Slider
+                    label="Параметры"
+                    text={fmtParams(paramsB)}
+                    value={toPos(paramsB, sizeMin, sizeMax)}
+                    min={0}
+                    max={POS_MAX}
+                    onChange={(v) => patch({ paramsB: fromPos(v, sizeMin, sizeMax) })}
+                    ends={[fmtParams(sizeMin), fmtParams(sizeMax)]}
+                    title={`Размер ограничен уровнем «${TIER_NAMES[tier]}»: сейчас от ${fmtParams(sizeMin)} до ${fmtParams(sizeMax)}. Больше параметров - больше вычислений на обучение и на каждый запрос клиента.`}
+                    ariaLabel="Параметры"
+                  />
+                  <Slider
+                    label="Данные, токены"
+                    text={fmtTokens(tokens)}
+                    value={toPos(tokens, TOKENS_B_MIN, maxTokens)}
+                    min={0}
+                    max={POS_MAX}
+                    onChange={(v) => patch({ tokensB: fromPos(v, TOKENS_B_MIN, maxTokens) })}
+                    ends={[fmtTokens(TOKENS_B_MIN), fmtTokens(maxTokens)]}
+                    title={`Максимум объёма данных в ${year} году: ${fmtTokens(maxTokens)} токенов.`}
+                    ariaLabel="Данные, токены"
+                  />
+                  <div className="nm-ratio">
+                    <span>
+                      Токенов на параметр: <b className={`num ${effTone}`}>{fmtNum(ratio)}</b>
+                    </span>
+                    <span className="muted">оптимум ≈ {CHIN_OPT_RATIO}</span>
+                    {opt && (
+                      <button
+                        className="btn small"
+                        disabled={atOptimum || optOutside}
+                        title={
+                          atOptimum
+                            ? 'Значения уже оптимальны.'
+                            : optOutside
+                              ? `Оптимум для этого объёма вычислений - ${fmtParams(optParams)} параметров: он вне размеров уровня «${TIER_NAMES[tier]}».`
+                              : `Тот же объём вычислений: ${fmtParams(optParams)} параметров, ${fmtTokens(optTokens)} токенов.`
+                        }
+                        onClick={applyOptimal}
+                      >
+                        Подставить оптимум
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
+            </section>
 
-              <div className="nm-sliders">
-                <Slider
-                  label="Параметры"
-                  text={fmtParams(d.paramsB)}
-                  value={toPos(d.paramsB, PARAMS_B_MIN, PARAMS_B_MAX)}
-                  min={0}
-                  max={POS_MAX}
-                  onChange={(v) => patch({ paramsB: fromPos(v, PARAMS_B_MIN, PARAMS_B_MAX) })}
-                  ends={[fmtParams(PARAMS_B_MIN), fmtParams(PARAMS_B_MAX)]}
-                  title="Больше параметров - больше вычислений на обучение и на каждый запрос клиента."
-                  ariaLabel="Параметры"
-                />
-                <Slider
-                  label="Данные, токены"
-                  text={fmtTokens(tokens)}
-                  value={toPos(tokens, TOKENS_B_MIN, maxTokens)}
-                  min={0}
-                  max={POS_MAX}
-                  onChange={(v) => patch({ tokensB: fromPos(v, TOKENS_B_MIN, maxTokens) })}
-                  ends={[fmtTokens(TOKENS_B_MIN), fmtTokens(maxTokens)]}
-                  title={`Максимум объёма данных в ${year} году: ${fmtTokens(maxTokens)} токенов.`}
-                  ariaLabel="Данные, токены"
-                />
-                <div className="nm-ratio">
-                  <span>
-                    Токенов на параметр: <b className={`num ${effTone}`}>{fmtNum(ratio)}</b>
-                  </span>
-                  <span className="muted">оптимум ≈ {CHIN_OPT_RATIO}</span>
-                  {opt && (
-                    <button
-                      className="btn small"
-                      disabled={atOptimum}
-                      title={
-                        atOptimum
-                          ? 'Значения уже оптимальны.'
-                          : `Тот же объём вычислений: ${fmtParams(optParams)} параметров, ${fmtTokens(optTokens)} токенов.`
-                      }
-                      onClick={applyOptimal}
-                    >
-                      Подставить оптимум
-                    </button>
+            <ContextBlock s={s} value={plan.context} onChange={(context) => patch({ context })} open={open} />
+
+            <section className="nm-block">
+              <h2 className="nm-h" title="Доли в сумме дают 100 %: при движении одного ползунка остальные подстраиваются.">
+                На каких данных учить
+              </h2>
+              <div className="nm-mixbar" aria-hidden="true">
+                {DOMAINS.map((k) => (
+                  <div key={k} style={{ width: `${d.mix[k]}%`, background: DOMAIN_COLOR[k] }} />
+                ))}
+              </div>
+              <div className="nm-mix">
+                {DOMAINS.map((k) => (
+                  <div key={k} className="nm-mix-row">
+                    <span className="nm-mix-name">
+                      <span className="nm-dot" style={{ background: DOMAIN_COLOR[k] }} />
+                      {DOMAIN_RU[k]}
+                    </span>
+                    <Range
+                      value={d.mix[k]}
+                      min={0}
+                      max={100}
+                      color={DOMAIN_COLOR[k]}
+                      label={DOMAIN_RU[k]}
+                      valueText={fmtPct(d.mix[k], 0)}
+                      onChange={(v) => patch({ mix: rescaleMix(d.mix, k, v) })}
+                    />
+                    <span className="nm-mix-pct num">{fmtPct(d.mix[k], 0)}</span>
+                    <span className="nm-mix-what">
+                      {DOMAIN_WHAT[k]}. Баллы: {BENCHMARKS.filter((b) => b.domain === k).map((b) => b.name).join(', ')}
+                      {k === 'language' && '. Важнее всего для «Арены»'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="nm-block">
+              <h2 className="nm-h">Дообучение</h2>
+              <div className="nm-ft">
+                <div className="nm-ft-col">
+                  <label
+                    className={`nm-check${rlhfDone ? '' : ' off'}`}
+                    title={
+                      rlhfDone
+                        ? `Повышает Эло на «Арене» и баллы по текстам. Вычислений нужно на ${fmtPct(RLHF_FLOP_EXTRA * 100, 0)} больше. Разметчикам платят при старте.`
+                        : 'Нужно исследование «Обучение на отзывах людей (RLHF)».'
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={plan.rlhf}
+                      disabled={!rlhfDone}
+                      onChange={(e) => patch({ rlhf: e.target.checked })}
+                    />
+                    <span>RLHF</span>
+                  </label>
+                  {rlhfDone ? (
+                    <div className="kv">
+                      <span>Разметчики</span>
+                      <span className={rlhfShort ? 'bad' : undefined}>{fmtMoney(rlhfCost)}</span>
+                      <span>Вычисления</span>
+                      <span>+{fmtPct(RLHF_FLOP_EXTRA * 100, 0)}</span>
+                    </div>
+                  ) : (
+                    <div className="nm-note muted">
+                      Нужно исследование RLHF.{' '}
+                      <button className="nm-link" onClick={() => open('research')}>Открыть «Исследования»</button>
+                    </div>
                   )}
                 </div>
-              </div>
-            </div>
-          </section>
 
-          <ContextBlock s={s} value={plan.context} onChange={(context) => patch({ context })} open={open} />
-
-          <section className="nm-block">
-            <h2 className="nm-h" title="Доли в сумме дают 100 %: при движении одного ползунка остальные подстраиваются.">
-              На каких данных учить
-            </h2>
-            <div className="nm-mixbar" aria-hidden="true">
-              {DOMAINS.map((k) => (
-                <div key={k} style={{ width: `${d.mix[k]}%`, background: DOMAIN_COLOR[k] }} />
-              ))}
-            </div>
-            <div className="nm-mix">
-              {DOMAINS.map((k) => (
-                <div key={k} className="nm-mix-row">
-                  <span className="nm-mix-name">
-                    <span className="nm-dot" style={{ background: DOMAIN_COLOR[k] }} />
-                    {DOMAIN_RU[k]}
-                  </span>
-                  <Range
-                    value={d.mix[k]}
+                <div className="nm-ft-col">
+                  <Slider
+                    label="Подгонка под бенчмарки"
+                    text={fmtPct(d.share, 0)}
+                    value={d.share}
                     min={0}
-                    max={100}
-                    color={DOMAIN_COLOR[k]}
-                    label={DOMAIN_RU[k]}
-                    valueText={fmtPct(d.mix[k], 0)}
-                    onChange={(v) => patch({ mix: rescaleMix(d.mix, k, v) })}
+                    max={Math.round(BENCH_SHARE_MAX * 100)}
+                    onChange={(v) => patch({ share: v })}
+                    ends={[fmtPct(0, 0), fmtPct(BENCH_SHARE_MAX * 100, 0)]}
+                    ariaLabel="Подгонка под бенчмарки"
                   />
-                  <span className="nm-mix-pct num">{fmtPct(d.mix[k], 0)}</span>
-                  <span className="nm-mix-what">
-                    {DOMAIN_WHAT[k]}. Баллы: {BENCHMARKS.filter((b) => b.domain === k).map((b) => b.name).join(', ')}
-                    {k === 'language' && '. Важнее всего для «Арены»'}
-                  </span>
+                  <div className="nm-sub-head">
+                    <span>Целевые бенчмарки</span>
+                    <span className="num muted">{d.targets.length} из {MAX_BENCH_TARGETS}</span>
+                  </div>
+                  {benches.length === 0 ? (
+                    <div className="nm-note muted">Бенчмарков пока нет.</div>
+                  ) : (
+                    <div className="nm-tags">
+                      {benches.map((b) => {
+                        const def = benchDef(b);
+                        const checked = d.targets.includes(b);
+                        const full = !checked && d.targets.length >= MAX_BENCH_TARGETS;
+                        const off = d.share <= 0 || full;
+                        const title =
+                          d.share <= 0
+                            ? 'Сначала задайте долю подгонки.'
+                            : full
+                              ? `Выбрано максимум бенчмарков: ${MAX_BENCH_TARGETS}. Снимите отметку с другого.`
+                              : `${def.description} Область: ${DOMAIN_RU[def.domain]}.`;
+                        return (
+                          <label key={b} className={`nm-check${off ? ' off' : ''}`} title={title}>
+                            <input type="checkbox" checked={checked} disabled={off && !checked} onChange={() => toggleTarget(b)} />
+                            <span>{def.name}</span>
+                            <span className="nm-tag-d">{DOMAIN_RU[def.domain]}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {d.share > 0 && <div className="nm-note warn">{fitLine}</div>}
                 </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="nm-block">
-            <h2 className="nm-h">Дообучение</h2>
-            <div className="nm-ft">
-              <div className="nm-ft-col">
-                <label
-                  className={`nm-check${rlhfDone ? '' : ' off'}`}
-                  title={
-                    rlhfDone
-                      ? `Повышает Эло на «Арене» и баллы по текстам. Вычислений нужно на ${fmtPct(RLHF_FLOP_EXTRA * 100, 0)} больше. Разметчикам платят при старте.`
-                      : 'Нужно исследование «Обучение на отзывах людей (RLHF)».'
-                  }
-                >
-                  <input
-                    type="checkbox"
-                    checked={plan.rlhf}
-                    disabled={!rlhfDone}
-                    onChange={(e) => patch({ rlhf: e.target.checked })}
-                  />
-                  <span>RLHF</span>
-                </label>
-                {rlhfDone ? (
-                  <div className="kv">
-                    <span>Разметчики</span>
-                    <span className={rlhfShort ? 'bad' : undefined}>{fmtMoney(rlhfCost)}</span>
-                    <span>Вычисления</span>
-                    <span>+{fmtPct(RLHF_FLOP_EXTRA * 100, 0)}</span>
-                  </div>
-                ) : (
-                  <div className="nm-note muted">
-                    Нужно исследование RLHF.{' '}
-                    <button className="nm-link" onClick={() => open('research')}>Открыть «Исследования»</button>
-                  </div>
-                )}
               </div>
-
-              <div className="nm-ft-col">
-                <Slider
-                  label="Подгонка под бенчмарки"
-                  text={fmtPct(d.share, 0)}
-                  value={d.share}
-                  min={0}
-                  max={Math.round(BENCH_SHARE_MAX * 100)}
-                  onChange={(v) => patch({ share: v })}
-                  ends={[fmtPct(0, 0), fmtPct(BENCH_SHARE_MAX * 100, 0)]}
-                  ariaLabel="Подгонка под бенчмарки"
-                />
-                <div className="nm-sub-head">
-                  <span>Целевые бенчмарки</span>
-                  <span className="num muted">{d.targets.length} из {MAX_BENCH_TARGETS}</span>
-                </div>
-                {benches.length === 0 ? (
-                  <div className="nm-note muted">Бенчмарков пока нет.</div>
-                ) : (
-                  <div className="nm-tags">
-                    {benches.map((b) => {
-                      const def = benchDef(b);
-                      const checked = d.targets.includes(b);
-                      const full = !checked && d.targets.length >= MAX_BENCH_TARGETS;
-                      const off = d.share <= 0 || full;
-                      const title =
-                        d.share <= 0
-                          ? 'Сначала задайте долю подгонки.'
-                          : full
-                            ? `Выбрано максимум бенчмарков: ${MAX_BENCH_TARGETS}. Снимите отметку с другого.`
-                            : `${def.description} Область: ${DOMAIN_RU[def.domain]}.`;
-                      return (
-                        <label key={b} className={`nm-check${off ? ' off' : ''}`} title={title}>
-                          <input type="checkbox" checked={checked} disabled={off && !checked} onChange={() => toggleTarget(b)} />
-                          <span>{def.name}</span>
-                          <span className="nm-tag-d">{DOMAIN_RU[def.domain]}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-                {d.share > 0 && <div className="nm-note warn">{fitLine}</div>}
-              </div>
-            </div>
-          </section>
+            </section>
+          </fieldset>
         </div>
       </div>
     </div>
