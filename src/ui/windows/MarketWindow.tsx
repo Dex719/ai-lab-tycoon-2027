@@ -1,12 +1,14 @@
-// Вкладки «Рынок» (доли лабораторий, модели на рынке) и «Лаборатории» (таблица соперников).
+// Вкладки «Рынок» (доли лабораторий, модели на рынке) и «Лаборатории» (таблица соперников: характер, настрой,
+// последний ход; под таблицей - последние ходы соперников).
 
 import { useMemo } from 'react';
 import type { WindowProps } from '.';
+import { personalityOf } from '../../data/labPersonalities';
 import { HYPE_OWNERS } from '../../sim/constants';
 import { bestElo } from '../../sim/leaderboard';
 import { marketSnapshot, refPrice, type MarketEntry } from '../../sim/market';
 import { contextLabel } from '../../sim/research';
-import { findRivalDef, rivalDay } from '../../sim/rivals';
+import { findRivalDefIn, labStance, lastMove, moveName, rivalDayIn, type HistoryRow } from '../../sim/rivalry';
 import { dayToDate, formatDateShort } from '../../sim/time';
 import type { GameState, HypeOwner } from '../../sim/types';
 import { Alert } from '../components/common';
@@ -22,6 +24,7 @@ import {
   safe,
   type SeriesDef,
 } from './analyticsShared';
+import './MarketWindow.css';
 
 // ---------- Рынок ----------
 
@@ -168,11 +171,21 @@ interface LabRow {
   share: number;
   lastName: string | null;
   since: number | null;
+  /** Характер соперника и подсказка к нему; у вашей лаборатории - null. */
+  character: { archetype: string; description: string } | null;
+  /** Настрой соперника к вам: подпись и подсказка; null - у вашей лаборатории или если рассчитать не удалось. */
+  stance: { label: string; hint: string } | null;
+  /** Последний исполненный ход соперника; null - ходов не было или это ваша лаборатория. */
+  lastMove: HistoryRow | null;
 }
 
+/** Сколько последних ходов соперников показывает блок «Последние ходы». */
+export const RECENT_MOVES = 10;
+
 /**
- * По каждому владельцу: число выпущенных моделей, лучший Эло, доля рынка, последняя модель и дата первой.
- * Модели, которые соперник только показал (announcedOnly), выпущенными не считаются.
+ * По каждому владельцу: число выпущенных моделей, лучший Эло, доля рынка, последняя модель и дата первой;
+ * у соперников ещё характер, настрой и последний ход. Модели, которые соперник только показал (announcedOnly),
+ * выпущенными не считаются. День выхода - с поправками ходов соперников (rivalDayIn), ответные модели тоже считаются.
  */
 export function labRows(s: GameState): LabRow[] {
   const acc = new Map<HypeOwner, { count: number; lastDay: number; lastName: string | null; since: number | null }>();
@@ -187,13 +200,15 @@ export function labRows(s: GameState): LabRow[] {
     acc.set(owner, a);
   };
   for (const id of s.rivalsReleased) {
-    const def = findRivalDef(id);
-    if (def && !def.announcedOnly) add(def.lab, def.gameName, rivalDay(def));
+    const def = findRivalDefIn(id);
+    if (def && !def.announcedOnly) add(def.lab, def.gameName, rivalDayIn(s, def));
   }
   for (const m of s.models) if (m.releasedDay !== null) add('player', m.name, m.releasedDay);
 
   return HYPE_OWNERS.map((owner) => {
     const a = acc.get(owner);
+    const rival = owner !== 'player';
+    const p = rival ? personalityOf(owner) : null;
     return {
       owner,
       count: a?.count ?? 0,
@@ -201,23 +216,61 @@ export function labRows(s: GameState): LabRow[] {
       share: finite(s.market.labShares[owner]),
       lastName: a?.lastName ?? null,
       since: a?.since ?? null,
+      character: p ? { archetype: p.archetype, description: p.description } : null,
+      stance: rival ? safe(() => labStance(s, owner)) : null,
+      lastMove: rival ? lastMove(s, owner) : null,
     };
   }).sort((a, b) => b.share - a.share || b.best - a.best);
+}
+
+/** Последние ходы соперников, новые сверху, не больше RECENT_MOVES. */
+export function recentMoves(s: GameState): HistoryRow[] {
+  return s.rivalry.history.slice(-RECENT_MOVES).reverse();
+}
+
+const TIP_CHARACTER = 'Как лаборатория отвечает на ваши успехи';
+const TIP_STANCE = 'Отношение лаборатории к вам сейчас; в подсказке - главный сигнал';
+const TIP_LAST_MOVE = 'Последний исполненный ход против вас';
+
+function RecentMoves({ s }: { s: GameState }) {
+  const rows = recentMoves(s);
+  if (rows.length === 0) return <div className="muted">Ходов пока нет</div>;
+  return (
+    <div className="lab-moves">
+      {rows.map((h, i) => (
+        <div key={`${h.day}:${h.lab}:${i}`} className="lab-moves-row">
+          <span className="d">{formatDateShort(h.day)}</span>
+          <span className="l">
+            <OwnerTag s={s} owner={h.lab} />
+          </span>
+          <span className="m">{moveName(h.move)}</span>
+          <span className="t">{h.text}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function LabsTab({ s }: WindowProps) {
   const rows = labRows(s);
   return (
     <div className="an-page">
-      <table className="grid an-grid">
+      <table className="grid an-grid lab-grid">
         <thead>
           <tr>
             <th>Лаборатория</th>
-            <th className="num">Моделей выпущено</th>
+            <th className="num" title="Выпущенных моделей">
+              Моделей
+            </th>
             <th className="num">Лучший Эло</th>
-            <th className="num">Доля рынка</th>
+            <th className="num" title="Доля рынка">
+              Доля
+            </th>
             <th>Последняя модель</th>
             <th title="Дата выхода первой модели">На рынке с</th>
+            <th title={TIP_CHARACTER}>Характер</th>
+            <th title={TIP_STANCE}>Настрой</th>
+            <th title={TIP_LAST_MOVE}>Последний ход</th>
           </tr>
         </thead>
         <tbody>
@@ -231,10 +284,28 @@ export function LabsTab({ s }: WindowProps) {
               <td className="num">{fmtShare(r.share)}</td>
               <td>{r.lastName ?? '-'}</td>
               <td>{r.since !== null ? formatDateShort(r.since) : '-'}</td>
+              <td>{r.character ? <span title={r.character.description}>{r.character.archetype}</span> : <span className="muted">-</span>}</td>
+              <td>{r.stance ? <span title={r.stance.hint}>{r.stance.label}</span> : <span className="muted">-</span>}</td>
+              <td className="lab-move">
+                {r.lastMove ? (
+                  <>
+                    <span className="lab-move-d">{formatDateShort(r.lastMove.day)}</span>
+                    <span className="lab-move-t" title={r.lastMove.text}>
+                      {r.lastMove.text}
+                    </span>
+                  </>
+                ) : (
+                  <span className="muted">-</span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+      <section>
+        <h2 className="an-h">Последние ходы</h2>
+        <RecentMoves s={s} />
+      </section>
     </div>
   );
 }

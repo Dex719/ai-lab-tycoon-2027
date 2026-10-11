@@ -44,6 +44,7 @@ import {
 import { addMail, awaitingEvent, dropChoices, triggerEvent } from './events';
 import { spend } from './finance';
 import { contextLabel, maxContext } from './research';
+import { EXPOSE_CAP_WITH_RIVALS, exposureMultIn } from './rivalry';
 import { chance, randRange } from './rng';
 import { endSentence } from './text';
 import { byYear, dateToDay, yearOf } from './time';
@@ -380,7 +381,10 @@ export function progressDay(s: GameState): void {
   if (t.flopDone >= t.flopTotal) finishTraining(s);
 }
 
-/** Шанс разоблачения модели в этом месяце (0, если нечего разоблачать). */
+/**
+ * Шанс разоблачения модели в этом месяце (0, если нечего разоблачать). Модификаторы exposure (сложность, «Отрицать» в
+ * проверке баллов соперника) умножают шанс; с множителем выше 1 потолок EXPOSE_CAP_WITH_RIVALS вместо EXPOSE_MAX.
+ */
 export function exposureChance(s: GameState, model: PlayerModel): number {
   if (model.releasedDay === null || model.exposed) return 0;
   let gap = 0;
@@ -393,7 +397,9 @@ export function exposureChance(s: GameState, model: PlayerModel): number {
   }
   if (!any) return 0;
   const arena = s.day >= dateToDay(ARENA_OPEN_DATE) ? EXPOSE_ARENA_BONUS : 0;
-  return Math.min(EXPOSE_MAX, EXPOSE_PER_PP * gap + arena);
+  const mult = exposureMultIn(s, model.id);
+  const cap = mult > 1 ? EXPOSE_CAP_WITH_RIVALS : EXPOSE_MAX;
+  return Math.min(cap, (EXPOSE_PER_PP * gap + arena) * mult);
 }
 
 /** Раз в месяц: шанс разоблачения выпущенных подогнанных моделей. */

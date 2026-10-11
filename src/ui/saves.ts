@@ -1,5 +1,6 @@
 // Ячейки сохранений в браузере: 5 ручных и автосохранение. В ячейке - краткие сведения для списка и само состояние.
 
+import type { Difficulty } from '../sim/rivalry';
 import { deserialize, serialize } from '../sim/save';
 import { playerBestArenaRank } from '../sim/tick';
 import type { GameState } from '../sim/types';
@@ -14,6 +15,8 @@ export interface SlotMeta {
   cash: number;
   arenaRank: number | null;
   outcome: GameState['outcome'];
+  /** Сложность партии; в сведениях старых ячеек её нет - читается как «Обычная». */
+  difficulty: Difficulty;
   savedAt: number; // реальное время сохранения, мс
 }
 
@@ -46,7 +49,15 @@ function metaOf(s: GameState): SlotMeta {
   } catch {
     arenaRank = null;
   }
-  return { labName: s.labName, day: s.day, cash: s.cash, arenaRank, outcome: s.outcome, savedAt: Date.now() };
+  return {
+    labName: s.labName,
+    day: s.day,
+    cash: s.cash,
+    arenaRank,
+    outcome: s.outcome,
+    difficulty: s.difficulty,
+    savedAt: Date.now(),
+  };
 }
 
 interface Stored {
@@ -60,7 +71,11 @@ function readRaw(id: SlotId): { stored: Stored | null; broken: boolean } {
   if (!raw) return { stored: null, broken: false };
   try {
     const data = JSON.parse(raw) as Partial<Stored> & { version?: number };
-    if (data.v === 1 && data.meta && data.state) return { stored: data as Stored, broken: false };
+    if (data.v === 1 && data.meta && data.state) {
+      // Ячейки, записанные до появления сложности: в сведениях её нет, партия шла как «Обычная».
+      const meta: SlotMeta = { ...data.meta, difficulty: data.meta.difficulty ?? 'normal' };
+      return { stored: { v: 1, meta, state: data.state }, broken: false };
+    }
     // Старый формат: в ключе лежит само состояние.
     if (data.version === 1) {
       const r = deserialize(raw);

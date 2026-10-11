@@ -25,6 +25,8 @@ import {
   RLHF_LANGUAGE_BONUS,
   TRAIN_FLOP_PER_H100E_DAY,
 } from './constants';
+import { addModifier, FOREVER } from './events';
+import { EXPOSE_CAP_WITH_RIVALS } from './rivalry';
 import { nextRandom } from './rng';
 import { createInitialState } from './state';
 import { dateToDay } from './time';
@@ -49,7 +51,7 @@ import {
   startTraining,
   validatePlan,
 } from './training';
-import type { GameState, Mail, PlayerModel, TrainingPlan } from './types';
+import type { GameState, Mail, Modifier, ModifierKind, PlayerModel, TrainingPlan } from './types';
 import { BENCHMARK_IDS } from './types';
 
 const { triggerEvent } = vi.hoisted(() => ({ triggerEvent: vi.fn() }));
@@ -69,6 +71,25 @@ vi.mock('./events', () => ({
   awaitingEvent: (s: GameState, eventId: string) => s.mail.some((m) => m.eventId === eventId && m.choices && m.chosen === undefined),
   dropChoices: () => {},
   triggerEvent,
+  // Модификаторы как в настоящем модуле: их читают шанс разоблачения (exposure) и модуль соперников при загрузке.
+  FOREVER: Number.MAX_SAFE_INTEGER,
+  addModifier: (s: GameState, m: Omit<Modifier, 'id'> & { id?: string }) => {
+    const id = m.id ?? `mod${s.modifiers.length + 1}-${s.day}`;
+    s.modifiers = s.modifiers.filter((x) => x.id !== id);
+    s.modifiers.push({ ...m, id });
+  },
+  modValue: (s: GameState, kind: ModifierKind, target?: string) => {
+    let mult = 1;
+    let add = 0;
+    for (const m of s.modifiers) {
+      if (m.kind !== kind || m.untilDay < s.day) continue;
+      if (m.target !== undefined && m.target !== target) continue;
+      if (m.mult !== undefined) mult *= m.mult;
+      if (m.add !== undefined) add += m.add;
+    }
+    return { mult, add };
+  },
+  pendingChoice: (s: GameState) => s.mail.find((m) => m.choices && m.chosen === undefined && !m.deferred) ?? null,
 }));
 
 beforeEach(() => triggerEvent.mockClear());
@@ -980,6 +1001,37 @@ describe('exposureChance', () => {
     expect(exposureChance(s, released({ releasedDay: null }))).toBe(0);
     expect(exposureChance(s, released({ exposed: true }))).toBe(0);
     expect(exposureChance(s, released({ overfit: {} }))).toBe(0);
+  });
+
+  it('модификатор exposure умножает шанс: по модели или общий; чужая модель не затронута', () => {
+    const s = lateState();
+    s.day = dateToDay(ARENA_OPEN_DATE) - 400; // и через 181 день Арена ещё не открыта: бонус не вмешивается
+    const m = released();
+    const base = exposureChance(s, m);
+    expect(base).toBeGreaterThan(0);
+    addModifier(s, { id: 'deny', kind: 'exposure', target: 'p1', mult: 2, untilDay: s.day + 180 });
+    expect(exposureChance(s, m)).toBeCloseTo(base * 2, 9);
+    expect(exposureChance(s, released({ id: 'p2' }))).toBeCloseTo(base, 9);
+    // Общий модификатор сложности (без target) умножается с модификатором модели.
+    addModifier(s, { id: 'difficulty-exposure', kind: 'exposure', mult: 0.7, untilDay: FOREVER });
+    expect(exposureChance(s, m)).toBeCloseTo(base * 2 * 0.7, 9);
+    expect(exposureChance(s, released({ id: 'p2' }))).toBeCloseTo(base * 0.7, 9);
+    // Истёкший модификатор не действует.
+    s.day += 181;
+    expect(exposureChance(s, m)).toBeCloseTo(base * 0.7, 9);
+  });
+
+  it('потолок с множителем выше 1 - EXPOSE_CAP_WITH_RIVALS, иначе EXPOSE_MAX', () => {
+    const s = lateState();
+    s.day = 0;
+    for (const id of BENCHMARK_IDS) s.benchmarks[id].introduced = true;
+    const huge = released({ overfit: { mmlu: 3, humaneval: 60 }, caps: { language: 50, code: 63.4, reasoning: 50 } });
+    expect(exposureChance(s, huge)).toBe(EXPOSE_MAX);
+    addModifier(s, { id: 'easy', kind: 'exposure', mult: 0.7, untilDay: FOREVER });
+    expect(exposureChance(s, huge)).toBe(EXPOSE_MAX); // шанс и после ×0,7 выше прежнего потолка
+    addModifier(s, { id: 'deny', kind: 'exposure', target: 'p1', mult: 2, untilDay: FOREVER });
+    expect(EXPOSE_CAP_WITH_RIVALS).toBeGreaterThan(EXPOSE_MAX);
+    expect(exposureChance(s, huge)).toBe(EXPOSE_CAP_WITH_RIVALS);
   });
 });
 

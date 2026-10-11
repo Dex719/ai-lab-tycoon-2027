@@ -24,6 +24,7 @@ import { addModifier, FOREVER } from '../sim/events';
 import { spend } from '../sim/finance';
 import { BOARD_PLAN_FLAG, buyBackShares, buybackCost } from '../sim/investors';
 import { bestElo } from '../sim/leaderboard';
+import { RIVALRY_EVENTS } from '../sim/rivalry';
 import { endSentence } from '../sim/text';
 import { dateToDay } from '../sim/time';
 import { applyFailChoice } from '../sim/training';
@@ -540,3 +541,12 @@ export const EVENTS: EventDef[] = [
   // Новые поколения GPU (P100 доступна с начала игры).
   ...GPUS.filter((g) => g.id !== 'p100').map(gpuEvent),
 ];
+
+/**
+ * Событие по id: сначала EVENTS, затем письма с выбором соперников (RIVALRY_EVENTS из sim/rivalry.ts).
+ * В EVENTS их не вписываем: модули зациклены (sim/events → data/events → sim/rivalry → sim/events), и на верхнем
+ * уровне массив соперников ещё не создан. Запускает такие письма сам rivalry.ts; fireDue их не трогает.
+ */
+export function findEvent(id: string | undefined): EventDef | undefined {
+  return EVENTS.find((e) => e.id === id) ?? RIVALRY_EVENTS.find((e) => e.id === id);
+}

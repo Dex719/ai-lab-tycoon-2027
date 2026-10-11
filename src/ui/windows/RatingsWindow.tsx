@@ -5,7 +5,7 @@ import type { WindowProps } from '.';
 import { BENCHMARKS } from '../../data/benchmarks';
 import { expectedLeaderElo, leaderboard, marketArenaRank, type BoardRow } from '../../sim/leaderboard';
 import { contextLabel } from '../../sim/research';
-import { findRivalDef } from '../../sim/rivals';
+import { findRivalDefIn, rivalContextIn } from '../../sim/rivalry';
 import { playerBestArenaRank } from '../../sim/tick';
 import { END_DAY, formatDateShort } from '../../sim/time';
 import type { BenchmarkDef, BenchmarkId, GameState } from '../../sim/types';
@@ -27,12 +27,25 @@ const TIP_SATURATED = 'Бенчмарк насыщен: не влияет на �
 const rowKey = (r: BoardRow) => `${r.ref.kind}:${r.ref.id}`;
 
 const TIP_CONTEXT = 'Длина контекста, токенов';
+const TIP_ELO_UNKNOWN = 'Оценка: точный рейтинг неизвестен';
+const TIP_ELO_BOOSTED = 'Оценка: модель усилена под давлением';
 
-/** Контекст модели из строки рейтинга: у соперника - из каталога, у вашей - из плана обучения; 0, если неизвестен. */
-function rowContext(s: GameState, r: BoardRow): number {
-  if (r.ref.kind === 'rival') return findRivalDef(r.ref.id)?.context ?? 0;
+/**
+ * Контекст модели из строки рейтинга: у соперника - из каталога с поправкой хода соперника (rivalContextIn),
+ * у вашей - из плана обучения; 0, если неизвестен.
+ */
+export function rowContext(s: GameState, r: BoardRow): number {
+  if (r.ref.kind === 'rival') {
+    const def = findRivalDefIn(r.ref.id);
+    return def ? rivalContextIn(s, def) : 0;
+  }
   const id = r.ref.id;
   return s.models.find((m) => m.id === id)?.plan.context ?? 0;
+}
+
+/** Эло соперника поднято ходом соперника (rivalry.overrides[id].eloAdd): в таблице оно показывается как оценка «≈». */
+export function isEloBoosted(s: GameState, r: BoardRow): boolean {
+  return r.ref.kind === 'rival' && (s.rivalry.overrides[r.ref.id]?.eloAdd ?? 0) > 0;
 }
 
 /** Контекст модели: «128 тыс.», «1 млн»; если контекст неизвестен - «-». */
@@ -40,7 +53,7 @@ const ctxLabel = (tokens: number): string => (tokens > 0 ? contextLabel(tokens) 
 
 /** Модель соперника, которую только показали (статья, демо): в продажу она не выходила, дата в строке - дата анонса. */
 export function isAnnouncedRow(r: BoardRow): boolean {
-  return r.ref.kind === 'rival' && !!findRivalDef(r.ref.id)?.announcedOnly;
+  return r.ref.kind === 'rival' && !!findRivalDefIn(r.ref.id)?.announcedOnly;
 }
 
 const TIP_DATE_MIXED = 'Дата выпуска; у показанных моделей - дата анонса';
@@ -292,7 +305,7 @@ const TIP_MONTHS = 'Закрытые месяцы, когда ваша лучш�
 /** Модель в продаже: ваша - выпущена и на API, соперника - выпущена с API и не только показана. Только такие идут в зачёт цели. */
 export function inSaleRow(r: BoardRow): boolean {
   if (r.ref.kind === 'player') return r.onMarket;
-  const def = findRivalDef(r.ref.id);
+  const def = findRivalDefIn(r.ref.id);
   return !!def && def.api && !def.announcedOnly;
 }
 
@@ -358,40 +371,43 @@ export function ArenaTab({ s }: WindowProps) {
             </tr>
           </thead>
           <tbody>
-            {ranked.map(({ row: r, rank, inSale }) => (
-              <tr key={rowKey(r)} className={r.owner === 'player' ? 'player' : undefined}>
-                <td className={`num${rank === null ? ' muted' : ''}`}>{rank !== null ? fmtNum(rank) : '-'}</td>
-                <td>
-                  <Flag row={r} />
-                  {r.name}
-                  {!inSale && (
-                    <span className="est" title={TIP_NOT_SALE}>
-                      {' '}
-                      не в продаже
-                    </span>
-                  )}
-                </td>
-                <td>
-                  <OwnerTag s={s} owner={r.owner} />
-                </td>
-                <td>
-                  <div className="elo-cell">
-                    <span className="elo-track">
-                      <span className="elo-fill" style={{ width: `${barWidth(r.elo)}%`, background: ownerColor(r.owner) }} />
-                    </span>
-                    {r.eloEstimated ? (
-                      <span className="est elo-val" title="Оценка: точный рейтинг неизвестен">
-                        ≈{fmtElo(r.elo)}
+            {ranked.map(({ row: r, rank, inSale }) => {
+              const boosted = isEloBoosted(s, r);
+              return (
+                <tr key={rowKey(r)} className={r.owner === 'player' ? 'player' : undefined}>
+                  <td className={`num${rank === null ? ' muted' : ''}`}>{rank !== null ? fmtNum(rank) : '-'}</td>
+                  <td>
+                    <Flag row={r} />
+                    {r.name}
+                    {!inSale && (
+                      <span className="est" title={TIP_NOT_SALE}>
+                        {' '}
+                        не в продаже
                       </span>
-                    ) : (
-                      <span className="elo-val">{fmtElo(r.elo)}</span>
                     )}
-                  </div>
-                </td>
-                <DateCell row={r} />
-                <td className="num">{ctxLabel(rowContext(s, r))}</td>
-              </tr>
-            ))}
+                  </td>
+                  <td>
+                    <OwnerTag s={s} owner={r.owner} />
+                  </td>
+                  <td>
+                    <div className="elo-cell">
+                      <span className="elo-track">
+                        <span className="elo-fill" style={{ width: `${barWidth(r.elo)}%`, background: ownerColor(r.owner) }} />
+                      </span>
+                      {boosted || r.eloEstimated ? (
+                        <span className="est elo-val" title={boosted ? TIP_ELO_BOOSTED : TIP_ELO_UNKNOWN}>
+                          ≈{fmtElo(r.elo)}
+                        </span>
+                      ) : (
+                        <span className="elo-val">{fmtElo(r.elo)}</span>
+                      )}
+                    </div>
+                  </td>
+                  <DateCell row={r} />
+                  <td className="num">{ctxLabel(rowContext(s, r))}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -423,6 +439,9 @@ export function ArenaTab({ s }: WindowProps) {
         <span className="muted">Моделей: {fmtNum(ranked.length)}</span>
         <span className="muted">В продаже: {fmtNum(onSale)}</span>
         <span className="grow" />
+        <span className="an-key" title="Оценка: точный рейтинг неизвестен или модель усилена под давлением">
+          <b>≈</b> оценка
+        </span>
         <span className="an-key">
           <span className="est">не в продаже</span>
           <span className="an-key-s">нет API: не в зачёт цели</span>

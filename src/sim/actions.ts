@@ -8,13 +8,17 @@ import { raiseRound } from './investors';
 import { releaseHypeBonus, updateSaturation } from './leaderboard';
 import { minPrice } from './market';
 import { setResearch } from './research';
+import { applyDifficultyModifiers } from './rivalry';
+import type { Difficulty } from './rivalry';
 import { createInitialState } from './state';
 import { dateToDay, START_DAY } from './time';
 import { cancelTraining, startTraining } from './training';
 import type { GameState, Result } from './types';
 
-export function newGame(labName: string, seed: number): GameState {
-  const s = createInitialState(labName, seed);
+/** Новая игра: сложность из главного меню ставит модификаторы аренды и разоблачения навсегда (только Лёгкая и Сложная). */
+export function newGame(labName: string, seed: number, difficulty: Difficulty = 'normal'): GameState {
+  const s = createInitialState(labName, seed, difficulty);
+  applyDifficultyModifiers(s);
   for (const b of BENCHMARKS) if (dateToDay(b.introduced) < START_DAY) s.benchmarks[b.id].introduced = true;
   addMail(s, {
     kind: 'news',

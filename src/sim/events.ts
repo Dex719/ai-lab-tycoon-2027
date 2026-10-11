@@ -1,7 +1,10 @@
 // Почта, модификаторы и движок событий (FR-11). Содержание событий - в data/events.ts.
 
-import { EVENTS } from '../data/events';
-import { CHOICE_DAYS } from './constants';
+// Импорт constants стоит первым: FOREVER реэкспортируется отсюда, а rivalry.ts читает его на верхнем уровне модуля
+// внутри цикла sim/events → data/events → sim/rivalry → sim/events. В ESM привязка реэкспорта ведёт прямо в
+// constants.ts (без TDZ); в vitest (vite-node) она готова, только если импорт constants завершён до входа в цикл.
+import { CHOICE_DAYS, FOREVER } from './constants';
+import { EVENTS, findEvent } from '../data/events';
 import { dateToDay } from './time';
 import type { GameState, Mail, MailChoice, Modifier, ModifierKind, Result } from './types';
 
@@ -29,7 +32,7 @@ export function unreadCount(s: GameState): number {
   return s.mail.filter((m) => !m.read).length;
 }
 
-export const FOREVER = Number.MAX_SAFE_INTEGER;
+export { FOREVER };
 
 export function addModifier(s: GameState, m: Omit<Modifier, 'id'> & { id?: string }): void {
   const id = m.id ?? `mod${s.modifiers.length + 1}-${s.day}`;
@@ -57,9 +60,9 @@ export function pruneModifiers(s: GameState): void {
   s.modifiers = s.modifiers.filter((m) => m.untilDay >= s.day);
 }
 
-/** Запустить событие по id: письмо, эффект onFire, выбор (если есть). */
+/** Запустить событие по id (EVENTS или письма соперников): письмо, эффект onFire, выбор (если есть). */
 export function triggerEvent(s: GameState, id: string): void {
-  const def = EVENTS.find((e) => e.id === id);
+  const def = findEvent(id);
   if (!def) throw new Error(`Нет события ${id}`);
   if (!def.repeatable) {
     if (s.firedEvents.includes(id)) return;
@@ -78,7 +81,7 @@ export function triggerEvent(s: GameState, id: string): void {
   }
 }
 
-/** Ежедневно: сработать события, чья дата наступила или условие выполнено. */
+/** Ежедневно: сработать события, чья дата наступила или условие выполнено. Только EVENTS: письма соперников запускает rivalry.ts. */
 export function fireDue(s: GameState): void {
   for (const def of EVENTS) {
     if (s.firedEvents.includes(def.id) || def.repeatable) continue;
@@ -141,7 +144,7 @@ export function applyChoice(s: GameState, mailId: string, idx: number): Result {
   const mail = s.mail.find((m) => m.id === mailId);
   if (!mail || !mail.choices || !mail.eventId) return { ok: false, error: 'Письмо без выбора' };
   if (mail.chosen !== undefined) return { ok: false, error: 'Выбор уже сделан' };
-  const def = EVENTS.find((e) => e.id === mail.eventId);
+  const def = findEvent(mail.eventId);
   const choice = def?.choices?.[idx];
   if (!def || !choice) return { ok: false, error: 'Нет такого варианта' };
   mail.chosen = idx;

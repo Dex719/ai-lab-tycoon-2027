@@ -1,6 +1,8 @@
 // Создание начального состояния новой игры (FR-13). Используется actions.newGame и тестами.
 
 import { DEFAULT_ALLOC, HYPE_OWNERS, START_CASH, START_REPUTATION } from './constants';
+import { emptyRivalry } from './rivalry';
+import type { Difficulty } from './rivalry';
 import type { BenchmarkId, GameState, HypeOwner, MonthLedger } from './types';
 import { BENCHMARK_IDS } from './types';
 
@@ -11,7 +13,7 @@ export function emptyLedger(): MonthLedger {
   };
 }
 
-export function createInitialState(labName: string, seed: number): GameState {
+export function createInitialState(labName: string, seed: number, difficulty: Difficulty = 'normal'): GameState {
   const hype = Object.fromEntries(HYPE_OWNERS.map((o) => [o, 0])) as Record<HypeOwner, number>;
   const benchmarks = Object.fromEntries(
     BENCHMARK_IDS.map((id) => [id, { introduced: false, saturated: false }]),
@@ -49,6 +51,8 @@ export function createInitialState(labName: string, seed: number): GameState {
     flags: {},
     finance: { month: emptyLedger(), history: [], revenueDaily: [], negativeDays: 0 },
     tutorial: { step: 0, active: false },
+    difficulty,
+    rivalry: emptyRivalry(),
     market: { shares: {}, labShares: { ...hype, none: 1 }, playerTokens: 0, lostFraction: 0, totalTokens: 0 },
   };
 }

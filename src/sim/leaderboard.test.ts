@@ -13,7 +13,9 @@ import {
   releaseHypeBonus,
   updateSaturation,
 } from './leaderboard';
-import { marketRivals, rivalCaps, rivalScore } from './rivals';
+import { findRivalDef, marketRivals, rivalCaps, rivalDay, rivalScore } from './rivals';
+import { emptyRivalry } from './rivalry';
+import type { RivalryGame } from './rivalry';
 import { createInitialState } from './state';
 import { modelScore } from './training';
 import { dateToDay } from './time';
@@ -22,9 +24,14 @@ import type { BenchmarkId, GameState, ModelRef, PlayerModel } from './types';
 
 // ---------- Помощники ----------
 
-/** Состояние на дату: бенчмарки, чья дата наступила, помечены вышедшими; соперники - как перечислены. */
-function makeState(date: string, released: string[] = []): GameState {
-  const s = createInitialState('Тест', 1);
+/**
+ * Состояние на дату: бенчмарки, чья дата наступила, помечены вышедшими; соперники - как перечислены.
+ * Поля соперников (rivalry, difficulty) заданы: до интеграции createInitialState их не создаёт.
+ */
+function makeState(date: string, released: string[] = []): RivalryGame {
+  const s = createInitialState('Тест', 1) as RivalryGame;
+  if (!s.rivalry) s.rivalry = emptyRivalry();
+  if (!s.difficulty) s.difficulty = 'normal';
   s.day = dateToDay(date);
   for (const b of BENCHMARKS) if (dateToDay(b.introduced) <= s.day) s.benchmarks[b.id].introduced = true;
   s.rivalsReleased = [...released];
@@ -429,6 +436,67 @@ describe('bestElo', () => {
     expect(bestElo(s, 'openbrain')).toBe(800); // GTP-4 ещё не в списке выпущенных
     s.rivalsReleased.push('gtp-4');
     expect(bestElo(s, 'openbrain')).toBe(1186);
+  });
+});
+
+// ---------- Поправки ходов соперников и ответные модели ----------
+
+describe('поправки ходов соперников', () => {
+  it('eloAdd и dayShift входят в строку, место на Арене и лучший Эло; Эло с поправкой помечено «≈»', () => {
+    const s = makeState('2024-06-01', ['gtp-4', 'gtp-4o', 'clade-3-opos']);
+    const opus = findRivalDef('clade-3-opos')!;
+    s.rivalry.overrides['clade-3-opos'] = { eloAdd: 50, dayShift: -10 };
+
+    const rows = new Map(leaderboard(s).map((r) => [r.ref.id, r]));
+    expect(rows.get('clade-3-opos')).toMatchObject({ elo: 1297, eloEstimated: true, releasedDay: rivalDay(opus) - 10 });
+    expect(rows.get('gtp-4o')).toMatchObject({ elo: 1285, eloEstimated: false });
+    expect(arenaRank(s, rival('clade-3-opos'))).toBe(1); // 1297 > 1285
+    expect(arenaRank(s, rival('gtp-4o'))).toBe(2);
+    expect(marketArenaRank(s, rival('clade-3-opos'))).toBe(1);
+    expect(bestElo(s, 'antropik')).toBe(1297);
+    expect(bestElo(s, 'openbrain')).toBe(1285);
+    // Планка победы остаётся каталожной.
+    expect(expectedLeaderElo(s)).toBe(1356);
+
+    // Шумиха выпуска модели игрока считается против Эло с поправкой.
+    s.models = [withCaps('p1', 60, 1290, s.day)];
+    expect(releaseHypeBonus(s, mine('p1'))).toBe(0); // не №1 на Арене: 1297 выше
+    delete s.rivalry.overrides['clade-3-opos'];
+    expect(releaseHypeBonus(s, mine('p1'))).toBe(HYPE_ARENA_TOP_BONUS);
+  });
+
+  it('ответная модель из rivalsReleased - строка таблицы со своим днём выхода (extra) и Эло из поправок', () => {
+    const s = makeState('2024-06-01', ['gtp-4o']);
+    const tpl = findRivalDef('mv-openbrain-1')!;
+    s.rivalsReleased.push(tpl.id);
+    s.rivalry.extra[tpl.id] = s.day - 5;
+    s.rivalry.overrides[tpl.id] = { eloAdd: -100, price: 0.2 };
+
+    const rows = leaderboard(s);
+    expect(rows.map((r) => r.ref.id)).toEqual(['mv-openbrain-1', 'gtp-4o']); // новее сверху
+    expect(rows[0]).toMatchObject({
+      name: 'GTP-3.5 Nano',
+      owner: 'openbrain',
+      releasedDay: s.day - 5,
+      elo: tpl.arenaElo - 100,
+      eloEstimated: true,
+      flagged: false,
+      onMarket: true,
+    });
+    for (const sc of Object.values(rows[0].scores)) expect(sc.estimated).toBe(true); // опубликованных баллов нет
+    expect(arenaRank(s, rival(tpl.id))).toBe(2);
+    expect(marketArenaRank(s, rival(tpl.id))).toBe(2);
+    expect(bestElo(s, 'openbrain')).toBe(1285);
+    expect(benchRank(s, rival(tpl.id), 'mmlu')).toBe(2);
+  });
+
+  it('неизвестный id по-прежнему пропускается, а оценочные баллы шаблона не насыщают бенчмарки', () => {
+    const s = makeState('2024-06-01', ['нет-такой', 'mv-openbrain-1']);
+    s.rivalry.extra['mv-openbrain-1'] = s.day;
+    s.rivalry.overrides['mv-openbrain-1'] = { eloAdd: 500 };
+    expect(leaderboard(s).map((r) => r.name)).toEqual(['GTP-3.5 Nano']);
+    updateSaturation(s);
+    for (const id of BENCHMARK_IDS) expect(s.benchmarks[id].saturated, id).toBe(false);
   });
 });
 

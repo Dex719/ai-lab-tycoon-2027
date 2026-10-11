@@ -30,6 +30,12 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     notes: 'Модель «текст в текст», веса открыты. Для диалога не настраивалась. Эло задано условно.',
   },
   {
+    id: 'gtp-2-full', lab: 'openbrain', gameName: 'GTP-2 (полные веса)', realName: 'GPT-2 (1.5B, full weights)', released: '2019-11-05',
+    api: false, openWeights: true, chat: false, paramsB: 1.5, priceIn: null, priceOut: null,
+    scores: { mmlu: 32.4 }, arenaElo: 650, arenaEstimated: true, contaminated: false, context: 1024,
+    notes: 'Полные веса GTP-2 опубликованы 05.11.2019 под открытой лицензией. Эло - оценка.',
+  },
+  {
     id: 'meeno', lab: 'gogle', gameName: 'Meeno', realName: 'Meena', released: '2020-01-28',
     api: false, openWeights: false, announcedOnly: true, chat: false, paramsB: 2.6, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 760, arenaEstimated: true, contaminated: false, context: 128,

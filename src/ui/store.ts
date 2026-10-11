@@ -4,6 +4,7 @@
 import { useSyncExternalStore } from 'react';
 import * as actions from '../sim/actions';
 import { TICK_MS } from '../sim/constants';
+import type { Difficulty } from '../sim/rivalry';
 import { advanceDay, advanceDays, blockedByChoice } from '../sim/tick';
 import type { GameState, Result, Speed } from '../sim/types';
 import { readSlot, writeSlot, type SlotId } from './saves';
@@ -44,8 +45,9 @@ export class GameStore {
     this.bump();
   }
 
-  newGame(labName: string, opts: { founderName?: string; tutorial?: boolean; seed?: number } = {}): void {
-    const s = actions.newGame(labName, opts.seed ?? (Date.now() ^ 0x5eed) >>> 0);
+  /** Новая партия. difficulty - сложность соперников (по умолчанию «Обычная»). */
+  newGame(labName: string, opts: { founderName?: string; tutorial?: boolean; seed?: number; difficulty?: Difficulty } = {}): void {
+    const s = actions.newGame(labName, opts.seed ?? (Date.now() ^ 0x5eed) >>> 0, opts.difficulty ?? 'normal');
     s.founderName = (opts.founderName ?? '').trim();
     s.tutorial = { step: 0, active: opts.tutorial ?? false };
     this.start(s);

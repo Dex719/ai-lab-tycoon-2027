@@ -21,7 +21,8 @@ import {
 } from './constants';
 import { modValue } from './events';
 import { earn } from './finance';
-import { marketRivals, rivalPrice } from './rivals';
+import { marketRivals } from './rivals';
+import { rivalContextIn, rivalEloIn, rivalPriceIn } from './rivalry';
 import { dateToDay, lerpByDate } from './time';
 import type { GameState, HypeOwner, ModelRef } from './types';
 
@@ -136,7 +137,8 @@ export function marketSnapshot(s: GameState): MarketSnapshot {
   const pRef = refPrice(s.day);
   const u0 = (refQuality(s.day) - 1000) / 100;
 
-  // Кандидаты на рынке: выпущенные модели игрока на API и модели соперников.
+  // Кандидаты на рынке: выпущенные модели игрока на API и модели соперников (цена, Эло и контекст - с поправками
+  // ходов соперников: rivalPriceIn / rivalEloIn / rivalContextIn).
   const raw: Candidate[] = [];
   for (const m of s.models) {
     if (m.releasedDay === null || !m.onApi) continue;
@@ -156,9 +158,9 @@ export function marketSnapshot(s: GameState): MarketSnapshot {
       ref: { kind: 'rival', id: def.id },
       owner: def.lab,
       name: def.gameName,
-      price: rivalPrice(def, s.day),
-      elo: def.arenaElo,
-      context: def.context,
+      price: rivalPriceIn(s, def),
+      elo: rivalEloIn(s, def),
+      context: rivalContextIn(s, def),
     });
   }
 

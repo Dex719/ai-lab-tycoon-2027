@@ -1,6 +1,9 @@
 // Общий контракт симуляции. Все модули sim/ и data/ используют эти типы.
 // Состояние GameState целиком сериализуется в JSON (сохранения), поэтому здесь только данные.
 
+// Сложность и состояние соперников живут в rivalry.ts; импорт только типов, чтобы не было цикла модулей.
+import type { Difficulty, RivalryState } from './rivalry';
+
 export type DomainId = 'language' | 'code' | 'reasoning';
 export const DOMAINS: readonly DomainId[] = ['language', 'code', 'reasoning'];
 
@@ -183,12 +186,16 @@ export interface Mail {
   autoChosen?: boolean; // вариант выбран сам, потому что срок ответа истёк
 }
 
-export type ModifierKind = 'rentPrice' | 'rentCap' | 'demand' | 'researchCost' | 'labBrand';
+/**
+ * rivalPrice: target - LabId; mult - множитель цен лаборатории, add - доля опорной цены как нижняя граница.
+ * exposure: target - id модели игрока или без target; mult к шансу разоблачения.
+ */
+export type ModifierKind = 'rentPrice' | 'rentCap' | 'demand' | 'researchCost' | 'labBrand' | 'rivalPrice' | 'exposure';
 
 export interface Modifier {
   id: string;
   kind: ModifierKind;
-  target?: string; // GpuId / TechId / LabId - если модификатор не глобальный
+  target?: string; // GpuId / TechId / LabId / id модели игрока - если модификатор не глобальный
   mult?: number;
   add?: number;
   untilDay: number; // включительно; Number.MAX_SAFE_INTEGER - навсегда
@@ -251,6 +258,10 @@ export interface GameState {
   };
   /** Обучение для новичков: номер текущего шага (с 0) и включено ли оно. */
   tutorial: { step: number; active: boolean };
+  /** Сложность выбирается в главном меню и не меняется за игру (rivalry.DIFFICULTY). */
+  difficulty: Difficulty;
+  /** Соперники с характерами: накал, ходы, поправки к моделям, память (rivalry.ts). */
+  rivalry: RivalryState;
   market: {
     shares: Record<string, number>; // ключ: 'player:<id>' | 'rival:<id>' | 'none'; доли после ограничения мощностью
     labShares: Record<HypeOwner | 'none', number>; // тоже после ограничения мощностью

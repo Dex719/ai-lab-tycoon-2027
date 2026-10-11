@@ -7,7 +7,7 @@ vi.mock('./training', () => ({ applyFailChoice: vi.fn() }));
 // marketArenaRank нужен оценке инвесторов (письмо совета директоров называет цену выкупа): моделей на рынке нет.
 vi.mock('./leaderboard', () => ({ bestElo: vi.fn(() => 1000), marketArenaRank: vi.fn(() => null) }));
 
-import { EVENTS, money, pointsWord } from '../data/events';
+import { EVENTS, findEvent, money, pointsWord } from '../data/events';
 import { LABS } from '../data/labs';
 import { rentCapFor, rentPerGpuDay } from './compute';
 import {
@@ -41,6 +41,7 @@ import {
 import { bestElo } from './leaderboard';
 import { labBrand } from './market';
 import { techCost } from './research';
+import { RIVALRY_EVENTS } from './rivalry';
 import { createInitialState } from './state';
 import { dateToDay, END_DAY } from './time';
 import { applyFailChoice } from './training';
@@ -1097,6 +1098,80 @@ describe('модификаторы читают настоящие потреб�
       expect(labBrand(s, lab.id), lab.id).toBeCloseTo(before[lab.id] + (lab.chinese ? EXPORT_CONTROL_BRAND : 0), 10);
     }
     expect(labBrand(s, 'player')).toBe(player0);
+  });
+});
+
+describe('письма с выбором соперников (findEvent, RIVALRY_EVENTS)', () => {
+  it('findEvent находит события каталога и письма соперников; EVENTS писем соперников не содержит', () => {
+    expect(RIVALRY_EVENTS.map((e) => e.id).sort()).toEqual(['rival-audit', 'rival-hype', 'rival-poach']);
+    expect(findEvent('gpt2-withheld')?.id).toBe('gpt2-withheld');
+    for (const def of RIVALRY_EVENTS) {
+      expect(findEvent(def.id)).toBe(def);
+      expect(def.repeatable).toBe(true);
+      expect(EVENTS.some((e) => e.id === def.id)).toBe(false);
+    }
+    expect(findEvent('нет-такого')).toBeUndefined();
+    expect(findEvent(undefined)).toBeUndefined();
+  });
+
+  it('fireDue письма соперников не запускает никогда', () => {
+    const s = newState();
+    s.day = END_DAY;
+    fireDue(s);
+    expect(s.mail.some((m) => m.eventId?.startsWith('rival-'))).toBe(false);
+    expect(s.firedEvents.some((id) => id.startsWith('rival-'))).toBe(false);
+  });
+
+  it('triggerEvent письма соперника: повторяемое, с выбором, отложить и дождаться срока можно', () => {
+    const s = newState();
+    s.day = 100;
+    s.rivalry.choice = { lab: 'gogle' };
+    triggerEvent(s, 'rival-poach');
+    expect(s.firedEvents).toEqual([]);
+    const m = pendingChoice(s)!;
+    expect(m.eventId).toBe('rival-poach');
+    expect(m.kind).toBe('rival');
+    expect(m.title).toContain('Gogle');
+    expect(m.choices).toHaveLength(2);
+    expect(m.replyByDay).toBe(100 + CHOICE_DAYS);
+    expect(m.defaultChoice).toBe(1);
+    expect(deferChoice(s, m.id)).toEqual({ ok: true });
+    expect(pendingChoice(s)).toBeNull();
+    expect(awaitingEvent(s, 'rival-poach')).toBe(true);
+    s.day = m.replyByDay!;
+    expireChoices(s);
+    expect(m.chosen).toBe(1); // «Отпустить»: исследования дороже на 25 % на 180 дней
+    expect(m.autoChosen).toBe(true);
+    expect(modValue(s, 'researchCost').mult).toBeCloseTo(1.25, 10);
+    s.day += 181;
+    expect(modValue(s, 'researchCost').mult).toBe(1);
+    // второй раз письмо приходит снова
+    triggerEvent(s, 'rival-poach');
+    expect(s.mail.filter((x) => x.eventId === 'rival-poach')).toHaveLength(2);
+  });
+
+  it('рекламная кампания соперника: «Ответная кампания» списывает деньги и даёт +15 шумихи', () => {
+    const s = newState();
+    const cash = s.cash;
+    choose(s, 'rival-hype', 0); // в 2017 году рост цен за годы ×1: $300 тыс.
+    expect(s.cash).toBe(cash - 300_000);
+    expect(s.finance.month.expense.overhead).toBe(300_000);
+    expect(s.hype.player).toBe(15);
+    const t = newState();
+    choose(t, 'rival-hype', 1);
+    expect(t.cash).toBe(cash);
+    expect(t.hype.player).toBe(0);
+  });
+
+  it('проверка баллов без модели в контексте не падает; dropChoices снимает письмо соперника', () => {
+    const s = newState();
+    triggerEvent(s, 'rival-audit');
+    const m = pendingChoice(s)!;
+    expect(m.eventId).toBe('rival-audit');
+    expect(m.body).not.toMatch(/undefined|NaN/);
+    dropChoices(s, 'rival-audit', 'Решение не требуется.');
+    expect(awaitingEvent(s, 'rival-audit')).toBe(false);
+    expect(pendingChoice(s)).toBeNull();
   });
 });
 

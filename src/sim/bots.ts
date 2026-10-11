@@ -3,12 +3,15 @@
 import { newGame, releaseModel, setOnApi } from './actions';
 import { activeBenchmarks } from './benchmarks';
 import { availableGpus, pool, rentCapFor, rentMaxFor, rentPerGpuDay, setAllocation, setRent, totalH100e } from './compute';
-import { FAIL_ROLLBACK, MAX_TOKENS_B, RENT_OVER_CAP_MULT, TRAIN_FLOP_PER_H100E_DAY } from './constants';
+import { FAIL_ROLLBACK, MAX_TOKENS_B, RENT_OVER_CAP_MULT, ROUND_COOLDOWN_DAYS, TRAIN_FLOP_PER_H100E_DAY } from './constants';
 import { applyTender, canApply } from './contracts';
 import { applyChoice, pendingChoice } from './events';
+import { overheadPerDay } from './finance';
 import { canRaise, raiseRound } from './investors';
 import { inferenceNeed, marketSnapshot, refPrice } from './market';
 import { canResearch, maxContext, setResearch, techHistoryDay, yearsEarly } from './research';
+import { botPriceReflex } from './rivalry';
+import type { Difficulty } from './rivalry';
 import { advanceDay } from './tick';
 import { byYear, END_DAY, yearOf } from './time';
 import { archFor, arenaElo, capsFromPlan, contextFlopMult, labelersCost, startTraining } from './training';
@@ -36,6 +39,9 @@ const BOT_RLHF_YEARS_EARLY = 0.5;
 const BOT_MIN_TRAIN_DAYS = 20;
 // Не больше такой доли мощности уходит на контракты; заявки подаются, пока работа помещается в эту долю.
 const BOT_CONTRACTS_MAX_SHARE = 0.5;
+// Запас денег: кассы с выручкой API должно хватать на аренду и накладные до следующего возможного раунда,
+// но не меньше чем на столько дней (BANKRUPT_DAYS в минусе - банкротство).
+const BOT_RUNWAY_DAYS = 60;
 
 function nextTech(s: GameState): TechId {
   const done = (t: TechId) => s.research.done.includes(t);
@@ -63,9 +69,35 @@ export function affordableRent(s: GameState, id: GpuId, budgetPerDay: number): n
   return Math.min(rentMaxFor(s, id), count);
 }
 
-/** Дневной бюджет аренды: доля денег за 120 дней плюс доля выручки. */
+/** Дней до следующего возможного раунда инвестиций (0 - раунд доступен сейчас). */
+function daysToRound(s: GameState): number {
+  return s.lastRoundDay === null ? 0 : Math.max(0, s.lastRoundDay + ROUND_COOLDOWN_DAYS - s.day);
+}
+
+/** Оплата активных контрактов со сроком в пределах горизонта: карты под них арендуются, сдача - до срока. */
+function contractPayoutsDue(s: GameState, horizon: number): number {
+  let sum = 0;
+  for (const c of s.contracts) if (c.deadlineDay <= s.day + horizon) sum += c.tender.payment;
+  return sum;
+}
+
+/**
+ * Потолок аренды в день, чтобы дожить до следующего раунда (или конца игры, но не меньше BOT_RUNWAY_DAYS):
+ * касса с оплатой контрактов на горизонт плюс выручка API за последний закрытый месяц минус накладные.
+ * Ближние BOT_RUNWAY_DAYS покрывает одна касса: оплата приходит в конце работы. Средняя выручка за 30 дней
+ * сюда не идёт: разовую оплату контракта бот «проедал» арендой и уходил в минус.
+ */
+function runwayRentPerDay(s: GameState): number {
+  const horizon = Math.max(BOT_RUNWAY_DAYS, Math.min(daysToRound(s), END_DAY - s.day));
+  const perDay = Math.min(s.cash / BOT_RUNWAY_DAYS, (s.cash + contractPayoutsDue(s, horizon)) / horizon);
+  const apiPerDay = (s.finance.history.at(-1)?.income.api ?? 0) / 30;
+  return perDay + apiPerDay - overheadPerDay(s);
+}
+
+/** Дневной бюджет аренды: доля денег за 120 дней плюс доля выручки, не выше потолка запаса денег. */
 function rentBudget(s: GameState, p: BotProfile): number {
-  return Math.max(0, (s.cash * p.rentShareOfCash) / 120 + p.revenueReinvest * avgDailyRevenue(s, 30));
+  const wanted = (s.cash * p.rentShareOfCash) / 120 + p.revenueReinvest * avgDailyRevenue(s, 30);
+  return Math.max(0, Math.min(wanted, runwayRentPerDay(s)));
 }
 
 /** Самый дешёвый по H100e тип карт и сколько их помещается в бюджет; null - карт ещё нет. */
@@ -225,6 +257,8 @@ function manageInvestors(s: GameState, p: BotProfile): void {
 export function botAct(s: GameState, kind: BotKind): void {
   if (kind === 'idle') return;
   const p = PROFILES[kind];
+  // Единственный ответ бота на ходы соперников: доля за месяц упала на четверть - цены моделей на API ×0,85.
+  botPriceReflex(s);
   const tech = nextTech(s);
   if (s.research.current !== tech && canResearch(s, tech)) setResearch(s, tech);
   manageRent(s, p);
@@ -253,9 +287,9 @@ export function botChoice(s: GameState, eventId: string | undefined): number {
   return daysAfterRollback > END_DAY - s.day - 3 ? 1 : 0;
 }
 
-/** Прогнать всю игру ботом. Выбор в почте - botChoice. */
-export function runBot(kind: BotKind, seed: number, maxDays = 4000): BotResult {
-  const s = newGame('Бот', seed);
+/** Прогнать всю игру ботом. Выбор в почте - botChoice. Опоры баланса считаются на Обычной сложности. */
+export function runBot(kind: BotKind, seed: number, maxDays = 4000, difficulty: Difficulty = 'normal'): BotResult {
+  const s = newGame('Бот', seed, difficulty);
   let days = 0;
   while (!s.outcome && days < maxDays) {
     const pending = pendingChoice(s);

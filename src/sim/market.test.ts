@@ -17,6 +17,8 @@ import {
   refQuality,
   servedShares,
 } from './market';
+import { addRivalModifier, emptyRivalry } from './rivalry';
+import type { RivalryGame } from './rivalry';
 import { createInitialState } from './state';
 import { END_DAY, dateToDay } from './time';
 import type { GameState, PlayerModel, RivalModelDef } from './types';
@@ -39,8 +41,11 @@ vi.mock('./compute', async (importOriginal) => ({
 const MID_2024 = dateToDay('2024-06-01');
 const BEFORE_ARENA = dateToDay('2023-01-01');
 
-function makeState(day = MID_2024): GameState {
-  const s = createInitialState('Тест', 1);
+/** Состояние с полями соперников (до интеграции createInitialState их не задаёт). */
+function makeState(day = MID_2024): RivalryGame {
+  const s = createInitialState('Тест', 1) as RivalryGame;
+  if (!s.rivalry) s.rivalry = emptyRivalry();
+  if (!s.difficulty) s.difficulty = 'normal';
   s.day = day;
   return s;
 }
@@ -950,5 +955,50 @@ describe('контекст на рынке', () => {
     rivalState.list = [];
     dayStep(s);
     expect(s.models[0].earned).toBeGreaterThan(0);
+  });
+});
+
+describe('поправки ходов соперников в снимке', () => {
+  it('модификатор rivalPrice снижает цену моделей лаборатории, но не ниже границы; доля растёт', () => {
+    const s = makeState();
+    rivalState.list = [rival(), rival({ id: 'r2', lab: 'gogle', gameName: 'Гем-1' })];
+    const before = marketSnapshot(s).entries.find((e) => e.key === 'rival:r1')!;
+    addRivalModifier(s, { id: 'rivalprice-openbrain', kind: 'rivalPrice', target: 'openbrain', mult: 0.5, add: 0.3, untilDay: FOREVER });
+    const snap = marketSnapshot(s);
+    const r1 = snap.entries.find((e) => e.key === 'rival:r1')!;
+    const r2 = snap.entries.find((e) => e.key === 'rival:r2')!;
+    const floor = Math.max(minPrice(s.day), 0.3 * refPrice(s.day));
+    expect(r1.price).toBeCloseTo(Math.max(minPrice(s.day), Math.max(3 * 0.5, Math.min(3, floor))), 9);
+    expect(r1.price).toBeLessThan(3);
+    expect(r2.price).toBeCloseTo(3, 9); // другая лаборатория
+    expect(r1.share).toBeGreaterThan(before.share);
+  });
+
+  it('истёкший модификатор rivalPrice не действует', () => {
+    const s = makeState();
+    rivalState.list = [rival()];
+    addRivalModifier(s, { id: 'old', kind: 'rivalPrice', target: 'openbrain', mult: 0.5, add: 0.3, untilDay: s.day - 1 });
+    expect(marketSnapshot(s).entries[0].price).toBeCloseTo(3, 9);
+  });
+
+  it('поправки eloAdd и context входят в Эло, качество и контекст записи', () => {
+    const s = makeState();
+    rivalState.list = [rival()];
+    s.rivalry.overrides.r1 = { eloAdd: 50, context: 128000 };
+    const [e] = marketSnapshot(s).entries;
+    expect(e.elo).toBe(1200);
+    expect(e.quality).toBeCloseTo(1200, 9);
+    expect(e.context).toBe(128000);
+    expect(e.utility).toBeGreaterThan(0);
+  });
+
+  it('цена ответной модели (overrides.price) падает вместе с рынком от дня выхода (extra)', () => {
+    const s = makeState();
+    rivalState.list = [rival()];
+    s.rivalry.extra.r1 = s.day - 100;
+    s.rivalry.overrides.r1 = { price: 1 };
+    const [e] = marketSnapshot(s).entries;
+    expect(e.price).toBeCloseTo(refPrice(s.day) / refPrice(s.day - 100), 9);
+    expect(e.price).toBeLessThan(1);
   });
 });

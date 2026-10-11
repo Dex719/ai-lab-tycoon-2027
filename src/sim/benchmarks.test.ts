@@ -15,6 +15,8 @@ vi.mock('./events', () => ({
     s.mail.push(mail);
     return mail;
   },
+  // Модуль соперников (state.ts → rivalry.ts) читает FOREVER при загрузке.
+  FOREVER: Number.MAX_SAFE_INTEGER,
 }));
 
 function newState(day = 0): GameState {

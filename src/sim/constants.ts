@@ -7,6 +7,9 @@ export const START_DATE = '2017-01-01';
 export const END_DATE = '2024-12-31';
 export const START_CASH = 3_000_000;
 export const START_REPUTATION = 20;
+/** «Навсегда»: untilDay модификаторов и перерывов ходов соперников. Живёт здесь, а не в events.ts, потому что
+ * rivalry.ts читает его на верхнем уровне модуля внутри цикла sim/events → data/events → sim/rivalry → sim/events. */
+export const FOREVER = Number.MAX_SAFE_INTEGER;
 export const DEFAULT_ALLOC: Allocation = { training: 0.4, contracts: 0.2, experiments: 0.4, inference: 0 };
 
 // Время (FR-1)

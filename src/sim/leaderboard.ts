@@ -4,7 +4,8 @@ import { RIVAL_MODELS } from '../data/rivalModels';
 import { activeBenchmarks, benchDef, introducedBenchmarks } from './benchmarks';
 import { HYPE_ARENA_TOP_BONUS, HYPE_RANK_BONUS } from './constants';
 import { addMail } from './events';
-import { findRivalDef, marketRivals, rivalDay, rivalScore } from './rivals';
+import { findRivalDef, marketRivals, rivalDay, rivalEloEstimated, rivalScore } from './rivals';
+import { rivalDayIn, rivalEloIn } from './rivalry';
 import { END_DAY } from './time';
 import { modelScore } from './training';
 import type { BenchmarkId, GameState, HypeOwner, ModelRef, PlayerModel, RivalModelDef } from './types';
@@ -36,14 +37,17 @@ interface Entry {
   model: PlayerModel | null;
 }
 
-/** Все выпущенные модели: соперники в порядке выхода, затем модели игрока. Неизвестные id каталога пропускаются. */
+/**
+ * Все выпущенные модели: соперники (каталог и ответные модели) в порядке выхода, затем модели игрока.
+ * День выхода и Эло соперников - с поправками ходов (rivalDayIn, rivalEloIn). Неизвестные id пропускаются.
+ */
 function entries(s: GameState): Entry[] {
   const out: Entry[] = [];
   let order = 0;
   for (const id of s.rivalsReleased) {
     const def = findRivalDef(id);
     if (!def) continue;
-    out.push({ ref: { kind: 'rival', id }, owner: def.lab, releasedDay: rivalDay(def), order: order++, elo: def.arenaElo, rival: def, model: null });
+    out.push({ ref: { kind: 'rival', id }, owner: def.lab, releasedDay: rivalDayIn(s, def), order: order++, elo: rivalEloIn(s, def), rival: def, model: null });
   }
   for (const m of s.models) {
     if (m.releasedDay === null) continue;
@@ -120,7 +124,7 @@ export function leaderboard(s: GameState): BoardRow[] {
         releasedDay: e.releasedDay,
         scores,
         elo: e.elo,
-        eloEstimated: e.rival.arenaEstimated,
+        eloEstimated: rivalEloEstimated(s, e.rival), // «≈»: оценочное Эло каталога или поправка хода соперника
         flagged: e.rival.contaminated,
         exposed: false,
         onMarket: market.has(e.rival.id),
@@ -164,6 +168,7 @@ export function marketArenaRank(s: GameState, ref: ModelRef): number | null {
 /**
  * Планка победы: наибольшее Эло среди моделей соперников с API (не announcedOnly), которые выйдут
  * до конца игры включительно. Столько нужно обойти к 31.12.2024; от текущего состояния не зависит.
+ * Считается по каталогу без поправок и ответных моделей (в интерфейсе: «или выше, если соперники ускорятся»).
  */
 export function expectedLeaderElo(_s: GameState): number {
   let best = 0;
@@ -186,7 +191,7 @@ export function releaseHypeBonus(s: GameState, ref: ModelRef): number {
   return bonus;
 }
 
-/** Лучший Эло среди выпущенных моделей владельца (или 0). */
+/** Лучший Эло среди выпущенных моделей владельца (или 0); у соперников - с поправками ходов (rivalEloIn). */
 export function bestElo(s: GameState, owner: HypeOwner): number {
   let best = 0;
   if (owner === 'player') {
@@ -195,7 +200,9 @@ export function bestElo(s: GameState, owner: HypeOwner): number {
   }
   for (const id of s.rivalsReleased) {
     const def = findRivalDef(id);
-    if (def && def.lab === owner && def.arenaElo > best) best = def.arenaElo;
+    if (!def || def.lab !== owner) continue;
+    const elo = rivalEloIn(s, def);
+    if (elo > best) best = elo;
   }
   return best;
 }

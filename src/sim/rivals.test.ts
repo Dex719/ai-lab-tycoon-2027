@@ -3,29 +3,42 @@ import { LABS } from '../data/labs';
 import { RIVAL_MODELS } from '../data/rivalModels';
 import { benchDef, benchScore, capFromScore, introduceDue } from './benchmarks';
 import { HYPE_ARENA_TOP_BONUS, HYPE_RANK_BONUS, MARKET_MAX_AGE_DAYS, MARKET_MODELS_PER_LAB } from './constants';
-import { refPrice } from './market';
+import { FOREVER } from './events';
+import { marketSnapshot, refPrice } from './market';
 import {
   catalogPrice,
   findRivalDef,
   marketRivals,
   releaseDue,
+  releaseRival,
   rivalCaps,
   rivalDay,
   rivalDef,
+  rivalEloEstimated,
   rivalPrice,
   rivalPriceDecay,
   rivalScore,
 } from './rivals';
+import { addRivalModifier, emptyRivalry, rivalPriceIn } from './rivalry';
+import type { RivalryGame } from './rivalry';
 import { createInitialState } from './state';
 import { byYear, dateToDay, END_DAY, yearOf } from './time';
 import { BENCHMARK_IDS, DOMAINS, LAB_IDS } from './types';
-import type { BenchmarkId, GameState, RivalModelDef } from './types';
+import type { BenchmarkId, RivalModelDef } from './types';
 
 // ---------- Помощники ----------
 
+/** Новое состояние с полями соперников: до интеграции createInitialState их не задаёт. */
+function newState(): RivalryGame {
+  const s = createInitialState('Тест', 1) as RivalryGame;
+  if (!s.rivalry) s.rivalry = emptyRivalry();
+  if (!s.difficulty) s.difficulty = 'normal';
+  return s;
+}
+
 /** Состояние на указанную дату: каждый день как в тике - бенчмарки, затем выходы моделей. */
-function stateAt(date: string, hook?: (s: GameState, day: number) => void): GameState {
-  const s = createInitialState('Тест', 1);
+function stateAt(date: string, hook?: (s: RivalryGame, day: number) => void): RivalryGame {
+  const s = newState();
   const last = dateToDay(date);
   for (let d = 0; d <= last; d++) {
     s.day = d;
@@ -154,6 +167,29 @@ describe('rivalDef', () => {
 
   it('rivalDay совпадает с dateToDay от даты выхода', () => {
     for (const m of RIVAL_MODELS) expect(rivalDay(m)).toBe(dateToDay(m.released));
+  });
+
+  it('находит шаблон ответной модели (rivalry.reactiveDefs), каталог - первым', () => {
+    const t = findRivalDef('mv-deepcent-1')!;
+    expect(t).toBeDefined();
+    expect(RIVAL_MODELS.some((m) => m.id === 'mv-deepcent-1')).toBe(false);
+    expect(t.lab).toBe('deepcent');
+    expect(t.gameName).toBe('DeepSeak LLM Lito');
+    expect(t.realName).toBe(byId('deepseak-llm-67b').realName);
+    expect(t.arenaEstimated).toBe(true);
+    expect(rivalDef('mv-deepcent-1')).toBe(t);
+    expect(findRivalDef('mv-deepcent-1')).toBe(t); // один и тот же объект при повторном поиске
+    expect(findRivalDef('gtp-4')).toBe(RIVAL_MODELS.find((m) => m.id === 'gtp-4'));
+  });
+
+  it('rivalEloEstimated: оценочное Эло каталога или поправка eloAdd', () => {
+    const s = newState();
+    expect(rivalEloEstimated(s, byId('gtp-4'))).toBe(false);
+    expect(rivalEloEstimated(s, byId('gtp-3'))).toBe(true);
+    s.rivalry.overrides['gtp-4'] = { eloAdd: 10 };
+    expect(rivalEloEstimated(s, byId('gtp-4'))).toBe(true);
+    s.rivalry.overrides['gtp-4'] = { dayShift: -10 };
+    expect(rivalEloEstimated(s, byId('gtp-4'))).toBe(false);
   });
 });
 
@@ -467,13 +503,114 @@ describe('releaseDue', () => {
   });
 
   it('догоняет пропущенные выходы: на поздней дате вышли все прежние модели', () => {
-    const s = createInitialState('Тест', 1);
+    const s = newState();
     s.day = dateToDay('2021-01-01');
     for (const b of BENCHMARK_IDS) if (dateToDay(benchDef(b).introduced) <= s.day) s.benchmarks[b].introduced = true;
     releaseDue(s);
     const expected = RIVAL_MODELS.filter((m) => dateToDay(m.released) <= s.day).map((m) => m.id);
     expect(s.rivalsReleased.slice().sort()).toEqual(expected.slice().sort());
     expect(s.mail.filter((m) => m.kind === 'rival')).toHaveLength(expected.length);
+  });
+});
+
+describe('releaseDue и releaseRival: поправки ходов соперников', () => {
+  const fmtPrice = (x: number): string => `$${String(Number(x.toFixed(2))).replace('.', ',')}`;
+
+  it('сдвиг дня выхода (dayShift < 0): модель выходит раньше, в письме «на N дней раньше» и «≈» у Эло', () => {
+    const gtp4o = byId('gtp-4o');
+    const born = rivalDay(gtp4o);
+    const shifted = born - 30;
+    const hook = (s: RivalryGame): void => {
+      s.rivalry.overrides['gtp-4o'] = { dayShift: -30, eloAdd: 15 };
+    };
+    const before = stateAt('2024-04-12', hook);
+    expect(before.day).toBe(shifted - 1);
+    expect(before.rivalsReleased).not.toContain('gtp-4o');
+
+    const s = stateAt('2024-04-13', hook);
+    expect(s.day).toBe(shifted);
+    expect(s.rivalsReleased).toContain('gtp-4o');
+    const mail = s.mail.find((m) => m.title === 'OpenBrain выпустила GTP-4o')!;
+    expect(mail.day).toBe(shifted);
+    expect(mail.body.startsWith('Вышла на 30 дней раньше, чем ожидалось. ')).toBe(true);
+    expect(mail.body).toContain(`Эло на «Арене» - ≈${gtp4o.arenaElo + 15}.`);
+    expect(mail.body).toContain('Цена API - $5 за 1 млн входных и $15 за 1 млн выходных токенов.');
+    expect(mail.body).not.toMatch(/NaN|undefined/);
+
+    // В свой каталожный день повторно не выходит (другие модели этого месяца выходят как обычно).
+    s.day = born;
+    releaseDue(s);
+    expect(s.rivalsReleased.filter((id) => id === 'gtp-4o')).toHaveLength(1);
+    expect(s.mail.filter((m) => m.title === 'OpenBrain выпустила GTP-4o')).toHaveLength(1);
+  });
+
+  it('склонение: «1 день», «3 дня», «21 день», «45 дней»', () => {
+    const gtp4o = byId('gtp-4o');
+    const born = rivalDay(gtp4o);
+    for (const [shift, word] of [[1, '1 день'], [3, '3 дня'], [21, '21 день'], [45, '45 дней']] as [number, string][]) {
+      const s = newState();
+      s.day = born - shift;
+      s.rivalry.overrides['gtp-4o'] = { dayShift: -shift };
+      releaseDue(s);
+      const mail = s.mail.find((m) => m.title === 'OpenBrain выпустила GTP-4o')!;
+      expect(mail.body, word).toContain(`Вышла на ${word} раньше, чем ожидалось.`);
+    }
+  });
+
+  it('без сдвига письмо как прежде: нет «раньше», Эло без «≈» у точного каталожного', () => {
+    const s = stateAt('2024-05-13');
+    const mail = s.mail.find((m) => m.title === 'OpenBrain выпустила GTP-4o')!;
+    expect(mail.body).not.toContain('раньше');
+    expect(mail.body).toContain('Эло на «Арене» - 1285.');
+  });
+
+  it('модификатор rivalPrice лаборатории: в письме одна фактическая цена', () => {
+    const s = stateAt('2024-05-12');
+    addRivalModifier(s, { id: 'rivalprice-openbrain', kind: 'rivalPrice', target: 'openbrain', mult: 0.5, add: 0.3, untilDay: FOREVER });
+    s.day = dateToDay('2024-05-13');
+    introduceDue(s);
+    releaseDue(s);
+    const gtp4o = byId('gtp-4o');
+    const price = rivalPriceIn(s, gtp4o);
+    expect(price).toBeLessThan(rivalPrice(gtp4o, s.day));
+    const mail = s.mail.find((m) => m.title === 'OpenBrain выпустила GTP-4o')!;
+    expect(mail.body).toContain(`Цена API - ${fmtPrice(price)} за 1 млн токенов.`);
+    expect(mail.body).not.toContain('входных');
+  });
+
+  it('releaseRival выпускает ответную модель по шаблону: письмо с Эло и ценой из поправок, без повтора', () => {
+    const s = stateAt('2024-01-10');
+    const def = findRivalDef('mv-deepcent-1')!;
+    s.rivalry.extra[def.id] = s.day;
+    s.rivalry.overrides[def.id] = { eloAdd: -40, price: 0.5, context: 32000 };
+    const mails = s.mail.length;
+    const hype = s.hype.deepcent;
+
+    expect(releaseRival(s, def)).toBe(true);
+    expect(s.rivalsReleased).toContain(def.id);
+    const mail = s.mail[s.mail.length - 1];
+    expect(mail.kind).toBe('rival');
+    expect(mail.title).toBe('DeepCent выпустила DeepSeak LLM Lito');
+    expect(mail.body).toContain(`Эло на «Арене» - ≈${Math.round(def.arenaElo - 40)}.`);
+    expect(mail.body).toContain('Цена API - $0,5 за 1 млн токенов.');
+    expect(mail.body).not.toContain('раньше');
+    expect(mail.body).not.toMatch(/NaN|undefined|null/);
+    expect(s.hype.deepcent).toBeGreaterThanOrEqual(hype);
+
+    expect(releaseRival(s, def)).toBe(false);
+    expect(s.mail).toHaveLength(mails + 1);
+    expect(s.rivalsReleased.filter((id) => id === def.id)).toHaveLength(1);
+    // Шаблоны releaseDue не выпускает: второго экземпляра нет и после него.
+    releaseDue(s);
+    expect(s.rivalsReleased.filter((id) => id === def.id)).toHaveLength(1);
+  });
+
+  it('releaseRival: модель каталога, вышедшая до старта игры, появляется молча', () => {
+    const s = newState();
+    const def: RivalModelDef = { ...byId('gtp-3'), id: 'old-x', gameName: 'Old-X', released: '2016-12-01' };
+    expect(releaseRival(s, def)).toBe(true);
+    expect(s.rivalsReleased).toEqual(['old-x']);
+    expect(s.mail).toHaveLength(0);
   });
 });
 
@@ -498,7 +635,7 @@ describe('releaseDue: модели до старта игры', () => {
     vi.doMock('../data/rivalModels', () => ({ RIVAL_MODELS: [old, fresh, future] }));
     const rivals = await import('./rivals');
 
-    const s = createInitialState('Тест', 1);
+    const s = newState();
     s.day = 0;
     rivals.releaseDue(s);
     expect(s.rivalsReleased).toEqual(['old-1', 'new-1']);
@@ -576,7 +713,7 @@ describe('marketRivals', () => {
   it('граница возраста: ровно три года ещё на рынке, на день больше - уже нет', () => {
     const gtp3 = byId('gtp-3');
     const born = dateToDay(gtp3.released);
-    const s = createInitialState('Тест', 1);
+    const s = newState();
     s.rivalsReleased = ['gtp-3'];
     s.day = born + MARKET_MAX_AGE_DAYS;
     expect(marketRivals(s).map((d) => d.id)).toEqual(['gtp-3']);
@@ -585,7 +722,7 @@ describe('marketRivals', () => {
   });
 
   it('невыпущенные модели и неизвестные id не попадают на рынок', () => {
-    const s = createInitialState('Тест', 1);
+    const s = newState();
     s.day = END_DAY;
     expect(marketRivals(s)).toEqual([]);
     s.rivalsReleased = ['нет-такой', 'deepseak-v3'];
@@ -600,5 +737,73 @@ describe('marketRivals', () => {
     expect(a).toContain('clade-2-1');
     expect(b).not.toContain('clade-2-1');
     expect(b).toContain('clade-3-5-sonet-new');
+  });
+});
+
+describe('marketRivals и снимок рынка: поправки ходов и ответные модели', () => {
+  it('возраст на рынке считается по сдвинутому дню выхода', () => {
+    const gtp3 = byId('gtp-3');
+    const born = rivalDay(gtp3);
+    const s = newState();
+    s.rivalsReleased = ['gtp-3'];
+    s.day = born + MARKET_MAX_AGE_DAYS;
+    expect(marketRivals(s).map((d) => d.id)).toEqual(['gtp-3']);
+    s.rivalry.overrides['gtp-3'] = { dayShift: -1 };
+    expect(marketRivals(s)).toEqual([]);
+  });
+
+  it('при равной дате порядок по Эло с поправкой eloAdd', () => {
+    const s = stateAt('2024-12-31');
+    expect(marketRivals(s).filter((d) => d.lab === 'openbrain').map((d) => d.id)).toEqual(['q1', 'q1-previow', 'q1-mino']);
+    s.rivalry.overrides['q1-mino'] = { eloAdd: 200 }; // 1305 + 200 > 1335
+    expect(marketRivals(s).filter((d) => d.lab === 'openbrain').map((d) => d.id)).toEqual(['q1', 'q1-mino', 'q1-previow']);
+  });
+
+  it('ответная модель из rivalsReleased на рынке: новее всех по дню выхода (extra), в пределах лимита лаборатории', () => {
+    const s = stateAt('2024-07-01');
+    const def = findRivalDef('mv-deepcent-1')!;
+    s.rivalry.extra[def.id] = s.day;
+    s.rivalry.overrides[def.id] = { eloAdd: -40, price: 0.5 };
+    s.rivalsReleased.push(def.id);
+    const deep = marketRivals(s).filter((d) => d.lab === 'deepcent').map((d) => d.id);
+    expect(deep[0]).toBe(def.id);
+    expect(deep).toHaveLength(MARKET_MODELS_PER_LAB);
+    // Через три года с лишним её тоже вытесняет возраст.
+    s.day = s.rivalry.extra[def.id] + MARKET_MAX_AGE_DAYS + 1;
+    expect(marketRivals(s).map((d) => d.id)).not.toContain(def.id);
+  });
+
+  it('шаблон из rivalsReleased попадает в marketSnapshot с ценой, Эло и контекстом из поправок', () => {
+    const s = stateAt('2024-07-01');
+    const def = findRivalDef('mv-deepcent-1')!;
+    s.rivalry.extra[def.id] = s.day;
+    s.rivalry.overrides[def.id] = { eloAdd: -40, price: 0.5, context: 32000 };
+    s.rivalsReleased.push(def.id);
+    const e = marketSnapshot(s).entries.find((x) => x.key === `rival:${def.id}`)!;
+    expect(e).toBeDefined();
+    expect(e.ref).toEqual({ kind: 'rival', id: def.id });
+    expect(e.owner).toBe('deepcent');
+    expect(e.name).toBe('DeepSeak LLM Lito');
+    expect(e.elo).toBe(def.arenaElo - 40);
+    expect(e.price).toBeCloseTo(0.5, 9);
+    expect(e.context).toBe(32000);
+    expect(e.share).toBeGreaterThan(0);
+  });
+
+  it('модификатор rivalPrice снижает цену моделей лаборатории в снимке; поправка eloAdd входит в Эло', () => {
+    const s = stateAt('2024-06-01');
+    const gtp4o = byId('gtp-4o');
+    const at = (key: string) => marketSnapshot(s).entries.find((e) => e.key === key)!;
+    expect(at('rival:gtp-4o').price).toBeCloseTo(rivalPrice(gtp4o, s.day), 9);
+    expect(at('rival:gtp-4o').elo).toBe(gtp4o.arenaElo);
+
+    addRivalModifier(s, { id: 'rivalprice-openbrain', kind: 'rivalPrice', target: 'openbrain', mult: 0.5, add: 0.3, untilDay: FOREVER });
+    s.rivalry.overrides['gtp-4o'] = { eloAdd: 20 };
+    expect(at('rival:gtp-4o').price).toBeCloseTo(rivalPriceIn(s, gtp4o), 9);
+    expect(at('rival:gtp-4o').price).toBeLessThan(rivalPrice(gtp4o, s.day));
+    expect(at('rival:gtp-4o').elo).toBe(gtp4o.arenaElo + 20);
+    // Другая лаборатория цену не меняет.
+    const opus = byId('clade-3-opos');
+    expect(at('rival:clade-3-opos').price).toBeCloseTo(rivalPrice(opus, s.day), 9);
   });
 });

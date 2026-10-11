@@ -9,7 +9,7 @@ import { BANKRUPT_DAYS } from './constants';
 import { applyChoice, pendingChoice } from './events';
 import { expectedLeaderElo } from './leaderboard';
 import { deserialize, serialize } from './save';
-import { advanceDay, playerBestArenaRank } from './tick';
+import { advanceDay, blockedByChoice, playerBestArenaRank } from './tick';
 import { dateToDay, END_DAY } from './time';
 import type { GameState, PlayerModel } from './types';
 
@@ -224,8 +224,45 @@ describe('письма за всю партию', () => {
     expect(important).toContain('Модель готова');
     expect(important).toContain('Тендер выигран');
     expect(important).toContain('Подгонка раскрыта');
-    // обычные письма без пометки: выход бенчмарка, выход модели соперника
+    // обычные письма без пометки: выход бенчмарка, выход модели соперника, слухи и ходы соперников;
+    // с пометкой - только письма соперников с выбором (проверка баллов, кампания, переманивание)
     expect(s.mail.filter((m) => m.kind === 'benchmark').every((m) => !m.important)).toBe(true);
-    expect(s.mail.filter((m) => m.kind === 'rival').every((m) => !m.important)).toBe(true);
+    expect(s.mail.filter((m) => m.kind === 'rival').every((m) => !!m.important === !!m.choices)).toBe(true);
+  });
+});
+
+describe('соперники с характерами в тике', () => {
+  it('слух срабатывает в свой день: письмо с выбором, запись в истории, активный ход истекает', () => {
+    const s = stateOn(D('2023-03-10'));
+    s.models = [apiModel('p1', 1200, D('2023-01-01'))];
+    s.rivalry.pending.push({ id: 'pm1', lab: 'gogle', move: 'hype', fireDay: s.day });
+    s.rivalry.pending.push({ id: 'pm2', lab: 'antropik', move: 'poach', fireDay: s.day + 5 });
+    s.rivalry.active.push({ lab: 'openbrain', move: 'priceCut', untilDay: s.day - 1 });
+    const hypeBefore = s.hype.gogle;
+    advanceDay(s);
+    const mail = s.mail.find((m) => m.eventId === 'rival-hype');
+    expect(mail).toBeDefined();
+    expect(mail!.kind).toBe('rival');
+    expect(mail!.important).toBe(true);
+    expect(mail!.choices).toHaveLength(2);
+    expect(mail!.chosen).toBeUndefined();
+    expect(s.hype.gogle).toBeGreaterThan(hypeBefore);
+    expect(s.rivalry.pending.map((p) => p.id)).toEqual(['pm2']); // не наступивший слух ждёт своего дня
+    expect(s.rivalry.history.map((h) => h.move)).toEqual(['hype']);
+    expect(s.rivalry.active.filter((a) => a.move === 'priceCut')).toEqual([]); // истёк в rivalryDay
+    expect(s.rivalry.active.some((a) => a.move === 'hype')).toBe(true);
+    expect(blockedByChoice(s)).toBe(true); // письмо с выбором останавливает игру, как любое другое
+  });
+
+  it('до 2021 года соперники спят: конец месяца не планирует ходов и не греет накал', () => {
+    const s = stateOn(D('2020-12-30'));
+    s.models = [apiModel('p1', 1200, D('2020-06-01'))];
+    s.rivalry.heat.openbrain = 90;
+    advanceDay(s);
+    advanceDay(s); // 31 декабря 2020: месяц закрыт
+    expect(s.day).toBe(D('2021-01-01'));
+    expect(Object.values(s.rivalry.heat).every((h) => h === 0)).toBe(true);
+    expect(s.rivalry.pending).toEqual([]);
+    expect(s.rivalry.history).toEqual([]);
   });
 });

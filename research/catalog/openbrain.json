@@ -66,6 +66,39 @@
       ]
     },
     {
+      "id": "gtp-2-full",
+      "lab": "openbrain",
+      "realName": "GPT-2 (1.5B, full weights)",
+      "gameName": "GTP-2 (полные веса)",
+      "released": "2019-11-05",
+      "api": false,
+      "openWeights": true,
+      "paramsB": 1.5,
+      "trainFlop": 1.92e21,
+      "priceInPer1M": null,
+      "priceOutPer1M": null,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 32.4,
+        "humaneval": null,
+        "gsm8k": null,
+        "gpqa": null,
+        "swebench": null
+      },
+      "arenaElo": 650,
+      "arenaEstimated": true,
+      "benchContaminationSuspected": false,
+      "notes": "Final step of the GPT-2 staged release: the full 1.5B weights were published on 2019-11-05 under a modified MIT licence (openai/gpt-2 on GitHub), after 124M (2019-02-14), 355M (May 2019) and 774M (2019-08-20). Same model and stats as gtp-2 (1542M params, WebText, Epoch compute 1.92e21 FLOP 'Speculative', MMLU 32.4% from Hendrycks et al. 2020); this entry marks the date the weights became open. No API or price. Arena Elo 650 is an extrapolation, never chat-tested.",
+      "sources": [
+        "https://en.wikipedia.org/wiki/GPT-2",
+        "https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf",
+        "https://arxiv.org/abs/2009.03300",
+        "https://epoch.ai/data/notable_ai_models.csv",
+        "https://syncedreview.com/2019/11/05/openai-releases-1-5-billion-parameter-gpt-2-model/"
+      ]
+    },
+    {
       "id": "gtp-3",
       "lab": "openbrain",
       "realName": "GPT-3 175B (davinci)",

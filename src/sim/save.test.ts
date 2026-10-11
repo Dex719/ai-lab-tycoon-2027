@@ -6,9 +6,11 @@ import { newGame } from './actions';
 import { botAct, runBot } from './bots';
 import { CHOICE_DAYS, FAIL_CHOICE_DAYS } from './constants';
 import { applyChoice, expireChoices, FOREVER, pendingChoice } from './events';
+import { emptyRivalry } from './rivalry';
 import { deserialize, serialize } from './save';
 import { createInitialState } from './state';
 import { advanceDay, advanceDays } from './tick';
+import { END_DAY } from './time';
 import type { GameState } from './types';
 
 type Json = Record<string, unknown>;
@@ -42,7 +44,44 @@ function richState(): GameState {
   });
   s.modifiers.push({ id: 'mod-a', kind: 'rentPrice', target: 'h100', mult: 1.2, add: 0.1, untilDay: FOREVER });
   s.modifiers.push({ id: 'mod-b', kind: 'labBrand', untilDay: s.day + 10 });
+  s.modifiers.push({ id: 'mod-c', kind: 'rivalPrice', target: 'gogle', mult: 0.7, add: 0.3, untilDay: s.day + 120 });
+  s.modifiers.push({ id: 'mod-d', kind: 'exposure', target: s.models[0].id, mult: 2, untilDay: s.day + 180 });
   s.flags.exportControls = true;
+  // Соперники с характерами спят до 2021 года: слух, активный ход, поправки, память и письмо с выбором добавляем руками.
+  // Слухи не срабатывают (день после конца игры), письмо отложено - загруженная игра идёт дальше без остановки.
+  const r = s.rivalry;
+  r.heat.gogle = 42;
+  r.cooldownUntil.gogle = s.day + 180;
+  r.moveCooldown['gogle:hype'] = s.day + 180;
+  r.moveCooldown['global:audit'] = s.day + 365;
+  r.pending.push({ id: 'pm1', lab: 'gogle', move: 'hype', fireDay: END_DAY + 1 });
+  r.pending.push({ id: 'pm2', lab: 'antropik', move: 'audit', fireDay: END_DAY + 1, modelId: s.models[0].id });
+  r.active.push({ lab: 'openbrain', move: 'priceCut', untilDay: END_DAY + 1 });
+  r.overrides['gtp-4'] = { dayShift: -10, eloAdd: 5, context: 32_000, price: 20 };
+  r.extraCount.openbrain = 1;
+  r.memory.openbrain = { lastMove: 'priceCut', firedDay: s.day, shareBefore: 0.2, priceBefore: 5, worked: null, priceMatched: false };
+  r.lever = 'price';
+  r.choice = { lab: 'antropik', modelId: s.models[0].id };
+  r.history.push({ day: s.day, lab: 'openbrain', move: 'priceCut', text: 'снизила цены на API на 30 %' });
+  r.shareHigh.openbrain = 0.5;
+  s.mail.push({
+    id: `m${s.nextMailNum++}`,
+    day: s.day,
+    title: 'Antropik сомневается в баллах модели',
+    body: 'Проверка баллов.',
+    kind: 'rival',
+    read: true,
+    eventId: 'rival-audit',
+    choices: [
+      { label: 'Опубликовать честные баллы', hint: 'а' },
+      { label: 'Снять с продажи', hint: 'б' },
+      { label: 'Отрицать', hint: 'в' },
+    ],
+    important: true,
+    replyByDay: s.day + CHOICE_DAYS,
+    defaultChoice: 2,
+    deferred: true,
+  });
   return s;
 }
 
@@ -279,6 +318,13 @@ describe('письма с выбором в сохранении', () => {
     expect(load(withChoiceMail({ eventId: 'removed-event', chosen: 0 })).ok).toBe(true);
   });
 
+  it('письмо с выбором соперника (его нет в EVENTS) загружается, с чужим числом вариантов - нет', () => {
+    const poach = { kind: 'rival', eventId: 'rival-poach', choices: [{ label: 'Поднять зарплаты', hint: 'а' }, { label: 'Отпустить', hint: 'б' }] };
+    expect(load(withChoiceMail(poach)).ok).toBe(true);
+    expect(load(withChoiceMail({ kind: 'rival', eventId: 'rival-audit' })).ok).toBe(true); // три варианта, как в withChoiceMail
+    expectRejected(withChoiceMail({ kind: 'rival', eventId: 'rival-poach' }), 'choices'); // у переманивания два варианта
+  });
+
   /** Загрузить и вернуть письмо m99 (сохранение обязано загрузиться). */
   function loadedMail(obj: Json) {
     const r = load(obj);
@@ -339,6 +385,63 @@ describe('письма с выбором в сохранении', () => {
   });
 });
 
+describe('сложность и соперники с характерами в сохранении', () => {
+  it('старое сохранение без difficulty и rivalry: Обычная сложность, соперники спокойны', () => {
+    const o = parsed(newGame('Лаб', 1));
+    delete o.difficulty;
+    delete o.rivalry;
+    const r = load(o);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.difficulty).toBe('normal');
+    expect(r.state.rivalry).toEqual(emptyRivalry());
+  });
+
+  it('сложность, её модификаторы и состояние соперников переживают сохранение', () => {
+    const s = richState();
+    s.difficulty = 'hard';
+    const r = deserialize(serialize(s));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.state.difficulty).toBe('hard');
+    expect(r.state.rivalry).toEqual(s.rivalry);
+    expect(r.state.rivalry.pending.map((p) => p.id)).toEqual(['pm1', 'pm2']);
+    expect(r.state.rivalry.overrides['gtp-4']).toEqual({ dayShift: -10, eloAdd: 5, context: 32_000, price: 20 });
+    expect(r.state.modifiers.map((m) => m.kind)).toEqual(expect.arrayContaining(['rivalPrice', 'exposure']));
+
+    const hard = newGame('Лаб', 2, 'hard');
+    expect(hard.modifiers.map((m) => m.id).sort()).toEqual(['difficulty-exposure', 'difficulty-rent']);
+    const back = deserialize(serialize(hard));
+    expect(back.ok).toBe(true);
+    if (back.ok) expect(serialize(back.state)).toBe(serialize(hard));
+  });
+
+  it('поля соперников проверяются: сложность, ход, рычаг, лаборатория, память, поправки', () => {
+    const s = richState();
+    const cases: [string, (o: Json) => void][] = [
+      ['difficulty', (o) => (o.difficulty = 'insane')],
+      ['rivalry', (o) => (o.rivalry = [])],
+      ['rivalry.heat.gogle', (o) => delete ((o.rivalry as Json).heat as Json).gogle],
+      ['rivalry.pending[0].move', (o) => (((o.rivalry as Json).pending as Json[])[0].move = 'dance')],
+      ['rivalry.pending[1].modelId', (o) => (((o.rivalry as Json).pending as Json[])[1].modelId = 7)],
+      ['rivalry.active[0].untilDay', (o) => delete ((o.rivalry as Json).active as Json[])[0].untilDay],
+      ['rivalry.overrides.gtp-4.eloAdd', (o) => ((((o.rivalry as Json).overrides as Json)['gtp-4'] as Json).eloAdd = 'много')],
+      ['rivalry.memory.openbrain.lastMove', (o) => ((((o.rivalry as Json).memory as Json).openbrain as Json).lastMove = 'x')],
+      ['rivalry.memory.openbrain.worked', (o) => ((((o.rivalry as Json).memory as Json).openbrain as Json).worked = 'да')],
+      ['rivalry.lever', (o) => ((o.rivalry as Json).lever = 'luck')],
+      ['rivalry.choice.lab', (o) => (((o.rivalry as Json).choice as Json).lab = 'nvidia')],
+      ['rivalry.history[0].lab', (o) => (((o.rivalry as Json).history as Json[])[0].lab = 'nvidia')],
+      ['rivalry.shareHigh', (o) => delete (o.rivalry as Json).shareHigh],
+      ['rivalry.moveCooldown.gogle:hype', (o) => (((o.rivalry as Json).moveCooldown as Json)['gogle:hype'] = null)],
+    ];
+    for (const [path, mutate] of cases) {
+      const o = parsed(s);
+      mutate(o);
+      expectRejected(o, path);
+    }
+  });
+});
+
 // ---------- Полнота проверки ----------
 
 /** Все узлы дерева: путь, нормализованный путь (индексы массивов заменены на []) и значение. */
@@ -358,12 +461,17 @@ function collect(value: unknown, path: (string | number)[], norm: string, seen: 
 }
 
 /** Поля, которых может не быть (необязательные в типах), и словари, в которых ключи приходят и уходят. */
-// founderName, tutorial, monthsFirst и autoApply появились позже: в старых сохранениях их нет, загрузка подставляет значения по умолчанию.
+// founderName, tutorial, monthsFirst, autoApply, difficulty и rivalry появились позже: в старых сохранениях их нет,
+// загрузка подставляет значения по умолчанию.
 const OPTIONAL_FIELDS = new Set([
   'eventId', 'choices', 'chosen', 'important', 'target', 'mult', 'add', 'founderName', 'tutorial', 'replyByDay', 'defaultChoice',
-  'deferred', 'autoChosen', 'context', 'contextLevel', 'earned', 'monthsFirst', 'autoApply',
+  'deferred', 'autoChosen', 'context', 'contextLevel', 'earned', 'monthsFirst', 'autoApply', 'difficulty', 'rivalry',
 ]);
-const DICTS = new Set(['flags', 'market.shares', 'models[].overfit']);
+/** Необязательные поля по полному пути: имя поля (modelId, price) в других местах обязательно. */
+const OPTIONAL_PATHS = new Set(['rivalry.pending[].modelId', 'rivalry.choice.modelId']);
+/** Поправки к модели соперника (rivalry.overrides.<id>.*) все необязательные. */
+const optionalPath = (norm: string): boolean => OPTIONAL_PATHS.has(norm) || /^rivalry\.overrides\.[^.]+\.[^.]+$/.test(norm);
+const DICTS = new Set(['flags', 'market.shares', 'models[].overfit', 'rivalry.moveCooldown', 'rivalry.overrides', 'rivalry.extra']);
 
 describe('проверка покрывает каждое поле живого состояния', () => {
   const s = richState();
@@ -373,7 +481,16 @@ describe('проверка покрывает каждое поле живого
 
   it('в разгаре игры много разных полей (проверка не пустая)', () => {
     expect(nodes.size).toBeGreaterThan(150);
-    for (const norm of ['compute.rented.h200', 'benchmarks.swebench.saturated', 'finance.history[].expense.rent', 'mail[].choices[].hint']) {
+    for (const norm of [
+      'compute.rented.h200',
+      'benchmarks.swebench.saturated',
+      'finance.history[].expense.rent',
+      'mail[].choices[].hint',
+      'rivalry.pending[].modelId',
+      'rivalry.memory.openbrain.lastMove',
+      'rivalry.overrides.gtp-4.dayShift',
+      'rivalry.history[].text',
+    ]) {
       expect(nodes.has(norm), norm).toBe(true);
     }
   });
@@ -397,7 +514,7 @@ describe('проверка покрывает каждое поле живого
       const last = node.path[node.path.length - 1];
       if (typeof last === 'number') continue; // элементы списков не удаляем
       const parentNorm = node.path.length === 1 ? '' : node.norm.slice(0, node.norm.length - String(last).length - 1);
-      const lenient = OPTIONAL_FIELDS.has(String(last)) || DICTS.has(parentNorm);
+      const lenient = OPTIONAL_FIELDS.has(String(last)) || optionalPath(node.norm) || DICTS.has(parentNorm);
       const o = JSON.parse(base) as Json;
       delete parentOf(o, node.path)[last];
       const ok = deserialize(JSON.stringify(o)).ok;

@@ -9,6 +9,7 @@ import { marketArenaRank, updateSaturation } from './leaderboard';
 import { dayStep as marketDay } from './market';
 import { progressDay as researchDay } from './research';
 import { releaseDue } from './rivals';
+import { rivalryDay, rivalryMonth } from './rivalry';
 import { END_DAY, isMonthStart } from './time';
 import { monthlyExposure, progressDay as trainingDay } from './training';
 import type { GameState } from './types';
@@ -41,6 +42,7 @@ export function advanceDay(s: GameState): void {
   introduceDue(s);
   const releasedBefore = s.rivalsReleased.length;
   releaseDue(s);
+  rivalryDay(s); // ходы соперников по слухам, память, истечение ходов; ответные модели попадают в rivalsReleased
   expireChoices(s);
   fireDue(s);
 
@@ -59,6 +61,8 @@ export function advanceDay(s: GameState): void {
     if (playerBestArenaRank(s) === 1) s.monthsFirst += 1;
     for (const o of HYPE_OWNERS) s.hype[o] *= HYPE_MONTHLY_DECAY;
     monthlyExposure(s);
+    // Рычаг игрока, накал и планирование ходов соперников: единственное место модуля со случайностью (с 2021 года).
+    rivalryMonth(s);
     updateSaturation(s);
     pruneModifiers(s);
   }

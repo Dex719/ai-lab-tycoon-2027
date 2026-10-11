@@ -1,19 +1,24 @@
 // Таблицы рейтингов: строки только показанных моделей (announcedOnly) помечаются, столбец даты меняет заголовок,
-// в «Арене» места считаются только среди моделей в продаже (через API).
+// в «Арене» места считаются только среди моделей в продаже (через API); Эло, поднятое ходом соперника, - оценка «≈»,
+// контекст соперника - с поправкой хода.
 
 import { describe, expect, it } from 'vitest';
 import { RIVAL_MODELS } from '../../data/rivalModels';
-import { leaderboard, marketArenaRank } from '../../sim/leaderboard';
+import { RIVAL_REACTIVE } from '../../data/rivalReactive';
+import { leaderboard, marketArenaRank, type BoardRow } from '../../sim/leaderboard';
+import { emptyRivalry } from '../../sim/rivalry';
 import { createInitialState } from '../../sim/state';
 import { dateToDay, END_DAY } from '../../sim/time';
 import type { GameState, PlayerModel } from '../../sim/types';
-import { arenaRows, dateHeader, expectedLeaderElo10, inSaleRow, isAnnouncedRow } from './RatingsWindow';
+import { arenaRows, dateHeader, expectedLeaderElo10, inSaleRow, isAnnouncedRow, isEloBoosted, rowContext } from './RatingsWindow';
 
 const byId = (id: string) => RIVAL_MODELS.find((m) => m.id === id)!;
 
-function stateWith(ids: string[]) {
+/** Состояние с пустым состоянием соперников (как game() в sim/rivalry.test.ts). */
+function stateWith(ids: string[], date = '2022-06-01') {
   const s = createInitialState('Тест', 1);
-  s.day = dateToDay('2022-06-01');
+  s.rivalry = emptyRivalry();
+  s.day = dateToDay(date);
   s.rivalsReleased = ids;
   return s;
 }
@@ -83,6 +88,57 @@ describe('inSaleRow', () => {
     expect(inSaleRow(find('rival', 'paln'))).toBe(false);
     expect(inSaleRow(find('player', 'p1'))).toBe(true);
     expect(inSaleRow(find('player', 'p2'))).toBe(false);
+  });
+});
+
+describe('isEloBoosted', () => {
+  it('«≈» только у соперника с поправкой Эло (overrides.eloAdd > 0)', () => {
+    const s = stateWith(['gtp-3', 't5x']);
+    playerModel(s, 'p1', 850, true);
+    s.rivalry.overrides['gtp-3'] = { eloAdd: 10 };
+    s.rivalry.overrides['t5x'] = { dayShift: -10 };
+    const rows = leaderboard(s);
+    const find = (kind: 'player' | 'rival', id: string) => rows.find((r) => r.ref.kind === kind && r.ref.id === id)!;
+    expect(isEloBoosted(s, find('rival', 'gtp-3'))).toBe(true);
+    expect(isEloBoosted(s, find('rival', 't5x'))).toBe(false);
+    expect(isEloBoosted(s, find('player', 'p1'))).toBe(false);
+  });
+});
+
+describe('rowContext', () => {
+  it('у соперника - контекст каталога, а с поправкой хода - поправка; у вашей модели - из плана', () => {
+    const s = stateWith(['gtp-3']);
+    const p = playerModel(s, 'p1', 850, true);
+    const rows = leaderboard(s);
+    const gtp3 = rows.find((r) => r.ref.kind === 'rival' && r.ref.id === 'gtp-3')!;
+    const mine = rows.find((r) => r.ref.kind === 'player' && r.ref.id === 'p1')!;
+    expect(rowContext(s, gtp3)).toBe(byId('gtp-3').context);
+    expect(rowContext(s, mine)).toBe(p.plan.context);
+
+    s.rivalry.overrides['gtp-3'] = { context: 128000 };
+    expect(rowContext(s, gtp3)).toBe(128000);
+  });
+});
+
+describe('ответные модели (шаблоны rivalReactive)', () => {
+  /** Строка рейтинга ответной модели: функциям вкладки нужны только ссылка и признак «на рынке». */
+  const rivalRow = (id: string): BoardRow => ({ ref: { kind: 'rival', id }, onMarket: false }) as BoardRow;
+
+  it('шаблон с API - в продаже, с открытыми весами - нет; строка не помечена как показанная', () => {
+    const api = RIVAL_REACTIVE.find((t) => !t.openWeights)!;
+    const open = RIVAL_REACTIVE.find((t) => t.openWeights)!;
+    expect(inSaleRow(rivalRow(api.id))).toBe(true);
+    expect(inSaleRow(rivalRow(open.id))).toBe(false);
+    expect(isAnnouncedRow(rivalRow(api.id))).toBe(false);
+  });
+
+  it('контекст шаблона - из поправки хода, иначе из шаблона', () => {
+    const t = RIVAL_REACTIVE.find((x) => x.context !== undefined)!;
+    const s = stateWith([t.id], '2024-06-01');
+    s.rivalry.extra[t.id] = dateToDay('2024-01-10');
+    expect(rowContext(s, rivalRow(t.id))).toBe(t.context);
+    s.rivalry.overrides[t.id] = { context: 2_000_000 };
+    expect(rowContext(s, rivalRow(t.id))).toBe(2_000_000);
   });
 });
 

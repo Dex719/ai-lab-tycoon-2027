@@ -2,6 +2,7 @@
 
 import { valuation } from '../sim/investors';
 import { leaderboard } from '../sim/leaderboard';
+import { DIFFICULTY } from '../sim/rivalry';
 import { playerBestArenaRank } from '../sim/tick';
 import { formatDate } from '../sim/time';
 import type { GameState } from '../sim/types';
@@ -33,6 +34,8 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
         <div className="body">
           <p style={{ marginTop: 0 }}>{lead}</p>
           <div className="kv">
+            <span title={DIFFICULTY[s.difficulty].description}>Сложность</span>
+            <span>{DIFFICULTY[s.difficulty].name}</span>
             <span title="Место по Эло среди моделей, которые продаются через API">Место среди моделей в продаже</span>
             <span>{fmtRank(rank)}</span>
             <span>Лучшая модель</span>

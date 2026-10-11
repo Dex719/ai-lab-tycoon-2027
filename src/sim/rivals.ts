@@ -6,6 +6,7 @@ import { benchDef, benchScore, capFromScore, introducedBenchmarks } from './benc
 import { MARKET_MAX_AGE_DAYS, MARKET_MODELS_PER_LAB, REF_PRICE } from './constants';
 import { addMail } from './events';
 import { releaseHypeBonus } from './leaderboard';
+import { reactiveDefs, releaseShiftDays, rivalDayIn, rivalEloIn, rivalPriceIn } from './rivalry';
 import { byYear, dateToDay, lerpByDate, START_DAY, yearOf } from './time';
 import { DOMAINS, LAB_IDS } from './types';
 import type { BenchmarkId, DomainId, GameState, LabId, RivalModelDef } from './types';
@@ -13,6 +14,11 @@ import type { BenchmarkId, DomainId, GameState, LabId, RivalModelDef } from './t
 // ---------- Каталог ----------
 
 const BY_ID = new Map<string, RivalModelDef>(RIVAL_MODELS.map((m) => [m.id, m]));
+
+// Взаимный импорт с rivalry.ts безопасен: ни один модуль не обращается к экспортам другого на верхнем уровне.
+// Шаблоны ответных моделей строятся через findRivalDef(базовая модель), поэтому поиск по шаблонам не должен
+// запускаться повторно из самого построения: иначе шаблон без базовой модели зациклил бы поиск вместо ошибки.
+let searchingTemplates = false;
 
 // Способность из Эло для моделей без опубликованных баллов: cap = (Эло − 374) / 11,7.
 export const RIVAL_CAP_ELO_ZERO = 374;
@@ -22,15 +28,30 @@ const LAB_NAME = new Map<LabId, string>(LABS.map((l) => [l.id, l.name]));
 // День выхода по дате: строки дат повторяются, а разбор даты - не бесплатный.
 const DAY_BY_DATE = new Map<string, number>();
 
-/** Модель каталога или undefined (в сохранении мог остаться id, которого уже нет в каталоге). */
+/**
+ * Модель каталога или шаблон ответной модели (rivalry.reactiveDefs, сначала каталог); undefined - в сохранении
+ * мог остаться id, которого уже нет.
+ */
 export function findRivalDef(id: string): RivalModelDef | undefined {
-  return BY_ID.get(id);
+  const def = BY_ID.get(id);
+  if (def || searchingTemplates) return def;
+  searchingTemplates = true;
+  try {
+    return reactiveDefs().get(id);
+  } finally {
+    searchingTemplates = false;
+  }
 }
 
 export function rivalDef(id: string): RivalModelDef {
-  const def = BY_ID.get(id);
+  const def = findRivalDef(id);
   if (!def) throw new Error(`Нет модели соперника ${id}`);
   return def;
+}
+
+/** Эло в таблице - оценка: оценочное Эло каталога или поправка хода соперника (overrides.eloAdd). */
+export function rivalEloEstimated(s: GameState, def: RivalModelDef): boolean {
+  return def.arenaEstimated || rivalEloIn(s, def) !== def.arenaElo;
 }
 
 /** День выхода модели (от 01.01.2017); кешируется по дате. */
@@ -148,16 +169,27 @@ function fmtPrice(x: number): string {
   return `$${String(Number(x.toFixed(2))).replace('.', ',')}`;
 }
 
+/** «1 день», «3 дня», «45 дней». */
+function daysWord(n: number): string {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return `${n} день`;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return `${n} дня`;
+  return `${n} дней`;
+}
+
 /**
  * Цена для письма: обе цены каталога, если они разные («$30 за 1 млн входных и $60 за 1 млн выходных токенов»),
- * иначе одна («$60 за 1 млн токенов»; без цен в каталоге - defaultPricePer1M лаборатории).
+ * иначе одна («$60 за 1 млн токенов»; без цен в каталоге - defaultPricePer1M лаборатории). Если цену изменил ход
+ * соперника (модификатор rivalPrice, цена ответной модели), показываем одну фактическую цену (rivalPriceIn).
  */
-function priceText(def: RivalModelDef, day: number): string {
+function priceText(s: GameState, def: RivalModelDef): string {
   const { priceIn, priceOut } = def;
-  if (priceIn !== null && priceOut !== null && priceIn !== priceOut) {
+  const price = rivalPriceIn(s, def);
+  if (priceIn !== null && priceOut !== null && priceIn !== priceOut && price === rivalPrice(def, s.day)) {
     return `${fmtPrice(priceIn)} за 1 млн входных и ${fmtPrice(priceOut)} за 1 млн выходных токенов`;
   }
-  return `${fmtPrice(rivalPrice(def, day))} за 1 млн токенов`;
+  return `${fmtPrice(price)} за 1 млн токенов`;
 }
 
 /** До двух реальных баллов по вышедшим бенчмаркам: сначала не насыщенные, потом самые трудные. */
@@ -176,15 +208,19 @@ function headlineScores(s: GameState, def: RivalModelDef): string[] {
 function releaseBody(s: GameState, def: RivalModelDef): string {
   const sentences: string[] = [];
 
+  // Ход соперника ускорил выход (overrides.dayShift < 0).
+  const shift = releaseShiftDays(s, def);
+  if (shift > 0) sentences.push(`Вышла на ${daysWord(shift)} раньше, чем ожидалось.`);
+
   const specs: string[] = [];
   if (def.paramsB !== null) specs.push(fmtSize(def.paramsB));
   specs.push(...headlineScores(s, def));
   if (specs.length > 0) sentences.push(`${specs.join(', ')}.`);
 
-  sentences.push(`Эло на «Арене» - ${def.arenaEstimated ? '≈' : ''}${Math.round(def.arenaElo)}.`);
+  sentences.push(`Эло на «Арене» - ${rivalEloEstimated(s, def) ? '≈' : ''}${Math.round(rivalEloIn(s, def))}.`);
 
   const access: string[] = [];
-  if (def.api) access.push(`цена API - ${priceText(def, s.day)}`);
+  if (def.api) access.push(`цена API - ${priceText(s, def)}`);
   if (def.openWeights) access.push('веса открыты');
   if (access.length > 0) {
     const text = access.join(', ');
@@ -194,53 +230,69 @@ function releaseBody(s: GameState, def: RivalModelDef): string {
 }
 
 /**
- * Ежедневно: модели каталога с датой ≤ сегодня, которых нет в s.rivalsReleased, - выпустить:
- * добавить id, прибавить шумиху лаборатории (leaderboard.releaseHypeBonus), письмо kind 'rival'
- * с названием, лабораторией и 1-2 главными баллами по вышедшим бенчмаркам.
+ * Выпустить модель соперника (каталога или шаблона): добавить id в s.rivalsReleased, прибавить шумиху
+ * лаборатории (leaderboard.releaseHypeBonus), письмо kind 'rival' с названием, лабораторией и 1-2 главными
+ * баллами по вышедшим бенчмаркам; если ход соперника ускорил выход - «на N дней раньше».
  * Модель, которую только показали (announcedOnly), в заголовке «показала», а не «выпустила».
- * Модели, вышедшие до старта игры (день < 0), появляются молча: без письма и шумихи.
+ * Модель, вышедшая до старта игры (день < 0), появляется молча: без письма и шумихи.
+ * Уже выпущенную модель не трогает (false). Для ответных моделей rivalry.ts может вызывать её вместо своего кода.
+ */
+export function releaseRival(s: GameState, def: RivalModelDef): boolean {
+  if (s.rivalsReleased.includes(def.id)) return false;
+  s.rivalsReleased.push(def.id);
+  if (rivalDayIn(s, def) < START_DAY) return true;
+
+  const bonus = releaseHypeBonus(s, { kind: 'rival', id: def.id });
+  s.hype[def.lab] = Math.min(100, (s.hype[def.lab] ?? 0) + bonus);
+  addMail(s, {
+    kind: 'rival',
+    title: `${LAB_NAME.get(def.lab) ?? def.lab} ${def.announcedOnly ? 'показала' : 'выпустила'} ${def.gameName}`,
+    body: releaseBody(s, def),
+  });
+  return true;
+}
+
+/**
+ * Ежедневно: модели каталога с днём выхода ≤ сегодня (с учётом сдвига ходом соперника, rivalDayIn), которых нет
+ * в s.rivalsReleased, - выпустить (releaseRival). Шаблоны ответных моделей выпускает сам rivalry.ts.
  */
 export function releaseDue(s: GameState): void {
   const done = new Set(s.rivalsReleased);
   for (const def of RIVAL_MODELS) {
-    if (done.has(def.id)) continue;
-    const day = rivalDay(def);
-    if (day > s.day) continue;
-    s.rivalsReleased.push(def.id);
-    done.add(def.id);
-    if (day < START_DAY) continue;
-
-    const bonus = releaseHypeBonus(s, { kind: 'rival', id: def.id });
-    s.hype[def.lab] = Math.min(100, (s.hype[def.lab] ?? 0) + bonus);
-    addMail(s, {
-      kind: 'rival',
-      title: `${LAB_NAME.get(def.lab) ?? def.lab} ${def.announcedOnly ? 'показала' : 'выпустила'} ${def.gameName}`,
-      body: releaseBody(s, def),
-    });
+    if (done.has(def.id) || rivalDayIn(s, def) > s.day) continue;
+    releaseRival(s, def);
   }
 }
 
 /**
- * Модели соперников на рынке: выпущены, (api || openWeights), не только показаны (announcedOnly),
- * не старше MARKET_MAX_AGE_DAYS, по MARKET_MODELS_PER_LAB новейших на лабораторию (при равной дате - с большим Эло).
+ * Модели соперников на рынке: выпущены (каталог и ответные модели из rivalsReleased), (api || openWeights),
+ * не только показаны (announcedOnly), не старше MARKET_MAX_AGE_DAYS по фактическому дню выхода (rivalDayIn),
+ * по MARKET_MODELS_PER_LAB новейших на лабораторию (при равной дате - с большим Эло с поправками, rivalEloIn).
  * Порядок: по лабораториям, внутри - от новых к старым.
  */
 export function marketRivals(s: GameState): RivalModelDef[] {
-  const perLab = new Map<LabId, RivalModelDef[]>();
+  interface Row {
+    def: RivalModelDef;
+    day: number;
+    elo: number;
+  }
+  const perLab = new Map<LabId, Row[]>();
   for (const id of s.rivalsReleased) {
-    const def = BY_ID.get(id);
+    const def = findRivalDef(id);
     if (!def || !(def.api || def.openWeights) || def.announcedOnly) continue;
-    if (s.day - rivalDay(def) > MARKET_MAX_AGE_DAYS) continue;
+    const day = rivalDayIn(s, def);
+    if (s.day - day > MARKET_MAX_AGE_DAYS) continue;
+    const row: Row = { def, day, elo: rivalEloIn(s, def) };
     const list = perLab.get(def.lab);
-    if (list) list.push(def);
-    else perLab.set(def.lab, [def]);
+    if (list) list.push(row);
+    else perLab.set(def.lab, [row]);
   }
   const out: RivalModelDef[] = [];
   for (const lab of LAB_IDS) {
     const list = perLab.get(lab);
     if (!list) continue;
-    list.sort((a, b) => rivalDay(b) - rivalDay(a) || b.arenaElo - a.arenaElo || (a.id < b.id ? -1 : 1));
-    out.push(...list.slice(0, MARKET_MODELS_PER_LAB));
+    list.sort((a, b) => b.day - a.day || b.elo - a.elo || (a.def.id < b.def.id ? -1 : 1));
+    for (const row of list.slice(0, MARKET_MODELS_PER_LAB)) out.push(row.def);
   }
   return out;
 }

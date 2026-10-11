@@ -2,8 +2,10 @@
 // При загрузке форма состояния проверяется целиком, до самых вложенных полей: сохранение от старой версии игры
 // или битый файл отклоняются понятной ошибкой, а не роняют тик и отрисовку позже (например, нет нового бенчмарка).
 
-import { EVENTS } from '../data/events';
+import { findEvent } from '../data/events';
 import { CHOICE_DAYS, FAIL_CHOICE_DAYS, HYPE_OWNERS } from './constants';
+import { DIFFICULTY_IDS, emptyRivalry, LEVERS, MOVE_IDS } from './rivalry';
+import type { ActiveMove, HistoryRow, LabMemory, PendingMove, RivalOverride, RivalryState } from './rivalry';
 import type {
   Contract,
   ExpenseKind,
@@ -20,7 +22,7 @@ import type {
   TrainingPlan,
   TrainingRun,
 } from './types';
-import { BENCHMARK_IDS, DOMAINS, GPU_IDS, TECH_IDS } from './types';
+import { BENCHMARK_IDS, DOMAINS, GPU_IDS, LAB_IDS, TECH_IDS } from './types';
 
 export const SAVE_KEY = 'ailab.save.v1';
 export const AUTOSAVE_KEY = 'ailab.autosave.v1';
@@ -138,6 +140,8 @@ const MODIFIER_KINDS = keysOf<ModifierKind>({
   demand: true,
   researchCost: true,
   labBrand: true,
+  rivalPrice: true,
+  exposure: true,
 });
 
 const ARCHS = ['lstm', 'transformer'];
@@ -251,6 +255,51 @@ const monthRecord = shapeOf<MonthRecord>({
   tokensPerDay: num,
 });
 
+// Соперники с характерами: ходы, поправки к моделям соперников и память лабораторий (rivalry.ts).
+const pendingMove = shapeOf<PendingMove>({
+  id: str,
+  lab: oneOf(LAB_IDS),
+  move: oneOf(MOVE_IDS),
+  fireDay: num,
+  modelId: optional(str),
+});
+
+const activeMove = shapeOf<ActiveMove>({ lab: oneOf(LAB_IDS), move: oneOf(MOVE_IDS), untilDay: num });
+
+const rivalOverride = shapeOf<RivalOverride>({
+  dayShift: optional(num),
+  eloAdd: optional(num),
+  context: optional(num),
+  price: optional(num),
+});
+
+const labMemory = shapeOf<LabMemory>({
+  lastMove: nullable(oneOf(MOVE_IDS)),
+  firedDay: num,
+  shareBefore: num,
+  priceBefore: num,
+  worked: nullable(bool),
+  priceMatched: bool,
+});
+
+const historyRow = shapeOf<HistoryRow>({ day: num, lab: oneOf(LAB_IDS), move: oneOf(MOVE_IDS), text: str });
+
+const rivalry = shapeOf<RivalryState>({
+  heat: record(LAB_IDS, num),
+  cooldownUntil: record(LAB_IDS, num),
+  moveCooldown: dict(num),
+  pending: arrayOf(pendingMove),
+  active: arrayOf(activeMove),
+  overrides: dict(rivalOverride),
+  extra: dict(num),
+  extraCount: record(LAB_IDS, num),
+  memory: record(LAB_IDS, labMemory),
+  lever: nullable(oneOf(LEVERS)),
+  choice: nullable(shape({ lab: oneOf(LAB_IDS), modelId: optional(str) })),
+  history: arrayOf(historyRow),
+  shareHigh: record(LAB_IDS, num),
+});
+
 /** Каждое поле GameState обязано быть здесь: добавили поле в тип, не добавили проверку - tsc не даст собрать. */
 const STATE: Record<keyof GameState, Check> = {
   version: literal(1),
@@ -299,6 +348,8 @@ const STATE: Record<keyof GameState, Check> = {
     negativeDays: num,
   }),
   tutorial: shapeOf<GameState['tutorial']>({ step: int, active: bool }),
+  difficulty: oneOf(DIFFICULTY_IDS),
+  rivalry,
   market: shapeOf<GameState['market']>({
     shares: dict(num),
     labShares: record([...HYPE_OWNERS, 'none'], num),
@@ -310,12 +361,15 @@ const STATE: Record<keyof GameState, Check> = {
 
 const WHOLE_STATE = shape(STATE);
 
-/** Письмо с выбором, на которое ещё не ответили, останавливает игру. Если события нет в этой версии, игру было бы не продолжить. */
+/**
+ * Письмо с выбором, на которое ещё не ответили, останавливает игру. Если события нет в этой версии, игру было бы не продолжить.
+ * Ищем через findEvent: письма с выбором соперников (rival-*) лежат не в EVENTS, а в RIVALRY_EVENTS.
+ */
 function pendingChoiceProblem(mails: Mail[]): Problem | null {
   for (let i = 0; i < mails.length; i++) {
     const m = mails[i];
     if (!m.choices || m.chosen !== undefined) continue;
-    const def = EVENTS.find((e) => e.id === m.eventId);
+    const def = findEvent(m.eventId);
     if (!def?.choices || def.choices.length !== m.choices.length) return bad(`mail[${i}].choices`);
   }
   return null;
@@ -376,6 +430,9 @@ export function deserialize(json: string): { ok: true; state: GameState } | { ok
   if (data.tutorial === undefined) data.tutorial = { step: 0, active: false };
   if (data.monthsFirst === undefined) data.monthsFirst = 0; // месяцы на 1-м месте появились позже
   if (data.autoApply === undefined) data.autoApply = false; // автоподбор заявок на тендеры появился позже
+  // Сложность и соперники с характерами появились позже: старые сохранения идут на Обычной, соперники спокойны, накал 0.
+  if (data.difficulty === undefined) data.difficulty = 'normal';
+  if (data.rivalry === undefined) data.rivalry = emptyRivalry();
   migrateContext(data);
   migrateChoices(data);
   const problem = WHOLE_STATE(data, '') ?? pendingChoiceProblem(data.mail as Mail[]);

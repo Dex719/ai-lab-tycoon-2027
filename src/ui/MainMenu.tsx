@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { START_CASH } from '../sim/constants';
+import { DIFFICULTY, DIFFICULTY_IDS, type Difficulty } from '../sim/rivalry';
 import { formatDateShort } from '../sim/time';
 import { ConfirmDialog, Dialog, ErrorText } from './components/common';
 import { fmtMoney } from './format';
@@ -58,11 +59,12 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('Нейрон');
   const [founder, setFounder] = useState('');
   const [tutorial, setTutorial] = useState(true);
+  const [difficulty, setDifficulty] = useState<Difficulty>('normal');
   const valid = name.trim().length > 0;
 
   function start() {
     if (!valid) return;
-    store.newGame(name, { founderName: founder, tutorial });
+    store.newGame(name, { founderName: founder, tutorial, difficulty });
   }
 
   return (
@@ -101,6 +103,25 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
           <span>Соперники</span>
           <span>7 лабораторий</span>
         </div>
+        <fieldset className="col" style={{ gap: 6, margin: 0, padding: 0, border: 0 }}>
+          <legend style={{ padding: 0, marginBottom: 4 }}>Сложность</legend>
+          <div className="row" role="radiogroup" aria-label="Сложность" style={{ gap: 18 }}>
+            {DIFFICULTY_IDS.map((d) => (
+              <label key={d} className="row" style={{ gap: 8 }} title={DIFFICULTY[d].description}>
+                <input
+                  type="radio"
+                  name="difficulty"
+                  value={d}
+                  checked={difficulty === d}
+                  onChange={() => setDifficulty(d)}
+                  style={{ accentColor: 'var(--accent)', width: 16, height: 16, margin: 0 }}
+                />
+                <span>{DIFFICULTY[d].name}</span>
+              </label>
+            ))}
+          </div>
+          <span className="small muted">{DIFFICULTY[difficulty].description}</span>
+        </fieldset>
         <label className="row" style={{ gap: 8 }}>
           <input type="checkbox" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />
           <span>Обучение игре</span>
@@ -131,7 +152,9 @@ function SlotRow({ slot, children }: { slot: SlotInfo; children: React.ReactNode
             <div className="m">
               {formatDateShort(m.day)} · {fmtMoney(m.cash)} · {m.arenaRank !== null ? `${fmtRank(m.arenaRank)} в продаже` : 'моделей в продаже нет'}
             </div>
-            <div className="m">Сохранено {formatSavedAt(m.savedAt)}</div>
+            <div className="m">
+              Сохранено {formatSavedAt(m.savedAt)} · <span title={DIFFICULTY[m.difficulty].description}>Сложность: {DIFFICULTY[m.difficulty].name}</span>
+            </div>
           </>
         ) : (
           <div className="t">{slot.broken ? 'Сохранение повреждено' : 'Пусто'}</div>
@@ -227,6 +250,8 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
               <span>{delSlot.meta.labName}</span>
               <span>Дата в игре</span>
               <span>{formatDateShort(delSlot.meta.day)}</span>
+              <span>Сложность</span>
+              <span>{DIFFICULTY[delSlot.meta.difficulty].name}</span>
               <span>Сохранено</span>
               <span>{formatSavedAt(delSlot.meta.savedAt)}</span>
             </div>
