@@ -1,13 +1,14 @@
 // Таблица бенчмарков и Арена: строки, места, шумиха выпуска, насыщение (FR-5, FR-6). TSK-007.
 
 import { RIVAL_MODELS } from '../data/rivalModels';
-import { activeBenchmarks, benchDef, introducedBenchmarks } from './benchmarks';
+import { activeBenchmarks, benchDef, capFromScore, introducedBenchmarks } from './benchmarks';
 import { HYPE_ARENA_TOP_BONUS, HYPE_RANK_BONUS } from './constants';
 import { addMail } from './events';
 import { findRivalDef, marketRivals, rivalDay, rivalEloEstimated, rivalScore } from './rivals';
 import { rivalDayIn, rivalEloIn } from './rivalry';
 import { END_DAY } from './time';
 import { modelScore } from './training';
+import { LAB_IDS } from './types';
 import type { BenchmarkId, GameState, HypeOwner, ModelRef, PlayerModel, RivalModelDef } from './types';
 
 export interface BoardRow {
@@ -189,6 +190,48 @@ export function releaseHypeBonus(s: GameState, ref: ModelRef): number {
   }
   if (rankIn(list, ref, (e) => e.elo) === 1) bonus += HYPE_ARENA_TOP_BONUS;
   return bonus;
+}
+
+/** Передний край соперников по Эло: лучший Эло среди выпущенных моделей всех лабораторий (0 - ещё никого). */
+export function rivalFrontierElo(s: GameState): number {
+  let best = 0;
+  for (const lab of LAB_IDS) best = Math.max(best, bestElo(s, lab));
+  return best;
+}
+
+/**
+ * Уровень модели по коду: среднее capFromScore по показанным баллам вышедших бенчмарков области code
+ * (HumanEvol с 07.07.2021, SWE-banch с 10.10.2023). Игрок - показанный балл (подгонка входит, разоблачённая модель -
+ * честный), соперник - rivalScore. null - бенчмарков кода ещё нет или модели нет.
+ */
+export function codeLevel(s: GameState, ref: ModelRef): number | null {
+  const bids = introducedBenchmarks(s).filter((b) => benchDef(b).domain === 'code');
+  if (bids.length === 0) return null;
+  let score: ((bid: BenchmarkId) => number) | null = null;
+  if (ref.kind === 'player') {
+    const m = s.models.find((x) => x.id === ref.id);
+    if (m) score = (bid) => modelScore(m, bid, false);
+  } else {
+    const def = findRivalDef(ref.id);
+    if (def) score = (bid) => rivalScore(def, bid).value;
+  }
+  if (!score) return null;
+  let sum = 0;
+  for (const bid of bids) sum += capFromScore(bid, score(bid));
+  return sum / bids.length;
+}
+
+/** Передний край соперников по коду: наибольший codeLevel среди моделей соперников на рынке (API и подписка); null - нечего считать. */
+export function rivalCodeFrontier(s: GameState): number | null {
+  let best: number | null = null;
+  const seen = new Set<string>();
+  for (const def of [...marketRivals(s, 'api'), ...marketRivals(s, 'subs')]) {
+    if (seen.has(def.id)) continue;
+    seen.add(def.id);
+    const level = codeLevel(s, { kind: 'rival', id: def.id });
+    if (level !== null && (best === null || level > best)) best = level;
+  }
+  return best;
 }
 
 /** Лучший Эло среди выпущенных моделей владельца (или 0); у соперников - с поправками ходов (rivalEloIn). */

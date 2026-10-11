@@ -1,20 +1,20 @@
 // Боты для проверки баланса (NFR-2): играют через те же действия, что и игрок.
 
-import { newGame, releaseModel, setOnApi } from './actions';
+import { newGame, releaseModel, setOnApi, setOnSubs, startReview } from './actions';
 import { activeBenchmarks } from './benchmarks';
 import { availableGpus, pool, rentCapFor, rentMaxFor, rentPerGpuDay, setAllocation, setRent, totalH100e } from './compute';
-import { FAIL_ROLLBACK, MAX_TOKENS_B, RENT_OVER_CAP_MULT, ROUND_COOLDOWN_DAYS, TRAIN_FLOP_PER_H100E_DAY } from './constants';
+import { FAIL_ROLLBACK, MAX_TOKENS_B, RENT_OVER_CAP_MULT, ROUND_COOLDOWN_DAYS, TIER_API_PRICE_MULT, TRAIN_FLOP_PER_H100E_DAY } from './constants';
 import { applyTender, canApply } from './contracts';
 import { applyChoice, pendingChoice } from './events';
 import { overheadPerDay } from './finance';
 import { canRaise, raiseRound } from './investors';
-import { inferenceNeed, marketSnapshot, refPrice } from './market';
+import { inferenceNeed, marketSnapshot, minPrice, refPrice, subsOpen } from './market';
 import { canResearch, maxContext, setResearch, techHistoryDay, yearsEarly } from './research';
 import { botPriceReflex } from './rivalry';
 import type { Difficulty } from './rivalry';
 import { advanceDay } from './tick';
 import { byYear, END_DAY, yearOf } from './time';
-import { archFor, arenaElo, capsFromPlan, contextFlopMult, labelersCost, startTraining } from './training';
+import { archFor, arenaElo, capsFromPlan, contextFlopMult, labelersCost, reviewCost, startTraining, tierOf, trainingPoolPerRun } from './training';
 import type { Allocation, GameState, GpuId, TechId, TrainingPlan } from './types';
 
 export type BotKind = 'idle' | 'reasonable' | 'strong' | 'benchmaxx';
@@ -27,10 +27,14 @@ interface BotProfile {
   trainDays: number; // на сколько дней планировать один проект
 }
 
+// Рынок v2: с подписками выручка «разумного» выросла почти вдвое, оценка у инвесторов - тоже, и при раундах по 20 %
+// он получал вчетверо больше вычислений и побеждал на всех зёрнах. revenueReinvest не помогает: бюджет аренды
+// определяется кассой (rentShareOfCash), а меньшая доля аренды копит кассу сверх годовых расходов. Раунды по 10 %
+// возвращают бота на 3-е место (balance.test.ts); «подгонщик» - тот же профиль с подгонкой.
 const PROFILES: Record<Exclude<BotKind, 'idle'>, BotProfile> = {
-  reasonable: { rentShareOfCash: 0.35, revenueReinvest: 0.6, roundFraction: 0.2, benchShare: 0, trainDays: 60 },
+  reasonable: { rentShareOfCash: 0.35, revenueReinvest: 0.6, roundFraction: 0.1, benchShare: 0, trainDays: 60 },
   strong: { rentShareOfCash: 0.6, revenueReinvest: 0.9, roundFraction: 0.3, benchShare: 0, trainDays: 110 },
-  benchmaxx: { rentShareOfCash: 0.35, revenueReinvest: 0.6, roundFraction: 0.2, benchShare: 0.25, trainDays: 60 },
+  benchmaxx: { rentShareOfCash: 0.35, revenueReinvest: 0.6, roundFraction: 0.1, benchShare: 0.25, trainDays: 60 },
 };
 
 // RLHF раньше истории дорог (EARLY_PENALTY_PER_YEAR.rlhf): бот берёт его, когда до исторической даты меньше полугода.
@@ -42,6 +46,11 @@ const BOT_CONTRACTS_MAX_SHARE = 0.5;
 // Запас денег: кассы с выручкой API должно хватать на аренду и накладные до следующего возможного раунда,
 // но не меньше чем на столько дней (BANKRUPT_DAYS в минусе - банкротство).
 const BOT_RUNWAY_DAYS = 60;
+// Обслуживание клиентов: не больше такой доли мощности на один канал (API или подписки) и на оба вместе.
+const BOT_SERVE_MAX = 0.5;
+const BOT_SERVE_TOTAL_MAX = 0.7;
+// Внешнюю проверку бот начинает, когда денег хватает на столько проверок.
+const BOT_REVIEW_CASH_MULT = 3;
 
 function nextTech(s: GameState): TechId {
   const done = (t: TechId) => s.research.done.includes(t);
@@ -152,21 +161,34 @@ function plannedLoad(s: GameState): ContractLoad {
   return l;
 }
 
-function manageAlloc(s: GameState): void {
-  const total = totalH100e(s);
-  if (total <= 0) return;
-  let need = 0;
+/** Доли «API» и «Подписки» по нужной мощности с запасом 15 %: не больше BOT_SERVE_MAX каждая и BOT_SERVE_TOTAL_MAX вместе. */
+function serveShares(s: GameState, total: number): { api: number; subs: number } {
+  let need = { api: 0, subs: 0 };
   try {
     need = inferenceNeed(s, marketSnapshot(s));
   } catch {
-    need = 0;
+    need = { api: 0, subs: 0 };
   }
-  const inference = Math.min(0.6, (need * 1.15) / total);
+  let api = Math.min(BOT_SERVE_MAX, (need.api * 1.15) / total);
+  let subs = Math.min(BOT_SERVE_MAX, (need.subs * 1.15) / total);
+  const both = api + subs;
+  if (both > BOT_SERVE_TOTAL_MAX) {
+    api *= BOT_SERVE_TOTAL_MAX / both;
+    subs *= BOT_SERVE_TOTAL_MAX / both;
+  }
+  return { api, subs };
+}
+
+function manageAlloc(s: GameState): void {
+  const total = totalH100e(s);
+  if (total <= 0) return;
+  const { api, subs } = serveShares(s, total);
   const contracts = Math.min(BOT_CONTRACTS_MAX_SHARE, loadNeed(activeLoad(s)) / total);
-  const rest = Math.max(0, 1 - inference - contracts);
-  const a: Allocation = s.training
-    ? { training: rest * 0.7, experiments: rest * 0.3, contracts, inference }
-    : { training: 0, experiments: rest, contracts, inference };
+  const rest = Math.max(0, 1 - api - subs - contracts);
+  const a: Allocation =
+    s.trainings.length > 0
+      ? { training: rest * 0.7, experiments: rest * 0.3, contracts, api, subs }
+      : { training: 0, experiments: rest, contracts, api, subs };
   setAllocation(s, a);
 }
 
@@ -193,6 +215,7 @@ export function chinchillaPlan(s: GameState, budget: number, name: string, bench
     benchTargets: targets,
     rlhf: s.research.done.includes('rlhf'),
     context: maxContext(s),
+    tier: tierOf(paramsB, s.day),
   };
 }
 
@@ -200,8 +223,9 @@ function bestReleasedElo(s: GameState): number {
   return s.models.filter((m) => m.releasedDay !== null).reduce((b, m) => Math.max(b, m.arenaElo), 0);
 }
 
+/** Бот ведёт один проект за раз. */
 function manageTraining(s: GameState, p: BotProfile): void {
-  if (s.training) return;
+  if (s.trainings.length > 0) return;
   // На время обучения доля «Обучение» ≈ 0,7 от свободной мощности.
   const trainPool = Math.max(pool(s, 'training'), totalH100e(s) * 0.55);
   if (trainPool <= 0) return;
@@ -219,15 +243,26 @@ function manageTraining(s: GameState, p: BotProfile): void {
   }
 }
 
+/**
+ * Выпуск по цене 0,8 × множитель уровня × опорная; в продаже - две лучшие модели по обоим каналам (подписка - после
+ * чат-момента, без незавершённой проверки); сильной модели бот заказывает проверку, когда денег хватает на три.
+ */
 function manageModels(s: GameState): void {
   const released = s.models.filter((m) => m.releasedDay !== null);
   const best = released.reduce((b, m) => Math.max(b, m.arenaElo), 0);
   for (const m of s.models) {
-    if (m.releasedDay === null && m.arenaElo > best) releaseModel(s, m.id, Math.max(0.05, refPrice(s.day) * 0.8));
+    if (m.releasedDay !== null || m.arenaElo <= best) continue;
+    const price = Math.max(minPrice(s.day), refPrice(s.day) * 0.8 * (TIER_API_PRICE_MULT[m.plan.tier] ?? 1));
+    releaseModel(s, m.id, price);
   }
-  // В продаже - две лучшие модели.
   const sorted = s.models.filter((m) => m.releasedDay !== null).sort((a, b) => b.arenaElo - a.arenaElo);
-  sorted.forEach((m, i) => setOnApi(s, m.id, i < 2));
+  const open = subsOpen(s.day);
+  sorted.forEach((m, i) => {
+    const top = i < 2;
+    setOnApi(s, m.id, top);
+    if (top && open && m.review === 'required' && s.cash >= BOT_REVIEW_CASH_MULT * reviewCost(m)) startReview(s, m.id);
+    setOnSubs(s, m.id, top && open && (m.review === 'none' || m.review === 'passed'));
+  });
 }
 
 /** Подать заявки на тендеры, работа которых помещается в долю «Контракты» мощности по бюджету (не в долг). */
@@ -279,9 +314,9 @@ export interface BotResult {
  * до конца игры, - тогда «Продолжить» (модель слабее, но она выйдет).
  */
 export function botChoice(s: GameState, eventId: string | undefined): number {
-  const t = s.training;
+  const t = s.trainings.find((r) => r.failed);
   if (eventId !== 'training-fail' || !t) return 0;
-  const perDay = pool(s, 'training') * TRAIN_FLOP_PER_H100E_DAY;
+  const perDay = trainingPoolPerRun(s) * TRAIN_FLOP_PER_H100E_DAY;
   if (perDay <= 0) return 0;
   const daysAfterRollback = (t.flopTotal - t.flopDone + FAIL_ROLLBACK * t.flopTotal) / perDay;
   return daysAfterRollback > END_DAY - s.day - 3 ? 1 : 0;

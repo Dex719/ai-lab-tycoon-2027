@@ -5,7 +5,7 @@ import type { WindowProps } from '.';
 import { CLIENTS } from '../../data/clients';
 import { benchDef } from '../../sim/benchmarks';
 import { cheapestH100eDay, pool } from '../../sim/compute';
-import { REP_CONTRACT_FAIL, RLHF_TENDER_LABELERS, TENDER_APPLY_DAYS } from '../../sim/constants';
+import { REP_CONTRACT_FAIL, RLHF_TENDER_LABELERS } from '../../sim/constants';
 import { applyChance, canApply } from '../../sim/contracts';
 import { modelScore } from '../../sim/training';
 import type { Contract, GameState, PlayerModel, Tender } from '../../sim/types';
@@ -371,7 +371,7 @@ function TenderCard(props: {
           </span>
         ) : (
           <>
-            {model && <span className="ct-why">{reason ?? `Решение через ${days(TENDER_APPLY_DAYS)}`}</span>}
+            {model && <span className="ct-why">{reason ?? `Решение при закрытии тендера, через ${days(left)}`}</span>}
             <button
               className="btn primary"
               data-tutorial="apply"

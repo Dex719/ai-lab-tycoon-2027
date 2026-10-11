@@ -65,7 +65,7 @@ export const TUTORIAL: TutorialStep[] = [
       'Когда «Механизм внимания» будет изучен, откройте «Новая модель». Задайте размер и объём данных и нажмите «Начать обучение». ' +
       'Слева видны стоимость и срок.',
     targets: ['train-start', 'icon-newModel'],
-    done: (s) => s.training !== null || s.models.length > 0,
+    done: (s) => s.trainings.length > 0 || s.models.length > 0,
   },
   {
     title: 'Выпуск модели',

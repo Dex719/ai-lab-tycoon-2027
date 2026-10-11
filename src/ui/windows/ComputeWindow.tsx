@@ -105,7 +105,7 @@ function Summary({ s, onRent }: { s: GameState; onRent: () => void }) {
           <dt>Исследования</dt>
           <dd>{fmtH(pool(s, 'experiments'))} H100e</dd>
           <dt>Клиенты</dt>
-          <dd>{fmtH(pool(s, 'inference'))} H100e</dd>
+          <dd>{fmtH(pool(s, 'api'))} H100e</dd>
         </dl>
         <div className="cw-info-act">
           <button className="btn primary" onClick={onRent} data-tutorial="rent-button">
@@ -331,10 +331,10 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
 
 // ---------- Распределение мощности ----------
 
-/** Мощность, которая нужна клиентам; если расчёт рынка недоступен, null. */
+/** Мощность, которая нужна клиентам API; если расчёт рынка недоступен, null. */
 function safeInferenceNeed(s: GameState): number | null {
   try {
-    const need = inferenceNeed(s, marketSnapshot(s));
+    const need = inferenceNeed(s, marketSnapshot(s)).api;
     return Number.isFinite(need) ? need : null;
   } catch {
     return null;
@@ -399,7 +399,7 @@ function AllocPanel({ s }: { s: GameState }) {
               setDraft(withPercent(shown, r.key, v));
             }}
           />
-          {r.key === 'inference' && <ClientNeed s={s} have={(total * shown.inference) / 100} />}
+          {r.key === 'api' && <ClientNeed s={s} have={(total * shown.api) / 100} />}
         </div>
       ))}
       <ErrorText error={error} />

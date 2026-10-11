@@ -78,7 +78,50 @@ export interface RivalModelDef {
   contaminated: boolean; // были сообщения об утечке тестов
   context: number; // контекст на момент выхода, токенов
   announcedOnly?: boolean; // модель только показали (статья, демо): в продажу и на рынок она не выходила
+  /** Уровень модели, если задан явно (шаблоны ответных моделей); иначе выводится из каталога (rivals.rivalTier). */
+  tier?: Tier;
   notes?: string;
+}
+
+// ---------- Рынок v2: уровни моделей, сегменты спроса, каналы продаж ----------
+
+/** Уровень модели: лёгкая (дёшево и слабо), средняя, флагман. Задаётся в плане обучения относительно переднего края года. */
+export type Tier = 'light' | 'mid' | 'flagship';
+export const TIER_IDS: readonly Tier[] = ['light', 'mid', 'flagship'];
+export const TIER_NAMES: Record<Tier, string> = { light: 'Лёгкая', mid: 'Средняя', flagship: 'Флагман' };
+
+/** Сегменты спроса: обычные пользователи (подписка на чат), корпоративные клиенты (API), разработчики (API). */
+export type SegmentId = 'consumers' | 'enterprise' | 'developers';
+export const SEGMENT_IDS: readonly SegmentId[] = ['consumers', 'enterprise', 'developers'];
+
+/** Канал продаж: API ($ за 1 млн токенов) или подписка ($ за пользователя в месяц). */
+export type Channel = 'api' | 'subs';
+
+/** Описание сегмента: канал, веса полезности и отношение к уровням моделей (таблица в constants.SEGMENT_DEF). */
+export interface SegmentDef {
+  name: string; // «Обычные», «Корпоративные», «Разработчики»
+  channel: Channel;
+  wQ: number; // вес воспринимаемого качества
+  hypeMult: number; // множитель шумихи внутри качества
+  wBrand: number; // вес бренда
+  wPrice: number; // эластичность по цене
+  wCtx: number; // вес контекста
+  wCode: number; // вес уровня по коду
+  exposedPenalty: number; // штраф разоблачённой модели игрока
+  u0Offset: number; // прибавка к внешнему варианту
+  tier: Record<Tier, number>; // прибавка за уровень модели
+  values: string; // «что ценит» для интерфейса
+}
+
+/** Внешняя проверка сильной модели перед подпиской. */
+export type ReviewState = 'none' | 'required' | 'pending' | 'passed';
+export const REVIEW_STATES: readonly ReviewState[] = ['none', 'required', 'pending', 'passed'];
+
+/** Доли сегмента после ограничения мощностью: по моделям, по лабораториям и спрос сегмента (токены в день или пользователи). */
+export interface SegmentShares {
+  shares: Record<string, number>;
+  labShares: Record<HypeOwner | 'none', number>;
+  total: number;
 }
 
 export interface ClientDef {
@@ -92,8 +135,9 @@ export interface ClientDef {
 export interface Allocation {
   training: number;
   contracts: number;
-  experiments: number;
-  inference: number;
+  experiments: number; // исследования (ключ не меняется)
+  api: number; // обслуживание запросов по API
+  subs: number; // обслуживание чата подписчиков
 }
 
 export interface TrainingPlan {
@@ -105,9 +149,12 @@ export interface TrainingPlan {
   benchTargets: BenchmarkId[]; // 0..3 целевых бенчмарка
   rlhf: boolean;
   context: number; // длина контекста, токенов (одно из CONTEXT_LEVELS)
+  tier: Tier; // уровень модели; обязан совпадать с training.tierOf(paramsB, день старта)
 }
 
 export interface TrainingRun {
+  id: string; // 't1', 't2'…
+  failed: boolean; // случился срыв, ждёт решения игрока (письмо 'training-fail'); проект стоит
   plan: TrainingPlan;
   arch: 'lstm' | 'transformer';
   algoLevel: number; // снимок на старте
@@ -133,7 +180,12 @@ export interface PlayerModel {
   price: number; // $ за 1М токенов
   onApi: boolean;
   exposed: boolean; // разоблачена подгонка
-  earned: number; // выручка API с момента выпуска, $
+  earned: number; // выручка по обоим каналам с момента выпуска, $
+  onSubs: boolean; // продаётся по подписке (чат)
+  subsPrice: number; // $ за пользователя в месяц
+  review: ReviewState; // внешняя проверка сильной модели перед подпиской
+  reviewEndDay: number | null; // день окончания проверки (pending)
+  earnedSubs: number; // из earned: выручка подписок, $
 }
 
 // Ссылка на модель в рейтингах/рынке
@@ -189,8 +241,19 @@ export interface Mail {
 /**
  * rivalPrice: target - LabId; mult - множитель цен лаборатории, add - доля опорной цены как нижняя граница.
  * exposure: target - id модели игрока или без target; mult к шансу разоблачения.
+ * segBrand: target - `${lab | 'player'}:${SegmentId}`; add к бренду в одном сегменте.
+ * subsDemand: mult к спросу на подписки (SUBS_USERS); demand по-прежнему множит только спрос API.
  */
-export type ModifierKind = 'rentPrice' | 'rentCap' | 'demand' | 'researchCost' | 'labBrand' | 'rivalPrice' | 'exposure';
+export type ModifierKind =
+  | 'rentPrice'
+  | 'rentCap'
+  | 'demand'
+  | 'researchCost'
+  | 'labBrand'
+  | 'rivalPrice'
+  | 'exposure'
+  | 'segBrand'
+  | 'subsDemand';
 
 export interface Modifier {
   id: string;
@@ -201,8 +264,8 @@ export interface Modifier {
   untilDay: number; // включительно; Number.MAX_SAFE_INTEGER - навсегда
 }
 
-export type IncomeKind = 'api' | 'contracts' | 'investors';
-export type ExpenseKind = 'rent' | 'overhead' | 'labelers' | 'penalties';
+export type IncomeKind = 'api' | 'subs' | 'contracts' | 'investors';
+export type ExpenseKind = 'rent' | 'overhead' | 'labelers' | 'penalties' | 'review';
 
 export interface MonthLedger {
   income: Record<IncomeKind, number>;
@@ -213,8 +276,9 @@ export interface MonthRecord extends MonthLedger {
   year: number;
   month: number; // 1..12
   cashEnd: number;
-  marketShare: number; // доля игрока в токенах за последний день месяца
-  tokensPerDay: number; // обслуженные токены игрока в последний день
+  marketShare: number; // общая доля игрока (взвешенная по сегментам) за последний день месяца
+  tokensPerDay: number; // обслуженные токены API игрока в последний день
+  subscribers: number; // обслуженные подписчики игрока в последний день
 }
 
 export interface GameState {
@@ -234,7 +298,9 @@ export interface GameState {
   hype: Record<HypeOwner, number>; // 0..100
   compute: { rented: Record<GpuId, number>; alloc: Allocation };
   research: { current: TechId | null; points: Record<TechId, number>; done: TechId[]; algoLevel: number; contextLevel: number };
-  training: TrainingRun | null;
+  /** Идущие проекты обучения (не больше MAX_TRAININGS); доля «Обучение» делится между ними поровну. */
+  trainings: TrainingRun[];
+  nextRunNum: number; // номер следующего проекта: id `t${n}`
   bestFlop: number;
   nextModelNum: number;
   models: PlayerModel[];
@@ -263,10 +329,15 @@ export interface GameState {
   /** Соперники с характерами: накал, ходы, поправки к моделям, память (rivalry.ts). */
   rivalry: RivalryState;
   market: {
-    shares: Record<string, number>; // ключ: 'player:<id>' | 'rival:<id>' | 'none'; доли после ограничения мощностью
-    labShares: Record<HypeOwner | 'none', number>; // тоже после ограничения мощностью
-    playerTokens: number; // обслужено вчера
-    lostFraction: number;
-    totalTokens: number;
+    shares: Record<string, number>; // ключ: 'player:<id>' | 'rival:<id>' | 'none'; общие доли (взвешенные по выручке сегментов), после ограничения мощностью
+    labShares: Record<HypeOwner | 'none', number>; // общие, после ограничения мощностью
+    playerTokens: number; // токены API игрока, обслуженные вчера
+    lostFraction: number; // взвешенная по выручке потеря спроса (API и подписки)
+    totalTokens: number; // T(t) с модификаторами
+    playerSubs: number; // подписчиков обслужено вчера
+    totalSubs: number; // SUBS_USERS(t) с модификаторами
+    lostApi: number; // потерянная доля спроса API (0, если нечего обслуживать)
+    lostSubs: number; // то же для подписок
+    segments: Record<SegmentId, SegmentShares>; // доли по сегментам после ограничения мощностью
   };
 }

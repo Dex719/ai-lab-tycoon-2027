@@ -8,7 +8,8 @@ export const ALLOC_ROWS: { key: AllocKey; label: string; hint: string; color: st
   { key: 'training', label: 'Обучение', hint: 'Скорость обучения новой модели.', color: '#2f80e4' },
   { key: 'contracts', label: 'Контракты', hint: 'Работа по выигранным контрактам.', color: '#d9822b' },
   { key: 'experiments', label: 'Исследования', hint: 'Скорость исследований.', color: '#7b5cd6' },
-  { key: 'inference', label: 'Клиенты', hint: 'Обслуживание запросов к выпущенным моделям.', color: '#2e9b4f' },
+  { key: 'api', label: 'API', hint: 'Обслуживание запросов по API: корпоративные клиенты и разработчики.', color: '#2e9b4f' },
+  { key: 'subs', label: 'Подписки', hint: 'Обслуживание чата для подписчиков.', color: '#1fa8a0' },
 ];
 
 export type Percents = Record<AllocKey, number>;
@@ -34,7 +35,7 @@ export function percentsOf(alloc: Allocation): Percents {
   return out;
 }
 
-/** Поставить долю key в value % и пропорционально пересчитать остальные три. */
+/** Поставить долю key в value % и пропорционально пересчитать остальные доли (диалог исследования). */
 export function withPercent(cur: Percents, key: AllocKey, value: number): Percents {
   const v = Math.max(0, Math.min(100, Math.round(value)));
   const others = ALLOC_ROWS.map((r) => r.key).filter((k) => k !== key);
@@ -44,8 +45,21 @@ export function withPercent(cur: Percents, key: AllocKey, value: number): Percen
   return out;
 }
 
+/** Поставить долю key в value % (0…100), не трогая остальные: ползунки окна «Мощности» независимы. */
+export function setPercent(cur: Percents, key: AllocKey, value: number): Percents {
+  const v = Math.max(0, Math.min(100, Math.round(Number.isFinite(value) ? value : 0)));
+  return { ...cur, [key]: v };
+}
+
+/** Сумма долей в процентах («Занято: N %»). */
+export function totalPercent(p: Percents): number {
+  return ALLOC_ROWS.reduce((a, r) => a + p[r.key], 0);
+}
+
 export function toAllocation(p: Percents): Allocation {
-  return { training: p.training / 100, contracts: p.contracts / 100, experiments: p.experiments / 100, inference: p.inference / 100 };
+  const out = {} as Allocation;
+  for (const r of ALLOC_ROWS) out[r.key] = p[r.key] / 100;
+  return out;
 }
 
 export function samePercents(a: Percents, b: Percents): boolean {

@@ -77,7 +77,7 @@ function YourModelsTab({ s, open }: WindowProps) {
   const released = s.models
     .filter((m) => m.releasedDay !== null)
     .sort((a, b) => Number(b.onApi) - Number(a.onApi) || (b.releasedDay ?? 0) - (a.releasedDay ?? 0));
-  const snap = released.length > 0 ? safe(() => marketSnapshot(s).entries) : null;
+  const snap = released.length > 0 ? safe(() => marketSnapshot(s).segments.developers.entries) : null;
   const byKey = new Map<string, MarketEntry>((snap ?? []).map((e) => [e.key, e]));
   const lost = s.market.lostFraction;
 

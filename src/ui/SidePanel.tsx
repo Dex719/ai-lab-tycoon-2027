@@ -3,12 +3,14 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { pool } from '../sim/compute';
 import { TRAIN_FLOP_PER_H100E_DAY } from '../sim/constants';
+import { playerSales } from '../sim/market';
 import { rpPerDay, TECHS, techCost } from '../sim/research';
 import { CLIENTS } from '../data/clients';
 import { benchDef } from '../sim/benchmarks';
-import { awaitingEvent, openChoices } from '../sim/events';
+import { openChoices } from '../sim/events';
 import { playerBestArenaRank } from '../sim/tick';
 import { formatDateShort } from '../sim/time';
+import { trainingPoolPerRun } from '../sim/training';
 import type { GameState } from '../sim/types';
 import { ProgressBar } from './components/common';
 import { fmtMoney, fmtNum, fmtPrice, fmtShare } from './format';
@@ -36,11 +38,11 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
       </div>,
     );
   }
-  const t = s.training;
-  if (t) {
-    const speed = pool(s, 'training') * TRAIN_FLOP_PER_H100E_DAY;
+  // Доля «Обучение» делится между идущими проектами поровну.
+  const speed = trainingPoolPerRun(s) * TRAIN_FLOP_PER_H100E_DAY;
+  for (const t of s.trainings) {
     items.push(
-      <div className="side-item" key="train" onClick={() => open('newModel')} style={{ cursor: 'pointer' }}>
+      <div className="side-item" key={t.id} onClick={() => open('newModel')} style={{ cursor: 'pointer' }}>
         <div className="t">Обучение: {t.plan.name}</div>
         <div className="r">
           <span>Готово</span>
@@ -48,9 +50,7 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
         </div>
         <div className="r">
           <span>Осталось</span>
-          <span className="v">
-            {awaitingEvent(s, 'training-fail') ? 'ждёт решения' : speed > 0 ? days((t.flopTotal - t.flopDone) / speed) : 'нет мощности'}
-          </span>
+          <span className="v">{t.failed ? 'ждёт решения' : speed > 0 ? days((t.flopTotal - t.flopDone) / speed) : 'нет мощности'}</span>
         </div>
         <ProgressBar value={t.flopDone / t.flopTotal} />
       </div>,
@@ -112,14 +112,14 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
 }
 
 function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
-  const onSale = s.models.filter((m) => m.releasedDay !== null && m.onApi);
+  const onSale = s.models.filter((m) => m.releasedDay !== null && (m.onApi || m.onSubs));
   if (!onSale.length) return <div className="side-empty">Моделей в продаже нет.</div>;
   return (
     <>
       {onSale.map((m) => {
         // Доля в s.market уже после ограничения мощностью (market.ts servedShares), отдельно на served не умножаем.
         const share = s.market.shares[`player:${m.id}`] ?? 0;
-        const tokens = share * s.market.totalTokens;
+        const sales = playerSales(s, m.id);
         return (
           <div className="side-item" key={m.id} onClick={() => open('models')} style={{ cursor: 'pointer' }}>
             <div className="t">{m.name}</div>
@@ -129,11 +129,15 @@ function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) 
             </div>
             <div className="r">
               <span>Токенов в день</span>
-              <span className="v">{fmtNum(tokens)}</span>
+              <span className="v">{fmtNum(sales.apiTokens)}</span>
+            </div>
+            <div className="r">
+              <span>Подписчиков</span>
+              <span className="v">{fmtNum(Math.round(sales.subsUsers))}</span>
             </div>
             <div className="r">
               <span>Выручка в день</span>
-              <span className="v">{fmtMoney((tokens * m.price) / 1e6)}</span>
+              <span className="v">{fmtMoney(sales.apiRevenueDay + sales.subsRevenueDay)}</span>
             </div>
             <div className="r">
               <span>Цена за 1 млн</span>
@@ -176,8 +180,8 @@ export function SidePanel({ s, open, top }: { s: GameState; open: (id: WindowId 
   const shown = shownState || pinned;
   const [tab, setTab] = useState<Tab>('projects');
   const projects =
-    openChoices(s).filter((m) => m.deferred).length + (s.training ? 1 : 0) + (s.research.current ? 1 : 0) + s.contracts.length;
-  const onSale = s.models.filter((m) => m.releasedDay !== null && m.onApi).length;
+    openChoices(s).filter((m) => m.deferred).length + s.trainings.length + (s.research.current ? 1 : 0) + s.contracts.length;
+  const onSale = s.models.filter((m) => m.releasedDay !== null && (m.onApi || m.onSubs)).length;
   const tabLabel = shown ? 'Скрыть панель' : 'Показать панель';
   return (
     <aside className={`side${top ? ' with-top' : ''}`} aria-label="Боковая панель">

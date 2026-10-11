@@ -4,13 +4,14 @@
 import { describe, expect, it } from 'vitest';
 import { newGame } from './actions';
 import { botAct, runBot } from './bots';
-import { CHOICE_DAYS, FAIL_CHOICE_DAYS } from './constants';
+import { CHOICE_DAYS, FAIL_CHOICE_DAYS, TIER_SUBS_PRICE } from './constants';
 import { applyChoice, expireChoices, FOREVER, pendingChoice } from './events';
 import { emptyRivalry } from './rivalry';
 import { deserialize, serialize } from './save';
-import { createInitialState } from './state';
+import { createInitialState, emptyMarket } from './state';
 import { advanceDay, advanceDays } from './tick';
 import { END_DAY } from './time';
+import { tierOf } from './training';
 import type { GameState } from './types';
 
 type Json = Record<string, unknown>;
@@ -121,7 +122,7 @@ describe('здоровые сохранения загружаются', () => {
 
   it('игра в разгаре, со всеми видами записей', () => {
     const s = richState();
-    expect(s.training).not.toBeNull();
+    expect(s.trainings.length).toBeGreaterThan(0);
     expect(s.models.length).toBeGreaterThan(3);
     expect(s.tenders.some((t) => t.application !== null)).toBe(true);
     expect(s.finance.history.length).toBeGreaterThan(12);
@@ -171,7 +172,7 @@ describe('несовместимые сохранения отклоняются
   it('нет нового GPU, лаборатории, технологии, доли или поля финансов', () => {
     const cases: [string, (o: Json) => void][] = [
       ['compute.rented.h200', (o) => delete (o.compute as { rented: Json }).rented.h200],
-      ['compute.alloc.inference', (o) => delete (o.compute as { alloc: Json }).alloc.inference],
+      ['compute.alloc.api', (o) => delete (o.compute as { alloc: Json }).alloc.api],
       ['hype.alibabo', (o) => delete (o.hype as Json).alibabo],
       ['hype.player', (o) => delete (o.hype as Json).player],
       ['research.points.rlhf', (o) => delete (o.research as { points: Json }).points.rlhf],
@@ -188,8 +189,9 @@ describe('несовместимые сохранения отклоняются
       ['nextMailNum', (o) => delete o.nextMailNum],
       ['bestFlop', (o) => delete o.bestFlop],
       ['outcome', (o) => delete o.outcome],
-      ['training', (o) => delete o.training],
       ['lastRoundDay', (o) => delete o.lastRoundDay],
+      ['market.segments.consumers.total', (o) => delete ((o.market as Json).segments as Record<string, Json>).consumers.total],
+      ['market.segments.developers.labShares.none', (o) => delete (((o.market as Json).segments as Record<string, Json>).developers.labShares as Json).none],
     ];
     for (const [path, mutate] of cases) {
       const o = parsed(newGame('Лаб', 1));
@@ -261,8 +263,13 @@ describe('несовместимые сохранения отклоняются
       ['modifiers[0].untilDay', (o) => delete (o.modifiers as Json[])[0].untilDay],
       ['finance.history[0].cashEnd', (o) => delete (o.finance as { history: Json[] }).history[0].cashEnd],
       ['finance.history[3].expense', (o) => ((o.finance as { history: Json[] }).history[3].expense = {})],
-      ['training.plan.rlhf', (o) => delete (o.training as { plan: Json }).plan.rlhf],
-      ['training.arch', (o) => ((o.training as Json).arch = 'rnn')],
+      ['trainings[0].plan.rlhf', (o) => delete (o.trainings as { plan: Json }[])[0].plan.rlhf],
+      ['trainings[0].arch', (o) => ((o.trainings as Json[])[0].arch = 'rnn')],
+      ['trainings[0].id', (o) => delete (o.trainings as Json[])[0].id],
+      ['trainings[0].failed', (o) => ((o.trainings as Json[])[0].failed = 'да')],
+      ['models[0].plan.tier', (o) => ((o.models as { plan: Json }[])[0].plan.tier = 'huge')],
+      ['models[0].review', (o) => ((o.models as Json[])[0].review = 'done')],
+      ['models[0].subsPrice', (o) => ((o.models as Json[])[0].subsPrice = null)],
     ];
     for (const [path, mutate] of cases) {
       const o = parsed(s);
@@ -442,6 +449,127 @@ describe('сложность и соперники с характерами в 
   });
 });
 
+// ---------- Рынок v2: сохранения старого вида ----------
+
+describe('сохранение до рынка v2 (design market-v2, раздел 9)', () => {
+  /** Сохранение в старом виде: alloc с inference, одно поле training, модели и журнал без новых полей, рынок без сегментов. */
+  function oldShape(s: GameState, failedLetter = false): Json {
+    const o = parsed(s);
+    const alloc = (o.compute as { alloc: Json }).alloc;
+    alloc.inference = alloc.api;
+    delete alloc.api;
+    delete alloc.subs;
+    const run = (o.trainings as Json[])[0];
+    delete run.id;
+    delete run.failed;
+    delete (run.plan as Json).tier;
+    o.training = run;
+    delete o.trainings;
+    delete o.nextRunNum;
+    for (const m of o.models as Json[]) {
+      delete (m.plan as Json).tier;
+      for (const k of ['onSubs', 'subsPrice', 'review', 'reviewEndDay', 'earnedSubs']) delete m[k];
+    }
+    const strip = (l: Json) => {
+      delete (l.income as Json).subs;
+      delete (l.expense as Json).review;
+      delete l.subscribers;
+    };
+    const finance = o.finance as { month: Json; history: Json[] };
+    strip(finance.month);
+    for (const h of finance.history) strip(h);
+    const market = o.market as Json;
+    for (const k of ['playerSubs', 'totalSubs', 'lostApi', 'lostSubs', 'segments']) delete market[k];
+    if (failedLetter) {
+      (o.mail as Json[]).push({
+        id: 'm999', day: o.day, title: 'Срыв', body: 'Срыв.', kind: 'training', read: false, eventId: 'training-fail',
+        choices: [{ label: 'Вернуться к чекпоинту', hint: 'а' }, { label: 'Продолжить', hint: 'б' }],
+      });
+    }
+    return o;
+  }
+
+  it('загружается с умолчаниями: alloc.api из inference, trainings из training, модели и журнал дополнены, рынок с пустыми сегментами', () => {
+    const s = richState();
+    const r = load(oldShape(s));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const st = r.state;
+    expect(st.compute.alloc.api).toBe(s.compute.alloc.api);
+    expect(st.compute.alloc.subs).toBe(0);
+    expect('inference' in st.compute.alloc).toBe(false);
+    expect('training' in st).toBe(false);
+    expect(st.trainings).toHaveLength(1);
+    expect(st.trainings[0].id).toBe('t1');
+    expect(st.trainings[0].failed).toBe(false);
+    expect(st.trainings[0].plan.tier).toBe(tierOf(st.trainings[0].plan.paramsB, st.trainings[0].startedDay));
+    expect(st.nextRunNum).toBe(2);
+    for (const m of st.models) {
+      expect(m.plan.tier).toBe(tierOf(m.plan.paramsB, m.trainedDay));
+      expect(m.onSubs).toBe(false);
+      expect(m.subsPrice).toBe(TIER_SUBS_PRICE[m.plan.tier]);
+      expect(m.review).toBe('none');
+      expect(m.reviewEndDay).toBeNull();
+      expect(m.earnedSubs).toBe(0);
+    }
+    expect(st.finance.month.income.subs).toBe(0);
+    expect(st.finance.month.expense.review).toBe(0);
+    for (const h of st.finance.history) {
+      expect(h.income.subs).toBe(0);
+      expect(h.expense.review).toBe(0);
+      expect(h.subscribers).toBe(0);
+    }
+    expect(st.market.playerSubs).toBe(0);
+    expect(st.market.totalSubs).toBe(0);
+    expect(st.market.lostApi).toBe(0);
+    expect(st.market.lostSubs).toBe(0);
+    expect(st.market.segments).toEqual(emptyMarket().segments);
+    expect(st.market.shares).toEqual(s.market.shares);
+  });
+
+  it('неотвеченное письмо о срыве делает проект failed; без проекта trainings пуст и nextRunNum = 1', () => {
+    const s = richState();
+    const r = load(oldShape(s, true));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.state.trainings[0].failed).toBe(true);
+
+    const o = oldShape(s);
+    o.training = null;
+    const empty = load(o);
+    expect(empty.ok).toBe(true);
+    if (empty.ok) {
+      expect(empty.state.trainings).toEqual([]);
+      expect(empty.state.nextRunNum).toBe(1);
+    }
+  });
+
+  it('загруженное старое сохранение идёт дальше детерминированно и без NaN', () => {
+    const s = richState();
+    const a = load(oldShape(s));
+    const b = load(oldShape(s));
+    expect(a.ok && b.ok).toBe(true);
+    if (!a.ok || !b.ok) return;
+    advanceDays(a.state, 200);
+    advanceDays(b.state, 200);
+    expect(serialize(a.state)).toBe(serialize(b.state));
+    expect(Number.isFinite(a.state.cash)).toBe(true);
+    expect(a.state.finance.revenueDaily.every(Number.isFinite)).toBe(true);
+    for (const v of Object.values(a.state.market.labShares)) expect(Number.isFinite(v)).toBe(true);
+  });
+
+  it('новое сохранение загружается без изменений', () => {
+    const s = richState();
+    s.models[0].onSubs = true;
+    s.models[0].subsPrice = 15.5;
+    s.models[0].review = 'pending';
+    s.models[0].reviewEndDay = s.day + 30;
+    s.models[0].earnedSubs = 123;
+    const r = deserialize(serialize(s));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(serialize(r.state)).toBe(serialize(s));
+  });
+});
+
 // ---------- Полнота проверки ----------
 
 /** Все узлы дерева: путь, нормализованный путь (индексы массивов заменены на []) и значение. */
@@ -463,15 +591,22 @@ function collect(value: unknown, path: (string | number)[], norm: string, seen: 
 /** Поля, которых может не быть (необязательные в типах), и словари, в которых ключи приходят и уходят. */
 // founderName, tutorial, monthsFirst, autoApply, difficulty и rivalry появились позже: в старых сохранениях их нет,
 // загрузка подставляет значения по умолчанию.
+// Рынок v2 (tier, onSubs, subsPrice, review, reviewEndDay, earnedSubs, subs, subscribers, playerSubs, totalSubs, lostApi,
+// lostSubs, segments и их сегменты, trainings, nextRunNum) тоже появился позже: загрузка дополняет умолчаниями.
 const OPTIONAL_FIELDS = new Set([
   'eventId', 'choices', 'chosen', 'important', 'target', 'mult', 'add', 'founderName', 'tutorial', 'replyByDay', 'defaultChoice',
   'deferred', 'autoChosen', 'context', 'contextLevel', 'earned', 'monthsFirst', 'autoApply', 'difficulty', 'rivalry',
+  'tier', 'onSubs', 'subsPrice', 'review', 'reviewEndDay', 'earnedSubs', 'subs', 'subscribers', 'playerSubs', 'totalSubs',
+  'lostApi', 'lostSubs', 'segments', 'consumers', 'enterprise', 'developers', 'trainings', 'nextRunNum',
 ]);
 /** Необязательные поля по полному пути: имя поля (modelId, price) в других местах обязательно. */
 const OPTIONAL_PATHS = new Set(['rivalry.pending[].modelId', 'rivalry.choice.modelId']);
 /** Поправки к модели соперника (rivalry.overrides.<id>.*) все необязательные. */
 const optionalPath = (norm: string): boolean => OPTIONAL_PATHS.has(norm) || /^rivalry\.overrides\.[^.]+\.[^.]+$/.test(norm);
-const DICTS = new Set(['flags', 'market.shares', 'models[].overfit', 'rivalry.moveCooldown', 'rivalry.overrides', 'rivalry.extra']);
+const DICTS = new Set([
+  'flags', 'market.shares', 'models[].overfit', 'rivalry.moveCooldown', 'rivalry.overrides', 'rivalry.extra',
+  'market.segments.consumers.shares', 'market.segments.enterprise.shares', 'market.segments.developers.shares',
+]);
 
 describe('проверка покрывает каждое поле живого состояния', () => {
   const s = richState();

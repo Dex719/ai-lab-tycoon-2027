@@ -67,6 +67,7 @@ function model(over: Partial<PlayerModel> = {}): PlayerModel {
       benchTargets: [],
       rlhf: true,
       context: 512,
+      tier: 'mid',
     },
     arch: 'transformer',
     algoLevel: 0,
@@ -80,6 +81,11 @@ function model(over: Partial<PlayerModel> = {}): PlayerModel {
     onApi: true,
     exposed: false,
     earned: 0,
+    onSubs: false,
+    subsPrice: 20,
+    review: 'none',
+    reviewEndDay: null,
+    earnedSubs: 0,
     ...over,
   };
 }
@@ -204,7 +210,9 @@ describe('данные событий', () => {
     const empty = newState();
     const busy = newState();
     busy.models.push(model());
-    busy.training = {
+    busy.trainings = [{
+      id: 't1',
+      failed: true,
       plan: { ...model().plan, name: 'Гигант-2' },
       arch: 'transformer',
       algoLevel: 0,
@@ -213,7 +221,7 @@ describe('данные событий', () => {
       startedDay: 5,
       failAtFraction: null,
       failPenalty: 0,
-    };
+    }];
     for (const s of [empty, busy]) {
       for (const def of EVENTS) {
         const m = def.mail(s);
@@ -912,22 +920,26 @@ describe('срыв обучения (training-fail)', () => {
     expect(applyFailChoice).toHaveBeenCalledWith(s, 'continue');
   });
 
-  it('в письме есть название проекта', () => {
+  it('в письме есть название проекта с failed, а не первого в списке', () => {
     const s = newState();
-    s.training = {
-      plan: { ...model().plan, name: 'Гигант-2' },
-      arch: 'transformer',
+    const run = (id: string, name: string, failed: boolean) => ({
+      id,
+      failed,
+      plan: { ...model().plan, name },
+      arch: 'transformer' as const,
       algoLevel: 0,
       flopTotal: 1e22,
       flopDone: 4e21,
       startedDay: 10,
-      failAtFraction: 0.4,
+      failAtFraction: null,
       failPenalty: 0,
-    };
+    });
+    s.trainings = [run('t1', 'Малыш-1', false), run('t2', 'Гигант-2', true)];
     triggerEvent(s, 'training-fail');
     const mail = s.mail[0];
     expect(mail.title).toContain('Срыв обучения');
     expect(mail.body).toContain('Гигант-2');
+    expect(mail.body).not.toContain('Малыш-1');
     expect(mail.kind).toBe('training');
   });
 

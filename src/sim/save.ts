@@ -3,9 +3,11 @@
 // или битый файл отклоняются понятной ошибкой, а не роняют тик и отрисовку позже (например, нет нового бенчмарка).
 
 import { findEvent } from '../data/events';
-import { CHOICE_DAYS, FAIL_CHOICE_DAYS, HYPE_OWNERS } from './constants';
+import { CHOICE_DAYS, FAIL_CHOICE_DAYS, HYPE_OWNERS, TIER_SUBS_PRICE } from './constants';
 import { DIFFICULTY_IDS, emptyRivalry, LEVERS, MOVE_IDS } from './rivalry';
 import type { ActiveMove, HistoryRow, LabMemory, PendingMove, RivalOverride, RivalryState } from './rivalry';
+import { emptyMarket, emptySegmentShares } from './state';
+import { tierOf } from './training';
 import type {
   Contract,
   ExpenseKind,
@@ -18,11 +20,13 @@ import type {
   MonthLedger,
   MonthRecord,
   PlayerModel,
+  SegmentShares,
   Tender,
+  Tier,
   TrainingPlan,
   TrainingRun,
 } from './types';
-import { BENCHMARK_IDS, DOMAINS, GPU_IDS, LAB_IDS, TECH_IDS } from './types';
+import { BENCHMARK_IDS, DOMAINS, GPU_IDS, LAB_IDS, REVIEW_STATES, SEGMENT_IDS, TECH_IDS, TIER_IDS } from './types';
 
 export const SAVE_KEY = 'ailab.save.v1';
 export const AUTOSAVE_KEY = 'ailab.autosave.v1';
@@ -142,6 +146,8 @@ const MODIFIER_KINDS = keysOf<ModifierKind>({
   labBrand: true,
   rivalPrice: true,
   exposure: true,
+  segBrand: true,
+  subsDemand: true,
 });
 
 const ARCHS = ['lstm', 'transformer'];
@@ -155,9 +161,12 @@ const trainingPlan = shapeOf<TrainingPlan>({
   benchTargets: arrayOf(oneOf(BENCHMARK_IDS)),
   rlhf: bool,
   context: num,
+  tier: oneOf(TIER_IDS),
 });
 
 const trainingRun = shapeOf<TrainingRun>({
+  id: str,
+  failed: bool,
   plan: trainingPlan,
   arch: oneOf(ARCHS),
   algoLevel: num,
@@ -184,6 +193,11 @@ const playerModel = shapeOf<PlayerModel>({
   onApi: bool,
   exposed: bool,
   earned: num,
+  onSubs: bool,
+  subsPrice: num,
+  review: oneOf(REVIEW_STATES),
+  reviewEndDay: nullable(num),
+  earnedSubs: num,
 });
 
 const tender = shapeOf<Tender>({
@@ -240,8 +254,8 @@ const modifier = shapeOf<Modifier>({
   untilDay: num,
 });
 
-const income = shapeOf<Record<IncomeKind, number>>({ api: num, contracts: num, investors: num });
-const expense = shapeOf<Record<ExpenseKind, number>>({ rent: num, overhead: num, labelers: num, penalties: num });
+const income = shapeOf<Record<IncomeKind, number>>({ api: num, subs: num, contracts: num, investors: num });
+const expense = shapeOf<Record<ExpenseKind, number>>({ rent: num, overhead: num, labelers: num, penalties: num, review: num });
 
 const ledger = shapeOf<MonthLedger>({ income, expense });
 
@@ -253,7 +267,12 @@ const monthRecord = shapeOf<MonthRecord>({
   cashEnd: num,
   marketShare: num,
   tokensPerDay: num,
+  subscribers: num,
 });
+
+const labShares = record([...HYPE_OWNERS, 'none'], num);
+
+const segmentShares = shapeOf<SegmentShares>({ shares: dict(num), labShares, total: num });
 
 // Соперники с характерами: ходы, поправки к моделям соперников и память лабораторий (rivalry.ts).
 const pendingMove = shapeOf<PendingMove>({
@@ -317,7 +336,7 @@ const STATE: Record<keyof GameState, Check> = {
   hype: record(HYPE_OWNERS, num),
   compute: shapeOf<GameState['compute']>({
     rented: record(GPU_IDS, nonNeg),
-    alloc: shapeOf<GameState['compute']['alloc']>({ training: nonNeg, contracts: nonNeg, experiments: nonNeg, inference: nonNeg }),
+    alloc: shapeOf<GameState['compute']['alloc']>({ training: nonNeg, contracts: nonNeg, experiments: nonNeg, api: nonNeg, subs: nonNeg }),
   }),
   research: shapeOf<GameState['research']>({
     current: nullable(oneOf(TECH_IDS)),
@@ -326,7 +345,8 @@ const STATE: Record<keyof GameState, Check> = {
     algoLevel: num,
     contextLevel: num,
   }),
-  training: nullable(trainingRun),
+  trainings: arrayOf(trainingRun),
+  nextRunNum: posInt,
   bestFlop: num,
   nextModelNum: posInt,
   models: arrayOf(playerModel),
@@ -352,10 +372,15 @@ const STATE: Record<keyof GameState, Check> = {
   rivalry,
   market: shapeOf<GameState['market']>({
     shares: dict(num),
-    labShares: record([...HYPE_OWNERS, 'none'], num),
+    labShares,
     playerTokens: num,
     lostFraction: num,
     totalTokens: num,
+    playerSubs: num,
+    totalSubs: num,
+    lostApi: num,
+    lostSubs: num,
+    segments: record(SEGMENT_IDS, segmentShares),
   }),
 };
 
@@ -392,6 +417,7 @@ function migrateContext(data: Record<string, unknown>): void {
     if (isRec(research.points) && research.points.context === undefined) research.points.context = 0;
   }
   if (isRec(data.training)) plan(data.training.plan);
+  if (Array.isArray(data.trainings)) for (const run of data.trainings) if (isRec(run)) plan(run.plan);
   if (Array.isArray(data.models)) {
     for (const m of data.models) {
       if (!isRec(m)) continue;
@@ -416,6 +442,95 @@ function migrateChoices(data: Record<string, unknown>): void {
   }
 }
 
+/** Уровень по размеру модели на день, если размер - число; иначе undefined (проверка формы отклонит сохранение сама). */
+function tierFor(plan: unknown, day: unknown): Tier | undefined {
+  if (!isRec(plan) || typeof plan.paramsB !== 'number' || !Number.isFinite(plan.paramsB)) return undefined;
+  return tierOf(plan.paramsB, typeof day === 'number' && Number.isFinite(day) ? day : 0);
+}
+
+/**
+ * Рынок v2 появился позже (подписки, сегменты, уровни моделей, параллельное обучение): старые сохранения получают
+ * значения по умолчанию (design market-v2, раздел 9). Версия сохранения остаётся 1.
+ * - alloc.inference → alloc.api, alloc.subs = 0;
+ * - training → trainings: [проект с id 't1'; failed - есть неотвеченное письмо срыва], nextRunNum;
+ * - plan.tier = tierOf(paramsB, день старта или обучения); модели без подписки и проверки;
+ * - статьи subs/review в журнале, subscribers в истории, доли по сегментам в рынке.
+ */
+function migrateMarketV2(data: Record<string, unknown>): void {
+  const compute = data.compute;
+  if (isRec(compute) && isRec(compute.alloc)) {
+    const alloc = compute.alloc;
+    if (alloc.api === undefined && alloc.inference !== undefined) alloc.api = alloc.inference;
+    delete alloc.inference;
+    if (alloc.subs === undefined) alloc.subs = 0;
+  }
+
+  if (data.trainings === undefined) {
+    const training = data.training;
+    if (isRec(training)) {
+      const failed = Array.isArray(data.mail)
+        ? data.mail.some((m) => isRec(m) && m.eventId === 'training-fail' && Array.isArray(m.choices) && m.chosen === undefined)
+        : false;
+      data.trainings = [{ ...training, id: 't1', failed }];
+      if (data.nextRunNum === undefined) data.nextRunNum = 2;
+    } else {
+      data.trainings = [];
+      if (data.nextRunNum === undefined) data.nextRunNum = 1;
+    }
+  }
+  delete data.training;
+  if (data.nextRunNum === undefined) data.nextRunNum = Array.isArray(data.trainings) ? data.trainings.length + 1 : 1;
+  if (Array.isArray(data.trainings)) {
+    for (const run of data.trainings) {
+      if (!isRec(run) || !isRec(run.plan)) continue;
+      if (run.plan.tier === undefined) run.plan.tier = tierFor(run.plan, run.startedDay);
+    }
+  }
+
+  if (Array.isArray(data.models)) {
+    for (const m of data.models) {
+      if (!isRec(m)) continue;
+      if (isRec(m.plan) && m.plan.tier === undefined) m.plan.tier = tierFor(m.plan, m.trainedDay);
+      if (m.onSubs === undefined) m.onSubs = false;
+      if (m.subsPrice === undefined) {
+        const tier = isRec(m.plan) ? (m.plan.tier as Tier | undefined) : undefined;
+        m.subsPrice = tier !== undefined && tier in TIER_SUBS_PRICE ? TIER_SUBS_PRICE[tier] : TIER_SUBS_PRICE.mid;
+      }
+      if (m.review === undefined) m.review = 'none';
+      if (m.reviewEndDay === undefined) m.reviewEndDay = null;
+      if (m.earnedSubs === undefined) m.earnedSubs = 0;
+    }
+  }
+
+  const ledger = (l: unknown): void => {
+    if (!isRec(l)) return;
+    if (isRec(l.income) && l.income.subs === undefined) l.income.subs = 0;
+    if (isRec(l.expense) && l.expense.review === undefined) l.expense.review = 0;
+  };
+  const finance = data.finance;
+  if (isRec(finance)) {
+    ledger(finance.month);
+    if (Array.isArray(finance.history)) {
+      for (const h of finance.history) {
+        ledger(h);
+        if (isRec(h) && h.subscribers === undefined) h.subscribers = 0;
+      }
+    }
+  }
+
+  const market = data.market;
+  if (isRec(market)) {
+    if (market.playerSubs === undefined) market.playerSubs = 0;
+    if (market.totalSubs === undefined) market.totalSubs = 0;
+    if (market.lostApi === undefined) market.lostApi = 0;
+    if (market.lostSubs === undefined) market.lostSubs = 0;
+    if (market.segments === undefined) market.segments = emptyMarket().segments;
+    else if (isRec(market.segments)) {
+      for (const id of SEGMENT_IDS) if (market.segments[id] === undefined) market.segments[id] = emptySegmentShares();
+    }
+  }
+}
+
 export function deserialize(json: string): { ok: true; state: GameState } | { ok: false; error: string } {
   let data: unknown;
   try {
@@ -434,6 +549,7 @@ export function deserialize(json: string): { ok: true; state: GameState } | { ok
   if (data.difficulty === undefined) data.difficulty = 'normal';
   if (data.rivalry === undefined) data.rivalry = emptyRivalry();
   migrateContext(data);
+  migrateMarketV2(data);
   migrateChoices(data);
   const problem = WHOLE_STATE(data, '') ?? pendingChoiceProblem(data.mail as Mail[]);
   if (problem) return { ok: false, error: problemText(problem) };

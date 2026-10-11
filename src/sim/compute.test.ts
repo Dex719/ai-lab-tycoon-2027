@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GPUS } from '../data/gpus';
 import {
+  ALLOC_KEYS,
   availableGpus,
   cheapestH100eDay,
   gpuDef,
@@ -250,10 +251,10 @@ describe('мощность и доли', () => {
     const s = stateAt('2018-05-01');
     s.compute.rented.p100 = 100;
     s.compute.rented.v100 = 10;
-    s.compute.alloc = { training: 0.5, contracts: 0.1, experiments: 0.4, inference: 0 };
+    s.compute.alloc = { training: 0.5, contracts: 0.1, experiments: 0.4, api: 0, subs: 0 };
     expect(pool(s, 'training')).toBeCloseTo(totalH100e(s) * 0.5, 9);
     expect(pool(s, 'experiments')).toBeCloseTo(totalH100e(s) * 0.4, 9);
-    expect(pool(s, 'inference')).toBe(0);
+    expect(pool(s, 'api')).toBe(0);
   });
 });
 
@@ -289,50 +290,50 @@ describe('cheapestH100eDay', () => {
 
 describe('normalizeAlloc', () => {
   it('приводит к сумме 1 с сохранением пропорций', () => {
-    const a = normalizeAlloc({ training: 1, contracts: 1, experiments: 2, inference: 0 });
-    expect(a).toEqual({ training: 0.25, contracts: 0.25, experiments: 0.5, inference: 0 });
+    const a = normalizeAlloc({ training: 1, contracts: 1, experiments: 2, api: 0, subs: 0 });
+    expect(a).toEqual({ training: 0.25, contracts: 0.25, experiments: 0.5, api: 0, subs: 0 });
   });
 
   it('все нули → DEFAULT_ALLOC (копия, а не тот же объект)', () => {
-    const a = normalizeAlloc({ training: 0, contracts: 0, experiments: 0, inference: 0 });
+    const a = normalizeAlloc({ training: 0, contracts: 0, experiments: 0, api: 0, subs: 0 });
     expect(a).toEqual(DEFAULT_ALLOC);
     expect(a).not.toBe(DEFAULT_ALLOC);
   });
 
   it('отрицательные, NaN и бесконечные значения считаются нулём', () => {
-    const a = normalizeAlloc({ training: -5, contracts: Number.NaN, experiments: 3, inference: Infinity });
-    expect(a).toEqual({ training: 0, contracts: 0, experiments: 1, inference: 0 });
-    const zeros = normalizeAlloc({ training: -1, contracts: Number.NaN, experiments: -2, inference: 0 });
+    const a = normalizeAlloc({ training: -5, contracts: Number.NaN, experiments: 3, api: Infinity, subs: 0 });
+    expect(a).toEqual({ training: 0, contracts: 0, experiments: 1, api: 0, subs: 0 });
+    const zeros = normalizeAlloc({ training: -1, contracts: Number.NaN, experiments: -2, api: 0, subs: 0 });
     expect(zeros).toEqual(DEFAULT_ALLOC);
   });
 
   it('уже нормальные доли не меняются', () => {
-    const a = { training: 0.4, contracts: 0.2, experiments: 0.4, inference: 0 };
+    const a = { training: 0.4, contracts: 0.2, experiments: 0.4, api: 0, subs: 0 };
     expect(normalizeAlloc(a)).toEqual(a);
   });
 
   it('доли из процентов (сумма 0,9999999999999999) не получают «хвостов» после деления', () => {
-    const a = { training: 0.06, contracts: 0.57, experiments: 0.37, inference: 0 }; // 6 % + 57 % + 37 %
+    const a = { training: 0.06, contracts: 0.57, experiments: 0.37, api: 0, subs: 0 }; // 6 % + 57 % + 37 %
     expect(normalizeAlloc(a)).toEqual(a);
   });
 
   it('сумма всегда 1', () => {
-    const a = normalizeAlloc({ training: 3, contracts: 7, experiments: 11, inference: 13 });
-    expect(a.training + a.contracts + a.experiments + a.inference).toBeCloseTo(1, 12);
+    const a = normalizeAlloc({ training: 3, contracts: 7, experiments: 11, api: 13, subs: 0 });
+    expect(a.training + a.contracts + a.experiments + a.api + a.subs).toBeCloseTo(1, 12);
   });
 
   it('повторная нормализация ничего не меняет', () => {
-    const once = normalizeAlloc({ training: 3, contracts: 7, experiments: 11, inference: 13 });
+    const once = normalizeAlloc({ training: 3, contracts: 7, experiments: 11, api: 13, subs: 0 });
     expect(normalizeAlloc(once)).toEqual(once);
   });
 
   it('сумма переполнена (огромные числа) - стартовые доли, без NaN и нулей', () => {
-    const a = normalizeAlloc({ training: 1e308, contracts: 1e308, experiments: 1e308, inference: 0 });
+    const a = normalizeAlloc({ training: 1e308, contracts: 1e308, experiments: 1e308, api: 0, subs: 0 });
     expect(a).toEqual(DEFAULT_ALLOC);
   });
 
   it('не меняет переданный объект', () => {
-    const input = { training: 2, contracts: 2, experiments: 4, inference: 0 };
+    const input = { training: 2, contracts: 2, experiments: 4, api: 0, subs: 0 };
     const copy = { ...input };
     const out = normalizeAlloc(input);
     expect(input).toEqual(copy);
@@ -343,22 +344,22 @@ describe('normalizeAlloc', () => {
 describe('setAllocation', () => {
   it('сохраняет нормализованные доли', () => {
     const s = createInitialState('Тест', 1);
-    const r = setAllocation(s, { training: 50, contracts: 0, experiments: 50, inference: 0 });
+    const r = setAllocation(s, { training: 50, contracts: 0, experiments: 50, api: 0, subs: 0 });
     expect(r).toEqual({ ok: true });
-    expect(s.compute.alloc).toEqual({ training: 0.5, contracts: 0, experiments: 0.5, inference: 0 });
+    expect(s.compute.alloc).toEqual({ training: 0.5, contracts: 0, experiments: 0.5, api: 0, subs: 0 });
   });
 
   it('нули превращает в стартовые доли', () => {
     const s = createInitialState('Тест', 1);
-    s.compute.alloc = { training: 1, contracts: 0, experiments: 0, inference: 0 };
-    setAllocation(s, { training: 0, contracts: 0, experiments: 0, inference: 0 });
+    s.compute.alloc = { training: 1, contracts: 0, experiments: 0, api: 0, subs: 0 };
+    setAllocation(s, { training: 0, contracts: 0, experiments: 0, api: 0, subs: 0 });
     expect(s.compute.alloc).toEqual(DEFAULT_ALLOC);
     expect(s.compute.alloc).not.toBe(DEFAULT_ALLOC); // копия: правка состояния не портит константу
   });
 
   it('не хранит ссылку на переданный объект', () => {
     const s = createInitialState('Тест', 1);
-    const input = { training: 0.5, contracts: 0, experiments: 0.5, inference: 0 };
+    const input = { training: 0.5, contracts: 0, experiments: 0.5, api: 0, subs: 0 };
     setAllocation(s, input);
     input.training = 0;
     expect(s.compute.alloc.training).toBe(0.5);
@@ -367,9 +368,9 @@ describe('setAllocation', () => {
   it('доли «Клиенты» тоже принимаются: вся мощность на инференс', () => {
     const s = createInitialState('Тест', 1);
     s.compute.rented.p100 = 100;
-    setAllocation(s, { training: 0, contracts: 0, experiments: 0, inference: 7 });
-    expect(s.compute.alloc).toEqual({ training: 0, contracts: 0, experiments: 0, inference: 1 });
-    expect(pool(s, 'inference')).toBeCloseTo(totalH100e(s), 9);
+    setAllocation(s, { training: 0, contracts: 0, experiments: 0, api: 7, subs: 0 });
+    expect(s.compute.alloc).toEqual({ training: 0, contracts: 0, experiments: 0, api: 1, subs: 0 });
+    expect(pool(s, 'api')).toBeCloseTo(totalH100e(s), 9);
   });
 });
 
@@ -482,5 +483,29 @@ describe('setRent', () => {
     const s = createInitialState('Тест', 1);
     expect(setRent(s, 'h200', 0)).toEqual({ ok: true });
     expect(s.compute.rented.h200).toBe(0);
+  });
+});
+
+describe('доли мощности v2: пять ключей', () => {
+  it('ALLOC_KEYS: обучение, контракты, исследования, API, подписки; DEFAULT_ALLOC без мощности на клиентов', () => {
+    expect(ALLOC_KEYS).toEqual(['training', 'contracts', 'experiments', 'api', 'subs']);
+    expect(DEFAULT_ALLOC).toEqual({ training: 0.4, contracts: 0.2, experiments: 0.4, api: 0, subs: 0 });
+    expect(ALLOC_KEYS.reduce((a, k) => a + DEFAULT_ALLOC[k], 0)).toBeCloseTo(1, 12);
+  });
+
+  it('нормализация учитывает подписки; pool(api) и pool(subs) считаются по своим долям', () => {
+    const a = normalizeAlloc({ training: 1, contracts: 1, experiments: 1, api: 1, subs: 1 });
+    for (const k of ALLOC_KEYS) expect(a[k]).toBeCloseTo(0.2, 12);
+    const s = createInitialState('Тест', 1);
+    s.compute.rented.p100 = 100;
+    setAllocation(s, { training: 0, contracts: 0, experiments: 0, api: 3, subs: 1 });
+    expect(s.compute.alloc).toEqual({ training: 0, contracts: 0, experiments: 0, api: 0.75, subs: 0.25 });
+    expect(pool(s, 'api')).toBeCloseTo(totalH100e(s) * 0.75, 9);
+    expect(pool(s, 'subs')).toBeCloseTo(totalH100e(s) * 0.25, 9);
+  });
+
+  it('доля без ключа subs (старый вид) считается нулём, а не NaN', () => {
+    const a = normalizeAlloc({ training: 0.5, contracts: 0.5, experiments: 0 } as unknown as Parameters<typeof normalizeAlloc>[0]);
+    expect(a).toEqual({ training: 0.5, contracts: 0.5, experiments: 0, api: 0, subs: 0 });
   });
 });

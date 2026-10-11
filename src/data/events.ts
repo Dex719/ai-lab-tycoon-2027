@@ -13,6 +13,7 @@ import {
   BOARD_PLAN_HYPE,
   BOARD_PLAN_VALUATION_MULT,
   CHAT_MOMENT_BRAND,
+  CHAT_MOMENT_DATE,
   EXPORT_CONTROL_BRAND,
   FAIL_CHOICE_DAYS,
   FAIL_CONTINUE_PENALTY,
@@ -56,7 +57,7 @@ export interface EventDef {
 // ---------- Даты и числа событий ----------
 
 const ATTENTION_DATE = '2017-06-12';
-const CHAT_DATE = '2022-11-30';
+const CHAT_DATE = CHAT_MOMENT_DATE; // чат-момент: с него же открыт канал подписок (sim/market.subsOpen)
 const SHORTAGE_END = '2024-03-31';
 const AD_COST = 300_000; // реклама своего API после открытия GTP-3
 
@@ -510,7 +511,8 @@ export const EVENTS: EventDef[] = [
     choiceDays: FAIL_CHOICE_DAYS,
     when: { check: () => false },
     mail: (s) => {
-      const name = s.training?.plan.name;
+      // Проект, который ждёт решения: training.progressDay ставит failed до запуска события.
+      const name = s.trainings.find((r) => r.failed)?.plan.name;
       return {
         kind: 'training',
         title: 'Срыв обучения: резкий рост потерь',

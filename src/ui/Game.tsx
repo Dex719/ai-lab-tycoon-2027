@@ -143,10 +143,12 @@ export function Game({ s }: { s: GameState }) {
             <DeskIcon key={d.id} def={d} count={iconCount(d.id)} selected={openIds.has(d.id)} onOpen={() => open(d.id)} />
           ))}
           {LOCKED.map((l) => (
-            <button key={l.title} className="desk-icon" disabled title="Появится в следующих версиях">
-              <l.icon size={56} disabled />
-              <span className="icon-label">{l.title}</span>
-            </button>
+            <span key={l.title} className="desk-icon-wrap" title="Появится в следующих версиях">
+              <button className="desk-icon" disabled>
+                <l.icon size={56} disabled />
+                <span className="icon-label">{l.title}</span>
+              </button>
+            </span>
           ))}
         </div>
         <div className="icon-col right">

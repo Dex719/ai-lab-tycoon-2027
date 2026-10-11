@@ -46,7 +46,7 @@ const ANCHOR_P100 = Math.round(2 / h100eOf('p100'));
 function labWithExperiments(p100: number): GameState {
   const s = createInitialState('Тест', 1);
   setRent(s, 'p100', p100);
-  setAllocation(s, { training: 0, contracts: 0, experiments: 1, inference: 0 });
+  setAllocation(s, { training: 0, contracts: 0, experiments: 1, api: 0, subs: 0 });
   return s;
 }
 
@@ -155,7 +155,7 @@ describe('rpPerDay', () => {
 
   it('учитывает только долю «Эксперименты»', () => {
     const s = labWithExperiments(ANCHOR_P100);
-    setAllocation(s, { training: 1, contracts: 0, experiments: 0, inference: 0 });
+    setAllocation(s, { training: 1, contracts: 0, experiments: 0, api: 0, subs: 0 });
     expect(rpPerDay(s)).toBe(RP_BASE);
   });
 
@@ -173,7 +173,7 @@ describe('rpPerDay', () => {
 
   it('половина мощности на эксперименты: корень считается от доли, а не от всей мощности', () => {
     const s = labWithExperiments(ANCHOR_P100);
-    setAllocation(s, { training: 0.5, contracts: 0, experiments: 0.5, inference: 0 });
+    setAllocation(s, { training: 0.5, contracts: 0, experiments: 0.5, api: 0, subs: 0 });
     expect(rpPerDay(s)).toBeCloseTo(RP_BASE + RP_K * Math.sqrt(ANCHOR_P100 * h100eOf('p100') * 0.5), 9);
   });
 
@@ -504,7 +504,7 @@ describe('опорный сценарий: внимание успеть до 12
   it('≈ 2 H100e на эксперименты с 01.01.2017 - внимание готово до 12.06.2017', () => {
     const s = createInitialState('Тест', 1);
     expect(setRent(s, 'p100', ANCHOR_P100)).toEqual({ ok: true });
-    expect(setAllocation(s, { training: 0, contracts: 0, experiments: 1, inference: 0 })).toEqual({ ok: true });
+    expect(setAllocation(s, { training: 0, contracts: 0, experiments: 1, api: 0, subs: 0 })).toEqual({ ok: true });
     expect(setResearch(s, 'attention')).toEqual({ ok: true });
 
     const deadline = dateToDay('2017-06-12');
@@ -535,7 +535,7 @@ describe('опорный сценарий: внимание успеть до 12
 
   it('без экспериментов (только база команды) успеть нельзя', () => {
     const s = createInitialState('Тест', 1);
-    setAllocation(s, { training: 1, contracts: 0, experiments: 0, inference: 0 });
+    setAllocation(s, { training: 1, contracts: 0, experiments: 0, api: 0, subs: 0 });
     setResearch(s, 'attention');
     const deadline = dateToDay('2017-06-12');
     while (s.day < deadline) researchDay(s);

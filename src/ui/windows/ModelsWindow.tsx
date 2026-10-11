@@ -9,9 +9,9 @@ import { TOKENS_PER_USER_DAY, TRAIN_FLOP_PER_H100E_DAY } from '../../sim/constan
 import { awaitingEvent } from '../../sim/events';
 import { contextLabel } from '../../sim/research';
 import { arenaRank, benchRank } from '../../sim/leaderboard';
-import { minPrice, refPrice } from '../../sim/market';
+import { minPrice, playerSales, refPrice } from '../../sim/market';
 import { formatDateShort } from '../../sim/time';
-import { arenaElo as forecastElo, capsFromPlan, modelScore } from '../../sim/training';
+import { arenaElo as forecastElo, capsFromPlan, modelScore, trainingPoolPerRun } from '../../sim/training';
 import {
   DOMAINS,
   type BenchmarkId,
@@ -71,13 +71,14 @@ function versusMarket(price: number, ref: number): string {
   return `${rel > 0 ? '+' : '−'}${fmtPct(Math.abs(rel), 0)} к рынку`;
 }
 
-/** Продажи модели сегодня: доля, токены, пользователи, выручка в день (undefined - не в продаже). */
+/** Продажи модели сегодня: общая доля, токены API, пользователи API, выручка в день по обоим каналам (undefined - не в продаже). */
 function salesOf(s: GameState, m: PlayerModel) {
   const share: number | undefined = m.onApi ? s.market.shares[`player:${m.id}`] : undefined;
-  // Доля в s.market уже после ограничения мощностью (market.ts servedShares), отдельно на served не умножаем.
-  const tokens = share !== undefined ? share * s.market.totalTokens : undefined;
+  // Доли в s.market уже после ограничения мощностью (market.ts servedShares), отдельно на served не умножаем.
+  const sales = playerSales(s, m.id);
+  const tokens = m.onApi ? sales.apiTokens : undefined;
   const users = tokens !== undefined ? tokens / TOKENS_PER_USER_DAY : undefined;
-  const revenue = tokens !== undefined ? (tokens * m.price) / 1e6 : undefined;
+  const revenue = m.onApi || m.onSubs ? sales.apiRevenueDay + sales.subsRevenueDay : undefined;
   return { share, tokens, users, revenue };
 }
 
@@ -242,7 +243,7 @@ function SalesBlock({ s, m, open }: { s: GameState; m: PlayerModel; open: Window
 
   const { share, tokens } = salesOf(s, m);
   const lost = s.market.lostFraction;
-  const noInference = m.onApi && pool(s, 'inference') <= 0;
+  const noInference = m.onApi && pool(s, 'api') <= 0;
   const losing = m.onApi && !noInference && lost > 0.01;
 
   function run(r: Result) {
@@ -445,9 +446,9 @@ const DAYS_IN_MONTH = 30;
 
 function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: WindowProps['open'] }) {
   const frac = t.flopTotal > 0 ? Math.min(1, t.flopDone / t.flopTotal) : 0;
-  const power = pool(s, 'training');
+  const power = trainingPoolPerRun(s); // доля «Обучение» делится между идущими проектами
   const perDay = power * TRAIN_FLOP_PER_H100E_DAY;
-  const waiting = awaitingEvent(s, 'training-fail');
+  const waiting = t.failed || awaitingEvent(s, 'training-fail');
   const left = perDay > 0 ? Math.max(1, Math.ceil((t.flopTotal - t.flopDone) / perDay)) : null;
   const rentDay = rentPerDay(s) * s.compute.alloc.training;
   const forecast = s.research.done.includes('scaling')
@@ -555,7 +556,8 @@ function ModelCard({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowP
 export default function ModelsWindow({ s, open }: WindowProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const t = s.training;
+  // Пока в списке один проект обучения (первый); список проектов - в следующем срезе интерфейса.
+  const t = s.trainings[0] ?? null;
   if (s.models.length === 0 && !t) {
     return (
       <div className="mw-empty">

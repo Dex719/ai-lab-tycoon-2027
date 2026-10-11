@@ -3,9 +3,14 @@
 import { Game } from './Game';
 import { MainMenu } from './MainMenu';
 import { useGame } from './store';
+import { TooltipLayer } from './Tooltip';
 
 export function App() {
   const s = useGame();
-  if (!s) return <MainMenu />;
-  return <Game key={s.seed} s={s} />;
+  return (
+    <>
+      {s ? <Game key={s.seed} s={s} /> : <MainMenu />}
+      <TooltipLayer />
+    </>
+  );
 }

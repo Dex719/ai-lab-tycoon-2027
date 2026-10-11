@@ -2,18 +2,21 @@
 
 import { describe, expect, it } from 'vitest';
 import { newGame } from './actions';
-import { botAct, botChoice, runBot } from './bots';
+import { botAct, botChoice, chinchillaPlan, runBot } from './bots';
 import { setRent } from './compute';
 import { FAIL_ROLLBACK, TRAIN_FLOP_PER_H100E_DAY } from './constants';
 import { minPrice } from './market';
 import { botPriceReflex } from './rivalry';
 import { emptyLedger } from './state';
 import { dateToDay, END_DAY } from './time';
+import { tierOf } from './training';
 import type { GameState, MonthRecord, PlayerModel, TrainingRun } from './types';
 
-function run(flopTotal: number, flopDone: number): TrainingRun {
+function run(flopTotal: number, flopDone: number, failed = true): TrainingRun {
   return {
-    plan: { name: 'М', paramsB: 1, tokensB: 20, mix: { language: 1, code: 0, reasoning: 0 }, benchShare: 0, benchTargets: [], rlhf: false, context: 512 },
+    id: 't1',
+    failed,
+    plan: { name: 'М', paramsB: 1, tokensB: 20, mix: { language: 1, code: 0, reasoning: 0 }, benchShare: 0, benchTargets: [], rlhf: false, context: 512, tier: 'light' },
     arch: 'transformer',
     algoLevel: 0,
     flopTotal,
@@ -34,22 +37,35 @@ describe('botChoice', () => {
   it('откат успевает до конца игры - откат (вариант 0)', () => {
     const s = newGame('Бот', 1);
     setRent(s, 'p100', 100);
-    s.compute.alloc = { training: 1, contracts: 0, experiments: 0, inference: 0 };
+    s.compute.alloc = { training: 1, contracts: 0, experiments: 0, api: 0, subs: 0 };
     const perDay = 100 * 0.0214 * TRAIN_FLOP_PER_H100E_DAY;
-    s.training = run(perDay * 100, perDay * 50);
+    s.trainings = [run(perDay * 100, perDay * 50)];
     expect(botChoice(s, 'training-fail')).toBe(0);
   });
 
   it('откат не успевает до конца игры - продолжить (вариант 1)', () => {
     const s = newGame('Бот', 1);
     setRent(s, 'p100', 100);
-    s.compute.alloc = { training: 1, contracts: 0, experiments: 0, inference: 0 };
+    s.compute.alloc = { training: 1, contracts: 0, experiments: 0, api: 0, subs: 0 };
     const perDay = 100 * 0.0214 * TRAIN_FLOP_PER_H100E_DAY;
     s.day = END_DAY - 60;
     // Остаток 50 дней плюс откат 25 % от 100 дней - 75 дней, а до конца 57.
-    s.training = run(perDay * 100, perDay * 50);
+    s.trainings = [run(perDay * 100, perDay * 50)];
     expect(FAIL_ROLLBACK).toBe(0.25);
     expect(botChoice(s, 'training-fail')).toBe(1);
+  });
+
+  it('решение принимается по проекту с failed, а не по первому в списке', () => {
+    const s = newGame('Бот', 1);
+    setRent(s, 'p100', 100);
+    s.compute.alloc = { training: 1, contracts: 0, experiments: 0, api: 0, subs: 0 };
+    const perDay = 100 * 0.0214 * TRAIN_FLOP_PER_H100E_DAY;
+    s.day = END_DAY - 60;
+    // Первый проект почти готов (без срыва), второй сорван и до конца не успеет после отката: «Продолжить».
+    s.trainings = [{ ...run(perDay * 10, perDay * 9, false), id: 't1' }, { ...run(perDay * 200, perDay * 100), id: 't2' }];
+    expect(botChoice(s, 'training-fail')).toBe(1);
+    s.trainings[1].failed = false;
+    expect(botChoice(s, 'training-fail')).toBe(0); // ни один проект не ждёт решения
   });
 });
 
@@ -61,7 +77,7 @@ describe('тендеры бота', () => {
     expect(s.compute.rented.p100).toBeGreaterThan(0);
     const alloc = s.compute.alloc;
     expect(alloc.contracts).toBeLessThanOrEqual(0.5 + 1e-9);
-    expect(alloc.training + alloc.contracts + alloc.experiments + alloc.inference).toBeCloseTo(1, 9);
+    expect(alloc.training + alloc.contracts + alloc.experiments + alloc.api + alloc.subs).toBeCloseTo(1, 9);
   });
 });
 
@@ -70,7 +86,7 @@ function apiModel(id: string, price: number): PlayerModel {
   return {
     id,
     name: `Бот-${id}`,
-    plan: { name: id, paramsB: 1, tokensB: 20, mix: { language: 0.5, code: 0.25, reasoning: 0.25 }, benchShare: 0, benchTargets: [], rlhf: false, context: 512 },
+    plan: { name: id, paramsB: 1, tokensB: 20, mix: { language: 0.5, code: 0.25, reasoning: 0.25 }, benchShare: 0, benchTargets: [], rlhf: false, context: 512, tier: 'mid' },
     arch: 'transformer',
     algoLevel: 0,
     trainedDay: 0,
@@ -83,11 +99,16 @@ function apiModel(id: string, price: number): PlayerModel {
     onApi: true,
     exposed: false,
     earned: 0,
+    onSubs: false,
+    subsPrice: 20,
+    review: 'none',
+    reviewEndDay: null,
+    earnedSubs: 0,
   };
 }
 
 function monthRecord(month: number, marketShare: number): MonthRecord {
-  return { ...emptyLedger(), year: 2017, month, cashEnd: 1e6, marketShare, tokensPerDay: 1e9 };
+  return { ...emptyLedger(), year: 2017, month, cashEnd: 1e6, marketShare, tokensPerDay: 1e9, subscribers: 0 };
 }
 
 /** Игра в первую неделю марта 2017 с моделью на API и двумя закрытыми месяцами: доля упала с before до now. */
@@ -137,6 +158,74 @@ describe('рефлекс цен бота (botPriceReflex в botAct)', () => {
     const s = afterDrop(0.4, 0.2);
     botAct(s, 'idle');
     expect(s.models[0].price).toBe(10);
+  });
+
+  it('цена подписки моделей с onSubs × 0,9, не ниже $5; без подписки не трогается', () => {
+    const s = afterDrop(0.4, 0.2);
+    s.models[0].onSubs = true;
+    s.models[0].subsPrice = 20;
+    s.models.push({ ...apiModel('p2', 10), onSubs: false, subsPrice: 20 });
+    expect(botPriceReflex(s)).toBe(true);
+    expect(s.models[0].subsPrice).toBeCloseTo(18, 9);
+    expect(s.models[1].subsPrice).toBe(20);
+    s.models[0].subsPrice = 5.2;
+    s.models[0].price = 10;
+    expect(botPriceReflex(s)).toBe(true);
+    expect(s.models[0].subsPrice).toBe(5);
+    for (const m of s.models) m.price = 2 * minPrice(s.day);
+    expect(botPriceReflex(s)).toBe(false); // ниже $5 и 2 × minPrice не опускается
+    expect(s.models[0].subsPrice).toBe(5);
+  });
+});
+
+describe('бот и рынок v2', () => {
+  it('план по Шиншилле несёт уровень, совпадающий с размером на день', () => {
+    const s = newGame('Бот', 1);
+    for (const date of ['2017-03-01', '2020-06-11', '2024-06-01']) {
+      s.day = dateToDay(date);
+      for (const budget of [1e19, 1e22, 1e25]) {
+        const plan = chinchillaPlan(s, budget, 'Бот-1', 0);
+        expect(plan.tier, `${date}:${budget}`).toBe(tierOf(plan.paramsB, s.day));
+      }
+    }
+  });
+
+  it('доли «API» и «Подписки»: каждая не больше 0,5, вместе не больше 0,7; сумма долей 1', () => {
+    const s = newGame('Бот', 1);
+    s.day = dateToDay('2024-06-01');
+    s.rivalsReleased = ['gtp-4-turbu'];
+    setRent(s, 'h100', 10);
+    // Две модели в продаже по обоим каналам с огромным спросом: нужно мощности больше, чем есть.
+    s.models.push({ ...apiModel('p1', 0.1), arenaElo: 1400, onSubs: true }, { ...apiModel('p2', 0.1), arenaElo: 1390, onSubs: true });
+    botAct(s, 'reasonable');
+    const a = s.compute.alloc;
+    expect(a.api).toBeLessThanOrEqual(0.5 + 1e-9);
+    expect(a.subs).toBeLessThanOrEqual(0.5 + 1e-9);
+    expect(a.api + a.subs).toBeLessThanOrEqual(0.7 + 1e-9);
+    expect(a.api).toBeGreaterThan(0.49); // спрос API в токенах много больше чата: канал упирается в потолок
+    expect(a.subs).toBeGreaterThan(0);
+    expect(a.training + a.contracts + a.experiments + a.api + a.subs).toBeCloseTo(1, 9);
+    // Оба канала с огромным спросом: вместе не больше 0,7, урезаны пропорционально.
+    s.models[0].plan.paramsB = 2000;
+    s.models[1].plan.paramsB = 2000;
+    botAct(s, 'reasonable');
+    const b = s.compute.alloc;
+    expect(b.api + b.subs).toBeCloseTo(0.7, 6);
+    expect(b.api).toBeCloseTo(0.35, 6); // оба канала упёрлись в 0,5 и урезаны поровну
+    expect(b.subs).toBeCloseTo(0.35, 6);
+  });
+
+  it('после 30.11.2022 бот включает подписку у лучших моделей, остальные - без каналов', () => {
+    const { state: s } = runBot('reasonable', 2, dateToDay('2023-09-01'));
+    expect(s.outcome).toBeNull();
+    const released = s.models.filter((m) => m.releasedDay !== null);
+    expect(released.length).toBeGreaterThan(0);
+    const onSubs = released.filter((m) => m.onSubs);
+    const waiting = released.filter((m) => m.review === 'required' || m.review === 'pending');
+    expect(onSubs.length + waiting.length).toBeGreaterThan(0);
+    for (const m of onSubs) expect(m.onApi).toBe(true);
+    expect(released.filter((m) => m.onApi).length).toBeLessThanOrEqual(2);
+    expect(s.compute.alloc.subs).toBeGreaterThan(0);
   });
 });
 

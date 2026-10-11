@@ -3,13 +3,14 @@
 import { LABS } from '../data/labs';
 import { RIVAL_MODELS } from '../data/rivalModels';
 import { benchDef, benchScore, capFromScore, introducedBenchmarks } from './benchmarks';
-import { MARKET_MAX_AGE_DAYS, MARKET_MODELS_PER_LAB, REF_PRICE } from './constants';
+import { MARKET_MAX_AGE_DAYS, MARKET_MODELS_PER_LAB, REF_PRICE, RIVAL_TIER_ELO_GAP, RIVAL_TIER_PRICE_RATIO, TIER_SUBS_PRICE } from './constants';
 import { addMail } from './events';
 import { releaseHypeBonus } from './leaderboard';
 import { reactiveDefs, releaseShiftDays, rivalDayIn, rivalEloIn, rivalPriceIn } from './rivalry';
 import { byYear, dateToDay, lerpByDate, START_DAY, yearOf } from './time';
+import { tierOf } from './training';
 import { DOMAINS, LAB_IDS } from './types';
-import type { BenchmarkId, DomainId, GameState, LabId, RivalModelDef } from './types';
+import type { BenchmarkId, Channel, DomainId, GameState, LabId, RivalModelDef, Tier } from './types';
 
 // ---------- Каталог ----------
 
@@ -147,6 +148,64 @@ export function rivalPrice(def: RivalModelDef, day: number): number {
   return lab ? byYear(lab.defaultPricePer1M, yearOf(day)) : 0;
 }
 
+// ---------- Уровни и каналы (design market-v2, разделы 3.1 и 5.1) ----------
+
+// Наибольший каталожный Эло среди моделей с днём выхода ≤ day; кеш по дню.
+const eloFrontierCache = new Map<number, number>();
+
+/** Передний край каталога по Эло на день (без поправок ходов и ответных моделей). */
+export function catalogEloFrontier(day: number): number {
+  const hit = eloFrontierCache.get(day);
+  if (hit !== undefined) return hit;
+  let best = 0;
+  for (const def of RIVAL_MODELS) if (rivalDay(def) <= day && def.arenaElo > best) best = def.arenaElo;
+  eloFrontierCache.set(day, best);
+  return best;
+}
+
+const tierCache = new Map<string, { def: RivalModelDef; tier: Tier }>();
+
+function computeTier(def: RivalModelDef): Tier {
+  if (def.tier !== undefined) return def.tier;
+  const day = rivalDay(def);
+  if (def.paramsB !== null) return tierOf(def.paramsB, day);
+  const price = catalogPrice(def);
+  if (price !== null) {
+    const ratio = price / marketRefPrice(day);
+    if (ratio >= RIVAL_TIER_PRICE_RATIO.flagship) return 'flagship';
+    return ratio >= RIVAL_TIER_PRICE_RATIO.mid ? 'mid' : 'light';
+  }
+  return def.arenaElo >= catalogEloFrontier(day) - RIVAL_TIER_ELO_GAP ? 'flagship' : 'mid';
+}
+
+/**
+ * Уровень модели соперника: явный tier (шаблоны), иначе по размеру относительно переднего края на день выхода,
+ * иначе по цене каталога относительно опорной (RIVAL_TIER_PRICE_RATIO), иначе (чат без цен) по Эло относительно
+ * каталога на день выхода. Кешируется по id.
+ */
+export function rivalTier(def: RivalModelDef): Tier {
+  const hit = tierCache.get(def.id);
+  if (hit && hit.def === def) return hit.tier;
+  const tier = computeTier(def);
+  tierCache.set(def.id, { def, tier });
+  return tier;
+}
+
+/** Цена подписки соперника, $ в месяц: по уровню модели. */
+export function rivalSubsPrice(def: RivalModelDef): number {
+  return TIER_SUBS_PRICE[rivalTier(def)];
+}
+
+/** Модель соперника продаётся по API (или с открытыми весами) и её не только показали: прежний отбор рынка. */
+export function rivalOnApi(def: RivalModelDef): boolean {
+  return (def.api || def.openWeights) && !def.announcedOnly;
+}
+
+/** Модель соперника продаётся по подписке: чат, не только показана, не «только веса» (ChatGTP, Berd - да; ChatGML-6B - нет). */
+export function rivalOnSubs(def: RivalModelDef): boolean {
+  return def.chat && !def.announcedOnly && !(def.openWeights && !def.api);
+}
+
 // ---------- Письмо о выходе ----------
 
 /** 1,5 → «1,5»; 175 → «175». */
@@ -265,21 +324,22 @@ export function releaseDue(s: GameState): void {
 }
 
 /**
- * Модели соперников на рынке: выпущены (каталог и ответные модели из rivalsReleased), (api || openWeights),
- * не только показаны (announcedOnly), не старше MARKET_MAX_AGE_DAYS по фактическому дню выхода (rivalDayIn),
- * по MARKET_MODELS_PER_LAB новейших на лабораторию (при равной дате - с большим Эло с поправками, rivalEloIn).
- * Порядок: по лабораториям, внутри - от новых к старым.
+ * Модели соперников на рынке канала: выпущены (каталог и ответные модели из rivalsReleased), продаются по каналу
+ * (rivalOnApi: api || openWeights; rivalOnSubs: чат), не только показаны (announcedOnly), не старше
+ * MARKET_MAX_AGE_DAYS по фактическому дню выхода (rivalDayIn), по MARKET_MODELS_PER_LAB новейших на лабораторию
+ * (при равной дате - с большим Эло с поправками, rivalEloIn). Порядок: по лабораториям, внутри - от новых к старым.
  */
-export function marketRivals(s: GameState): RivalModelDef[] {
+export function marketRivals(s: GameState, channel: Channel = 'api'): RivalModelDef[] {
   interface Row {
     def: RivalModelDef;
     day: number;
     elo: number;
   }
+  const onChannel = channel === 'subs' ? rivalOnSubs : rivalOnApi;
   const perLab = new Map<LabId, Row[]>();
   for (const id of s.rivalsReleased) {
     const def = findRivalDef(id);
-    if (!def || !(def.api || def.openWeights) || def.announcedOnly) continue;
+    if (!def || !onChannel(def)) continue;
     const day = rivalDayIn(s, def);
     if (s.day - day > MARKET_MAX_AGE_DAYS) continue;
     const row: Row = { def, day, elo: rivalEloIn(s, def) };

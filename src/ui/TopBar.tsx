@@ -23,8 +23,8 @@ const SPEEDS: { speed: Speed; title: string; Icon: () => ReactElement }[] = [
 function monthlyRate(s: GameState): number {
   const h = s.finance.history.at(-1);
   if (h) {
-    const inc = h.income.api + h.income.contracts;
-    const exp = h.expense.rent + h.expense.overhead + h.expense.labelers + h.expense.penalties;
+    const inc = h.income.api + h.income.subs + h.income.contracts;
+    const exp = h.expense.rent + h.expense.overhead + h.expense.labelers + h.expense.penalties + h.expense.review;
     return inc - exp;
   }
   return -(rentPerDay(s) + overheadPerDay(s)) * 30;

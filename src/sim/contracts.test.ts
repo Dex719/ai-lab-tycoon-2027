@@ -30,7 +30,6 @@ import {
   REP_CONTRACT_OK,
   RLHF_TENDER_LABELERS,
   RLHF_TENDER_PAY_MULT,
-  TENDER_APPLY_DAYS,
   TENDER_EXPIRE_DAYS,
   TENDER_PENALTY,
   WORK_BASE,
@@ -104,7 +103,7 @@ function makeModel(over: Partial<PlayerModel> = {}): PlayerModel {
     name: 'Модель-1',
     plan: {
       name: 'Модель-1', paramsB: 1, tokensB: 20, mix: { language: 1, code: 0, reasoning: 0 },
-      benchShare: 0, benchTargets: [], rlhf: false, context: 512,
+      benchShare: 0, benchTargets: [], rlhf: false, context: 512, tier: 'light',
     },
     arch: 'transformer',
     algoLevel: 0,
@@ -117,7 +116,7 @@ function makeModel(over: Partial<PlayerModel> = {}): PlayerModel {
     price: 10,
     onApi: true,
     exposed: false,
-    earned: 0,
+    earned: 0, onSubs: false, subsPrice: 20, review: 'none', reviewEndDay: null, earnedSubs: 0,
     ...over,
   };
 }
@@ -607,7 +606,7 @@ describe('applyTender', () => {
     return s;
   }
 
-  it('записывает заявку: решение через 20 дней, шанс по формуле', () => {
+  it('записывает заявку: решение при закрытии тендера, шанс по формуле', () => {
     shownScore = 66;
     const s = setup();
     s.reputation = 20;
@@ -615,7 +614,7 @@ describe('applyTender', () => {
     const a = s.tenders[0].application!;
     expect(a.modelId).toBe('p1');
     expect(a.appliedDay).toBe(10);
-    expect(a.resolveDay).toBe(10 + TENDER_APPLY_DAYS);
+    expect(a.resolveDay).toBe(s.tenders[0].expiresDay);
     expect(a.chance).toBeCloseTo(0.42, 10);
   });
 
@@ -930,7 +929,7 @@ describe('полный путь: заявка → победа → работа 
     expect(applyTender(s, 't7', 'p1')).toEqual({ ok: true });
     s.tenders[0].application!.chance = 1; // исход не оставляем на случай
     const resolveDay = s.tenders[0].application!.resolveDay;
-    expect(resolveDay).toBe(120);
+    expect(resolveDay).toBe(130);
 
     const cash = s.cash;
     for (s.day = 101; s.day < resolveDay; s.day++) progressDay(s);
@@ -940,7 +939,7 @@ describe('полный путь: заявка → победа → работа 
     progressDay(s); // победа; 10 единиц работы в тот же день
     expect(s.contracts).toHaveLength(1);
     expect(s.contracts[0].workDone).toBe(10);
-    expect(s.contracts[0].deadlineDay).toBe(160);
+    expect(s.contracts[0].deadlineDay).toBe(resolveDay + 40);
 
     for (s.day = resolveDay + 1; s.day <= resolveDay + 4; s.day++) progressDay(s);
     expect(s.contracts).toHaveLength(0); // 50 единиц набрано к 4-му дню после победы
@@ -970,14 +969,15 @@ describe('applyTender: побочные эффекты', () => {
     expect(applyTender(s, 't2', 'p1').ok).toBe(true);
   });
 
-  it('в последний день жизни тендера заявку ещё можно подать, и тендер не исчезает', () => {
+  it('в последний день жизни тендера заявку ещё можно подать: решение в тот же день', () => {
     const s = newState();
     s.day = 30;
     s.models.push(makeModel());
     s.tenders.push(makeTender({ expiresDay: 30 }));
     expect(applyTender(s, 't1', 'p1').ok).toBe(true);
+    expect(s.tenders[0].application!.resolveDay).toBe(30);
     progressDay(s);
-    expect(s.tenders).toHaveLength(1);
+    expect(s.tenders).toHaveLength(0); // решение принято: контракт или отказ
   });
 });
 
@@ -1211,14 +1211,14 @@ describe('письма контрактов: точка после суммы и
 
   it('«Тендер выигран» важное только без мощности на контракты, «Тендер проигран» - нет', () => {
     const won = applied();
-    won.compute.alloc = { training: 0.5, contracts: 0, experiments: 0.5, inference: 0 };
+    won.compute.alloc = { training: 0.5, contracts: 0, experiments: 0.5, api: 0, subs: 0 };
     progressDay(won);
     expect(lastMail(won).title).toMatch(/^Тендер выигран: /);
     expect(lastMail(won).important).toBe(true);
     expect(lastMail(won).body).toContain('0 %');
 
     const wonWithCompute = applied();
-    wonWithCompute.compute.alloc = { training: 0.4, contracts: 0.2, experiments: 0.4, inference: 0 };
+    wonWithCompute.compute.alloc = { training: 0.4, contracts: 0.2, experiments: 0.4, api: 0, subs: 0 };
     progressDay(wonWithCompute);
     expect(lastMail(wonWithCompute).title).toMatch(/^Тендер выигран: /);
     expect(lastMail(wonWithCompute).important).toBe(false);
@@ -1325,7 +1325,7 @@ describe('autoApplyTenders', () => {
     const t = makeTender({ requirement: 60, appearedDay: 100, expiresDay: 130 });
     s.tenders.push(t);
     autoApplyTenders(s, [t]);
-    expect(t.application).toMatchObject({ modelId: 'p1', appliedDay: 100, resolveDay: 100 + TENDER_APPLY_DAYS, auto: true });
+    expect(t.application).toMatchObject({ modelId: 'p1', appliedDay: 100, resolveDay: 130, auto: true });
     expect(t.application!.chance).toBeCloseTo(0.42, 10);
   });
 
@@ -1347,7 +1347,7 @@ describe('autoApplyTenders', () => {
     expect(mail.title).toBe('Заявки поданы: 2 из 3');
     const lines = mail.body.split('\n');
     expect(lines).toHaveLength(4);
-    expect(lines[0]).toBe(`Новых тендеров: 3, заявок подано: 2. Решение - через ${TENDER_APPLY_DAYS} дн.`);
+    expect(lines[0]).toBe(`Новых тендеров: 3, заявок подано: 2. Решение - при закрытии тендера.`);
     const bench = BENCHMARKS.find((b) => b.id === 'mmlu')!.name;
     expect(lines[1]).toBe(`Банк «Северный»: ${bench}, требование 60 %, модель «Модель-1», оплата $100 тыс., шанс 42 %.`);
     expect(lines[2]).toContain('оплата $1,2 млн, шанс 42 %.');

@@ -22,7 +22,7 @@ function apiModel(id: string, arenaElo: number, releasedDay: number, over: Parti
     name: `Модель ${id}`,
     plan: {
       name: id, paramsB: 1, tokensB: 20, mix: { language: 0.5, code: 0.25, reasoning: 0.25 },
-      benchShare: 0, benchTargets: [], rlhf: true, context: 512,
+      benchShare: 0, benchTargets: [], rlhf: true, context: 512, tier: 'light',
     },
     arch: 'transformer',
     algoLevel: 0,
@@ -36,6 +36,11 @@ function apiModel(id: string, arenaElo: number, releasedDay: number, over: Parti
     onApi: true,
     exposed: false,
     earned: 0,
+    onSubs: false,
+    subsPrice: 10,
+    review: 'none',
+    reviewEndDay: null,
+    earnedSubs: 0,
     ...over,
   };
 }

@@ -6,6 +6,7 @@ import { fmtNum } from './format';
 
 export const INCOME_LABELS: Record<IncomeKind, string> = {
   api: 'Продажа API',
+  subs: 'Подписки',
   contracts: 'Контракты',
   investors: 'Инвесторы',
 };
@@ -15,11 +16,12 @@ export const EXPENSE_LABELS: Record<ExpenseKind, string> = {
   overhead: 'Зарплаты и офис',
   labelers: 'Разметчики',
   penalties: 'Штрафы',
+  review: 'Проверки',
 };
 
 /** Порядок статей в таблицах и подсказках. */
-export const INCOME_KINDS: IncomeKind[] = ['api', 'contracts', 'investors'];
-export const EXPENSE_KINDS: ExpenseKind[] = ['rent', 'overhead', 'labelers', 'penalties'];
+export const INCOME_KINDS: IncomeKind[] = ['api', 'subs', 'contracts', 'investors'];
+export const EXPENSE_KINDS: ExpenseKind[] = ['rent', 'overhead', 'labelers', 'penalties', 'review'];
 
 /** 3 → «3-е место», 12 → «12-е место». Для отсутствующего места - «-». */
 export function fmtRank(n: number | null | undefined): string {

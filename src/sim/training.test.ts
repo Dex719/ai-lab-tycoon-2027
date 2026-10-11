@@ -29,7 +29,7 @@ import { addModifier, FOREVER } from './events';
 import { EXPOSE_CAP_WITH_RIVALS } from './rivalry';
 import { nextRandom } from './rng';
 import { createInitialState } from './state';
-import { dateToDay } from './time';
+import { dateToDay, formatDate } from './time';
 import {
   applyFailChoice,
   archFor,
@@ -42,13 +42,25 @@ import {
   effectiveCompute,
   estimate,
   exposureChance,
+  frontierParams,
   labelersCost,
   modelScore,
   monthlyExposure,
   overfitFromPlan,
   planFlop,
   progressDay,
+  reviewCost,
+  reviewDay,
+  reviewDays,
+  reviewReason,
+  reviewRequired,
+  startReview,
   startTraining,
+  tierAvailable,
+  tierOf,
+  tierPreset,
+  tierRange,
+  trainingPoolPerRun,
   validatePlan,
 } from './training';
 import type { GameState, Mail, Modifier, ModifierKind, PlayerModel, TrainingPlan } from './types';
@@ -97,19 +109,29 @@ beforeEach(() => triggerEvent.mockClear());
 // ---------- Помощники ----------
 
 const BALANCED = { language: 1 / 3, code: 1 / 3, reasoning: 1 / 3 };
+/** День «поздней игры» (lateState): уровень плана по умолчанию считается на него. */
+const LATE_DAY = dateToDay('2024-06-01');
 
+/** План с уровнем, который соответствует размеру на день LATE_DAY (10 млрд в 2024 году - лёгкая модель). */
 function plan(over: Partial<TrainingPlan> = {}): TrainingPlan {
+  const paramsB = over.paramsB ?? 10;
   return {
     name: 'Тест-1',
-    paramsB: 10,
+    paramsB,
     tokensB: 200,
     mix: { ...BALANCED },
     benchShare: 0,
     benchTargets: [],
     rlhf: false,
     context: 512,
+    tier: over.tier ?? tierOf(paramsB, LATE_DAY),
     ...over,
   };
+}
+
+/** План с уровнем на день состояния s (для тестов, которые переносят день). */
+function planOn(s: GameState, over: Partial<TrainingPlan> = {}): TrainingPlan {
+  return plan({ ...over, tier: tierOf(over.paramsB ?? 10, s.day) });
 }
 
 /** План по Шиншилле (D = 20·N) с заданным базовым уровнем при данном algoLevel. */
@@ -147,13 +169,21 @@ function playerModel(over: Partial<PlayerModel> = {}): PlayerModel {
     onApi: true,
     exposed: false,
     earned: 0,
+    onSubs: false,
+    subsPrice: 20,
+    review: 'none',
+    reviewEndDay: null,
+    earnedSubs: 0,
     ...over,
   };
 }
 
-/** Довести идущий проект до конца (с запасом дней). */
+/** Довести идущие проекты до конца (с запасом дней); срыв решается откатом, как ответил бы игрок. */
 function runToEnd(s: GameState, maxDays = 2000): void {
-  for (let i = 0; i < maxDays && s.training; i++) progressDay(s);
+  for (let i = 0; i < maxDays && s.trainings.length > 0; i++) {
+    progressDay(s);
+    if (s.trainings.some((t) => t.failed)) applyFailChoice(s, 'rollback');
+  }
 }
 
 // ---------- Формулы ----------
@@ -450,11 +480,11 @@ describe('validatePlan', () => {
   it('ограничивает данные по годам', () => {
     const s = lateState();
     s.day = dateToDay('2017-06-01');
-    expect(validatePlan(s, plan({ tokensB: MAX_TOKENS_B[2017] }))).toBeNull();
-    expect(validatePlan(s, plan({ tokensB: MAX_TOKENS_B[2017] + 1 }))).toMatch(/2017/);
+    expect(validatePlan(s, planOn(s, { tokensB: MAX_TOKENS_B[2017] }))).toBeNull();
+    expect(validatePlan(s, planOn(s, { tokensB: MAX_TOKENS_B[2017] + 1 }))).toMatch(/2017/);
     s.day = dateToDay('2024-06-01');
-    expect(validatePlan(s, plan({ tokensB: MAX_TOKENS_B[2024] }))).toBeNull();
-    expect(validatePlan(s, plan({ tokensB: MAX_TOKENS_B[2024] + 1 }))).toMatch(/2024/);
+    expect(validatePlan(s, planOn(s, { tokensB: MAX_TOKENS_B[2024] }))).toBeNull();
+    expect(validatePlan(s, planOn(s, { tokensB: MAX_TOKENS_B[2024] + 1 }))).toMatch(/2024/);
   });
 
   it('требует микс из долей с суммой 1', () => {
@@ -500,10 +530,25 @@ describe('validatePlan', () => {
     expect(validatePlan(s, plan())).toBeNull();
   });
 
-  it('не даёт начать второй проект', () => {
+  it('второй проект разрешён, третий - нет', () => {
     const s = lateState();
     expect(startTraining(s, plan())).toEqual({ ok: true });
-    expect(validatePlan(s, plan({ name: 'Второй' }))).toMatch(/проект/);
+    expect(validatePlan(s, plan({ name: 'Второй' }))).toBeNull();
+    expect(startTraining(s, plan({ name: 'Второй' }))).toEqual({ ok: true });
+    expect(validatePlan(s, plan({ name: 'Третий' }))).toBe('Одновременно идут не больше двух проектов обучения.');
+  });
+
+  it('уровень обязан совпадать с размером: иначе ошибка с диапазоном уровня', () => {
+    const s = lateState();
+    expect(validatePlan(s, plan({ paramsB: 10, tier: 'flagship' }))).toMatch(/не соответствует уровню «Флагман»/);
+    expect(validatePlan(s, plan({ paramsB: 1500, tier: 'light' }))).toMatch(/не соответствует уровню «Лёгкая»/);
+    const [lo, hi] = tierRange(s.day, 'mid');
+    const error = validatePlan(s, plan({ paramsB: 1500, tier: 'mid' }))!;
+    expect(error).toContain('от ');
+    expect(error).toContain(String(Math.round(lo)));
+    expect(error).toContain(String(Math.round(hi)).replace(/\B(?=(\d{3})+(?!\d))/g, ' '));
+    expect(validatePlan(s, plan({ paramsB: 1500, tier: 'flagship' }))).toBeNull();
+    expect(validatePlan(s, plan({ paramsB: 300, tier: 'mid' }))).toBeNull();
   });
 });
 
@@ -514,7 +559,7 @@ describe('validatePlan: минус на счету', () => {
     expect(validatePlan(s, plan())).toBeNull();
     expect(estimate(s, plan()).error).toBeNull();
     expect(startTraining(s, plan())).toEqual({ ok: true });
-    expect(s.training).not.toBeNull();
+    expect(s.trainings).toHaveLength(1);
     expect(s.cash).toBe(-250_000); // ничего не списано
   });
 
@@ -534,7 +579,7 @@ describe('validatePlan: минус на счету', () => {
     expect(error).toContain('нужно $400 тыс.');
     expect(error).toContain('на счету −$250 тыс.');
     expect(startTraining(s, p)).toMatchObject({ ok: false });
-    expect(s.training).toBeNull();
+    expect(s.trainings).toEqual([]);
   });
 
   it('в тексте ошибки про разметчиков нет двойной точки после «тыс.»', () => {
@@ -575,7 +620,7 @@ describe('estimate', () => {
 
   it('при нулевой доле «Обучение» срок неизвестен', () => {
     const s = lateState();
-    s.compute.alloc = { training: 0, contracts: 0.2, experiments: 0.4, inference: 0.4 };
+    s.compute.alloc = { training: 0, contracts: 0.2, experiments: 0.4, api: 0.4, subs: 0 };
     expect(estimate(s, plan()).days).toBeNull();
   });
 
@@ -666,7 +711,9 @@ describe('startTraining / cancelTraining', () => {
     s.day = dateToDay('2024-03-05');
     const p = plan({ name: '  Альфа  ', paramsB: 20, tokensB: 400 });
     expect(startTraining(s, p)).toEqual({ ok: true });
-    const t = s.training!;
+    const t = s.trainings[0];
+    expect(t.id).toBe('t1');
+    expect(t.failed).toBe(false);
     expect(t.plan.name).toBe('Альфа');
     expect(t.plan).not.toBe(p);
     expect(t.plan.mix).not.toBe(p.mix);
@@ -685,7 +732,7 @@ describe('startTraining / cancelTraining', () => {
     const cash = s.cash;
     expect(startTraining(s, plan({ paramsB: 100 }))).toEqual({ ok: true });
     expect(s.cash).toBe(cash);
-    cancelTraining(s);
+    cancelTraining(s, 't1');
     expect(startTraining(s, plan({ paramsB: 100, rlhf: true }))).toEqual({ ok: true });
     const cost = RLHF_LABELERS_BASE + RLHF_LABELERS_PER_B * 100;
     expect(s.cash).toBe(cash - cost);
@@ -701,19 +748,22 @@ describe('startTraining / cancelTraining', () => {
     expect(JSON.stringify(s)).toBe(before);
   });
 
-  it('нельзя начать второй проект', () => {
+  it('нельзя начать третий проект; у проектов свои id', () => {
     const s = lateState();
     expect(startTraining(s, plan())).toEqual({ ok: true });
-    const r = startTraining(s, plan({ name: 'Второй' }));
+    expect(startTraining(s, plan({ name: 'Второй' }))).toEqual({ ok: true });
+    const r = startTraining(s, plan({ name: 'Третий' }));
     expect(r.ok).toBe(false);
+    expect(s.trainings.map((t) => t.id)).toEqual(['t1', 't2']);
+    expect(s.nextRunNum).toBe(3);
   });
 
   it('cancelTraining снимает проект; без проекта - ошибка', () => {
     const s = lateState();
-    expect(cancelTraining(s).ok).toBe(false);
+    expect(cancelTraining(s, 't1').ok).toBe(false);
     startTraining(s, plan());
-    expect(cancelTraining(s)).toEqual({ ok: true });
-    expect(s.training).toBeNull();
+    expect(cancelTraining(s, 't1')).toEqual({ ok: true });
+    expect(s.trainings).toEqual([]);
     expect(s.models).toHaveLength(0);
   });
 
@@ -725,7 +775,7 @@ describe('startTraining / cancelTraining', () => {
         const s = lateState(seed);
         setup(s);
         startTraining(s, p);
-        if (s.training!.failAtFraction !== null) fails++;
+        if (s.trainings[0].failAtFraction !== null) fails++;
       }
       return fails / trials;
     };
@@ -754,7 +804,7 @@ describe('startTraining / cancelTraining', () => {
       for (let seed = 1; seed <= trials; seed++) {
         const s = lateState(seed);
         startTraining(s, plan());
-        const f = s.training!.failAtFraction;
+        const f = s.trainings[0].failAtFraction;
         if (f === null) continue;
         seen++;
         expect(f).toBeGreaterThanOrEqual(0.2);
@@ -768,7 +818,7 @@ describe('startTraining / cancelTraining', () => {
 describe('progressDay', () => {
   /** Подобрать мощность так, чтобы за день проект проходил долю fraction от всего FLOP. */
   function setDailyFraction(s: GameState, fraction: number): void {
-    const t = s.training!;
+    const t = s.trainings[0];
     s.compute.rented.h100 = (fraction * t.flopTotal) / (s.compute.alloc.training * TRAIN_FLOP_PER_H100E_DAY);
   }
 
@@ -783,19 +833,19 @@ describe('progressDay', () => {
   it('прибавляет в день мощность доли «Обучение» × пропускную способность', () => {
     const s = lateState();
     startTraining(s, plan({ paramsB: 175, tokensB: 300 }));
-    s.training!.failAtFraction = null;
+    s.trainings[0].failAtFraction = null;
     progressDay(s);
-    expect(s.training!.flopDone).toBeCloseTo(400 * TRAIN_FLOP_PER_H100E_DAY, -10);
+    expect(s.trainings[0].flopDone).toBeCloseTo(400 * TRAIN_FLOP_PER_H100E_DAY, -10);
     progressDay(s);
-    expect(s.training!.flopDone).toBeCloseTo(2 * 400 * TRAIN_FLOP_PER_H100E_DAY, -10);
+    expect(s.trainings[0].flopDone).toBeCloseTo(2 * 400 * TRAIN_FLOP_PER_H100E_DAY, -10);
   });
 
   it('без мощности на обучение проект стоит', () => {
     const s = lateState();
-    s.compute.alloc = { training: 0, contracts: 0.3, experiments: 0.4, inference: 0.3 };
+    s.compute.alloc = { training: 0, contracts: 0.3, experiments: 0.4, api: 0.3, subs: 0 };
     startTraining(s, plan());
     for (let i = 0; i < 10; i++) progressDay(s);
-    expect(s.training!.flopDone).toBe(0);
+    expect(s.trainings[0].flopDone).toBe(0);
   });
 
   it('по завершении создаёт модель, обновляет bestFlop и пишет письмо', () => {
@@ -805,14 +855,14 @@ describe('progressDay', () => {
     s.day = dateToDay('2024-02-10');
     const p = plan({ name: 'Орион', paramsB: 30, tokensB: 600, rlhf: true });
     startTraining(s, p);
-    const t = s.training!;
+    const t = s.trainings[0];
     t.failAtFraction = null;
     setDailyFraction(s, 0.4);
     progressDay(s);
     progressDay(s);
     expect(s.models).toHaveLength(0);
     progressDay(s);
-    expect(s.training).toBeNull();
+    expect(s.trainings).toEqual([]);
     expect(s.models).toHaveLength(1);
     const m = s.models[0];
     expect(m.id).toBe('p1');
@@ -821,6 +871,13 @@ describe('progressDay', () => {
     expect(m.onApi).toBe(false);
     expect(m.exposed).toBe(false);
     expect(m.price).toBe(0);
+    // Рынок v2: подписка выключена, цена подписки по уровню (лёгкая - $10), проверки нет.
+    expect(m.onSubs).toBe(false);
+    expect(m.plan.tier).toBe('light');
+    expect(m.subsPrice).toBe(10);
+    expect(m.review).toBe('none');
+    expect(m.reviewEndDay).toBeNull();
+    expect(m.earnedSubs).toBe(0);
     expect(m.trainedDay).toBe(s.day);
     expect(m.rlhf).toBe(true);
     expect(m.algoLevel).toBe(2);
@@ -871,7 +928,7 @@ describe('progressDay', () => {
   it('срыв: в точке отказа проект замирает, событие запускается один раз', () => {
     const s = lateState();
     startTraining(s, plan());
-    const t = s.training!;
+    const t = s.trainings[0];
     t.failAtFraction = 0.5;
     setDailyFraction(s, 0.3);
     progressDay(s);
@@ -881,12 +938,18 @@ describe('progressDay', () => {
     expect(triggerEvent).toHaveBeenCalledTimes(1);
     expect(triggerEvent).toHaveBeenCalledWith(s, 'training-fail');
     expect(t.failAtFraction).toBeNull();
+    expect(t.failed).toBe(true);
     expect(t.flopDone / t.flopTotal).toBeCloseTo(0.5, 9);
-    // дальше проект идёт и достраивается без нового срыва
+    // Пока решения нет, проект стоит.
+    progressDay(s);
+    expect(t.flopDone / t.flopTotal).toBeCloseTo(0.5, 9);
+    // После решения проект идёт и достраивается без нового срыва.
+    applyFailChoice(s, 'continue');
+    expect(t.failed).toBe(false);
     progressDay(s);
     expect(t.flopDone / t.flopTotal).toBeCloseTo(0.8, 9);
     progressDay(s);
-    expect(s.training).toBeNull();
+    expect(s.trainings).toEqual([]);
     expect(s.models).toHaveLength(1);
     expect(triggerEvent).toHaveBeenCalledTimes(1);
   });
@@ -894,14 +957,15 @@ describe('progressDay', () => {
   it('срыв не даёт проекту закончиться в тот же день, даже при огромной мощности', () => {
     const s = lateState();
     startTraining(s, plan());
-    s.training!.failAtFraction = 0.3;
+    s.trainings[0].failAtFraction = 0.3;
     setDailyFraction(s, 5);
     progressDay(s);
-    expect(s.training).not.toBeNull();
+    expect(s.trainings).toHaveLength(1);
     expect(s.models).toHaveLength(0);
     expect(triggerEvent).toHaveBeenCalledTimes(1);
+    applyFailChoice(s, 'continue');
     progressDay(s);
-    expect(s.training).toBeNull();
+    expect(s.trainings).toEqual([]);
     expect(s.models).toHaveLength(1);
   });
 });
@@ -910,14 +974,28 @@ describe('applyFailChoice', () => {
   it('«Откат» отнимает 25 % всего объёма, но не уходит ниже нуля', () => {
     const s = lateState();
     startTraining(s, plan());
-    const t = s.training!;
+    const t = s.trainings[0];
     t.flopDone = 0.5 * t.flopTotal;
+    t.failed = true;
     applyFailChoice(s, 'rollback');
     expect(t.flopDone).toBeCloseTo((0.5 - FAIL_ROLLBACK) * t.flopTotal, 6);
     expect(t.failPenalty).toBe(0);
+    expect(t.failed).toBe(false);
     t.flopDone = 0.1 * t.flopTotal;
+    t.failed = true;
     applyFailChoice(s, 'rollback');
     expect(t.flopDone).toBe(0);
+  });
+
+  it('без проекта с failed выбор ничего не меняет', () => {
+    const s = lateState();
+    startTraining(s, plan());
+    const t = s.trainings[0];
+    t.flopDone = 0.5 * t.flopTotal;
+    applyFailChoice(s, 'rollback');
+    applyFailChoice(s, 'continue');
+    expect(t.flopDone).toBeCloseTo(0.5 * t.flopTotal, 6);
+    expect(t.failPenalty).toBe(0);
   });
 
   it('«Продолжить» даёт штраф к способностям готовой модели', () => {
@@ -925,8 +1003,11 @@ describe('applyFailChoice', () => {
       const s = lateState();
       s.compute.rented.h100 = 1e7;
       startTraining(s, plan());
-      s.training!.failAtFraction = null;
-      if (choice) applyFailChoice(s, choice);
+      s.trainings[0].failAtFraction = null;
+      if (choice) {
+        s.trainings[0].failed = true;
+        applyFailChoice(s, choice);
+      }
       runToEnd(s);
       return s.models[0];
     };
@@ -1223,10 +1304,10 @@ describe('startTraining: расход случайных чисел', () => {
       const expectedAt = failed ? 0.2 + nextRandom(ref) * (0.8 - 0.2) : null;
       startTraining(s, plan());
       if (expectedAt === null) {
-        expect(s.training!.failAtFraction).toBeNull();
+        expect(s.trainings[0].failAtFraction).toBeNull();
         calm++;
       } else {
-        expect(s.training!.failAtFraction).toBeCloseTo(expectedAt, 12);
+        expect(s.trainings[0].failAtFraction).toBeCloseTo(expectedAt, 12);
         broken++;
       }
       expect(s.rng).toBe(ref.rng);
@@ -1248,14 +1329,14 @@ describe('startTraining: расход случайных чисел', () => {
       const s = lateState(seed);
       s.bestFlop = planFlop(p) / ratio;
       startTraining(s, p);
-      return s.training!.failAtFraction;
+      return s.trainings[0].failAtFraction;
     };
     expect(at(9.9)).toBeNull();
     expect(at(10.1)).not.toBeNull();
     // без прошлых проектов (bestFlop = 0) скачка нет
     const first = lateState(seed);
     startTraining(first, p);
-    expect(first.training!.failAtFraction).toBeNull();
+    expect(first.trainings[0].failAtFraction).toBeNull();
   });
 
   it('копия плана не зависит от исходного объекта (повторы целей убраны)', () => {
@@ -1265,7 +1346,7 @@ describe('startTraining: расход случайных чисел', () => {
     p.mix.language = 0.9;
     p.benchTargets.push('humaneval');
     p.paramsB = 999;
-    const t = s.training!;
+    const t = s.trainings[0];
     expect(t.plan.benchTargets).toEqual(['mmlu', 'gsm8k']);
     expect(t.plan.mix.language).toBeCloseTo(1 / 3, 9);
     expect(t.plan.paramsB).toBe(10);
@@ -1277,7 +1358,7 @@ describe('startTraining: расход случайных чисел', () => {
     const cash = s.cash;
     const p = plan({ paramsB: 100, rlhf: true });
     startTraining(s, p);
-    cancelTraining(s);
+    cancelTraining(s, 't1');
     expect(s.cash).toBe(cash - labelersCost(p));
     expect(s.finance.month.expense.labelers).toBe(labelersCost(p));
   });
@@ -1287,8 +1368,8 @@ describe('срыв: полный цикл', () => {
   function runningWithFail(at: number): GameState {
     const s = lateState();
     startTraining(s, plan());
-    s.training!.failAtFraction = at;
-    const t = s.training!;
+    s.trainings[0].failAtFraction = at;
+    const t = s.trainings[0];
     // 30 % всего объёма в день
     s.compute.rented.h100 = (0.3 * t.flopTotal) / (s.compute.alloc.training * TRAIN_FLOP_PER_H100E_DAY);
     return s;
@@ -1296,7 +1377,7 @@ describe('срыв: полный цикл', () => {
 
   it('откат: проект теряет 25 %, идёт дальше без нового срыва и завершается без штрафа', () => {
     const s = runningWithFail(0.5);
-    const t = s.training!;
+    const t = s.trainings[0];
     progressDay(s);
     progressDay(s); // 60 % > 50 %: срыв в точке 50 %
     expect(triggerEvent).toHaveBeenCalledTimes(1);
@@ -1305,9 +1386,9 @@ describe('срыв: полный цикл', () => {
     expect(t.flopDone / t.flopTotal).toBeCloseTo(0.5 - FAIL_ROLLBACK, 9);
     progressDay(s); // 55 %
     progressDay(s); // 85 %
-    expect(s.training).not.toBeNull();
+    expect(s.trainings).toHaveLength(1);
     progressDay(s); // 115 %
-    expect(s.training).toBeNull();
+    expect(s.trainings).toEqual([]);
     expect(triggerEvent).toHaveBeenCalledTimes(1);
     const clean = capsFromPlan(plan(), 0, 'transformer');
     expect(s.models[0].caps.language).toBeCloseTo(clean.language, 9);
@@ -1320,7 +1401,7 @@ describe('срыв: полный цикл', () => {
     applyFailChoice(s, 'continue');
     progressDay(s);
     progressDay(s);
-    expect(s.training).toBeNull();
+    expect(s.trainings).toEqual([]);
     const m = s.models[0];
     const clean = capsFromPlan(plan(), 0, 'transformer');
     expect(m.caps.code).toBeCloseTo(clean.code - FAIL_CONTINUE_PENALTY, 9);
@@ -1332,40 +1413,44 @@ describe('срыв: полный цикл', () => {
   it('повторный выбор «Продолжить» штраф не удваивает', () => {
     const s = lateState();
     startTraining(s, plan());
+    s.trainings[0].failed = true;
     applyFailChoice(s, 'continue');
     applyFailChoice(s, 'continue');
-    expect(s.training!.failPenalty).toBe(FAIL_CONTINUE_PENALTY);
+    expect(s.trainings[0].failPenalty).toBe(FAIL_CONTINUE_PENALTY);
   });
 
   it('если срыв был, но проект отменён, выбор в письме ничего не ломает', () => {
     const s = runningWithFail(0.3);
     progressDay(s);
     expect(triggerEvent).toHaveBeenCalledTimes(1);
-    cancelTraining(s);
+    cancelTraining(s, 't1');
     expect(() => applyFailChoice(s, 'rollback')).not.toThrow();
     expect(() => applyFailChoice(s, 'continue')).not.toThrow();
-    expect(s.training).toBeNull();
+    expect(s.trainings).toEqual([]);
   });
 
   it('пока на письмо о срыве нет ответа (даже отложенное), проект стоит', () => {
     const s = runningWithFail(0.3);
     progressDay(s);
-    const stuck = s.training!.flopDone;
+    const stuck = s.trainings[0].flopDone;
     s.mail.push({ id: 'mf', day: s.day, title: 'Срыв', body: '', kind: 'training', read: true, eventId: 'training-fail', choices: [{ label: 'a', hint: 'b' }], deferred: true });
     progressDay(s);
-    expect(s.training!.flopDone).toBe(stuck);
+    expect(s.trainings[0].flopDone).toBe(stuck);
+    expect(s.trainings[0].failed).toBe(true);
+    // Ответ в письме: событие вызывает applyFailChoice, и проект снова идёт.
     s.mail[s.mail.length - 1].chosen = 0;
+    applyFailChoice(s, 'rollback');
     progressDay(s);
-    expect(s.training === null || s.training.flopDone > stuck).toBe(true);
+    expect(s.trainings.length === 0 || s.trainings[0].flopDone > stuck - FAIL_ROLLBACK * s.trainings[0].flopTotal).toBe(true);
   });
 
   it('проект без срыва может закончиться за один день при огромной мощности', () => {
     const s = lateState();
     startTraining(s, plan());
-    s.training!.failAtFraction = null;
+    s.trainings[0].failAtFraction = null;
     s.compute.rented.h100 = 1e12;
     progressDay(s);
-    expect(s.training).toBeNull();
+    expect(s.trainings).toEqual([]);
     expect(s.models).toHaveLength(1);
     expect(triggerEvent).not.toHaveBeenCalled();
   });
@@ -1380,7 +1465,7 @@ describe('письмо о готовой модели', () => {
     s.compute.rented.h100 = 1e7;
     setup(s);
     expect(startTraining(s, plan({ name: 'Альфа', ...over }))).toEqual({ ok: true });
-    s.training!.failAtFraction = null;
+    s.trainings[0].failAtFraction = null;
     runToEnd(s);
     const mail = s.mail[s.mail.length - 1];
     return { s, body: mail.body, title: mail.title };
@@ -1420,7 +1505,7 @@ describe('письмо о готовой модели', () => {
     const s = lateState();
     s.compute.rented.h100 = 1e7;
     startTraining(s, plan({ name: 'Альфа' }));
-    s.training!.failAtFraction = null;
+    s.trainings[0].failAtFraction = null;
     runToEnd(s);
     const mail = s.mail[s.mail.length - 1];
     expect(mail.title).toBe('Модель «Альфа» готова');
@@ -1432,8 +1517,8 @@ describe('письмо о готовой модели', () => {
       const s = lateState();
       s.compute.rented.h100 = 1e7;
       startTraining(s, plan());
-      s.training!.failAtFraction = null;
-      s.training!.failPenalty = n;
+      s.trainings[0].failAtFraction = null;
+      s.trainings[0].failPenalty = n;
       runToEnd(s);
       return s.mail[s.mail.length - 1].body;
     };
@@ -1567,10 +1652,261 @@ describe('контекст в обучении', () => {
     const s = lateState();
     s.research.contextLevel = 1;
     startTraining(s, plan({ context: 1024 }));
-    s.training!.failAtFraction = null;
+    s.trainings[0].failAtFraction = null;
     s.compute.rented.h100 = 1e12;
     progressDay(s);
     expect(s.models[0].plan.context).toBe(1024);
     expect(s.models[0].earned).toBe(0);
+  });
+});
+
+// ---------- Рынок v2: уровни моделей ----------
+
+describe('уровни моделей', () => {
+  it('frontierParams проходит через опорные точки', () => {
+    expect(frontierParams(dateToDay('2017-01-01'))).toBeCloseTo(1, 9);
+    expect(frontierParams(dateToDay('2020-06-11'))).toBeCloseTo(175, 6);
+    expect(frontierParams(dateToDay('2023-03-14'))).toBeCloseTo(1800, 6);
+    expect(frontierParams(dateToDay('2024-12-31'))).toBeCloseTo(2000, 6);
+  });
+
+  it('tierOf: 0,1 млрд в 2017 году - средняя; 175 млрд 11.06.2020 - флагман; 72 млрд 30.11.2023 - лёгкая', () => {
+    expect(tierOf(0.1, dateToDay('2017-01-01'))).toBe('mid');
+    expect(tierOf(175, dateToDay('2020-06-11'))).toBe('flagship');
+    expect(tierOf(72, dateToDay('2023-11-30'))).toBe('light');
+    expect(tierOf(1800, dateToDay('2023-03-14'))).toBe('flagship');
+  });
+
+  it('tierRange: лёгкие в 2017 году - 0,05…0,08 млрд; у флагмана потолок PARAMS_B_MAX', () => {
+    expect(tierRange(dateToDay('2017-01-01'), 'light')).toEqual([0.05, 0.08]);
+    expect(tierAvailable(dateToDay('2017-01-01'), 'light')).toBe(true);
+    const [lo, hi] = tierRange(dateToDay('2024-12-31'), 'flagship');
+    expect(lo).toBeCloseTo(700, 6);
+    expect(hi).toBe(2000);
+    // Все три уровня доступны на любой день игры.
+    for (const d of [0, dateToDay('2019-02-14'), dateToDay('2020-06-11'), LATE_DAY]) {
+      for (const tier of ['light', 'mid', 'flagship'] as const) expect(tierAvailable(d, tier), `${d}:${tier}`).toBe(true);
+    }
+  });
+
+  it('tierPreset: размер по доле переднего края в границах уровня, данные по Шиншилле в лимите года', () => {
+    const s = lateState();
+    const f = frontierParams(s.day);
+    const mid = tierPreset(s, 'mid');
+    expect(mid.paramsB).toBeCloseTo(0.17 * f, 6);
+    expect(mid.tokensB).toBeCloseTo(20 * mid.paramsB, 6);
+    expect(tierOf(mid.paramsB, s.day)).toBe('mid');
+    const flag = tierPreset(s, 'flagship');
+    expect(flag.paramsB).toBeCloseTo(0.7 * f, 6);
+    expect(flag.tokensB).toBe(MAX_TOKENS_B[2024]); // 20 × 1 350 млрд больше лимита года
+    s.day = 0;
+    const light = tierPreset(s, 'light');
+    expect(light.paramsB).toBe(0.05); // 0,04 × 1 ниже минимума
+    expect(light.tokensB).toBeCloseTo(1, 9);
+    expect(validatePlan(s, plan({ ...light, tier: 'light' }))).toBeNull();
+  });
+});
+
+// ---------- Рынок v2: параллельное обучение ----------
+
+describe('параллельное обучение', () => {
+  it('два проекта делят долю «Обучение» поровну и идут независимо', () => {
+    const s = lateState();
+    startTraining(s, plan({ name: 'А', paramsB: 175, tokensB: 300 }));
+    startTraining(s, plan({ name: 'Б', paramsB: 10, tokensB: 200 }));
+    for (const t of s.trainings) t.failAtFraction = null;
+    expect(trainingPoolPerRun(s)).toBeCloseTo(200, 9);
+    progressDay(s);
+    expect(s.trainings[0].flopDone).toBeCloseTo(200 * TRAIN_FLOP_PER_H100E_DAY, -10);
+    expect(s.trainings[1].flopDone).toBeCloseTo(200 * TRAIN_FLOP_PER_H100E_DAY, -10);
+    // Малый проект заканчивается первым; большой остаётся и получает всю долю.
+    runToEnd(s);
+    expect(s.models.map((m) => m.name)).toEqual(['Б', 'А']);
+    expect(s.trainings).toEqual([]);
+  });
+
+  it('после завершения одного проекта второй получает всю долю', () => {
+    const s = lateState();
+    startTraining(s, plan({ name: 'А', paramsB: 175, tokensB: 300 }));
+    startTraining(s, plan({ name: 'Б', paramsB: 0.05, tokensB: 0.5 }));
+    for (const t of s.trainings) t.failAtFraction = null;
+    progressDay(s);
+    expect(s.trainings.map((t) => t.plan.name)).toEqual(['А']);
+    const before = s.trainings[0].flopDone;
+    progressDay(s);
+    expect(s.trainings[0].flopDone - before).toBeCloseTo(400 * TRAIN_FLOP_PER_H100E_DAY, -10);
+  });
+
+  it('estimate.days при одном идущем проекте вдвое длиннее', () => {
+    const s = lateState();
+    const p = plan({ paramsB: 175, tokensB: 300 });
+    const alone = estimate(s, p).days!;
+    startTraining(s, plan({ name: 'Другой' }));
+    expect(estimate(s, p).days).toBe(Math.ceil(planFlop(p) / (200 * TRAIN_FLOP_PER_H100E_DAY)));
+    expect(estimate(s, p).days).toBeGreaterThanOrEqual(2 * alone - 1);
+  });
+
+  it('срыв второго проекта ждёт решения по первому: проект зажат в точке срыва, failAtFraction остаётся', () => {
+    const s = lateState();
+    startTraining(s, plan({ name: 'А' }));
+    startTraining(s, plan({ name: 'Б' }));
+    const [a, b] = s.trainings;
+    a.failAtFraction = 0.3;
+    b.failAtFraction = 0.5;
+    // За день - 40 % каждого проекта.
+    s.compute.rented.h100 = (0.4 * 2 * a.flopTotal) / (s.compute.alloc.training * TRAIN_FLOP_PER_H100E_DAY);
+    progressDay(s);
+    expect(triggerEvent).toHaveBeenCalledTimes(1);
+    expect(a.failed).toBe(true);
+    expect(a.failAtFraction).toBeNull();
+    expect(a.flopDone / a.flopTotal).toBeCloseTo(0.3, 9);
+    expect(b.failed).toBe(false);
+    expect(b.flopDone / b.flopTotal).toBeCloseTo(0.4, 9);
+    // Письмо о срыве «А» ждёт ответа: «Б» доходит до своей точки и стоит, второго события нет.
+    s.mail.push({ id: 'mf', day: s.day, title: 'Срыв', body: '', kind: 'training', read: false, eventId: 'training-fail', choices: [{ label: 'a', hint: 'b' }] });
+    progressDay(s);
+    expect(triggerEvent).toHaveBeenCalledTimes(1);
+    expect(b.failed).toBe(false);
+    expect(b.failAtFraction).toBe(0.5);
+    expect(b.flopDone / b.flopTotal).toBeCloseTo(0.5, 9);
+    expect(a.flopDone / a.flopTotal).toBeCloseTo(0.3, 9); // сорванный проект стоит
+    // Ответ по «А»: проект снова идёт, а «Б» срывается следующим днём.
+    s.mail[s.mail.length - 1].chosen = 0;
+    applyFailChoice(s, 'continue');
+    expect(a.failed).toBe(false);
+    expect(a.failPenalty).toBe(FAIL_CONTINUE_PENALTY);
+    progressDay(s);
+    expect(triggerEvent).toHaveBeenCalledTimes(2);
+    expect(b.failed).toBe(true);
+    expect(b.failAtFraction).toBeNull();
+    expect(a.flopDone / a.flopTotal).toBeCloseTo(0.7, 9);
+  });
+
+  it('applyFailChoice действует на проект с failed, а не на первый в списке', () => {
+    const s = lateState();
+    startTraining(s, plan({ name: 'А' }));
+    startTraining(s, plan({ name: 'Б' }));
+    const [a, b] = s.trainings;
+    b.failed = true;
+    b.flopDone = 0.5 * b.flopTotal;
+    applyFailChoice(s, 'rollback');
+    expect(b.failed).toBe(false);
+    expect(b.flopDone).toBeCloseTo((0.5 - FAIL_ROLLBACK) * b.flopTotal, 6);
+    expect(a.flopDone).toBe(0);
+    expect(a.failPenalty).toBe(0);
+  });
+
+  it('cancelTraining по id снимает нужный проект; неизвестный id - ошибка', () => {
+    const s = lateState();
+    startTraining(s, plan({ name: 'А' }));
+    startTraining(s, plan({ name: 'Б' }));
+    expect(cancelTraining(s, 't9')).toEqual({ ok: false, error: 'Нет такого проекта обучения.' });
+    expect(cancelTraining(s, 't1')).toEqual({ ok: true });
+    expect(s.trainings.map((t) => t.plan.name)).toEqual(['Б']);
+    expect(startTraining(s, plan({ name: 'В' }))).toEqual({ ok: true });
+    expect(s.trainings.map((t) => t.id)).toEqual(['t2', 't3']);
+  });
+});
+
+// ---------- Рынок v2: внешняя проверка ----------
+
+describe('внешняя проверка сильной модели', () => {
+  /** Поздняя игра с GTP-4 Turbu на рынке: передний край соперников 1250 Эло, уровень по коду ≈ 82. */
+  function withRival(): GameState {
+    const s = lateState();
+    s.rivalsReleased = ['gtp-4-turbu'];
+    return s;
+  }
+
+  it('не нужна без соперников на рынке, даже сильной модели', () => {
+    const s = lateState();
+    const m = playerModel({ arenaElo: 1400, caps: { language: 100, code: 100, reasoning: 100 } });
+    expect(reviewRequired(s, m)).toBe(false);
+    expect(reviewReason(s, m)).toBeNull();
+  });
+
+  it('нужна по Эло: не ниже лучшего соперника минус 10', () => {
+    const s = withRival();
+    expect(reviewRequired(s, playerModel({ arenaElo: 1240 }))).toBe(true);
+    expect(reviewReason(s, playerModel({ arenaElo: 1240 }))).toBe('Эло 1 240 против 1 250 у лучшего соперника');
+    expect(reviewRequired(s, playerModel({ arenaElo: 1239 }))).toBe(false);
+  });
+
+  it('нужна по коду: уровень по коду выше лучшего соперника на 5 (модель ищется в s.models)', () => {
+    const s = withRival();
+    const strong = playerModel({ arenaElo: 1000, caps: { language: 60, code: 100, reasoning: 60 } });
+    const weak = playerModel({ id: 'p2', arenaElo: 1000, caps: { language: 60, code: 60, reasoning: 60 } });
+    s.models.push(strong, weak);
+    expect(reviewReason(s, strong)).toBe('уровень по коду выше лучшего соперника');
+    expect(reviewRequired(s, weak)).toBe(false);
+  });
+
+  it('стоимость и срок: $300 тыс. + $2 тыс. за млрд; 30…45 дней без случайности', () => {
+    const s = withRival();
+    const small = playerModel({ plan: plan({ paramsB: 10 }) });
+    expect(reviewCost(small)).toBe(320_000);
+    expect(reviewDays(s, small)).toBe(30);
+    const huge = playerModel({ plan: plan({ paramsB: 1800 }) });
+    expect(reviewCost(huge)).toBe(3_900_000);
+    expect(reviewDays(s, huge)).toBe(44); // 1 800 млрд - 0,93 переднего края в июне 2024 года
+    expect(reviewDays(s, playerModel({ plan: plan({ paramsB: 2000 }) }))).toBe(45);
+    const mid = playerModel({ plan: plan({ paramsB: frontierParams(s.day) / 2 }) });
+    expect(reviewDays(s, mid)).toBe(38);
+    const rng = s.rng;
+    reviewDays(s, mid);
+    expect(s.rng).toBe(rng);
+  });
+
+  it('startReview: списывает деньги в статью «Проверки», ставит pending и срок, пишет письмо', () => {
+    const s = withRival();
+    const m = playerModel({ review: 'required' });
+    s.models.push(m);
+    const cash = s.cash;
+    expect(startReview(s, 'p1')).toEqual({ ok: true });
+    expect(m.review).toBe('pending');
+    expect(m.reviewEndDay).toBe(s.day + 30);
+    expect(s.cash).toBe(cash - 320_000);
+    expect(s.finance.month.expense.review).toBe(320_000);
+    const mail = s.mail[s.mail.length - 1];
+    expect(mail.title).toBe('Внешняя проверка начата: «Тест-1»');
+    expect(mail.body).toContain('Списано $320 тыс.');
+    expect(mail.body).toContain(`до ${formatDate(m.reviewEndDay!)}`);
+    expect(startReview(s, 'p1')).toEqual({ ok: false, error: 'Проверка уже идёт.' });
+  });
+
+  it('startReview отклоняется без денег, для невыпущенной модели и когда проверка не нужна', () => {
+    const s = withRival();
+    const m = playerModel({ review: 'required' });
+    s.models.push(m);
+    s.cash = 100;
+    const r = startReview(s, 'p1');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe('Не хватает денег на проверку: нужно $320 тыс., на счету $100.');
+    expect(m.review).toBe('required');
+    s.cash = 1e7;
+    m.releasedDay = null;
+    expect(startReview(s, 'p1').ok).toBe(false);
+    m.releasedDay = 100;
+    m.review = 'none';
+    expect(startReview(s, 'p1')).toEqual({ ok: false, error: 'Этой модели проверка не нужна.' });
+    expect(startReview(s, 'нет').ok).toBe(false);
+  });
+
+  it('reviewDay переводит pending в passed в день срока и шлёт важное письмо; раньше срока ничего не делает', () => {
+    const s = withRival();
+    const m = playerModel({ review: 'pending', reviewEndDay: s.day + 2 });
+    s.models.push(m);
+    reviewDay(s);
+    expect(m.review).toBe('pending');
+    expect(s.mail).toHaveLength(0);
+    s.day += 2;
+    reviewDay(s);
+    expect(m.review).toBe('passed');
+    const mail = s.mail[s.mail.length - 1];
+    expect(mail.title).toBe('Внешняя проверка пройдена: «Тест-1»');
+    expect(mail.important).toBe(true);
+    expect(mail.body).toContain('Подписку можно включить');
+    reviewDay(s);
+    expect(s.mail).toHaveLength(1);
   });
 });

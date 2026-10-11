@@ -32,14 +32,15 @@ export function spend(s: GameState, kind: ExpenseKind, amount: number): void {
   s.finance.month.expense[kind] += amount;
 }
 
-/** Выручка (API + контракты) за последние 90 дней. */
+/** Выручка (API + подписки + контракты) за последние 90 дней. */
 export function revenueLast90(s: GameState): number {
   return s.finance.revenueDaily.reduce((a, b) => a + b, 0);
 }
 
+/** Выручка за последний закрытый месяц: API + подписки + контракты (без инвесторов). */
 export function lastMonthRevenue(s: GameState): number {
   const h = s.finance.history[s.finance.history.length - 1];
-  return h ? h.income.api + h.income.contracts : 0;
+  return h ? h.income.api + h.income.subs + h.income.contracts : 0;
 }
 
 export function overheadPerDay(s: GameState): number {
@@ -74,9 +75,10 @@ export function closeMonth(s: GameState): void {
     year: d.year,
     month: d.month,
     cashEnd: s.cash,
-    // Доля и токены - после ограничения мощностью (market.dayStep пишет обслуженные значения).
+    // Доля, токены и подписчики - после ограничения мощностью (market.dayStep пишет обслуженные значения).
     marketShare: s.market.labShares.player ?? 0,
     tokensPerDay: s.market.playerTokens,
+    subscribers: s.market.playerSubs,
   });
   s.finance.month = emptyLedger();
 }

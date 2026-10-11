@@ -28,7 +28,7 @@ function playerModel(s: GameState, id: string, arenaElo: number, onApi: boolean)
   const m: PlayerModel = {
     id,
     name: `Модель ${id}`,
-    plan: { name: `Модель ${id}`, paramsB: 1, tokensB: 20, mix: { language: 0.5, code: 0.25, reasoning: 0.25 }, benchShare: 0, benchTargets: [], rlhf: false, context: 2048 },
+    plan: { name: `Модель ${id}`, paramsB: 1, tokensB: 20, mix: { language: 0.5, code: 0.25, reasoning: 0.25 }, benchShare: 0, benchTargets: [], rlhf: false, context: 2048, tier: 'light' },
     arch: 'transformer',
     algoLevel: 0,
     trainedDay: s.day - 10,
@@ -40,7 +40,7 @@ function playerModel(s: GameState, id: string, arenaElo: number, onApi: boolean)
     price: 10,
     onApi,
     exposed: false,
-    earned: 0,
+    earned: 0, onSubs: false, subsPrice: 20, review: 'none', reviewEndDay: null, earnedSubs: 0,
   };
   s.models.push(m);
   return m;

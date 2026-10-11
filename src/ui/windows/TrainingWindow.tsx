@@ -25,7 +25,7 @@ import {
 import { byYear, END_DAY, formatDateShort, yearOf } from '../../sim/time';
 import { refContext } from '../../sim/market';
 import { CONTEXT_MAX_LEVEL, contextLabel, maxContext } from '../../sim/research';
-import { archFor, chinchillaFactor, contextFlopMult, estimate, labelersCost } from '../../sim/training';
+import { archFor, chinchillaFactor, contextFlopMult, estimate, labelersCost, tierOf, trainingPoolPerRun } from '../../sim/training';
 import { DOMAINS } from '../../sim/types';
 import type { BenchmarkId, DomainId, GameState, TrainingPlan, TrainingRun } from '../../sim/types';
 import { Alert, ConfirmDialog, ErrorText, ProgressBar, Range } from '../components/common';
@@ -78,7 +78,7 @@ function initialDraft(s: GameState): Draft {
   const game = `${s.seed}:${s.labName}`;
   if (saved && saved.game === game) return saved;
   // Новый проект начинается с прошлого (или идущего): обычно следующую модель делают чуть больше.
-  const prev = s.training?.plan ?? s.models.at(-1)?.plan;
+  const prev = s.trainings.at(-1)?.plan ?? s.models.at(-1)?.plan;
   return {
     game,
     name: null,
@@ -269,11 +269,11 @@ function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
 
   const p = t.plan;
   const frac = t.flopTotal > 0 ? Math.min(1, t.flopDone / t.flopTotal) : 0;
-  const perDay = pool(s, 'training') * TRAIN_FLOP_PER_H100E_DAY;
+  const perDay = trainingPoolPerRun(s) * TRAIN_FLOP_PER_H100E_DAY; // доля «Обучение» делится между проектами
   const left = Math.max(0, t.flopTotal - t.flopDone);
   const eta = perDay > 0 ? Math.max(1, Math.ceil(left / perDay)) : null;
   const late = eta !== null && s.day + eta > END_DAY;
-  const waiting = awaitingEvent(s, 'training-fail');
+  const waiting = t.failed || awaitingEvent(s, 'training-fail');
   const labelers = labelersCost(p); // оплачены при старте, при отмене не возвращаются
   const targets = p.benchShare > 0 ? p.benchTargets.map((b) => benchDef(b).name).join(', ') : '';
   const summary = [
@@ -287,7 +287,7 @@ function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
     .join(' · ');
 
   function cancel() {
-    const r = store.dispatch(actions.cancelTraining);
+    const r = store.dispatch(actions.cancelTraining, t.id);
     setConfirm(false);
     setErr(r.ok ? null : r.error);
   }
@@ -459,7 +459,7 @@ export default function TrainingWindow({ s, open }: WindowProps) {
   }, [d]);
   const patch = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
 
-  const t = s.training;
+  const running = s.trainings.length > 0;
   const year = yearOf(s.day);
   const maxTokens = byYear(MAX_TOKENS_B, year);
   const tokens = Math.min(d.tokensB, maxTokens);
@@ -477,6 +477,8 @@ export default function TrainingWindow({ s, open }: WindowProps) {
     benchTargets: d.share > 0 ? d.targets : [],
     rlhf: d.rlhf && rlhfDone,
     context: d.context !== null && d.context <= ctxMax ? d.context : ctxMax,
+    // Уровень пока выводится из размера; выбор уровня в форме - в следующем срезе интерфейса.
+    tier: tierOf(d.paramsB, s.day),
   };
 
   let est: Est | null = null;
@@ -535,7 +537,9 @@ export default function TrainingWindow({ s, open }: WindowProps) {
 
   return (
     <div className="nm">
-      {t && <RunningBar s={s} t={t} />}
+      {s.trainings.map((t) => (
+        <RunningBar key={t.id} s={s} t={t} />
+      ))}
 
       <div className="nm-main">
         <aside className="nm-side">
@@ -560,7 +564,7 @@ export default function TrainingWindow({ s, open }: WindowProps) {
           </div>
 
           <div className="nm-side-foot">
-            {reason && <div className={`nm-reason ${t ? 'warn' : 'error'}`}>{reason}</div>}
+            {reason && <div className={`nm-reason ${running ? 'warn' : 'error'}`}>{reason}</div>}
             <ErrorText error={err} />
             <button
               className="btn primary wide nm-start"

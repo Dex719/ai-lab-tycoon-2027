@@ -6,6 +6,7 @@ import { HYPE_ARENA_TOP_BONUS, HYPE_RANK_BONUS, MARKET_MAX_AGE_DAYS, MARKET_MODE
 import { FOREVER } from './events';
 import { marketSnapshot, refPrice } from './market';
 import {
+  catalogEloFrontier,
   catalogPrice,
   findRivalDef,
   marketRivals,
@@ -15,9 +16,13 @@ import {
   rivalDay,
   rivalDef,
   rivalEloEstimated,
+  rivalOnApi,
+  rivalOnSubs,
   rivalPrice,
   rivalPriceDecay,
   rivalScore,
+  rivalSubsPrice,
+  rivalTier,
 } from './rivals';
 import { addRivalModifier, emptyRivalry, rivalPriceIn } from './rivalry';
 import type { RivalryGame } from './rivalry';
@@ -740,6 +745,78 @@ describe('marketRivals', () => {
   });
 });
 
+describe('marketRivals по каналам (design market-v2, 5.1)', () => {
+  it('rivalOnApi / rivalOnSubs: ChatGTP и Berd - только подписка; ChatGML-6B (только веса) - только API; Qwin-72B - оба', () => {
+    expect(rivalOnApi(byId('chatgtp'))).toBe(false);
+    expect(rivalOnSubs(byId('chatgtp'))).toBe(true);
+    expect(rivalOnSubs(byId('berd'))).toBe(true);
+    expect(rivalOnApi(byId('chatgml-6b'))).toBe(true);
+    expect(rivalOnSubs(byId('chatgml-6b'))).toBe(false);
+    expect(rivalOnApi(byId('qwin-72b'))).toBe(true);
+    expect(rivalOnSubs(byId('qwin-72b'))).toBe(true);
+    for (const id of ['kimo-chat', 'gemeni-1-0-ultro', 'gemeni-exp-1206']) expect(rivalOnSubs(byId(id)), id).toBe(true);
+    for (const id of ['meeno', 'lamba', 'paln']) {
+      expect(rivalOnApi(byId(id)), id).toBe(false);
+      expect(rivalOnSubs(byId(id)), id).toBe(false);
+    }
+  });
+
+  it('marketRivals(s, "subs"): ChatGTP на рынке подписок и не на рынке API; тот же отбор по возрасту и числу на лабораторию', () => {
+    const s = stateAt('2023-03-31');
+    const api = marketRivals(s, 'api').map((d) => d.id);
+    const subs = marketRivals(s, 'subs').map((d) => d.id);
+    expect(api).not.toContain('chatgtp');
+    expect(subs).toContain('chatgtp');
+    expect(subs).toContain('berd');
+    expect(subs).toContain('gtp-4');
+    expect(subs).not.toContain('chatgml-6b');
+    expect(marketRivals(s)).toEqual(marketRivals(s, 'api'));
+    for (const def of marketRivals(s, 'subs')) expect(def.chat && !def.announcedOnly, def.id).toBe(true);
+    const late = stateAt('2024-12-31');
+    const perLab = new Map<string, number>();
+    for (const def of marketRivals(late, 'subs')) perLab.set(def.lab, (perLab.get(def.lab) ?? 0) + 1);
+    for (const [lab, n] of perLab) expect(n, lab).toBeLessThanOrEqual(MARKET_MODELS_PER_LAB);
+  });
+});
+
+describe('rivalTier (design market-v2, 3.1)', () => {
+  it('опоры: GTP-3 Davanci - флагман; Clade 3 Haiko - лёгкая; Clade 3 Sonet - средняя; GTP-4 Turbu, ChatGTP - флагманы; Berd, PaLN 2 - средние; GTP-4o Mino - лёгкая', () => {
+    expect(rivalTier(byId('gtp-3'))).toBe('flagship'); // 175 млрд при переднем крае 175
+    expect(rivalTier(byId('clade-3-haiko'))).toBe('light'); // по цене: $0,5 при опорной ≈ $2,9
+    expect(rivalTier(byId('clade-3-sonet'))).toBe('mid');
+    expect(rivalTier(byId('gtp-4-turbu'))).toBe('flagship');
+    expect(rivalTier(byId('chatgtp'))).toBe('flagship'); // чат без цен: Эло на переднем крае каталога
+    expect(rivalTier(byId('berd'))).toBe('mid');
+    expect(rivalTier(byId('paln-2'))).toBe('mid'); // 340 млрд при переднем крае ≈ 1 800
+    expect(rivalTier(byId('gtp-4o-mino'))).toBe('light');
+    expect(rivalTier(byId('gtp-4'))).toBe('flagship');
+  });
+
+  it('явный tier каталога имеет приоритет; кеш по id пересчитывается для другой модели с тем же id', () => {
+    const def = byId('clade-3-haiko');
+    expect(rivalTier({ ...def, tier: 'flagship' })).toBe('flagship');
+    expect(rivalTier(def)).toBe('light');
+    expect(rivalTier(def)).toBe('light');
+  });
+
+  it('catalogEloFrontier: наибольший каталожный Эло среди вышедших к дню', () => {
+    expect(catalogEloFrontier(dateToDay('2018-06-10'))).toBe(0);
+    expect(catalogEloFrontier(dateToDay('2018-06-11'))).toBe(byId('gtp-1').arenaElo);
+    expect(catalogEloFrontier(dateToDay('2023-03-14'))).toBe(byId('gtp-4').arenaElo);
+    expect(catalogEloFrontier(END_DAY)).toBe(Math.max(...RIVAL_MODELS.map((m) => m.arenaElo)));
+  });
+
+  it('rivalSubsPrice: по уровню - лёгкая $10, средняя и флагман $20', () => {
+    expect(rivalSubsPrice(byId('clade-3-haiko'))).toBe(10);
+    expect(rivalSubsPrice(byId('clade-3-sonet'))).toBe(20);
+    expect(rivalSubsPrice(byId('gtp-4-turbu'))).toBe(20);
+  });
+
+  it('у каждой модели каталога есть уровень', () => {
+    for (const m of RIVAL_MODELS) expect(['light', 'mid', 'flagship'], m.id).toContain(rivalTier(m));
+  });
+});
+
 describe('marketRivals и снимок рынка: поправки ходов и ответные модели', () => {
   it('возраст на рынке считается по сдвинутому дню выхода', () => {
     const gtp3 = byId('gtp-3');
@@ -779,7 +856,7 @@ describe('marketRivals и снимок рынка: поправки ходов �
     s.rivalry.extra[def.id] = s.day;
     s.rivalry.overrides[def.id] = { eloAdd: -40, price: 0.5, context: 32000 };
     s.rivalsReleased.push(def.id);
-    const e = marketSnapshot(s).entries.find((x) => x.key === `rival:${def.id}`)!;
+    const e = marketSnapshot(s).segments.developers.entries.find((x) => x.key === `rival:${def.id}`)!;
     expect(e).toBeDefined();
     expect(e.ref).toEqual({ kind: 'rival', id: def.id });
     expect(e.owner).toBe('deepcent');
@@ -793,7 +870,7 @@ describe('marketRivals и снимок рынка: поправки ходов �
   it('модификатор rivalPrice снижает цену моделей лаборатории в снимке; поправка eloAdd входит в Эло', () => {
     const s = stateAt('2024-06-01');
     const gtp4o = byId('gtp-4o');
-    const at = (key: string) => marketSnapshot(s).entries.find((e) => e.key === key)!;
+    const at = (key: string) => marketSnapshot(s).segments.developers.entries.find((e) => e.key === key)!;
     expect(at('rival:gtp-4o').price).toBeCloseTo(rivalPrice(gtp4o, s.day), 9);
     expect(at('rival:gtp-4o').elo).toBe(gtp4o.arenaElo);
 

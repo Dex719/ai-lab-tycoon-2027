@@ -18,6 +18,7 @@ import {
   ROUND_FRACTIONS,
   VALUATION_FLOOR,
 } from './constants';
+import { beginDay, earn } from './finance';
 import { BOARD_PLAN_FLAG, buyBackShares, buybackCost, canRaise, FOUNDER_WARNED_FLAG, raiseRound, valuation } from './investors';
 import { createInitialState } from './state';
 import { byYear, dateToDay, lerpByDate } from './time';
@@ -44,7 +45,7 @@ function makeModel(id: string, over: Partial<PlayerModel> = {}): PlayerModel {
     name: `Модель ${id}`,
     plan: {
       name: id, paramsB: 1, tokensB: 20, mix: { language: 1, code: 0, reasoning: 0 },
-      benchShare: 0, benchTargets: [], rlhf: false, context: 512,
+      benchShare: 0, benchTargets: [], rlhf: false, context: 512, tier: 'light',
     },
     arch: 'transformer',
     algoLevel: 0,
@@ -57,7 +58,7 @@ function makeModel(id: string, over: Partial<PlayerModel> = {}): PlayerModel {
     price: 10,
     onApi: true,
     exposed: false,
-    earned: 0,
+    earned: 0, onSubs: false, subsPrice: 20, review: 'none', reviewEndDay: null, earnedSubs: 0,
     ...over,
   };
 }
@@ -108,6 +109,20 @@ describe('valuation: выручка', () => {
     setDailyRevenue(s, 100_000); // 9 млн за 90 дней
     const v = valuation(s);
     expect(v.annualRevenue).toBeCloseTo(9_000_000 * (365 / 90), 4);
+  });
+
+  it('выручка подписок входит в оценку: earn(subs) поднимает annualRevenue и total', () => {
+    const s = newState(dateToDay('2024-06-01'));
+    s.reputation = 50;
+    beginDay(s);
+    const before = valuation(s);
+    earn(s, 'subs', 2_000_000);
+    const after = valuation(s);
+    expect(after.annualRevenue).toBeCloseTo(2_000_000 * (365 / 90), 4);
+    expect(after.total).toBeGreaterThan(before.total);
+    // Деньги инвесторов в выручку не входят.
+    earn(s, 'investors', 1e9);
+    expect(valuation(s).annualRevenue).toBeCloseTo(after.annualRevenue, 4);
   });
 
   it('доля выручки = годовая × множитель года (1,5 / 1,5 / 1,5 / 2)', () => {

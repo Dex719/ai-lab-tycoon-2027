@@ -126,7 +126,8 @@ export default function MarketTab({ s, open }: WindowProps) {
   const cur = dayToDate(s.day);
 
   const snap = safe(() => marketSnapshot(s));
-  const entries = snap ? snap.entries : null;
+  // Пока таблица одна: модели сегмента разработчиков (канал API); доли по сегментам покажет следующий срез интерфейса.
+  const entries = snap ? snap.segments.developers.entries : null;
   const hasPlayer = entries?.some((e) => e.owner === 'player') ?? false;
 
   return (

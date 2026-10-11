@@ -1,7 +1,7 @@
 // Все числа баланса среза. Формулы - в design.md, раздел «Формулы и баланс».
 // Точки кривых: [дата 'YYYY-MM-DD', значение]; между точками - lerpByDate (линейно или в логарифме).
 
-import type { Allocation, ChainTech, DomainId, HypeOwner, TechId } from './types';
+import type { Allocation, ChainTech, DomainId, HypeOwner, SegmentDef, SegmentId, TechId, Tier } from './types';
 
 export const START_DATE = '2017-01-01';
 export const END_DATE = '2024-12-31';
@@ -10,7 +10,11 @@ export const START_REPUTATION = 20;
 /** «Навсегда»: untilDay модификаторов и перерывов ходов соперников. Живёт здесь, а не в events.ts, потому что
  * rivalry.ts читает его на верхнем уровне модуля внутри цикла sim/events → data/events → sim/rivalry → sim/events. */
 export const FOREVER = Number.MAX_SAFE_INTEGER;
-export const DEFAULT_ALLOC: Allocation = { training: 0.4, contracts: 0.2, experiments: 0.4, inference: 0 };
+/** Чат-момент (ChatGTP): с этого дня открыт канал подписок; событие в data/events.ts берёт дату отсюда. */
+export const CHAT_MOMENT_DATE = '2022-11-30';
+export const DEFAULT_ALLOC: Allocation = { training: 0.4, contracts: 0.2, experiments: 0.4, api: 0, subs: 0 };
+/** Одновременно идущих проектов обучения не больше. */
+export const MAX_TRAININGS = 2;
 
 // Время (FR-1)
 export const TICK_MS: Record<1 | 2 | 4, number> = { 1: 500, 2: 250, 4: 125 };
@@ -151,6 +155,98 @@ export const PLAYER_BRAND_K = 0.4; // было 0,6: репутация 100 да�
 export const CHAT_MOMENT_BRAND = 0.5;
 export const EXPORT_CONTROL_BRAND = -0.2;
 
+// Рынок v2: сегменты спроса (design market-v2, раздел 2). Средневзвешенные веса API-сегментов
+// (0,45 корпоративные / 0,55 разработчики в 2024 году) близки к прежним 1,0 (качество) и 1,2 (цена).
+export const SEGMENT_DEF: Record<SegmentId, SegmentDef> = {
+  consumers: {
+    name: 'Обычные',
+    channel: 'subs',
+    wQ: 1.0,
+    hypeMult: 1.5,
+    wBrand: 1.2,
+    wPrice: 0.8,
+    wCtx: 0.25,
+    wCode: 0,
+    exposedPenalty: 0.2,
+    u0Offset: 0.5,
+    tier: { light: -0.3, mid: 0, flagship: 0.1 },
+    values: 'известность, цена подписки, длинный контекст',
+  },
+  enterprise: {
+    name: 'Корпоративные',
+    channel: 'api',
+    wQ: 1.2,
+    hypeMult: 0.7,
+    wBrand: 0.8,
+    wPrice: 0.6,
+    wCtx: 0.35,
+    wCode: 0.3,
+    exposedPenalty: 0.8,
+    u0Offset: 0,
+    tier: { light: -0.4, mid: 0, flagship: 0.2 },
+    values: 'Эло, контекст, отсутствие подгонки, флагманы',
+  },
+  developers: {
+    name: 'Разработчики',
+    channel: 'api',
+    wQ: 0.8,
+    hypeMult: 1.0,
+    wBrand: 0.5,
+    wPrice: 1.6,
+    wCtx: 0.25,
+    wCode: 0.6,
+    exposedPenalty: 0.3,
+    u0Offset: -0.3,
+    tier: { light: 0.2, mid: 0, flagship: -0.2 },
+    values: 'цена за токен, баллы по коду, лёгкие модели',
+  },
+};
+/** Доля разработчиков в спросе API (линейно); остальное - корпоративные клиенты. */
+export const DEV_SHARE_OF_API: [string, number][] = [
+  ['2017-01-01', 0.8], ['2020-06-11', 0.7], ['2022-11-30', 0.6], ['2024-12-31', 0.45],
+];
+/**
+ * Платёжеспособных пользователей чата (лог-линейно); канал открыт с CHAT_MOMENT_DATE.
+ * Было 1e3 … 1,5e7 (подписки $3,6 млрд в год на конец 2024 года); × 0,75 - $2,7 млрд, как у OpenAI в 2024 году:
+ * с большим рынком «разумный» бот (balance.test.ts) побеждал на всех зёрнах. Потенциал подписок / API = 1,0.
+ */
+export const SUBS_USERS: [string, number][] = [
+  ['2017-01-01', 7.5e2], ['2020-06-11', 1.5e4], ['2022-11-29', 7.5e4], ['2022-11-30', 3.75e5],
+  ['2023-02-10', 1.125e6], ['2023-06-01', 2.25e6], ['2024-01-01', 5.25e6], ['2024-12-31', 1.125e7],
+];
+export const SUBS_REF_PRICE = 20; // $ в месяц, опорная цена подписки (ChatGTP Plus)
+export const SUBS_PRICE_MIN = 1;
+export const SUBS_PRICE_MAX = 200;
+export const SUBS_PRICE_RATIO_MIN = 1 / 4;
+export const SUBS_PRICE_RATIO_MAX = 4;
+/** Уровень по коду: +10 очков над уровнем года (CAP_LEVEL) дают разработчикам +0,6 полезности; разница зажата в ±20. */
+export const CODE_UTILITY_SCALE = 10;
+export const CODE_DIFF_CAP = 20;
+
+// Уровни моделей (design market-v2, раздел 3): передний край по параметрам, млрд (лог-линейно).
+export const FRONTIER_PARAMS_B: [string, number][] = [
+  ['2017-01-01', 1], ['2019-02-14', 1.5], ['2020-06-11', 175], ['2022-04-04', 540], ['2023-03-14', 1800], ['2024-12-31', 2000],
+];
+/** Доли переднего края [от, до) для каждого уровня; у лёгких нижняя граница - PARAMS_B_MIN. */
+export const TIER_PARAMS_RATIO: Record<Tier, [number, number]> = { light: [0, 0.08], mid: [0.08, 0.35], flagship: [0.35, 1.5] };
+export const TIER_PRESET_RATIO: Record<Tier, number> = { light: 0.04, mid: 0.17, flagship: 0.7 };
+/** Цена API по умолчанию при выпуске: множитель к опорной цене. */
+export const TIER_API_PRICE_MULT: Record<Tier, number> = { light: 0.25, mid: 1, flagship: 3 };
+/** Цена подписки по умолчанию, $ в месяц. */
+export const TIER_SUBS_PRICE: Record<Tier, number> = { light: 10, mid: 20, flagship: 20 };
+/** Уровень соперника по цене каталога / опорной: ≥ flagship - флагман, ≥ mid - средняя, иначе лёгкая. */
+export const RIVAL_TIER_PRICE_RATIO = { flagship: 2.5, mid: 0.4 };
+/** Уровень чата без API и цен: Эло не ниже лучшего каталожного на день выхода минус столько - флагман. */
+export const RIVAL_TIER_ELO_GAP = 30;
+
+// Внешняя проверка сильной модели перед подпиской (design market-v2, раздел 4.2).
+export const REVIEW_ELO_GAP = 10; // Эло не ниже лучшего соперника минус столько
+export const REVIEW_CODE_GAP = 5; // уровень по коду выше лучшего соперника на столько
+export const REVIEW_DAYS_MIN = 30;
+export const REVIEW_DAYS_EXTRA = 15; // × min(1, paramsB / передний край): 30…45 дней
+export const REVIEW_COST_BASE = 300_000;
+export const REVIEW_COST_PER_B = 2_000; // $ за миллиард параметров
+
 // Тендеры: немного, но крупных - TENDERS_PER_MONTH + 0…1 в месяц, работа и оплата в пять раз больше прежних.
 export const TENDERS_PER_MONTH: Record<number, number> = {
   2017: 1, 2018: 1, 2019: 1, 2020: 1, 2021: 1, 2022: 1, 2023: 1, 2024: 1,
@@ -161,7 +257,6 @@ export const CAP_LEVEL: Record<number, number> = {
 export const WORK_BASE: [string, number][] = [
   ['2017-01-01', 100], ['2020-01-01', 1000], ['2023-01-01', 10000], ['2024-12-31', 50000],
 ];
-export const TENDER_APPLY_DAYS = 20;
 export const TENDER_EXPIRE_DAYS = 30;
 export const TENDER_PENALTY = 0.3;
 export const RLHF_TENDER_PAY_MULT = 1.6;

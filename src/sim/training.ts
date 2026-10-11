@@ -28,28 +28,40 @@ import {
   FAIL_CONTINUE_PENALTY,
   FAIL_JUMP_RATIO,
   FAIL_ROLLBACK,
+  FRONTIER_PARAMS_B,
   MAX_BENCH_TARGETS,
   MAX_TOKENS_B,
+  MAX_TRAININGS,
   MIX_K,
   OVERFIT_K,
   PARAMS_B_MAX,
   PARAMS_B_MIN,
+  REVIEW_CODE_GAP,
+  REVIEW_COST_BASE,
+  REVIEW_COST_PER_B,
+  REVIEW_DAYS_EXTRA,
+  REVIEW_DAYS_MIN,
+  REVIEW_ELO_GAP,
   RLHF_FLOP_EXTRA,
   RLHF_LABELERS_BASE,
   RLHF_LABELERS_PER_B,
   RLHF_LANGUAGE_BONUS,
+  TIER_PARAMS_RATIO,
+  TIER_PRESET_RATIO,
+  TIER_SUBS_PRICE,
   TOKENS_B_MIN,
   TRAIN_FLOP_PER_H100E_DAY,
 } from './constants';
 import { addMail, awaitingEvent, dropChoices, triggerEvent } from './events';
 import { spend } from './finance';
+import { codeLevel, rivalCodeFrontier, rivalFrontierElo } from './leaderboard';
 import { contextLabel, maxContext } from './research';
 import { EXPOSE_CAP_WITH_RIVALS, exposureMultIn } from './rivalry';
 import { chance, randRange } from './rng';
 import { endSentence } from './text';
-import { byYear, dateToDay, yearOf } from './time';
-import { DOMAINS } from './types';
-import type { BenchmarkId, DomainId, GameState, PlayerModel, Result, TrainingPlan } from './types';
+import { byYear, dateToDay, formatDate, lerpByDate, yearOf } from './time';
+import { DOMAINS, TIER_NAMES } from './types';
+import type { BenchmarkId, DomainId, GameState, PlayerModel, Result, Tier, TrainingPlan, TrainingRun } from './types';
 
 export type Arch = 'lstm' | 'transformer';
 
@@ -99,6 +111,59 @@ function pointsWord(n: number): string {
   if (m10 === 1 && m100 !== 11) return 'очко';
   if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'очка';
   return 'очков';
+}
+
+/** «1 день», «3 дня», «45 дней». */
+function daysWord(n: number): string {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return `${n} день`;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return `${n} дня`;
+  return `${n} дней`;
+}
+
+/** Размер в млрд параметров для ошибок: 0,05 → «0,05», 61,25 → «61,3», 1800 → «1 800». */
+function fmtParams(x: number): string {
+  if (x >= 100) return fmtInt(x);
+  const r = Math.round(x * 100) / 100;
+  return String(r).replace('.', ',');
+}
+
+// ---------- Уровни моделей (design market-v2, раздел 3) ----------
+
+/** Передний край по параметрам на день, млрд (FRONTIER_PARAMS_B, интерполяция в логарифме). */
+export function frontierParams(day: number): number {
+  return lerpByDate(FRONTIER_PARAMS_B, day, true);
+}
+
+/** Уровень по размеру относительно переднего края: ≥ 0,35 - флагман, ≥ 0,08 - средняя, иначе лёгкая. */
+export function tierOf(paramsB: number, day: number): Tier {
+  const r = paramsB / frontierParams(day);
+  if (r >= TIER_PARAMS_RATIO.flagship[0]) return 'flagship';
+  if (r >= TIER_PARAMS_RATIO.mid[0]) return 'mid';
+  return 'light';
+}
+
+/** Границы размера уровня на день, млрд: [от, до]; у лёгких снизу PARAMS_B_MIN. Пустой диапазон (от ≥ до) - уровень недоступен. */
+export function tierRange(day: number, tier: Tier): [number, number] {
+  const f = frontierParams(day);
+  const [lo, hi] = TIER_PARAMS_RATIO[tier];
+  return [Math.max(PARAMS_B_MIN, lo * f), Math.min(PARAMS_B_MAX, hi * f)];
+}
+
+/** Уровень доступен: его диапазон размеров не пуст (в 2017 году флагман - 0,35…1,5 млрд, лёгкие - 0,05…0,08). */
+export function tierAvailable(day: number, tier: Tier): boolean {
+  const [lo, hi] = tierRange(day, tier);
+  return lo < hi;
+}
+
+/** Пресет уровня: размер TIER_PRESET_RATIO × передний край в границах уровня, данные по Шиншилле (20 токенов на параметр) в лимите года. */
+export function tierPreset(s: GameState, tier: Tier): { paramsB: number; tokensB: number } {
+  const [lo, hi] = tierRange(s.day, tier);
+  const paramsB = Math.min(hi, Math.max(lo, TIER_PRESET_RATIO[tier] * frontierParams(s.day)));
+  const maxTokens = byYear(MAX_TOKENS_B, yearOf(s.day));
+  const tokensB = Math.min(maxTokens, Math.max(TOKENS_B_MIN, CHIN_OPT_RATIO * paramsB));
+  return { paramsB, tokensB };
 }
 
 // ---------- Формулы ----------
@@ -189,14 +254,28 @@ export function labelersCost(plan: TrainingPlan): number {
 
 // ---------- Проверка и оценка проекта ----------
 
-/** Ошибка или null: размеры в границах, токены ≤ MAX_TOKENS_B(год), микс ≈ 1, b в [0, 0.5], ≤ 3 цели (только вышедшие бенчмарки), rlhf только после исследования, нет идущего проекта, хватает денег на разметчиков. */
+/** Мощность на один проект: доля «Обучение» делится поровну между идущими проектами (extra - ещё не начатые, для оценки срока). */
+export function trainingPoolPerRun(s: GameState, extra = 0): number {
+  return pool(s, 'training') / Math.max(1, s.trainings.length + extra);
+}
+
+/**
+ * Ошибка или null: не больше MAX_TRAININGS проектов, размеры в границах, уровень совпадает с размером (tierOf),
+ * токены ≤ MAX_TOKENS_B(год), микс ≈ 1, b в [0, 0.5], ≤ 3 цели (только вышедшие бенчмарки), rlhf только после
+ * исследования, хватает денег на разметчиков.
+ */
 export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
-  if (s.training) return 'Уже идёт другой проект обучения. Его нужно завершить или отменить.';
+  if (s.trainings.length >= MAX_TRAININGS) return 'Одновременно идут не больше двух проектов обучения.';
   const name = plan.name.trim();
   if (!name) return 'Название модели не указано.';
   if (name.length > 40) return 'Название модели - не длиннее 40 символов.';
   if (!Number.isFinite(plan.paramsB) || plan.paramsB < PARAMS_B_MIN || plan.paramsB > PARAMS_B_MAX) {
     return `Размер модели - от ${fmtNum(PARAMS_B_MIN)} до ${fmtInt(PARAMS_B_MAX)} млрд параметров.`;
+  }
+  if (!(plan.tier in TIER_NAMES)) return 'Уровень модели не указан.';
+  if (plan.tier !== tierOf(plan.paramsB, s.day)) {
+    const [lo, hi] = tierRange(s.day, plan.tier);
+    return `Размер модели не соответствует уровню «${TIER_NAMES[plan.tier]}»: в этом году от ${fmtParams(lo)} до ${fmtParams(hi)} млрд параметров.`;
   }
   const year = yearOf(s.day);
   const maxTokens = byYear(MAX_TOKENS_B, year);
@@ -235,7 +314,8 @@ export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
 export function estimate(s: GameState, plan: TrainingPlan): TrainingEstimate {
   const flop = planFlop(plan);
   const arch = archFor(s);
-  const perDay = pool(s, 'training') * TRAIN_FLOP_PER_H100E_DAY;
+  // Новый проект разделит долю «Обучение» с уже идущими: срок считается по мощности на проект.
+  const perDay = trainingPoolPerRun(s, 1) * TRAIN_FLOP_PER_H100E_DAY;
   // Срок известен, только если есть мощность и объём вычислений конечен и положителен.
   const days = perDay > 0 && flop > 0 && Number.isFinite(flop) ? Math.max(1, Math.ceil(flop / perDay)) : null;
   const result: TrainingEstimate = {
@@ -288,7 +368,9 @@ export function startTraining(s: GameState, plan: TrainingPlan): Result {
   const flop = planFlop(copy);
   const failChance = FAIL_BASE + (s.bestFlop > 0 && flop > FAIL_JUMP_RATIO * s.bestFlop ? FAIL_BIG_JUMP : 0);
   const failAtFraction = chance(s, failChance) ? randRange(s, 0.2, 0.8) : null;
-  s.training = {
+  s.trainings.push({
+    id: `t${s.nextRunNum++}`,
+    failed: false,
     plan: copy,
     arch: archFor(s),
     algoLevel: s.research.algoLevel,
@@ -297,24 +379,27 @@ export function startTraining(s: GameState, plan: TrainingPlan): Result {
     startedDay: s.day,
     failAtFraction,
     failPenalty: 0,
-  };
+  });
   return { ok: true };
 }
 
-/** Отменить идущий проект. Деньги разметчикам не возвращаются. */
-export function cancelTraining(s: GameState): Result {
-  if (!s.training) return { ok: false, error: 'Сейчас ничего не обучается.' };
-  s.training = null;
-  dropChoices(s, 'training-fail', 'Проект отменён, решение не требуется.');
+/** Отменить проект по id. Деньги разметчикам не возвращаются; если проект ждал решения по срыву, письмо снимается с выбора. */
+export function cancelTraining(s: GameState, runId: string): Result {
+  const i = s.trainings.findIndex((r) => r.id === runId);
+  if (i < 0) return { ok: false, error: 'Нет такого проекта обучения.' };
+  const [run] = s.trainings.splice(i, 1);
+  if (run.failed) dropChoices(s, 'training-fail', 'Проект отменён, решение не требуется.');
   return { ok: true };
 }
 
-/** Выбор в событии «срыв обучения» (вызывается из data/events.ts). */
+/** Выбор в событии «срыв обучения» (вызывается из data/events.ts): проект, который ждёт решения (failed), снова идёт. */
 export function applyFailChoice(s: GameState, choice: 'rollback' | 'continue'): void {
-  const t = s.training;
+  const t = s.trainings.find((r) => r.failed);
   if (!t) return;
   if (choice === 'rollback') t.flopDone = Math.max(0, t.flopDone - FAIL_ROLLBACK * t.flopTotal);
   else t.failPenalty = FAIL_CONTINUE_PENALTY;
+  t.failed = false;
+  t.failAtFraction = null;
 }
 
 /** Строка с баллами новой модели по активным бенчмаркам (если все насыщены - по всем вышедшим). */
@@ -324,9 +409,7 @@ function keyScores(s: GameState, model: PlayerModel): string {
   return list.map((b) => `${benchDef(b).name} ${fmtPct(modelScore(model, b, false))}`).join(', ');
 }
 
-function finishTraining(s: GameState): void {
-  const t = s.training;
-  if (!t) return;
+function finishTraining(s: GameState, t: TrainingRun): void {
   const caps = capsFromPlan(t.plan, t.algoLevel, t.arch, t.failPenalty);
   const model: PlayerModel = {
     id: `p${s.nextModelNum++}`,
@@ -344,10 +427,15 @@ function finishTraining(s: GameState): void {
     onApi: false,
     exposed: false,
     earned: 0,
+    onSubs: false,
+    subsPrice: TIER_SUBS_PRICE[t.plan.tier] ?? TIER_SUBS_PRICE.mid,
+    review: 'none',
+    reviewEndDay: null,
+    earnedSubs: 0,
   };
   s.models.push(model);
   s.bestFlop = Math.max(s.bestFlop, t.flopTotal);
-  s.training = null;
+  s.trainings = s.trainings.filter((r) => r !== t);
 
   const lines: string[] = [];
   const scores = keyScores(s, model);
@@ -363,22 +451,101 @@ function finishTraining(s: GameState): void {
   addMail(s, { kind: 'training', title: `Модель «${model.name}» готова`, body: lines.join(' '), important: true });
 }
 
-/** Ежедневно: прогресс; срыв (triggerEvent 'training-fail'); завершение → PlayerModel в s.models, bestFlop, письмо. */
+/**
+ * Ежедневно, для каждого проекта: прогресс по мощности на проект (trainingPoolPerRun); срыв (triggerEvent
+ * 'training-fail') - проект стоит (failed), пока игрок не решит, что делать; второй срыв ждёт решения по первому
+ * (проект зажат в точке срыва, failAtFraction остаётся); завершение → PlayerModel в s.models, bestFlop, письмо.
+ */
 export function progressDay(s: GameState): void {
-  const t = s.training;
-  if (!t) return;
-  // После срыва проект стоит, пока игрок не решит, что делать (письмо можно отложить).
-  if (awaitingEvent(s, 'training-fail')) return;
-  t.flopDone += pool(s, 'training') * TRAIN_FLOP_PER_H100E_DAY;
-
-  if (t.failAtFraction !== null && t.flopDone >= t.failAtFraction * t.flopTotal) {
-    // Срыв случается в точке отказа: дальше проект не идёт, пока игрок не выберет, что делать.
-    t.flopDone = t.failAtFraction * t.flopTotal;
-    t.failAtFraction = null;
-    triggerEvent(s, 'training-fail');
-    return;
+  if (s.trainings.length === 0) return;
+  const perRun = trainingPoolPerRun(s) * TRAIN_FLOP_PER_H100E_DAY;
+  for (const t of [...s.trainings]) {
+    if (t.failed) continue;
+    t.flopDone += perRun;
+    if (t.failAtFraction !== null && t.flopDone >= t.failAtFraction * t.flopTotal) {
+      // Срыв случается в точке отказа: дальше проект не идёт, пока игрок не выберет, что делать.
+      t.flopDone = t.failAtFraction * t.flopTotal;
+      if (awaitingEvent(s, 'training-fail')) continue; // письмо о срыве другого проекта ещё ждёт ответа
+      t.failAtFraction = null;
+      t.failed = true;
+      triggerEvent(s, 'training-fail');
+      continue;
+    }
+    if (t.flopDone >= t.flopTotal) finishTraining(s, t);
   }
-  if (t.flopDone >= t.flopTotal) finishTraining(s);
+}
+
+// ---------- Внешняя проверка сильной модели (design market-v2, раздел 4.2) ----------
+
+/**
+ * Почему модели нужна внешняя проверка перед подпиской, или null: Эло не ниже лучшего соперника минус REVIEW_ELO_GAP,
+ * либо уровень по коду выше лучшего соперника на REVIEW_CODE_GAP. Без соперников на рынке проверка не нужна.
+ */
+export function reviewReason(s: GameState, m: PlayerModel): string | null {
+  const frontier = rivalFrontierElo(s);
+  if (frontier > 0 && m.arenaElo >= frontier - REVIEW_ELO_GAP) {
+    return `Эло ${fmtInt(m.arenaElo)} против ${fmtInt(frontier)} у лучшего соперника`;
+  }
+  const code = codeLevel(s, { kind: 'player', id: m.id });
+  const rivalCode = rivalCodeFrontier(s);
+  if (code !== null && rivalCode !== null && code >= rivalCode + REVIEW_CODE_GAP) return 'уровень по коду выше лучшего соперника';
+  return null;
+}
+
+/** Нужна ли модели внешняя проверка перед подпиской (считается один раз при выпуске: край только растёт). */
+export function reviewRequired(s: GameState, m: PlayerModel): boolean {
+  return reviewReason(s, m) !== null;
+}
+
+/** Стоимость проверки: REVIEW_COST_BASE + REVIEW_COST_PER_B × млрд параметров (1,8 трлн - $3,9 млн). */
+export function reviewCost(m: PlayerModel): number {
+  return REVIEW_COST_BASE + REVIEW_COST_PER_B * m.plan.paramsB;
+}
+
+/** Срок проверки, дней: 30 + round(15 × min(1, размер / передний край)) - 30…45, без случайности. */
+export function reviewDays(s: GameState, m: PlayerModel): number {
+  return REVIEW_DAYS_MIN + Math.round(REVIEW_DAYS_EXTRA * Math.min(1, m.plan.paramsB / frontierParams(s.day)));
+}
+
+/** Действие: начать внешнюю проверку (списать деньги, поставить срок). Пока она идёт, подписку включить нельзя. */
+export function startReview(s: GameState, modelId: string): Result {
+  const m = s.models.find((x) => x.id === modelId);
+  if (!m) return { ok: false, error: 'Нет такой модели' };
+  if (m.releasedDay === null) return { ok: false, error: 'Модель ещё не выпущена' };
+  if (m.review === 'pending') return { ok: false, error: 'Проверка уже идёт.' };
+  if (m.review !== 'required') return { ok: false, error: 'Этой модели проверка не нужна.' };
+  const cost = reviewCost(m);
+  if (cost > s.cash) {
+    return { ok: false, error: `Не хватает денег на проверку: нужно ${fmtMoney(cost)}, на счету ${endSentence(fmtMoney(s.cash))}` };
+  }
+  spend(s, 'review', cost);
+  m.review = 'pending';
+  m.reviewEndDay = s.day + reviewDays(s, m);
+  addMail(s, {
+    kind: 'training',
+    title: `Внешняя проверка начата: «${m.name}»`,
+    body: `Независимые эксперты проверяют модель до ${formatDate(m.reviewEndDay)}. Списано ${endSentence(fmtMoney(cost))}`,
+  });
+  return { ok: true };
+}
+
+/** Ежедневно (после обучения): проверки, чей срок наступил, пройдены; важное письмо. */
+export function reviewDay(s: GameState): void {
+  for (const m of s.models) {
+    if (m.review !== 'pending' || m.reviewEndDay === null || s.day < m.reviewEndDay) continue;
+    m.review = 'passed';
+    addMail(s, {
+      kind: 'training',
+      title: `Внешняя проверка пройдена: «${m.name}»`,
+      important: true,
+      body: 'Замечаний нет. Подписку можно включить в окне «Модели».',
+    });
+  }
+}
+
+/** Текст для письма о выпуске: сколько займёт и будет стоить проверка. */
+export function reviewTerms(s: GameState, m: PlayerModel): string {
+  return `Проверка займёт ${daysWord(reviewDays(s, m))} и стоит ${fmtMoney(reviewCost(m))}`;
 }
 
 /**

@@ -9,7 +9,6 @@ import {
   REP_CONTRACT_OK,
   RLHF_TENDER_LABELERS,
   RLHF_TENDER_PAY_MULT,
-  TENDER_APPLY_DAYS,
   TENDER_EXPIRE_DAYS,
   TENDER_PENALTY,
   TENDERS_PER_MONTH,
@@ -206,7 +205,7 @@ export function autoApplyTenders(s: GameState, tenders: Tender[]): void {
     kind: 'contract',
     title: `Заявки поданы: ${lines.length} из ${tenders.length}`,
     body:
-      `Новых тендеров: ${tenders.length}, заявок подано: ${lines.length}. Решение - через ${TENDER_APPLY_DAYS} дн.\n` +
+      `Новых тендеров: ${tenders.length}, заявок подано: ${lines.length}. Решение - при закрытии тендера.\n` +
       lines.join('\n') +
       (skipped > 0 ? `\nБез подходящей модели: ${skipped}.` : ''),
   });
@@ -217,7 +216,7 @@ function placeApplication(s: GameState, tender: Tender, model: PlayerModel, auto
   tender.application = {
     modelId: model.id,
     appliedDay: s.day,
-    resolveDay: s.day + TENDER_APPLY_DAYS,
+    resolveDay: tender.expiresDay, // решение в день закрытия тендера
     chance: applyChance(s, tender, model),
     ...(auto ? { auto: true } : {}), // у ручной заявки поля нет вовсе: сохранение короче
   };

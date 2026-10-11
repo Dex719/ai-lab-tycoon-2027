@@ -23,6 +23,7 @@ const EXPENSE_TITLES: Record<ExpenseKind, string> = {
   overhead: `${fmtMoney(OVERHEAD_MONTHLY)} в месяц плюс ${fmtShare(OVERHEAD_REVENUE_SHARE, 0)} выручки прошлого месяца`,
   labelers: 'Оплата разметки ответов при обучении с RLHF',
   penalties: 'Штрафы за сорванные контракты',
+  review: 'Оплата внешней проверки сильных моделей',
 };
 const EXPENSE_COLS: { kind: ExpenseKind; label: string; title: string }[] = EXPENSE_KINDS.map((kind) => ({
   kind,
@@ -38,13 +39,13 @@ function sumValues(r: Record<string, number>): number {
   return t;
 }
 
-const revenueOf = (l: MonthLedger): number => finite(l.income.api) + finite(l.income.contracts);
+const revenueOf = (l: MonthLedger): number => finite(l.income.api) + finite(l.income.subs) + finite(l.income.contracts);
 
-/** Итог месяца так же, как «/мес.» на верхней панели: продажа API и контракты минус все расходы, без инвесторов. */
+/** Итог месяца так же, как «/мес.» на верхней панели: продажа API, подписки и контракты минус все расходы, без инвесторов. */
 const netWithoutInvestors = (l: MonthLedger): number => revenueOf(l) - sumValues(l.expense);
 
 const FLOW_SERIES: SeriesDef[] = [
-  { id: 'revenue', label: 'Выручка', color: '#5ed37f', title: 'API и контракты, без вложений инвесторов', pick: revenueOf },
+  { id: 'revenue', label: 'Выручка', color: '#5ed37f', title: 'API, подписки и контракты, без вложений инвесторов', pick: revenueOf },
   { id: 'expense', label: 'Расходы', color: '#ff6b6b', pick: (r: MonthRecord) => sumValues(r.expense) },
 ];
 
@@ -91,7 +92,7 @@ export default function FinanceTab({ s }: WindowProps) {
       <StatStrip
         items={[
           { label: 'Деньги', value: <span className={s.cash < 0 ? 'bad' : undefined}>{fmtMoney(s.cash)}</span> },
-          { label: 'Выручка за 90 дней', value: fmtMoney(revenueLast90(s)), title: 'API и контракты' },
+          { label: 'Выручка за 90 дней', value: fmtMoney(revenueLast90(s)), title: 'API, подписки и контракты' },
           { label: 'Аренда в день', value: fmtMoney(rentPerDay(s)) },
           { label: 'Накладные в день', value: fmtMoney(overheadPerDay(s)) },
         ]}
@@ -134,7 +135,7 @@ export default function FinanceTab({ s }: WindowProps) {
                   {c.label}
                 </th>
               ))}
-              <th className="num" title="Продажа API и контракты минус расходы за месяц, без вложений инвесторов">
+              <th className="num" title="Продажа API, подписки и контракты минус расходы за месяц, без вложений инвесторов">
                 Итог без инвесторов
               </th>
             </tr>

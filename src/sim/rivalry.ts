@@ -94,12 +94,12 @@ import { spend } from './finance';
 import { bestElo, marketArenaRank } from './leaderboard';
 import { minPrice, refContext, refPrice } from './market';
 import { contextLabel, yearsEarly } from './research';
-import { findRivalDef, rivalDay, rivalPrice } from './rivals';
+import { findRivalDef, rivalDay, rivalPrice, rivalTier } from './rivals';
 import { nextRandom } from './rng';
 import { byYear, dateToDay, dayToDate, END_DAY, formatDate, yearOf } from './time';
 import { modelScore } from './training';
 import { LAB_IDS } from './types';
-import type { BenchmarkId, GameState, LabId, Modifier, ModifierKind, PlayerModel, RivalModelDef } from './types';
+import type { BenchmarkId, GameState, HypeOwner, LabId, Modifier, ModifierKind, PlayerModel, RivalModelDef, SegmentId, Tier } from './types';
 
 // ---------- Типы ----------
 
@@ -337,6 +337,11 @@ const FLAGSHIP_MAX_AHEAD = 240;
 const CONTEXT_MAX_AHEAD = 180;
 const CONTEXT_CAP = 1_000_000;
 const PRICE_FLOOR_SHARE = 0.3; // снижение цен: не ниже 0,3 опорной цены
+const FREE_TIER_SEG_BRAND = 0.3; // бесплатный чат: бренд у обычных пользователей (× k сложности) на время хода
+const FREE_TIER_SUBS_DEMAND = 1.15; // бесплатный чат: рост спроса на подписки
+const FREE_TIER_SHARE = 0.12; // бесплатный чат: доля игрока среди обычных пользователей не ниже
+const BOT_SUBS_PRICE_MULT = 0.9; // рефлекс бота: цена подписки × 0,9, не ниже BOT_SUBS_PRICE_FLOOR
+const BOT_SUBS_PRICE_FLOOR = 5;
 const WAR_HYPE_PER_MONTH = 5;
 const HYPE_CAMPAIGN_COST = 300_000;
 const POACH_MONTHS = 3;
@@ -370,7 +375,7 @@ const MOVES: Record<MoveId, MoveDef> = {
   flagship: { name: 'ускорение флагмана', labCooldown: 180, activeDays: 30, price: false, demand: 1 },
   cheapShock: { name: 'дешёвая модель', labCooldown: 365, activeDays: 90, price: true, demand: 1.1 },
   hype: { name: 'рекламная кампания', labCooldown: 180, activeDays: 30, price: false, demand: 1 },
-  freeTier: { name: 'бесплатный чат', labCooldown: FOREVER, activeDays: 180, price: false, demand: 1.08 },
+  freeTier: { name: 'бесплатный чат', labCooldown: FOREVER, activeDays: 180, price: false, demand: 1 }, // спрос API не трогает: растут подписки
   openWeights: { name: 'открытые веса', labCooldown: 365, activeDays: 90, price: false, demand: 1 },
   context: { name: 'длинный контекст', labCooldown: 365, activeDays: 30, price: false, demand: 1 },
   audit: { name: 'проверка баллов', labCooldown: 0, activeDays: 30, price: false, demand: 1 },
@@ -461,6 +466,13 @@ export function applyDifficultyModifiers(s: RivalryGame): void {
 
 // ---------- Шаблоны ответных моделей и доступ к моделям соперников ----------
 
+/** Уровень ответной модели: дешёвая - лёгкая, открытые веса - средняя, длинный контекст - уровень базовой модели. */
+function templateTier(t: ReactiveTemplate, base: RivalModelDef): Tier {
+  if (t.openWeights) return 'mid';
+  if (t.context !== undefined) return rivalTier(base);
+  return 'light';
+}
+
 function templateDef(t: ReactiveTemplate): RivalModelDef {
   const base = findRivalDef(t.base);
   if (!base) throw new Error(`Шаблон ${t.id}: нет базовой модели ${t.base}`);
@@ -481,6 +493,7 @@ function templateDef(t: ReactiveTemplate): RivalModelDef {
     arenaEstimated: true,
     contaminated: false,
     context: t.context ?? base.context,
+    tier: templateTier(t, base),
     notes: `Ответная модель на основе ${base.gameName}; Эло, цена и контекст заданы ходом соперника.`,
   };
 }
@@ -737,6 +750,11 @@ function playerShare(s: GameState): number {
   return s.market.labShares.player ?? 0;
 }
 
+/** Доля владельца в сегменте рынка после ограничения мощностью (s.market.segments); 0, если сегмента ещё нет. */
+export function segShare(s: GameState, seg: SegmentId, owner: HypeOwner): number {
+  return s.market.segments?.[seg]?.labShares[owner] ?? 0;
+}
+
 function playerBestApiRank(s: GameState): number | null {
   let best: number | null = null;
   for (const m of playerApiModels(s)) {
@@ -946,9 +964,10 @@ export function triggerHolds(s: RivalryGame, lab: LabId, move: MoveId): boolean 
       return apiP > 0 && apiP >= labMarketBestElo(s, lab) - 10 && flagshipTarget(s, lab) !== null;
     }
     case 'cheapShock':
+      // Дешёвая модель бьёт по разработчикам: условие - доля игрока именно в этом сегменте.
       return (
         s.day >= dateToDay('2023-06-01') &&
-        shareP >= diff.shockShare &&
+        segShare(s, 'developers', 'player') >= diff.shockShare &&
         cheapest !== null &&
         cheapest >= 0.5 * refPrice(s.day) &&
         extrasAllowed(s, lab) &&
@@ -959,7 +978,8 @@ export function triggerHolds(s: RivalryGame, lab: LabId, move: MoveId): boolean 
     case 'hype':
       return (s.hype.player ?? 0) >= (s.hype[lab] ?? 0) + 20 && eloL > 0 && eloL >= eloP - 50;
     case 'freeTier':
-      return s.day >= dateToDay('2022-11-30') && shareP >= 0.12 && demandRoom(s, MOVES.freeTier.demand);
+      // Бесплатный чат отвечает на успех игрока у обычных пользователей (подписки).
+      return s.day >= dateToDay('2022-11-30') && segShare(s, 'consumers', 'player') >= FREE_TIER_SHARE;
     case 'openWeights':
       return (
         s.day >= dateToDay('2023-03-01') &&
@@ -1082,7 +1102,7 @@ function rumourBody(s: RivalryGame, lab: LabId, move: MoveId, days: number, mode
     case 'hype':
       return `${name} закупает рекламу и готовит громкие анонсы. ${when}`;
     case 'freeTier':
-      return `${name} готовит бесплатный доступ к своему чату для всех. ${when} Рынок вырастет, но бренд ${name} станет сильнее: забрать свою часть помогут цена и контекст.`;
+      return `${name} готовит бесплатный доступ к своему чату для всех. ${when} Рынок подписок вырастет, но бренд ${name} у обычных пользователей станет сильнее: удержать подписчиков помогут цена подписки и контекст.`;
     case 'openWeights':
       return `${name} готовит публикацию весов одной из моделей. ${when} Открытые веса удешевляют исследования всем, включая вас.`;
     case 'context':
@@ -1392,13 +1412,15 @@ function execHype(s: RivalryGame, lab: LabId): string | null {
 function execFreeTier(s: RivalryGame, lab: LabId): string | null {
   const diff = DIFFICULTY[s.difficulty];
   const until = s.day + MOVES.freeTier.activeDays;
-  addModifier(s, { id: `rival-freetier-${lab}`, kind: 'labBrand', target: lab, add: 0.15 * diff.k, untilDay: until });
-  addModifier(s, { id: demandId(lab, 'freeTier'), kind: 'demand', mult: MOVES.freeTier.demand, untilDay: until });
+  // Бренд растёт только у обычных пользователей (сегмент подписок), спрос - на подписки, а не на API.
+  addModifier(s, { id: `rival-freetier-${lab}`, kind: 'segBrand', target: `${lab}:consumers`, add: FREE_TIER_SEG_BRAND * diff.k, untilDay: until });
+  addModifier(s, { id: `rival-subsdemand-${lab}`, kind: 'subsDemand', mult: FREE_TIER_SUBS_DEMAND, untilDay: until });
   pushActive(s, lab, 'freeTier');
+  const pct = Math.round((FREE_TIER_SUBS_DEMAND - 1) * 100);
   addMail(s, {
     kind: 'rival',
     title: `${labName(lab)} сделала чат бесплатным`,
-    body: `Бренд ${labName(lab)} сильнее в течение ${MOVES.freeTier.activeDays} дней, спрос на рынке вырос на 8 %. Забрать свою часть выросшего рынка помогут цена и контекст.`,
+    body: `Бренд ${labName(lab)} у обычных пользователей сильнее в течение ${MOVES.freeTier.activeDays} дней, спрос на подписки вырос на ${pct} %. Удержать подписчиков помогут цена подписки и контекст.`,
   });
   return 'сделала чат бесплатным';
 }
@@ -1645,7 +1667,7 @@ export const RIVALRY_EVENTS: EventDef[] = [HYPE_EVENT, AUDIT_EVENT, POACH_EVENT]
 
 /**
  * Рефлекс бота (раз в месяц, в первую неделю): доля игрока за месяц упала на ≥ 25 % относительно - цена моделей
- * на API × 0,85, не ниже 2 × minPrice. true - цены снижены.
+ * на API × 0,85, не ниже 2 × minPrice; цена подписки моделей с onSubs × 0,9, не ниже $5. true - цены снижены.
  */
 export function botPriceReflex(s: GameState): boolean {
   if (dayToDate(s.day).day > 7) return false;
@@ -1660,6 +1682,14 @@ export function botPriceReflex(s: GameState): boolean {
     const price = Math.max(floor, m.price * 0.85);
     if (price < m.price) {
       m.price = price;
+      changed = true;
+    }
+  }
+  for (const m of s.models) {
+    if (m.releasedDay === null || !m.onSubs) continue;
+    const price = Math.max(BOT_SUBS_PRICE_FLOOR, Math.round(m.subsPrice * BOT_SUBS_PRICE_MULT * 100) / 100);
+    if (price < m.subsPrice) {
+      m.subsPrice = price;
       changed = true;
     }
   }

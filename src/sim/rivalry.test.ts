@@ -4,7 +4,7 @@ import { RIVAL_MODELS } from '../data/rivalModels';
 import { reactiveNameProblems, RIVAL_REACTIVE } from '../data/rivalReactive';
 import { addMail, modValue } from './events';
 import { minPrice, refPrice } from './market';
-import { rivalDay, rivalDef, rivalPrice } from './rivals';
+import { rivalDay, rivalDef, rivalPrice, rivalTier } from './rivals';
 import {
   applyDifficultyModifiers,
   availableMoves,
@@ -33,8 +33,8 @@ import {
 import type { Difficulty, HistoryRow, MoveId, PendingMove, RivalryGame } from './rivalry';
 import { createInitialState } from './state';
 import { dateToDay, END_DAY, isMonthStart, yearOf } from './time';
-import { LAB_IDS } from './types';
-import type { BenchmarkId, HypeOwner, LabId, Mail, PlayerModel } from './types';
+import { LAB_IDS, SEGMENT_IDS } from './types';
+import type { BenchmarkId, HypeOwner, LabId, Mail, PlayerModel, SegmentId } from './types';
 
 // ---------- Помощники: состояния собираются вручную, без тика ----------
 
@@ -71,7 +71,7 @@ function addModel(
       benchShare: o.overfit ? 0.2 : 0,
       benchTargets: o.overfit ? (Object.keys(o.overfit) as BenchmarkId[]) : [],
       rlhf: true,
-      context: o.context ?? 8192,
+      context: o.context ?? 8192, tier: 'light',
     },
     arch: 'transformer',
     algoLevel: 3,
@@ -84,13 +84,14 @@ function addModel(
     price: o.price,
     onApi: o.onApi ?? true,
     exposed: false,
-    earned: 0,
+    earned: 0, onSubs: false, subsPrice: 20, review: 'none', reviewEndDay: null, earnedSubs: 0,
   };
   s.models.push(m);
   return m;
 }
 
-function setShares(s: RivalryGame, player: number, labs: Partial<Record<LabId, number>> = {}): void {
+/** Доли лабораторий: общие и, если не задано иначе, те же в каждом сегменте (segShare читает s.market.segments). */
+function setShares(s: RivalryGame, player: number, labs: Partial<Record<LabId, number>> = {}, segments = true): void {
   const shares = { player, none: 0 } as Record<HypeOwner | 'none', number>;
   let sum = player;
   for (const lab of LAB_IDS) {
@@ -100,6 +101,12 @@ function setShares(s: RivalryGame, player: number, labs: Partial<Record<LabId, n
   }
   shares.none = Math.max(0, 1 - sum);
   s.market.labShares = shares;
+  if (segments) for (const seg of SEGMENT_IDS) s.market.segments[seg].labShares = { ...shares };
+}
+
+/** Доля игрока в одном сегменте (остальные сегменты не трогаются). */
+function setSegShare(s: RivalryGame, seg: SegmentId, player: number): void {
+  s.market.segments[seg].labShares = { ...s.market.segments[seg].labShares, player, none: Math.max(0, 1 - player) };
 }
 
 function pend(lab: LabId, move: MoveId, modelId?: string): PendingMove {
@@ -535,7 +542,7 @@ describe('ценовые ходы', () => {
 });
 
 describe('лимит спроса', () => {
-  it('суммарный множитель спроса от ходов не выше 1,15; ходы одной лаборатории не затирают друг друга', () => {
+  it('суммарный множитель спроса API от ходов не выше 1,15; бесплатный чат спрос API не трогает', () => {
     const s = game('2024-07-01');
     addModel(s, { elo: 1300, price: 5 });
     setShares(s, 0.3);
@@ -543,14 +550,48 @@ describe('лимит спроса', () => {
     expect(executeMove(s, pend('gogle', 'freeTier'))).not.toBeNull();
     expect(executeMove(s, pend('gogle', 'priceCut'))).not.toBeNull();
     const ids = s.modifiers.filter((m) => m.kind === 'demand').map((m) => m.id).sort();
-    expect(ids).toEqual(['rival-demand-gogle-freeTier', 'rival-demand-gogle-priceCut']);
-    expect(modValue(s, 'demand').mult).toBeCloseTo(1.08 * 1.05);
-    // Ещё +10 % дали бы 1,25: дешёвая модель и бесплатный чат другой лаборатории не планируются.
-    expect(triggerHolds(s, 'deepcent', 'cheapShock')).toBe(false);
-    expect(triggerHolds(s, 'openbrain', 'freeTier')).toBe(false);
-    s.modifiers = s.modifiers.filter((m) => m.id !== 'rival-demand-gogle-freeTier');
-    expect(triggerHolds(s, 'openbrain', 'freeTier')).toBe(true); // 1,05 × 1,08 = 1,134
+    expect(ids).toEqual(['rival-demand-gogle-priceCut']);
+    expect(modValue(s, 'demand').mult).toBeCloseTo(1.05);
+    // Ещё +10 % дали бы 1,155: дешёвая модель не планируется; бесплатный чат лимитом спроса API не ограничен.
     expect(triggerHolds(s, 'deepcent', 'cheapShock')).toBe(false); // 1,05 × 1,10 = 1,155
+    expect(triggerHolds(s, 'openbrain', 'freeTier')).toBe(true);
+    s.modifiers = s.modifiers.filter((m) => m.id !== 'rival-demand-gogle-priceCut');
+    expect(triggerHolds(s, 'deepcent', 'cheapShock')).toBe(true);
+  });
+});
+
+describe('условия ходов по сегментам (design market-v2, 5.2)', () => {
+  it('дешёвая модель смотрит на долю игрока среди разработчиков, а не на общую', () => {
+    const s = game('2024-07-01');
+    addModel(s, { elo: 1300, price: 5 });
+    setShares(s, 0.3, {}, false); // общая доля высокая, по сегментам - нули
+    expect(triggerHolds(s, 'deepcent', 'cheapShock')).toBe(false);
+    setSegShare(s, 'developers', 0.2);
+    expect(triggerHolds(s, 'deepcent', 'cheapShock')).toBe(true);
+    setSegShare(s, 'developers', 0.05);
+    setSegShare(s, 'enterprise', 0.5);
+    expect(triggerHolds(s, 'deepcent', 'cheapShock')).toBe(false);
+  });
+
+  it('бесплатный чат смотрит на долю игрока среди обычных пользователей', () => {
+    const s = game('2024-07-01');
+    addModel(s, { elo: 1300, price: 5 });
+    setShares(s, 0.3, {}, false);
+    expect(triggerHolds(s, 'gogle', 'freeTier')).toBe(false);
+    setSegShare(s, 'consumers', 0.12);
+    expect(triggerHolds(s, 'gogle', 'freeTier')).toBe(true);
+    setSegShare(s, 'consumers', 0.11);
+    setSegShare(s, 'developers', 0.9);
+    expect(triggerHolds(s, 'gogle', 'freeTier')).toBe(false);
+  });
+
+  it('уровни ответных моделей: дешёвая - лёгкая, открытые веса - средняя, длинный контекст - уровень базовой', () => {
+    const defs = reactiveDefs();
+    expect(defs.get('mv-deepcent-1')!.tier).toBe('light');
+    expect(defs.get('mv-zhipo-1')!.tier).toBe('mid');
+    expect(defs.get('mv-antropik-1')!.tier).toBe(rivalTier(rivalDef('clade-instant-1')));
+    expect(defs.get('mv-gogle-1')!.tier).toBe(rivalTier(rivalDef('paln-2')));
+    for (const def of defs.values()) expect(rivalTier(def), def.id).toBe(def.tier);
   });
 });
 
@@ -861,13 +902,28 @@ describe('письма с выбором', () => {
     expect(s.cash).toBe(cash - 3 * 100_000 * 5);
   });
 
-  it('бесплатный чат: бренд и спрос растут', () => {
+  it('бесплатный чат: бренд растёт только у обычных пользователей, спрос - только на подписки', () => {
     const s = game('2023-09-01');
     addModel(s, { elo: 1300, price: 1 });
     expect(executeMove(s, pend('gogle', 'freeTier'))).not.toBeNull();
-    expect(modValue(s, 'labBrand', 'gogle').add).toBeCloseTo(0.15);
-    expect(modValue(s, 'demand').mult).toBeCloseTo(1.08);
+    expect(modValue(s, 'segBrand', 'gogle:consumers').add).toBeCloseTo(0.3);
+    expect(modValue(s, 'segBrand', 'gogle:developers').add).toBe(0);
+    expect(modValue(s, 'segBrand', 'openbrain:consumers').add).toBe(0);
+    expect(modValue(s, 'labBrand', 'gogle').add).toBe(0);
+    expect(modValue(s, 'subsDemand').mult).toBeCloseTo(1.15);
+    expect(modValue(s, 'demand').mult).toBe(1);
+    expect(s.modifiers.map((m) => m.id).sort()).toEqual(['rival-freetier-gogle', 'rival-subsdemand-gogle']);
+    for (const m of s.modifiers) expect(m.untilDay).toBe(s.day + 180);
     expect(s.rivalry.active).toEqual([{ lab: 'gogle', move: 'freeTier', untilDay: s.day + 180 }]);
+    const mail = s.mail[s.mail.length - 1];
+    expect(mail.title).toBe('Gogle DeepMynd сделала чат бесплатным');
+    expect(mail.body).toContain('у обычных пользователей сильнее в течение 180 дней, спрос на подписки вырос на 15 %');
+    expect(mail.body).not.toMatch(LONG_DASH);
+    // На Сложной бренд × 1,3.
+    const hard = game('2023-09-01', 'hard');
+    addModel(hard, { elo: 1300, price: 1 });
+    executeMove(hard, pend('gogle', 'freeTier'));
+    expect(modValue(hard, 'segBrand', 'gogle:consumers').add).toBeCloseTo(0.39);
   });
 });
 

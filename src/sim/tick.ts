@@ -11,7 +11,7 @@ import { progressDay as researchDay } from './research';
 import { releaseDue } from './rivals';
 import { rivalryDay, rivalryMonth } from './rivalry';
 import { END_DAY, isMonthStart } from './time';
-import { monthlyExposure, progressDay as trainingDay } from './training';
+import { monthlyExposure, progressDay as trainingDay, reviewDay } from './training';
 import type { GameState } from './types';
 
 export function blockedByChoice(s: GameState): boolean {
@@ -48,6 +48,7 @@ export function advanceDay(s: GameState): void {
 
   researchDay(s);
   trainingDay(s);
+  reviewDay(s); // 5а: завершение внешних проверок сильных моделей
   contractsDay(s);
   marketDay(s);
   financeDay(s);

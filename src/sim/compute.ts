@@ -6,7 +6,7 @@ import { modValue } from './events';
 import { byYear, dateToDay, yearOf } from './time';
 import type { Allocation, GameState, GpuDef, GpuId, Result } from './types';
 
-const ALLOC_KEYS: readonly (keyof Allocation)[] = ['training', 'contracts', 'experiments', 'inference'];
+export const ALLOC_KEYS: readonly (keyof Allocation)[] = ['training', 'contracts', 'experiments', 'api', 'subs'];
 
 export function gpuDef(id: GpuId): GpuDef {
   const def = GPUS.find((g) => g.id === id);

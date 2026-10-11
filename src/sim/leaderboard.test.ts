@@ -49,7 +49,7 @@ function player(over: Partial<PlayerModel> & { id: string }): PlayerModel {
       benchShare: 0,
       benchTargets: [],
       rlhf: false,
-      context: 512,
+      context: 512, tier: 'mid',
     },
     arch: 'transformer',
     algoLevel: 0,
@@ -62,7 +62,7 @@ function player(over: Partial<PlayerModel> & { id: string }): PlayerModel {
     price: 3,
     onApi: true,
     exposed: false,
-    earned: 0,
+    earned: 0, onSubs: false, subsPrice: 20, review: 'none', reviewEndDay: null, earnedSubs: 0,
     ...over,
   };
 }
