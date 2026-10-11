@@ -326,13 +326,19 @@ function EstimateCard(props: {
 // ---------- Окно ----------
 
 export default function TrainingWindow({ s, open }: WindowProps) {
+  // Новый проект начинается с прошлого (или идущего): обычно следующую модель делают чуть больше.
+  const prev = s.training?.plan ?? s.models.at(-1)?.plan;
   const [name, setName] = useState<string | null>(null); // null — название по умолчанию «Модель N»
-  const [paramsB, setParamsB] = useState(0.1);
-  const [tokensB, setTokensB] = useState(1);
-  const [mix, setMix] = useState<Record<DomainId, number>>({ language: 50, code: 25, reasoning: 25 });
+  const [paramsB, setParamsB] = useState(prev?.paramsB ?? 0.1);
+  const [tokensB, setTokensB] = useState(prev?.tokensB ?? 1);
+  const [mix, setMix] = useState<Record<DomainId, number>>(
+    prev
+      ? { language: Math.round(prev.mix.language * 100), code: Math.round(prev.mix.code * 100), reasoning: Math.round(prev.mix.reasoning * 100) }
+      : { language: 50, code: 25, reasoning: 25 },
+  );
   const [share, setShare] = useState(0);
   const [targets, setTargets] = useState<BenchmarkId[]>([]);
-  const [rlhf, setRlhf] = useState(false);
+  const [rlhf, setRlhf] = useState(prev?.rlhf ?? false);
   const [err, setErr] = useState<string | null>(null);
 
   const maxTokens = byYear(MAX_TOKENS_B, yearOf(s.day));
