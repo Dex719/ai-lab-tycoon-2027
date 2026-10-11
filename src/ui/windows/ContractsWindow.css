@@ -94,3 +94,30 @@
 .ct-empty { max-width: 800px; padding: 48px 20px; text-align: center; color: var(--text-dim); }
 .ct-empty h3 { margin: 0 0 6px; font-size: 20px; font-weight: 300; color: #2a2c30; }
 .ct-empty p { margin: 0; }
+
+/* ---------- Памятка: три шага ---------- */
+.ct-steps {
+  flex: none; display: flex; align-items: center; gap: 14px; padding: 8px 18px;
+  background: #eef5ff; border-bottom: 1px solid #c9dcf5;
+}
+.ct-steps.is-hidden { justify-content: flex-end; padding: 4px 18px; background: var(--win-title); border-bottom-color: var(--line); }
+.ct-steps ol { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 0; padding: 0; list-style: none; }
+.ct-steps li { display: flex; align-items: center; gap: 7px; min-width: 0; color: #24405f; }
+.ct-steps li svg { flex: none; color: var(--accent); }
+.ct-step-n {
+  flex: none; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 12px; font-weight: 600;
+}
+.ct-link { flex: none; padding: 0; background: none; border: 0; color: var(--accent); font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
+
+/* ---------- Цвет и подсказки ---------- */
+.ct-type { display: inline-block; padding: 0 7px; border-radius: 9px; font-size: 12px; font-weight: 600; line-height: 18px; color: #fff; }
+.ct-type.finetune { background: #2f80e4; }
+.ct-type.rlhf { background: #8a4fd0; }
+.ct-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.ct-pill { padding: 0 8px; border-radius: 9px; font-size: 12px; line-height: 18px; border: 1px solid; }
+.ct-pill.good { color: #1f6e38; background: #e6f6ec; border-color: #9fd5b0; }
+.ct-pill.info { color: #1f4f8f; background: #e8f1fd; border-color: #a9c8ef; }
+.ct-item .ct-item-sub.good { color: var(--good); }
+.ct-item .ct-item-sub.warn { color: var(--warn); }
+.ct-item .ct-item-sub.bad { color: var(--bad); }

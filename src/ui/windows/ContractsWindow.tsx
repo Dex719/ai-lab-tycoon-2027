@@ -6,12 +6,13 @@ import { CLIENTS } from '../../data/clients';
 import { benchDef } from '../../sim/benchmarks';
 import { cheapestH100eDay, pool } from '../../sim/compute';
 import { REP_CONTRACT_FAIL, RLHF_TENDER_LABELERS } from '../../sim/constants';
-import { applyChance, canApply } from '../../sim/contracts';
+import { applyChance, canApply, contractWorkFor } from '../../sim/contracts';
 import { modelScore } from '../../sim/training';
 import type { Contract, GameState, PlayerModel, Tender } from '../../sim/types';
+import { Cards } from '../components/Cards';
 import { Alert, ConfirmDialog, ErrorText, ProgressBar } from '../components/common';
-import { endSentence, fmtMoney, fmtNum, fmtPct, fmtShare } from '../format';
-import { IconAlert, IconCheck } from '../icons';
+import { endSentence, fmtH100e, fmtMoney, fmtNum, fmtPct, fmtShare } from '../format';
+import { IconAlert, IconCheck, IconCompute, IconContracts, IconModels } from '../icons';
 import { actions, store } from '../store';
 import './ContractsWindow.css';
 
@@ -98,10 +99,48 @@ function bestCandidate(s: GameState, t: Tender, released: PlayerModel[]): Player
   return best;
 }
 
-function optionLabel(s: GameState, t: Tender, m: PlayerModel): string {
+interface Best {
+  chanceId: string | null; // у модели самый высокий шанс победы
+  lightId: string | null; // у модели меньше всего работы
+}
+
+/** Лучшие среди подходящих моделей: с наибольшим шансом победы и с наименьшим объёмом работы. */
+function bestPicks(s: GameState, t: Tender, released: PlayerModel[]): Best {
+  const best: Best = { chanceId: null, lightId: null };
+  let bestChance = -Infinity;
+  let bestWork = Infinity;
+  for (const m of released) {
+    if (canApply(s, t, m) !== null) continue;
+    const c = applyChance(s, t, m);
+    const w = contractWorkFor(s, t, m);
+    if (c > bestChance) {
+      bestChance = c;
+      best.chanceId = m.id;
+    }
+    if (w < bestWork) {
+      bestWork = w;
+      best.lightId = m.id;
+    }
+  }
+  return best;
+}
+
+/** «Модель 2a · 60 % · 120 H100e-дн.», с пометкой, если модель не подходит или лучшая по шансу / мощности. */
+function optionLabel(s: GameState, t: Tender, m: PlayerModel, best: Best): string {
   const score = fmtPct(modelScore(m, t.benchmark, false));
-  const note = canApply(s, t, m) !== null ? ' · не подходит' : isTrap(m, t) ? ' · честный балл ниже' : '';
-  return `${m.name} · ${score}${note}`;
+  const note =
+    canApply(s, t, m) !== null
+      ? ' · не подходит'
+      : isTrap(m, t)
+        ? ' · честный балл ниже'
+        : (m.id === best.chanceId ? ' · выше шанс' : '') + (m.id === best.lightId ? ' · меньше мощности' : '');
+  return `${m.name} · ${score} · ${workDays(contractWorkFor(s, t, m))}${note}`;
+}
+
+/** Цвет по мощности: нет совсем - красный, не хватает до срока - оранжевый, хватает - зелёный. */
+function supplyTone(have: number, need: number): 'good' | 'warn' | 'bad' {
+  if (have <= 0) return 'bad';
+  return have + 1e-9 < need ? 'warn' : 'good';
 }
 
 function toneOf(ok: boolean | null): string {
@@ -121,6 +160,7 @@ interface ContractInfo {
   stalled: boolean; // мощность на контракты не выделена
   late: boolean; // работа не успевает до срока
   weak: boolean; // честный балл ниже требования
+  need: number; // H100e в день, чтобы успеть к сроку
 }
 
 function contractInfo(s: GameState, c: Contract): ContractInfo {
@@ -142,6 +182,7 @@ function contractInfo(s: GameState, c: Contract): ContractInfo {
     stalled: eta === null,
     late: eta !== null && eta > left,
     weak: honest !== null && honest < t.requirement,
+    need: remaining / Math.max(1, left),
   };
 }
 
@@ -189,6 +230,9 @@ function ContractItem({ s, c, on, onPick }: { s: GameState; c: Contract; on: boo
         <span className="ct-item-sub">
           {fmtMoney(c.tender.payment)} · до срока {days(info.left)}
         </span>
+        <span className={`ct-item-sub ${supplyTone(info.share, info.need)}`} title="Выделено и нужно мощности в день, чтобы успеть к сроку">
+          Выделено {fmtH100e(info.share)} из {fmtH100e(info.need)} H100e в день
+        </span>
         <ProgressBar value={info.progress} title={`Выполнено ${fmtPct(info.progress * 100, 0)}`} />
       </span>
       {risk && (
@@ -204,14 +248,17 @@ function ContractItem({ s, c, on, onPick }: { s: GameState; c: Contract; on: boo
 
 // ---------- Карточка тендера ----------
 
-function CardHead({ clientId, type, text }: { clientId: string; type: string; text: string }) {
+function CardHead({ clientId, type, rlhf, text }: { clientId: string; type: string; rlhf: boolean; text: string }) {
   const industry = clientIndustry(clientId);
   return (
     <div className="ct-head">
       <Monogram clientId={clientId} size={84} />
       <div>
         <div className="ct-name">{clientName(clientId)}</div>
-        <div className="ct-sub">{industry ? `${industry} · ${type}` : type}</div>
+        <div className="ct-sub">
+          <span className={`ct-type ${rlhf ? 'rlhf' : 'finetune'}`}>{type}</span>
+          {industry && <span> · {industry}</span>}
+        </div>
         <p className="ct-desc">{text}</p>
       </div>
     </div>
@@ -250,10 +297,15 @@ function TenderCard(props: {
 
   const rlhf = t.type === 'rlhf';
   const labelers = rlhf ? RLHF_TENDER_LABELERS * t.payment : 0;
-  const profit = t.payment - labelers - t.work * cheapestH100eDay(s);
+  // Объём работы зависит от выбранной модели; у поданной заявки он уже записан.
+  const work = app ? (app.work ?? t.work) : model ? contractWorkFor(s, t, model) : t.work;
+  const profit = t.payment - labelers - work * cheapestH100eDay(s);
   const left = Math.max(0, t.expiresDay - s.day);
   // Сколько мощности нужно каждый день, чтобы успеть к сроку, и сколько сейчас выделено на контракты.
-  const needed = t.work / Math.max(1, t.durationDays);
+  const needed = work / Math.max(1, t.durationDays);
+  const best = bestPicks(s, t, released);
+  const isBestChance = !app && model !== null && model.id === best.chanceId;
+  const isLightest = !app && model !== null && model.id === best.lightId;
   const contractsPool = pool(s, 'contracts');
 
   function submit() {
@@ -280,7 +332,7 @@ function TenderCard(props: {
       <select value={model.id} onChange={(e) => onPick(e.target.value)} aria-label="Модель для заявки">
         {released.map((m) => (
           <option key={m.id} value={m.id}>
-            {optionLabel(s, t, m)}
+            {optionLabel(s, t, m, best)}
           </option>
         ))}
       </select>
@@ -289,12 +341,26 @@ function TenderCard(props: {
 
   return (
     <div className="ct-card">
-      <CardHead clientId={t.clientId} type={typeLabel(t)} text={tenderText(t)} />
+      <CardHead clientId={t.clientId} type={typeLabel(t)} rlhf={t.type === 'rlhf'} text={tenderText(t)} />
 
       <div className="ct-cols">
         <section className="ct-col">
           <h3 className="ct-h">Заявка</h3>
           {picker}
+          {(isBestChance || isLightest) && (
+            <div className="ct-tags">
+              {isBestChance && (
+                <span className="ct-pill good" title="Среди подходящих моделей у этой самый высокий балл, а значит, самый высокий шанс победы">
+                  выше шанс
+                </span>
+              )}
+              {isLightest && (
+                <span className="ct-pill info" title="Среди подходящих моделей эта требует меньше всего мощности: она самая маленькая">
+                  меньше мощности
+                </span>
+              )}
+            </div>
+          )}
           <div className="ct-cmp">
             <span />
             <span className="ct-cmp-h">Модель</span>
@@ -325,8 +391,10 @@ function TenderCard(props: {
             )}
           </div>
           <div className="kv">
-            <span title="Зависит от репутации и запаса балла над требованием">Шанс победы</span>
-            <span>{chance === null ? '-' : fmtShare(chance, 0)}</span>
+            <span title="Зависит от репутации и запаса балла над требованием: у модели с большим баллом шанс выше">Шанс победы</span>
+            <span className={chance === null ? '' : chance >= 0.5 ? 'good' : chance >= 0.3 ? 'warn' : 'bad'}>
+              {chance === null ? '-' : fmtShare(chance, 0)}
+            </span>
             {!app && (
               <>
                 <span title="Тендер без заявки исчезает">До закрытия тендера</span>
@@ -340,7 +408,7 @@ function TenderCard(props: {
           <h3 className="ct-h">Условия</h3>
           <div className="kv">
             <span>Оплата</span>
-            <span>{fmtMoney(t.payment)}</span>
+            <span className="good">{fmtMoney(t.payment)}</span>
             {rlhf && (
               <>
                 <span title="Списываются при победе в тендере">Разметчики</span>
@@ -348,15 +416,18 @@ function TenderCard(props: {
               </>
             )}
             <span title="Списывается при отказе, просрочке и провале при сдаче">Штраф</span>
-            <span>{fmtMoney(t.penalty)}</span>
+            <span className="bad">{fmtMoney(t.penalty)}</span>
             <span title={`Оплата минус ${rlhf ? 'разметчики и ' : ''}работа по цене самой дешёвой карты`}>Ожидаемая прибыль</span>
             <span className={Number.isFinite(profit) ? (profit >= 0 ? 'good' : 'bad') : ''}>{fmtMoney(profit)}</span>
-            <span>Объём работы</span>
-            <span>{workDays(t.work)}</span>
+            <span title="Зависит от размера модели: у маленькой работы меньше, у большой больше">Объём работы</span>
+            <span>{workDays(work)}</span>
             <span title="Отсчитывается со дня победы в тендере">Срок</span>
             <span>{days(t.durationDays)}</span>
             <span title={`Объём работы, делённый на срок. Сейчас на контракты выделено ${perDay(contractsPool)}`}>Нужно мощности</span>
-            <span className={needed > contractsPool ? 'warn' : ''}>{perDay(needed)}</span>
+            <span className={needed > contractsPool ? 'warn' : ''}>
+              {perDay(needed)}
+              <Cards s={s} h100e={needed} />
+            </span>
           </div>
         </section>
       </div>
@@ -428,7 +499,7 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
 
   return (
     <div className="ct-card">
-      <CardHead clientId={t.clientId} type={typeLabel(t)} text={text} />
+      <CardHead clientId={t.clientId} type={typeLabel(t)} rlhf={t.type === 'rlhf'} text={text} />
 
       <div className="ct-cols">
         <section className="ct-col">
@@ -447,8 +518,16 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
             <span className={info.late || info.stalled ? 'bad' : info.left <= 10 ? 'warn' : ''}>{days(info.left)}</span>
             <span>Осталось работы</span>
             <span>{workDays(info.remaining)}</span>
-            <span title="Доля «Контракты» из окна «Мощности», поровну между контрактами">Мощность на контракт</span>
-            <span>{perDay(info.share)}</span>
+            <span title="Столько мощности в день нужно, чтобы закончить работу к сроку">Нужно</span>
+            <span>
+              {perDay(info.need)}
+              <Cards s={s} h100e={info.need} />
+            </span>
+            <span title="Доля «Контракты» из окна «Мощности», поровну между контрактами">Выделено</span>
+            <span className={supplyTone(info.share, info.need)}>
+              {perDay(info.share)}
+              <Cards s={s} h100e={info.share} />
+            </span>
             <span title="При текущей мощности">Завершение через</span>
             <span className={info.late ? 'bad' : ''}>{info.eta === null ? '-' : days(info.eta)}</span>
           </div>
@@ -464,18 +543,23 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
             <span title="По этому баллу проверяют контракт при сдаче">Честный балл модели</span>
             <span className={info.honest === null ? '' : info.weak ? 'bad' : 'good'}>{info.honest === null ? '-' : fmtPct(info.honest)}</span>
             <span>Оплата после сдачи</span>
-            <span>{fmtMoney(t.payment)}</span>
+            <span className="good">{fmtMoney(t.payment)}</span>
             <span title="Списывается при отказе, просрочке и провале при сдаче">Штраф</span>
-            <span>{fmtMoney(t.penalty)}</span>
+            <span className="bad">{fmtMoney(t.penalty)}</span>
           </div>
         </section>
       </div>
 
-      {(info.stalled || info.late || info.weak) && (
+      {(info.stalled || info.late || info.weak || info.share + 1e-9 < info.need) && (
         <div className="ct-alerts">
           {info.stalled && (
             <Alert tone="warn" action={openCompute}>
-              Мощность для контрактов не выделена: работа не идёт.
+              Мощность для контрактов не выделена: работа не идёт. Чтобы работа шла, выделите долю «Контракты» в окне «Мощности».
+            </Alert>
+          )}
+          {!info.stalled && !info.late && info.share + 1e-9 < info.need && (
+            <Alert tone="warn" action={openCompute}>
+              Мощности не хватает: нужно {perDay(info.need)}, выделено {perDay(info.share)}. Увеличьте долю «Контракты» в окне «Мощности».
             </Alert>
           )}
           {info.late && info.eta !== null && (
@@ -512,6 +596,68 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
           </div>
         </ConfirmDialog>
       )}
+    </div>
+  );
+}
+
+// ---------- Памятка: три шага ----------
+
+const STEPS_KEY = 'ai-lab-tycoon.contracts.steps-hidden';
+
+function readHidden(): boolean {
+  try {
+    return localStorage.getItem(STEPS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeHidden(v: boolean): void {
+  try {
+    localStorage.setItem(STEPS_KEY, v ? '1' : '0');
+  } catch {
+    // хранилище недоступно: выбор просто не запомнится
+  }
+}
+
+function Steps() {
+  const [hidden, setHidden] = useState(readHidden);
+  const set = (v: boolean) => {
+    setHidden(v);
+    writeHidden(v);
+  };
+  if (hidden) {
+    return (
+      <div className="ct-steps is-hidden">
+        <button type="button" className="ct-link" onClick={() => set(false)}>
+          Показать порядок работы
+        </button>
+      </div>
+    );
+  }
+  const steps = [
+    { icon: <IconModels size={20} />, text: 'Выберите модель с нужным баллом', tip: 'Больше балл - выше шанс. Меньше модель - меньше нужно мощности' },
+    { icon: <IconContracts size={20} />, text: 'Подайте заявку: решение при закрытии тендера', tip: 'Победа определяется случайно, шанс показан в карточке' },
+    {
+      icon: <IconCompute size={20} />,
+      text: 'После победы выделите мощность в «Мощности» → «Контракты»: оплата после сдачи работы',
+      tip: 'Без доли «Контракты» работа не идёт',
+    },
+  ];
+  return (
+    <div className="ct-steps">
+      <ol>
+        {steps.map((st, i) => (
+          <li key={i} title={st.tip}>
+            <span className="ct-step-n">{i + 1}</span>
+            {st.icon}
+            <span>{st.text}</span>
+          </li>
+        ))}
+      </ol>
+      <button type="button" className="ct-link" onClick={() => set(true)}>
+        Скрыть
+      </button>
     </div>
   );
 }
@@ -581,6 +727,8 @@ export default function ContractsWindow({ s, open }: WindowProps) {
           </button>
         ))}
       </div>
+
+      {showTenders && <Steps />}
 
       <div className="ct-body">
         <aside className="ct-side">

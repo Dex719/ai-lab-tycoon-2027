@@ -15,7 +15,8 @@ const m = vi.hoisted(() => ({
   cheapestH100eDay: vi.fn(),
 }));
 
-vi.mock('./training', () => ({ modelScore: m.modelScore }));
+// frontierParams подобран так, что эталонный размер = 1 млрд: у makeModel (1 млрд) объём работы не меняется.
+vi.mock('./training', () => ({ modelScore: m.modelScore, frontierParams: () => 1 / 0.17 }));
 vi.mock('./benchmarks', () => ({
   benchScore: m.benchScore,
   benchDef: m.benchDef,
@@ -41,6 +42,7 @@ import {
   bestAutoModel,
   canApply,
   cancelContract,
+  contractWorkFor,
   generateMonthly,
   progressDay,
   setAutoApply,
@@ -1507,5 +1509,43 @@ describe('сохранение: автоподбор', () => {
     const o = JSON.parse(serialize(s)) as { tenders: { application: Record<string, unknown> }[] };
     o.tenders[0].application.auto = 'да';
     expect(deserialize(JSON.stringify(o)).ok).toBe(false);
+  });
+});
+
+describe('объём работы зависит от размера модели', () => {
+  const withSize = (paramsB: number) => makeModel({ plan: { ...makeModel().plan, paramsB } });
+
+  it('эталонная модель - объём тендера; больше - больше, меньше - меньше, с пределами 0,4 и 2,5', () => {
+    const s = newState();
+    const t = makeTender({ work: 100 });
+    expect(contractWorkFor(s, t, withSize(1))).toBeCloseTo(100, 10);
+    expect(contractWorkFor(s, t, withSize(4))).toBeCloseTo(200, 10);
+    expect(contractWorkFor(s, t, withSize(0.25))).toBeCloseTo(50, 10);
+    expect(contractWorkFor(s, t, withSize(1000))).toBeCloseTo(250, 10);
+    expect(contractWorkFor(s, t, withSize(0.0001))).toBeCloseTo(40, 10);
+  });
+
+  it('заявка хранит объём, контракт после победы получает его; оплата не меняется', () => {
+    const s = newState();
+    s.models.push(withSize(4));
+    s.tenders.push(makeTender({ expiresDay: 30, work: 100, payment: 5000 }));
+    expect(applyTender(s, 't1', 'p1').ok).toBe(true);
+    expect(s.tenders[0].application!.work).toBeCloseTo(200, 10);
+    expect(s.tenders[0].work).toBe(100);
+    s.day = 30;
+    s.reputation = 100;
+    s.tenders[0].application!.chance = 1;
+    progressDay(s);
+    expect(s.contracts[0].tender.work).toBeCloseTo(200, 10);
+    expect(s.contracts[0].tender.payment).toBe(5000);
+  });
+
+  it('старая заявка без объёма: контракт берёт объём тендера', () => {
+    const s = newState();
+    s.models.push(makeModel());
+    s.tenders.push(makeTender({ expiresDay: 30, work: 77, application: { modelId: 'p1', appliedDay: 0, resolveDay: 30, chance: 1 } }));
+    s.day = 30;
+    progressDay(s);
+    expect(s.contracts[0].tender.work).toBe(77);
   });
 });

@@ -213,7 +213,7 @@ const tender = shapeOf<Tender>({
   appearedDay: num,
   expiresDay: num,
   application: nullable(
-    shapeOf<NonNullable<Tender['application']>>({ modelId: str, appliedDay: num, resolveDay: num, chance: num, auto: optional(bool) }),
+    shapeOf<NonNullable<Tender['application']>>({ modelId: str, appliedDay: num, resolveDay: num, chance: num, auto: optional(bool), work: optional(num) }),
   ),
 });
 

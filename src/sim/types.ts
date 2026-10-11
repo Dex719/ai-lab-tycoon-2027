@@ -197,14 +197,14 @@ export interface Tender {
   type: 'finetune' | 'rlhf';
   benchmark: BenchmarkId;
   requirement: number; // минимальный балл, %
-  work: number; // H100e-дней
+  work: number; // H100e-дней; в тендере - для модели эталонного размера, в контракте - уже с учётом модели
   durationDays: number; // срок выполнения после победы
   payment: number;
   penalty: number;
   appearedDay: number;
   expiresDay: number; // исчезает, если нет заявки
   /** auto - заявку подала сама лаборатория в начале месяца (включён автоподбор): о проигрыше письма не будет. */
-  application: null | { modelId: string; appliedDay: number; resolveDay: number; chance: number; auto?: boolean };
+  application: null | { modelId: string; appliedDay: number; resolveDay: number; chance: number; auto?: boolean; work?: number };
 }
 
 export interface Contract {

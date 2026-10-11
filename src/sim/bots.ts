@@ -4,7 +4,7 @@ import { newGame, releaseModel, setOnApi, setOnSubs, startReview } from './actio
 import { activeBenchmarks } from './benchmarks';
 import { availableGpus, pool, rentCapFor, rentMaxFor, rentPerGpuDay, setAllocation, setRent, totalH100e } from './compute';
 import { FAIL_ROLLBACK, MAX_TOKENS_B, RENT_OVER_CAP_MULT, ROUND_COOLDOWN_DAYS, TIER_API_PRICE_MULT, TRAIN_FLOP_PER_H100E_DAY } from './constants';
-import { applyTender, canApply } from './contracts';
+import { applyTender, canApply, contractWorkFor } from './contracts';
 import { applyChoice, pendingChoice } from './events';
 import { overheadPerDay } from './finance';
 import { canRaise, raiseRound } from './investors';
@@ -157,7 +157,7 @@ function activeLoad(s: GameState): ContractLoad {
 /** Нагрузка с учётом поданных заявок: если их выиграть, работу тоже придётся делать. */
 function plannedLoad(s: GameState): ContractLoad {
   let l = activeLoad(s);
-  for (const t of s.tenders) if (t.application !== null) l = addLoad(l, t.work, t.durationDays - 7);
+  for (const t of s.tenders) if (t.application !== null) l = addLoad(l, t.application.work ?? t.work, t.durationDays - 7);
   return l;
 }
 
@@ -273,10 +273,11 @@ function manageTenders(s: GameState, p: BotProfile): void {
   let load = plannedLoad(s);
   for (const t of s.tenders) {
     if (t.application) continue;
-    const next = addLoad(load, t.work, t.durationDays - 7);
-    if (loadNeed(next) > capacity) continue;
     const model = s.models.find((m) => canApply(s, t, m) === null);
-    if (model && applyTender(s, t.id, model.id).ok) load = next;
+    if (!model) continue;
+    const next = addLoad(load, contractWorkFor(s, t, model), t.durationDays - 7);
+    if (loadNeed(next) > capacity) continue;
+    if (applyTender(s, t.id, model.id).ok) load = next;
   }
 }
 

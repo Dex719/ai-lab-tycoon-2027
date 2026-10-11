@@ -20,7 +20,7 @@ type Json = Record<string, unknown>;
 function richState(): GameState {
   const s = newGame('Бот', 1);
   let days = 0;
-  while (!s.outcome && days < 900) {
+  while (!s.outcome && (days < 900 || (s.trainings.length === 0 && days < 1500))) {
     const pending = pendingChoice(s);
     if (pending) {
       applyChoice(s, pending.id, 0);
@@ -33,7 +33,7 @@ function richState(): GameState {
   // Чего бот к этому дню не успел, добавляем руками: заявку (бот подаёт их по мощности, открытой может не быть),
   // контракт и модификаторы со всеми необязательными полями.
   if (!s.tenders.some((t) => t.application !== null)) {
-    s.tenders[0].application = { modelId: s.models[0].id, appliedDay: s.day, resolveDay: s.day + 20, chance: 0.5 };
+    s.tenders[0].application = { modelId: s.models[0].id, appliedDay: s.day, resolveDay: s.day + 20, chance: 0.5, work: 123 };
   }
   s.contracts.push({
     id: 'c-test',
@@ -600,7 +600,7 @@ const OPTIONAL_FIELDS = new Set([
   'lostApi', 'lostSubs', 'segments', 'consumers', 'enterprise', 'developers', 'trainings', 'nextRunNum',
 ]);
 /** Необязательные поля по полному пути: имя поля (modelId, price) в других местах обязательно. */
-const OPTIONAL_PATHS = new Set(['rivalry.pending[].modelId', 'rivalry.choice.modelId']);
+const OPTIONAL_PATHS = new Set(['tenders[].application.work', 'contracts[].tender.application.work', 'rivalry.pending[].modelId', 'rivalry.choice.modelId']);
 /** Поправки к модели соперника (rivalry.overrides.<id>.*) все необязательные. */
 const optionalPath = (norm: string): boolean => OPTIONAL_PATHS.has(norm) || /^rivalry\.overrides\.[^.]+\.[^.]+$/.test(norm);
 const DICTS = new Set([

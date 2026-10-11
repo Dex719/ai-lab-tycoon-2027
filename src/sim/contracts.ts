@@ -13,13 +13,17 @@ import {
   TENDER_PENALTY,
   TENDERS_PER_MONTH,
   WORK_BASE,
+  WORK_SIZE_EXP,
+  WORK_SIZE_MAX,
+  WORK_SIZE_MIN,
+  WORK_SIZE_REF,
 } from './constants';
 import { addMail } from './events';
 import { earn, spend } from './finance';
 import { chance, pick, randInt, randRange } from './rng';
 import { endSentence } from './text';
 import { byYear, dateToDay, lerpByDate, yearOf } from './time';
-import { modelScore } from './training';
+import { frontierParams, modelScore } from './training';
 import type { BenchmarkId, Contract, GameState, PlayerModel, Result, Tender } from './types';
 
 // Числа, которых нет в constants.ts: доля RLHF-тендеров и формула шанса победы.
@@ -211,6 +215,16 @@ export function autoApplyTenders(s: GameState, tenders: Tender[]): void {
   });
 }
 
+/**
+ * Объём работы по тендеру для выбранной модели: work × clamp((параметры / эталон)^0,5, 0,4…2,5),
+ * эталон - 0,17 переднего края года. Меньшая модель - меньше работы и мощности, большая - больше.
+ */
+export function contractWorkFor(s: GameState, tender: Tender, model: PlayerModel): number {
+  const ref = frontierParams(s.day) * WORK_SIZE_REF;
+  const k = clamp(Math.pow(model.plan.paramsB / ref, WORK_SIZE_EXP), WORK_SIZE_MIN, WORK_SIZE_MAX);
+  return tender.work * k;
+}
+
 /** Записать заявку в тендер; auto - подана автоподбором. */
 function placeApplication(s: GameState, tender: Tender, model: PlayerModel, auto: boolean): void {
   tender.application = {
@@ -218,6 +232,7 @@ function placeApplication(s: GameState, tender: Tender, model: PlayerModel, auto
     appliedDay: s.day,
     resolveDay: tender.expiresDay, // решение в день закрытия тендера
     chance: applyChance(s, tender, model),
+    work: contractWorkFor(s, tender, model),
     ...(auto ? { auto: true } : {}), // у ручной заявки поля нет вовсе: сохранение короче
   };
 }
@@ -327,7 +342,7 @@ function resolveApplication(s: GameState, t: Tender): void {
   }
   s.contracts.push({
     id: t.id.replace(/^t/, 'c'),
-    tender: { ...t },
+    tender: { ...t, work: a.work ?? t.work }, // объём уже посчитан под модель заявки
     modelId: model.id,
     startedDay: s.day,
     deadlineDay: s.day + t.durationDays,

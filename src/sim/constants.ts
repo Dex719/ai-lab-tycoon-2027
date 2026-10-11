@@ -257,6 +257,11 @@ export const CAP_LEVEL: Record<number, number> = {
 export const WORK_BASE: [string, number][] = [
   ['2017-01-01', 100], ['2020-01-01', 1000], ['2023-01-01', 10000], ['2024-12-31', 50000],
 ];
+// Объём контракта зависит от размера выбранной модели: work × (параметры / эталон)^EXP, где эталон - 0,17 переднего края.
+export const WORK_SIZE_REF = 0.17;
+export const WORK_SIZE_EXP = 0.5;
+export const WORK_SIZE_MIN = 0.4;
+export const WORK_SIZE_MAX = 2.5;
 export const TENDER_EXPIRE_DAYS = 30;
 export const TENDER_PENALTY = 0.3;
 export const RLHF_TENDER_PAY_MULT = 1.6;
