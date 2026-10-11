@@ -13,6 +13,10 @@ import type { BenchmarkId, DomainId, GameState, LabId, RivalModelDef } from './t
 // ---------- Каталог ----------
 
 const BY_ID = new Map<string, RivalModelDef>(RIVAL_MODELS.map((m) => [m.id, m]));
+
+// Способность из Эло для моделей без опубликованных баллов: cap = (Эло − 374) / 11,7.
+export const RIVAL_CAP_ELO_ZERO = 374;
+export const RIVAL_CAP_ELO_PER_POINT = 11.7;
 const LAB_NAME = new Map<LabId, string>(LABS.map((l) => [l.id, l.name]));
 
 // День выхода по дате: строки дат повторяются, а разбор даты — не бесплатный.
@@ -55,8 +59,9 @@ function computeCaps(def: RivalModelDef): Record<DomainId, number> {
   }
   const known = DOMAINS.filter((d) => count[d] > 0);
   // Модель без баллов: способность из Эло, одинаковая во всех доменах.
+  // Подогнано по моделям каталога с баллами: Эло 650 ≈ 24, 1100 ≈ 62, 1380 ≈ 86.
   if (known.length === 0) {
-    const cap = (def.arenaElo - 800) / 5;
+    const cap = (def.arenaElo - RIVAL_CAP_ELO_ZERO) / RIVAL_CAP_ELO_PER_POINT;
     return { language: cap, code: cap, reasoning: cap };
   }
   const caps = {} as Record<DomainId, number>;
@@ -69,7 +74,7 @@ function computeCaps(def: RivalModelDef): Record<DomainId, number> {
 
 /**
  * Способности по доменам: среднее capFromScore по реальным баллам домена; домен без баллов — среднее
- * остальных доменов; модель без баллов — (arenaElo − 800) / 5 во всех доменах. Кешируется по id.
+ * остальных доменов; модель без баллов — (arenaElo − 374) / 11,7 во всех доменах. Кешируется по id.
  */
 export function rivalCaps(def: RivalModelDef): Record<DomainId, number> {
   const hit = capsCache.get(def.id);

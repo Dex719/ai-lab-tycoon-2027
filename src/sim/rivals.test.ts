@@ -174,11 +174,11 @@ describe('rivalCaps', () => {
     expect(g4.code).toBeCloseTo(capFromScore('humaneval', 67), 9);
   });
 
-  it('модель без баллов: (Эло − 800) / 5 во всех доменах', () => {
+  it('модель без баллов: (Эло − 374) / 11,7 во всех доменах', () => {
     const meeno = byId('meeno');
     expect(Object.keys(meeno.scores)).toHaveLength(0);
     const caps = rivalCaps(meeno);
-    for (const d of DOMAINS) expect(caps[d]).toBeCloseTo((meeno.arenaElo - 800) / 5, 9);
+    for (const d of DOMAINS) expect(caps[d]).toBeCloseTo((meeno.arenaElo - 374) / 11.7, 9);
   });
 
   it('кешируется по id; другая модель с тем же id считается заново', () => {

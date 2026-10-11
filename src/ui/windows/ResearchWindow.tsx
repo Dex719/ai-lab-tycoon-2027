@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { WindowProps } from '.';
 import { ALGO_COST_GROWTH, ALGO_MULT, TECH_REQUIRES } from '../../sim/constants';
 import { pool } from '../../sim/compute';
-import { researchBlockReason, rpPerDay, TECHS, techCost } from '../../sim/research';
+import { earlyPenalty, researchBlockReason, rpPerDay, TECHS, techCost, yearsEarly } from '../../sim/research';
 import type { GameState, TechId } from '../../sim/types';
 import { ErrorText, ProgressBar, Stat } from '../components/common';
 import { fmtNum, fmtPct } from '../format';
@@ -86,6 +86,12 @@ function TechCard({ s, id, rp }: { s: GameState; id: TechId; rp: number }) {
               {status === 'blocked' && ' (после начала)'}
             </span>
           </div>
+          {yearsEarly(s, id) > 0 && (
+            <div className="warn small" style={{ marginTop: 2 }}>
+              Вы опережаете историю на ≈ {fmtNum(Math.ceil(yearsEarly(s, id) * 12))} мес.: цена ×{fmtNum(earlyPenalty(s, id))}.
+              С каждым днём она падает.
+            </div>
+          )}
         </>
       )}
 
