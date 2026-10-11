@@ -181,9 +181,9 @@ export function labelersCost(plan: TrainingPlan): number {
 
 /** Ошибка или null: размеры в границах, токены ≤ MAX_TOKENS_B(год), микс ≈ 1, b в [0, 0.5], ≤ 3 цели (только вышедшие бенчмарки), rlhf только после исследования, нет идущего проекта, хватает денег на разметчиков. */
 export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
-  if (s.training) return 'Уже идёт другой проект обучения. Дождитесь конца или отмените его.';
+  if (s.training) return 'Уже идёт другой проект обучения. Дождитесь его завершения или отмените.';
   const name = plan.name.trim();
-  if (!name) return 'Введите название модели.';
+  if (!name) return 'Название модели не указано.';
   if (name.length > 40) return 'Название модели — не длиннее 40 символов.';
   if (!Number.isFinite(plan.paramsB) || plan.paramsB < PARAMS_B_MIN || plan.paramsB > PARAMS_B_MAX) {
     return `Размер модели — от ${fmtNum(PARAMS_B_MIN)} до ${fmtInt(PARAMS_B_MAX)} млрд параметров.`;
@@ -191,14 +191,14 @@ export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
   const year = yearOf(s.day);
   const maxTokens = byYear(MAX_TOKENS_B, year);
   if (!Number.isFinite(plan.tokensB) || plan.tokensB < TOKENS_B_MIN) {
-    return `Данных должно быть не меньше ${fmtNum(TOKENS_B_MIN)} млрд токенов.`;
+    return `Объём данных — не меньше ${fmtNum(TOKENS_B_MIN)} млрд токенов.`;
   }
   if (plan.tokensB > maxTokens) {
-    return `В ${year} году в мире набирается не больше ${fmtInt(maxTokens)} млрд токенов данных.`;
+    return `Максимальный объём данных в ${year} году — ${fmtInt(maxTokens)} млрд токенов.`;
   }
   const mix = DOMAINS.map((d) => plan.mix[d]);
   if (mix.some((m) => !Number.isFinite(m) || m < 0) || Math.abs(mix.reduce((a, b) => a + b, 0) - 1) > 0.01) {
-    return 'Доли данных по областям должны давать в сумме 100 %.';
+    return 'Сумма долей данных по областям должна быть 100 %.';
   }
   if (!Number.isFinite(plan.benchShare) || plan.benchShare < 0 || plan.benchShare > BENCH_SHARE_MAX) {
     return `Доля данных под бенчмарки — от 0 до ${Math.round(BENCH_SHARE_MAX * 100)} %.`;
@@ -208,7 +208,7 @@ export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
   for (const t of targets) {
     if (!s.benchmarks[t]?.introduced) return 'Нельзя подгонять под бенчмарк, который ещё не вышел.';
   }
-  if (plan.rlhf && !s.research.done.includes('rlhf')) return 'Обучение на отзывах людей (RLHF) ещё не изучено.';
+  if (plan.rlhf && !s.research.done.includes('rlhf')) return 'Исследование «Обучение на отзывах людей (RLHF)» ещё не изучено.';
   const labelers = labelersCost(plan);
   // Деньги нужны только тем, кто платит разметчикам: без RLHF (labelers = 0) проект можно начать и при минусе на счету.
   if (labelers > 0 && labelers > s.cash) {
@@ -333,18 +333,18 @@ function finishTraining(s: GameState): void {
   s.bestFlop = Math.max(s.bestFlop, t.flopTotal);
   s.training = null;
 
-  const lines = [`Обучение модели «${model.name}» завершено. Она появилась в окне «Модели».`];
+  const lines = [`Обучение модели «${model.name}» завершено, модель добавлена в окно «Модели».`];
   const scores = keyScores(s, model);
   if (scores) lines.push(`Баллы: ${scores}.`);
-  lines.push(`Арена: около ${fmtInt(model.arenaElo)} Эло.`);
+  lines.push(`«Арена»: около ${fmtInt(model.arenaElo)} Эло.`);
   if (Object.keys(model.overfit).length > 0) {
-    lines.push('Баллы на целевых бенчмарках завышены подгонкой. На Арене и в реальных задачах это не помогает.');
+    lines.push('Баллы на целевых бенчмарках завышены подгонкой и не влияют на результат на «Арене» и в реальных задачах.');
   }
   if (t.failPenalty > 0) {
     lines.push(`Из-за срыва обучения способности модели ниже на ${fmtNum(t.failPenalty)} ${pointsWord(t.failPenalty)}.`);
   }
-  lines.push('Чтобы продавать доступ, выпустите модель в окне «Модели».');
-  addMail(s, { kind: 'training', title: `Модель готова: ${model.name}`, body: lines.join(' '), important: true });
+  lines.push('Продажа доступа начинается после выпуска модели в окне «Модели».');
+  addMail(s, { kind: 'training', title: `Модель «${model.name}» готова`, body: lines.join(' '), important: true });
 }
 
 /** Ежедневно: прогресс; срыв (triggerEvent 'training-fail'); завершение → PlayerModel в s.models, bestFlop, письмо. */
@@ -411,7 +411,7 @@ export function monthlyExposure(s: GameState): void {
       body:
         `Независимые исследователи заново проверили «${m.name}» на свежих вопросах, которых не было в публичных тестах.${example} ` +
         `Репутация лаборатории упала на ${fmtNum(Math.round(repBefore - s.reputation))}, шумиха — на ${hypeDropPct} %. ` +
-        'В таблице теперь честные баллы модели и значок «⚠».',
+        'В таблице отображаются честные баллы модели и значок «⚠».',
     });
   }
 }

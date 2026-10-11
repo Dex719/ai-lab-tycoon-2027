@@ -22,7 +22,7 @@ export const BENCHMARKS: BenchmarkDef[] = [
   {
     id: 'humaneval', name: 'HumanEvol', realName: 'HumanEval', domain: 'code', introduced: '2021-07-07',
     guess: 0, difficulty: 73.4, spread: 5.2, saturation: 90,
-    description: '164 задачи на Python: проходит ли код тесты с первой попытки.',
+    description: '164 задачи на Python: доля решений, прошедших тесты с первой попытки.',
   },
   {
     id: 'gsm8k', name: 'GSM8C', realName: 'GSM8K', domain: 'reasoning', introduced: '2021-10-27',
@@ -32,7 +32,7 @@ export const BENCHMARKS: BenchmarkDef[] = [
   {
     id: 'swebench', name: 'SWE-banch', realName: 'SWE-bench Verified', domain: 'code', introduced: '2023-10-10',
     guess: 0, difficulty: 85.2, spread: 2.1, saturation: 75,
-    description: 'Настоящие задачи из GitHub: починить баг в чужом репозитории.',
+    description: 'Реальные задачи из GitHub: исправление ошибок в чужих репозиториях.',
   },
   {
     id: 'gpqa', name: 'GPQE', realName: 'GPQA Diamond', domain: 'reasoning', introduced: '2023-11-20',

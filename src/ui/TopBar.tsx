@@ -1,104 +1,157 @@
-// Верхняя панель: дата, деньги, репутация, шумиха, скорость (FR-1, FR-14.1).
+// Верхняя панель (как в Processor Tycoon): деньги, изменение за месяц, дата, скорость; справа доля рынка и место на «Арене».
 
-import { useEffect } from 'react';
-import { BANKRUPT_DAYS } from '../sim/constants';
+import { useEffect, useState , type ReactElement } from 'react';
 import { pendingChoice } from '../sim/events';
-import { formatDate } from '../sim/time';
-import type { GameState, Speed } from '../sim/types';
-import { fmtMoney } from './format';
+import { overheadPerDay } from '../sim/finance';
+import { rentPerDay } from '../sim/compute';
+import { playerBestArenaRank } from '../sim/tick';
+import { dayToDate } from '../sim/time';
+import type { ExpenseKind, GameState, IncomeKind, Speed } from '../sim/types';
+import { fmtMoney, fmtShare } from './format';
+import { IconAlert, IconArrowUpDown, IconBank, IconCalendar, IconFast, IconFaster, IconPause, IconPlay } from './icons';
 import { store, useSpeed } from './store';
 
-const SPEEDS: { speed: Speed; label: string; title: string }[] = [
-  { speed: 0, label: '⏸', title: 'Пауза (пробел)' },
-  { speed: 1, label: '▶', title: 'Скорость ×1' },
-  { speed: 2, label: '▶▶', title: 'Скорость ×2' },
-  { speed: 4, label: '▶▶▶', title: 'Скорость ×4' },
+const SPEEDS: { speed: Speed; title: string; Icon: () => ReactElement }[] = [
+  { speed: 0, title: 'Пауза (пробел)', Icon: () => <IconPause /> },
+  { speed: 1, title: 'Скорость ×1', Icon: () => <IconPlay /> },
+  { speed: 2, title: 'Скорость ×2', Icon: () => <IconFast /> },
+  { speed: 4, title: 'Скорость ×4', Icon: () => <IconFaster /> },
 ];
 
-/** Изменение денег за текущий месяц (доходы − расходы с 1-го числа). */
-function monthDelta(s: GameState): number {
+const INCOME: { k: IncomeKind; label: string }[] = [
+  { k: 'api', label: 'Продажа API' },
+  { k: 'contracts', label: 'Контракты' },
+  { k: 'investors', label: 'Инвесторы' },
+];
+const EXPENSE: { k: ExpenseKind; label: string }[] = [
+  { k: 'rent', label: 'Аренда мощностей' },
+  { k: 'overhead', label: 'Зарплаты и офис' },
+  { k: 'labelers', label: 'Разметчики' },
+  { k: 'penalties', label: 'Штрафы' },
+];
+
+/** Изменение денег в месяц: итог прошлого месяца без инвесторов, а в первый месяц — текущие расходы. */
+function monthlyRate(s: GameState): number {
+  const h = s.finance.history.at(-1);
+  if (h) {
+    const inc = h.income.api + h.income.contracts;
+    const exp = h.expense.rent + h.expense.overhead + h.expense.labelers + h.expense.penalties;
+    return inc - exp;
+  }
+  return -(rentPerDay(s) + overheadPerDay(s)) * 30;
+}
+
+function dateText(day: number): string {
+  const d = dayToDate(day);
+  return `${String(d.day).padStart(2, '0')}/${String(d.month).padStart(2, '0')}/${d.year}`;
+}
+
+function MoneyPopup({ s }: { s: GameState }) {
   const m = s.finance.month;
-  const income = m.income.api + m.income.contracts + m.income.investors;
-  const expense = m.expense.rent + m.expense.overhead + m.expense.labelers + m.expense.penalties;
-  return income - expense;
+  return (
+    <div className="money-pop" role="tooltip">
+      <div className="r" style={{ color: '#f2f2f2' }}>
+        <span>С начала месяца</span>
+        <span />
+      </div>
+      {INCOME.map(({ k, label }) => (
+        <div className="r" key={k} style={m.income[k] > 0 ? { color: 'var(--good-on-dark)' } : undefined}>
+          <span>{label}:</span>
+          <span className="v">{fmtMoney(m.income[k])}</span>
+        </div>
+      ))}
+      {EXPENSE.map(({ k, label }) => (
+        <div className="r" key={k} style={m.expense[k] > 0 ? { color: 'var(--bad-on-dark)' } : undefined}>
+          <span>{label}:</span>
+          <span className="v">{m.expense[k] > 0 ? '−' : ''}{fmtMoney(m.expense[k])}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function TopBar({ s }: { s: GameState }) {
   const speed = useSpeed();
+  const [hover, setHover] = useState(false);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName;
       if (e.code !== 'Space' || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      if (e.ctrlKey || e.altKey || e.metaKey) return;
-      // Над игрой окно выбора или итог: пробел достаётся им (нажать выбранную кнопку), а не часам.
-      const st = store.state;
-      if (!st || st.outcome || pendingChoice(st)) return;
-      e.preventDefault(); // и при удержании тоже: пробел не должен прокручивать страницу или нажимать кнопку в окне
-      if (e.repeat) return;
+      if (e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
+      if ((e.target as HTMLElement)?.closest('[aria-modal="true"]')) return;
+      e.preventDefault();
       store.togglePause();
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  const delta = monthDelta(s);
+  const rate = monthlyRate(s);
+  let rank: number | null = null;
+  try {
+    rank = playerBestArenaRank(s);
+  } catch {
+    rank = null;
+  }
+  const locked = !!s.outcome || pendingChoice(s) !== null;
+  const negative = s.finance.negativeDays > 0;
+
   return (
-    <div className="topbar">
-      <div className="lab">{s.labName}</div>
-      <div className="stat">
-        <span className="k">Дата</span>
-        <span className="v">{formatDate(s.day)}</span>
+    <header className="topbar">
+      <div className="topbar-left">
+        <b>{s.labName}</b>
+        {s.founderName && <span>{s.founderName}</span>}
+        {store.autosaveError && (
+          <span className="tb-bad" title={store.autosaveError} style={{ display: 'flex' }}>
+            <IconAlert />
+          </span>
+        )}
       </div>
-      <div className="stat">
-        <span className="k">Деньги</span>
-        <span className={`v${s.cash < 0 ? ' bad' : ''}`}>{fmtMoney(s.cash)}</span>
+      <div className="topbar-center">
+        <div className="tb-item" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} style={{ cursor: 'default' }}>
+          <IconBank />
+          <span className={s.cash < 0 ? 'tb-bad' : undefined}>{fmtMoney(s.cash)}</span>
+          {hover && <MoneyPopup s={s} />}
+        </div>
+        <div className="tb-item" title="Доходы минус расходы за прошлый месяц">
+          <IconArrowUpDown />
+          <span className={rate >= 0 ? 'tb-good' : 'tb-bad'}>
+            {rate >= 0 ? '' : '−'}
+            {fmtMoney(Math.abs(rate))}/мес.
+          </span>
+        </div>
+        <div className="tb-item">
+          <IconCalendar />
+          <span>{dateText(s.day)}</span>
+        </div>
+        <div className="speed">
+          {SPEEDS.map(({ speed: sp, title, Icon }) => (
+            <button
+              key={sp}
+              className={speed === sp ? 'on' : undefined}
+              title={title}
+              aria-label={title}
+              aria-pressed={speed === sp}
+              disabled={locked && sp !== 0}
+              data-tutorial={sp === 1 ? 'speed-play' : undefined}
+              onClick={() => store.setSpeed(sp)}
+            >
+              <Icon />
+            </button>
+          ))}
+        </div>
       </div>
-      {s.finance.negativeDays > 0 && !s.outcome && (
-        <div className="stat" title={`Деньги в минусе уже ${s.finance.negativeDays} дн. подряд. Если ${BANKRUPT_DAYS} дней не выйти в плюс, лаборатория обанкротится`}>
-          <span className="k">До банкротства</span>
-          <span className="v bad">{Math.max(0, BANKRUPT_DAYS - s.finance.negativeDays)} дн.</span>
+      <div className="topbar-right">
+        <span>Доля рынка: {fmtShare(s.market.labShares.player ?? 0, 2)}</span>
+        <span>«Арена»: {rank !== null ? `${rank}-е место` : '—'}</span>
+      </div>
+      {(store.pauseReason || negative) && speed === 0 && (
+        <div className="pause-note">
+          {store.pauseReason ? `Пауза: ${store.pauseReason}` : 'Деньги в минусе'}
+          {negative && ` · до банкротства ${Math.max(0, 60 - s.finance.negativeDays)} дн.`}
         </div>
       )}
-      <div className="stat" title="Доходы минус расходы с начала месяца">
-        <span className="k">За месяц</span>
-        <span className={`v ${delta >= 0 ? 'good' : 'bad'}`}>
-          {delta >= 0 ? '+' : ''}
-          {fmtMoney(delta)}
-        </span>
-      </div>
-      <div className="stat" title="Доверие клиентов и публики, 0–100">
-        <span className="k">Репутация</span>
-        <span className="v">{Math.round(s.reputation)}</span>
-      </div>
-      <div className="stat" title="Шумиха вокруг ваших моделей, 0–100. Растёт от мест в рейтингах, затухает каждый месяц">
-        <span className="k">Шумиха</span>
-        <span className="v">{Math.round(s.hype.player)}</span>
-      </div>
-      {store.autosaveError && (
-        <span className="topbar-alert bad" title={store.autosaveError}>
-          ⚠
-        </span>
-      )}
-      {store.pauseReason && !s.outcome && (
-        <span className="topbar-note" title="Нажмите пробел или ▶, чтобы продолжить">
-          Пауза: {store.pauseReason}
-        </span>
-      )}
-      <div className="spacer" />
-      <div className="speed">
-        {SPEEDS.map((b) => (
-          <button
-            key={b.speed}
-            className={`btn${speed === b.speed ? ' on' : ''}`}
-            title={b.title}
-            onClick={() => store.setSpeed(b.speed)}
-            disabled={!!s.outcome && b.speed !== 0}
-          >
-            {b.label}
-          </button>
-        ))}
-      </div>
-    </div>
+    </header>
   );
 }

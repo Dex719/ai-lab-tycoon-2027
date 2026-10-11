@@ -175,8 +175,8 @@ describe('требования и выбор исследования', () => {
 
   it('тексты отказов: что именно изучить сначала и что уже изучено', () => {
     const s = createInitialState('Тест', 1);
-    expect(setResearch(s, 'scaling')).toEqual({ ok: false, error: 'Сначала изучите: Механизм внимания' });
-    expect(setResearch(s, 'rlhf')).toEqual({ ok: false, error: 'Сначала изучите: Механизм внимания' });
+    expect(setResearch(s, 'scaling')).toEqual({ ok: false, error: 'Требуется исследование: Механизм внимания' });
+    expect(setResearch(s, 'rlhf')).toEqual({ ok: false, error: 'Требуется исследование: Механизм внимания' });
     expect(researchBlockReason(s, 'attention')).toBeNull();
     expect(researchBlockReason(s, 'algo')).toBeNull();
 

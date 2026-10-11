@@ -165,7 +165,10 @@ export function applyTender(s: GameState, tenderId: string, modelId: string): Re
   return { ok: true };
 }
 
-/** Контракт закрыт: штраф, падение репутации, письмо. Важное (игра встаёт на паузу), если провал случился не по воле игрока. */
+/**
+ * Контракт закрыт: штраф, падение репутации, письмо. Заголовок — «<событие>: <клиент>».
+ * Важное (игра встаёт на паузу), если провал случился не по воле игрока.
+ */
 function failContract(s: GameState, c: Contract, title: string, reason: string, important = true): void {
   const t = c.tender;
   spend(s, 'penalties', t.penalty);
@@ -173,10 +176,8 @@ function failContract(s: GameState, c: Contract, title: string, reason: string, 
   removeById(s.contracts, c.id);
   addMail(s, {
     kind: 'contract',
-    title,
-    body:
-      `${clientName(t.clientId)}: ${reason} ` +
-      `Штраф ${fmtMoney(t.penalty)}, репутация −${Math.abs(REP_CONTRACT_FAIL)}.`,
+    title: `${title}: ${clientName(t.clientId)}`,
+    body: `${reason} Штраф ${fmtMoney(t.penalty)}, репутация −${Math.abs(REP_CONTRACT_FAIL)}.`,
     important,
   });
 }
@@ -193,9 +194,9 @@ function finishContract(s: GameState, c: Contract): void {
     removeById(s.contracts, c.id);
     addMail(s, {
       kind: 'contract',
-      title: 'Контракт выполнен',
+      title: `Контракт выполнен: ${clientName(t.clientId)}`,
       body:
-        `${clientName(t.clientId)}: работа сдана. Модель показала ${fmtScore(honest)} % на ${bench} ` +
+        `Работа сдана. Модель показала ${fmtScore(honest)} % на ${bench} ` +
         `при требовании ${t.requirement} %. Оплата ${fmtMoney(t.payment)}, репутация +${REP_CONTRACT_OK}.`,
     });
     return;
@@ -204,8 +205,8 @@ function finishContract(s: GameState, c: Contract): void {
     s,
     c,
     'Контракт провален',
-    `работа сдана, но модель не справилась на реальных задачах клиента ` +
-      `(${fmtScore(honest)} % на ${bench} при требовании ${t.requirement} %).`,
+    `Работа сдана, но модель не справилась с реальными задачами клиента: ` +
+      `${fmtScore(honest)} % на ${bench} при требовании ${t.requirement} %.`,
   );
 }
 
@@ -213,7 +214,7 @@ function finishContract(s: GameState, c: Contract): void {
 export function cancelContract(s: GameState, contractId: string): Result {
   const c = s.contracts.find((x) => x.id === contractId);
   if (!c) return { ok: false, error: 'Нет такого контракта' };
-  failContract(s, c, 'Контракт расторгнут', 'вы отказались от контракта.', false); // решение игрока: пауза не нужна
+  failContract(s, c, 'Контракт расторгнут', 'Лаборатория отказалась от выполнения контракта.', false); // решение игрока: пауза не нужна
   return { ok: true };
 }
 
@@ -228,9 +229,9 @@ function resolveApplication(s: GameState, t: Tender): void {
   if (!won || !model) {
     addMail(s, {
       kind: 'contract',
-      title: 'Тендер проигран',
+      title: `Тендер проигран: ${client}`,
       body:
-        `${client}: тендер достался другому исполнителю. ` +
+        'Тендер достался другому исполнителю. ' +
         `Требование было ${t.requirement} % на ${benchDef(t.benchmark).name}.`,
     });
     return;
@@ -253,13 +254,13 @@ function resolveApplication(s: GameState, t: Tender): void {
   const noCompute = s.compute.alloc.contracts <= 0;
   addMail(s, {
     kind: 'contract',
-    title: 'Тендер выигран',
+    title: `Тендер выигран: ${client}`,
     important: noCompute,
     body:
-      `${client}: исполнителем выбрана ваша модель ${model.name}. ` +
+      `Исполнитель — модель «${model.name}». ` +
       `Срок — ${t.durationDays} дн., оплата после сдачи — ${endSentence(fmtMoney(t.payment))} ` +
       `Мощность берётся из доли «Контракты».${labelersNote}` +
-      (noCompute ? ' Сейчас эта доля — 0 %: выделите мощность в окне «Мощности», иначе работа не начнётся.' : ''),
+      (noCompute ? ' Доля «Контракты» равна 0 %: пока мощность не выделена в окне «Мощности», работа не начнётся.' : ''),
   });
 }
 
@@ -285,7 +286,7 @@ export function progressDay(s: GameState): void {
     if (c.workDone >= c.tender.work) {
       finishContract(s, c);
     } else if (s.day >= c.deadlineDay) {
-      failContract(s, c, 'Контракт просрочен', 'срок вышел, а работа не закончена.');
+      failContract(s, c, 'Контракт просрочен', 'Срок истёк, работа не завершена.');
     }
   }
 }

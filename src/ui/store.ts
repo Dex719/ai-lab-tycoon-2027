@@ -4,9 +4,10 @@
 import { useSyncExternalStore } from 'react';
 import * as actions from '../sim/actions';
 import { TICK_MS } from '../sim/constants';
-import { AUTOSAVE_KEY, serialize } from '../sim/save';
 import { advanceDay, advanceDays, blockedByChoice } from '../sim/tick';
 import type { GameState, Result, Speed } from '../sim/types';
+import { readSlot, writeSlot, type SlotId } from './saves';
+import { getSettings } from './settings';
 
 type Listener = () => void;
 
@@ -43,8 +44,24 @@ export class GameStore {
     this.bump();
   }
 
-  newGame(labName: string, seed = (Date.now() ^ 0x5eed) >>> 0): void {
-    this.start(actions.newGame(labName, seed));
+  newGame(labName: string, opts: { founderName?: string; tutorial?: boolean; seed?: number } = {}): void {
+    const s = actions.newGame(labName, opts.seed ?? (Date.now() ^ 0x5eed) >>> 0);
+    s.founderName = (opts.founderName ?? '').trim();
+    s.tutorial = { step: 0, active: opts.tutorial ?? false };
+    this.start(s);
+  }
+
+  /** Сохранить партию в ячейку. */
+  saveToSlot(id: SlotId): boolean {
+    return !!this.state && writeSlot(id, this.state);
+  }
+
+  /** Загрузить ячейку; при ошибке вернуть её текст. */
+  loadSlot(id: SlotId): string | null {
+    const r = readSlot(id);
+    if (!r.ok) return r.error;
+    this.start(r.state);
+    return null;
   }
 
   quit(): void {
@@ -84,7 +101,7 @@ export class GameStore {
 
   /** Вкладка браузера скрыта: браузер замедляет таймеры, а игра за это время ушла бы вперёд. Сами не продолжаем. */
   pauseForHidden(): void {
-    if (!this.state || this.state.outcome || this.speed === 0) return;
+    if (!this.state || this.state.outcome || this.speed === 0 || !getSettings().pauseOnHidden) return;
     this.pauseReason = 'Вкладка была скрыта';
     this.setSpeed(0);
   }
@@ -137,12 +154,12 @@ export class GameStore {
       s.flags.autosaveDue = false;
       // Законченную игру не сохраняем поверх последнего живого автосохранения.
       if (!s.outcome) {
-        this.autosaveError = saveTo(AUTOSAVE_KEY, s) ? null : 'Автосохранение не удалось: хранилище браузера недоступно или переполнено. Выгрузите игру в файл.';
+        this.autosaveError = writeSlot('auto', s) ? null : 'Автосохранение не удалось: хранилище браузера переполнено или недоступно.';
       }
     }
     if (s.outcome) {
       this.setSpeed(0);
-    } else if (mark && this.speed !== 0) {
+    } else if (mark && this.speed !== 0 && getSettings().pauseOnImportant) {
       const reason = this.alertReason(s, mark);
       if (reason !== null) {
         this.pauseReason = reason;
@@ -158,23 +175,6 @@ interface AdvanceMark {
   mailNum: number;
   /** Деньги уже были в минусе до шага. */
   wasNegative: boolean;
-}
-
-export function saveTo(key: string, s: GameState): boolean {
-  try {
-    localStorage.setItem(key, serialize(s));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function readSave(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
 }
 
 export const store = new GameStore();

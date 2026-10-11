@@ -1,4 +1,4 @@
-// Тесты денег: письмо «Деньги кончились» и банкротство.
+// Тесты денег: письмо «Деньги закончились» и банкротство.
 
 import { describe, expect, it } from 'vitest';
 import { BANKRUPT_DAYS } from './constants';
@@ -19,7 +19,7 @@ describe('dayStep: деньги кончились', () => {
     expect(s.mail).toHaveLength(1);
     const mail = s.mail[0];
     expect(mail.kind).toBe('finance');
-    expect(mail.title).toBe('Деньги кончились');
+    expect(mail.title).toBe('Деньги закончились');
     expect(mail.important).toBe(true);
     expect(mail.body).toContain(`за ${BANKRUPT_DAYS} дней`);
     expect(s.finance.negativeDays).toBe(1);

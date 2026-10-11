@@ -87,10 +87,10 @@ export function raiseRound(s: GameState, fraction: number): Result {
   const share = String(Math.round(s.founderShare * 1000) / 10).replace('.', ',');
   addMail(s, {
     kind: 'finance',
-    title: 'Раунд инвестиций закрыт',
+    title: `Раунд инвестиций закрыт: ${fmtMoney(money)}`,
     body:
-      `Инвесторы оценили лабораторию в ${fmtMoney(value)} и вложили ${fmtMoney(money)} ` +
-      `за ${Math.round(f * 100)} % компании. У вас осталось ${share} %. ` +
+      `Оценка лаборатории — ${fmtMoney(value)}. Инвесторы вложили ${fmtMoney(money)} ` +
+      `за ${Math.round(f * 100)} % компании. Доля основателя — ${share} %. ` +
       `Следующий раунд возможен через ${ROUND_COOLDOWN_DAYS} дн.`,
   });
   return { ok: true };

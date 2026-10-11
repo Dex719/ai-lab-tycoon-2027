@@ -697,7 +697,7 @@ describe('progressDay: завершение контракта', () => {
     expect(s.finance.month.income.contracts).toBe(0);
     expect(s.reputation).toBe(30 + REP_CONTRACT_FAIL);
     expect(lastMail(s).kind).toBe('contract');
-    expect(lastMail(s).body).toContain('модель не справилась на реальных задачах клиента');
+    expect(lastMail(s).body).toContain('модель не справилась с реальными задачами клиента');
   });
 
   it('честный балл ровно на уровне требования проходит', () => {
@@ -879,11 +879,11 @@ describe('progressDay: решение по заявке, подробности'
     expect(c.tender).toEqual(original);
   });
 
-  it('победа: письмо называет клиента, модель, срок и оплату', () => {
+  it('победа: заголовок называет клиента, письмо — модель, срок и оплату', () => {
     const s = applied({ durationDays: 90, payment: 100_000, clientId: 'bank-severny' });
     progressDay(s);
+    expect(lastMail(s).title).toBe('Тендер выигран: Банк «Северный»');
     const body = lastMail(s).body;
-    expect(body).toContain('Банк «Северный»');
     expect(body).toContain('Модель-1');
     expect(body).toContain('90 дн.');
     expect(body).toContain('$100 тыс.');
@@ -964,7 +964,7 @@ describe('progressDay: несколько контрактов', () => {
     expect(s.contracts).toHaveLength(0);
     expect(s.cash).toBeCloseTo(cash + 100_000 - 30_000, 6);
     expect(s.reputation).toBe(50 + REP_CONTRACT_OK + REP_CONTRACT_FAIL);
-    expect(s.mail.map((x) => x.title)).toEqual(['Контракт выполнен', 'Контракт просрочен']);
+    expect(s.mail.map((x) => x.title.replace(/:.*/, ''))).toEqual(['Контракт выполнен', 'Контракт просрочен']);
   });
 
   it('после сдачи одного весь пул достаётся оставшемуся', () => {
@@ -1091,19 +1091,19 @@ describe('письма контрактов: точка после суммы и
     const won = applied();
     won.compute.alloc = { training: 0.5, contracts: 0, experiments: 0.5, inference: 0 };
     progressDay(won);
-    expect(lastMail(won).title).toBe('Тендер выигран');
+    expect(lastMail(won).title).toMatch(/^Тендер выигран: /);
     expect(lastMail(won).important).toBe(true);
     expect(lastMail(won).body).toContain('0 %');
 
     const wonWithCompute = applied();
     wonWithCompute.compute.alloc = { training: 0.4, contracts: 0.2, experiments: 0.4, inference: 0 };
     progressDay(wonWithCompute);
-    expect(lastMail(wonWithCompute).title).toBe('Тендер выигран');
+    expect(lastMail(wonWithCompute).title).toMatch(/^Тендер выигран: /);
     expect(lastMail(wonWithCompute).important).toBe(false);
 
     const lost = applied({}, 0);
     progressDay(lost);
-    expect(lastMail(lost).title).toBe('Тендер проигран');
+    expect(lastMail(lost).title).toMatch(/^Тендер проигран: /);
     expect(lastMail(lost).important).toBeFalsy();
   });
 
@@ -1112,7 +1112,7 @@ describe('письма контрактов: точка после суммы и
     poolValue = 1;
     late.day = 60;
     progressDay(late);
-    expect(lastMail(late).title).toBe('Контракт просрочен');
+    expect(lastMail(late).title).toMatch(/^Контракт просрочен: /);
     expect(lastMail(late).important).toBe(true);
 
     shownScore = 80;
@@ -1121,14 +1121,14 @@ describe('письма контрактов: точка после суммы и
     poolValue = 10;
     failed.day = 3;
     progressDay(failed);
-    expect(lastMail(failed).title).toBe('Контракт провален');
+    expect(lastMail(failed).title).toMatch(/^Контракт провален: /);
     expect(lastMail(failed).important).toBe(true);
   });
 
   it('отказ от контракта — решение игрока: письмо не важное; сдача контракта тоже', () => {
     const cancelled = withContract();
     cancelContract(cancelled, 'c1');
-    expect(lastMail(cancelled).title).toBe('Контракт расторгнут');
+    expect(lastMail(cancelled).title).toMatch(/^Контракт расторгнут: /);
     expect(lastMail(cancelled).important).toBeFalsy();
 
     honestScore = 90;
@@ -1136,7 +1136,7 @@ describe('письма контрактов: точка после суммы и
     poolValue = 10;
     done.day = 3;
     progressDay(done);
-    expect(lastMail(done).title).toBe('Контракт выполнен');
+    expect(lastMail(done).title).toMatch(/^Контракт выполнен: /);
     expect(lastMail(done).important).toBeFalsy();
   });
 });

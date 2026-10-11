@@ -252,6 +252,7 @@ const STATE: Record<keyof GameState, Check> = {
   rng: int,
   day: int,
   labName: str,
+  founderName: str,
   outcome: nullable(oneOf(['victory', 'finished', 'bankrupt'])),
   cash: num,
   reputation: num,
@@ -288,6 +289,7 @@ const STATE: Record<keyof GameState, Check> = {
     revenueDaily: arrayOf(num),
     negativeDays: num,
   }),
+  tutorial: shapeOf<GameState['tutorial']>({ step: int, active: bool }),
   market: shapeOf<GameState['market']>({
     shares: dict(num),
     labShares: record([...HYPE_OWNERS, 'none'], num),
@@ -325,6 +327,9 @@ export function deserialize(json: string): { ok: true; state: GameState } | { ok
   }
   if (!isRec(data)) return { ok: false, error: 'Файл сохранения повреждён' };
   if (data.version !== 1) return { ok: false, error: 'Сохранение от другой версии игры' };
+  // Поля, добавленные после первой версии: старые сохранения получают значения по умолчанию.
+  if (data.founderName === undefined) data.founderName = '';
+  if (data.tutorial === undefined) data.tutorial = { step: 0, active: false };
   const problem = WHOLE_STATE(data, '') ?? pendingChoiceProblem(data.mail as Mail[]);
   if (problem) return { ok: false, error: problemText(problem) };
   return { ok: true, state: data as unknown as GameState };

@@ -30,30 +30,30 @@ export const TECHS: TechInfo[] = [
   {
     id: 'attention',
     name: 'Механизм внимания',
-    description: 'Архитектура «Трансформер» вместо LSTM: обучение примерно в 7 раз эффективнее.',
+    description: 'Архитектура «Трансформер» вместо LSTM. Обучение эффективнее примерно в 7 раз.',
   },
   {
     id: 'scaling',
     name: 'Законы масштабирования',
-    description: 'Прогноз баллов модели до обучения и подсказка оптимального размера.',
+    description: 'Прогноз баллов модели до начала обучения и оптимальный размер модели.',
   },
   {
     id: 'rlhf',
     name: 'Обучение на отзывах людей (RLHF)',
-    description: 'Модели становятся полезными собеседниками: выше Эло на Арене, открываются RLHF-тендеры.',
+    description: 'Модели с RLHF получают более высокое Эло на «Арене». Открываются RLHF-тендеры.',
   },
   {
     id: 'algo',
     name: 'Алгоритмические улучшения',
-    description: 'Каждый уровень — обучение в 1,25 раза эффективнее; для моделей с RLHF ещё и выше Эло.',
+    description: 'Каждый уровень повышает эффективность обучения в 1,25 раза. Для моделей с RLHF повышает и Эло.',
   },
 ];
 
 /** Одна строка о том, что изменилось, — для письма о завершении. */
 const EFFECT_LINE: Record<Exclude<TechId, 'algo'>, string> = {
-  attention: 'Теперь доступна архитектура «Трансформер»: обучение примерно в 7 раз эффективнее, чем на LSTM.',
-  scaling: 'Теперь окно обучения показывает прогноз баллов до запуска и подсказывает оптимальный размер модели.',
-  rlhf: 'Теперь модели можно обучать с RLHF: выше Эло на Арене, и открыты RLHF-тендеры.',
+  attention: 'Доступна архитектура «Трансформер». Обучение эффективнее, чем на LSTM, примерно в 7 раз.',
+  scaling: 'В окне «Новая модель» отображаются прогноз баллов до запуска и оптимальный размер модели.',
+  rlhf: 'Доступно обучение с RLHF: Эло на «Арене» выше, открыты RLHF-тендеры.',
 };
 
 function techName(tech: TechId): string {
@@ -96,7 +96,7 @@ export function researchBlockReason(s: GameState, tech: TechId): string | null {
   if (!TECH_IDS.includes(tech)) return 'Нет такого исследования';
   if (tech !== 'algo' && s.research.done.includes(tech)) return 'Это исследование уже завершено';
   const missing = TECH_REQUIRES[tech].filter((t) => !s.research.done.includes(t));
-  if (missing.length > 0) return `Сначала изучите: ${missing.map(techName).join(', ')}`;
+  if (missing.length > 0) return `Требуется исследование: ${missing.map(techName).join(', ')}`;
   return null;
 }
 
@@ -146,7 +146,7 @@ export function progressDay(s: GameState): void {
     addMail(s, {
       kind: 'research',
       title: `Исследование завершено: ${techName(tech)}, уровень ${level}`,
-      body: `Новые проекты обучаются в ${fmtMult(ALGO_MULT ** level)} раза эффективнее, чем без улучшений.`,
+      body: `Эффективность обучения новых проектов выросла в ${fmtMult(ALGO_MULT ** level)} раза по сравнению с исходной.`,
     });
     return;
   }

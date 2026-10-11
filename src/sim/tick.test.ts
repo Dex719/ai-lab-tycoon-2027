@@ -104,7 +104,9 @@ describe('письма за всю партию', () => {
 
   it('важные письма есть в ходе партии: тендеры, модели, провалы и банкротство', () => {
     const { state: s } = runBot('benchmaxx', 3);
-    const important = new Set(s.mail.filter((m) => m.important).map((m) => m.title.replace(/:.*/, '')));
+    const important = new Set(
+      s.mail.filter((m) => m.important).map((m) => m.title.replace(/:.*/, '').replace(/^Модель «.*» готова$/, 'Модель готова')),
+    );
     expect(important).toContain('Модель готова');
     expect(important).toContain('Тендер выигран');
     expect(important).toContain('Подгонка раскрыта');

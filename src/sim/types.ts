@@ -205,6 +205,7 @@ export interface GameState {
   rng: number; // состояние mulberry32
   day: number;
   labName: string;
+  founderName: string;
   outcome: Outcome;
   cash: number;
   reputation: number; // 0..100
@@ -233,6 +234,8 @@ export interface GameState {
     revenueDaily: number[]; // выручка за последние 90 дней (api + contracts)
     negativeDays: number;
   };
+  /** Обучение для новичков: номер текущего шага (с 0) и включено ли оно. */
+  tutorial: { step: number; active: boolean };
   market: {
     shares: Record<string, number>; // ключ: 'player:<id>' | 'rival:<id>' | 'none'
     labShares: Record<HypeOwner | 'none', number>;

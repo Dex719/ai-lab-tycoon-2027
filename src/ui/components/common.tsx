@@ -83,3 +83,39 @@ export function useModalFocus<T extends HTMLElement>(resetKey?: string) {
 
   return { ref, onKeyDown };
 }
+
+/** Светлое диалоговое окно поверх всего (как «Настройка игры» в Processor Tycoon). */
+export function Dialog(props: {
+  title: string;
+  onClose?: () => void;
+  wide?: boolean;
+  white?: boolean;
+  footer?: ReactNode;
+  children: ReactNode;
+}) {
+  const { ref, onKeyDown } = useModalFocus<HTMLDivElement>(props.title);
+  return (
+    <div className="modal-backdrop" onKeyDown={(e) => e.key === 'Escape' && props.onClose?.()}>
+      <div
+        ref={ref}
+        tabIndex={-1}
+        className={`dialog${props.wide ? ' wide' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={props.title}
+        onKeyDown={onKeyDown}
+      >
+        <div className="titlebar">
+          <span className="t">{props.title}</span>
+          {props.onClose && (
+            <button className="wbtn close" onClick={props.onClose} aria-label="Закрыть">
+              ×
+            </button>
+          )}
+        </div>
+        <div className={`body${props.white ? ' white' : ''}`}>{props.children}</div>
+        {props.footer && <div className="foot">{props.footer}</div>}
+      </div>
+    </div>
+  );
+}

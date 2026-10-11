@@ -32,16 +32,17 @@ export function clampPos(g: Pick<WinGeom, 'x' | 'y' | 'w'>, area: DeskArea): Pic
 
 interface Props {
   title: string;
-  icon: string;
   geom: WinGeom;
   active: boolean;
+  flush?: boolean; // тело без отступов (окно само раскладывает панели)
   onFocus: () => void;
   onClose: () => void;
+  onMinimize: () => void;
   onMove: (g: Partial<WinGeom>) => void;
   children: ReactNode;
 }
 
-export function Window({ title, icon, geom, active, onFocus, onClose, onMove, children }: Props) {
+export function Window({ title, geom, active, flush, onFocus, onClose, onMinimize, onMove, children }: Props) {
   const drag = useRef<{ dx: number; dy: number } | null>(null);
 
   function startDrag(e: React.PointerEvent) {
@@ -78,13 +79,19 @@ export function Window({ title, icon, geom, active, onFocus, onClose, onMove, ch
       data-window={title}
     >
       <div className="titlebar" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag}>
-        <span>{icon}</span>
         <span className="t">{title}</span>
-        <button className="x" onClick={onClose} title="Закрыть">
-          ×
+        <button className="wbtn" onClick={onMinimize} title="Свернуть" aria-label="Свернуть">
+          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M2 9h8" stroke="currentColor" strokeWidth="1.6" />
+          </svg>
+        </button>
+        <button className="wbtn close" onClick={onClose} title="Закрыть" aria-label="Закрыть">
+          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" strokeWidth="1.6" />
+          </svg>
         </button>
       </div>
-      <div className="window-body">{children}</div>
+      <div className={`window-body${flush ? ' flush' : ''}`}>{children}</div>
       <div
         className="resize"
         onPointerDown={startResize}

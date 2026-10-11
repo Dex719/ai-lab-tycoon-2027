@@ -1318,10 +1318,10 @@ describe('письмо о готовой модели', () => {
 
   it('без подгонки и срыва — только баллы, Эло и подсказка выпустить', () => {
     const { s, body, title } = finished();
-    expect(title).toBe('Модель готова: Альфа');
+    expect(title).toBe('Модель «Альфа» готова');
     expect(body).not.toContain('подгонк');
     expect(body).not.toContain('срыва');
-    expect(body).toContain('выпустите модель');
+    expect(body).toContain('после выпуска модели');
     expect(body).toMatch(/около \d[\d ]* Эло/);
     // баллы совпадают с таблицей модели
     const m = s.models[0];
@@ -1353,7 +1353,7 @@ describe('письмо о готовой модели', () => {
     s.training!.failAtFraction = null;
     runToEnd(s);
     const mail = s.mail[s.mail.length - 1];
-    expect(mail.title).toBe('Модель готова: Альфа');
+    expect(mail.title).toBe('Модель «Альфа» готова');
     expect(mail.important).toBe(true);
   });
 

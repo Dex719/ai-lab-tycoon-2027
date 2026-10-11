@@ -479,7 +479,7 @@ describe('raiseRound: подробности', () => {
     expect(body).toContain('$12,8 млрд');
     expect(body).toContain('$1,3 млрд');
     expect(body).toContain('10 % компании');
-    expect(body).toContain('осталось 90 %');
+    expect(body).toContain('Доля основателя — 90 %');
     expect(body).toContain('через 180 дн.');
   });
 
@@ -488,10 +488,10 @@ describe('raiseRound: подробности', () => {
     raiseRound(s, 0.1);
     s.day += ROUND_COOLDOWN_DAYS;
     raiseRound(s, 0.2);
-    expect(s.mail[s.mail.length - 1].body).toContain('осталось 72 %');
+    expect(s.mail[s.mail.length - 1].body).toContain('Доля основателя — 72 %');
     s.day += ROUND_COOLDOWN_DAYS;
     raiseRound(s, 0.3);
-    expect(s.mail[s.mail.length - 1].body).toContain('осталось 50,4 %');
+    expect(s.mail[s.mail.length - 1].body).toContain('Доля основателя — 50,4 %');
   });
 
   it('деньги от раунда идут в статью «investors» и не попадают в выручку', () => {

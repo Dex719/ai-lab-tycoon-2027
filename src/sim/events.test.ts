@@ -134,7 +134,7 @@ describe('данные событий', () => {
       for (const text of texts) expect(text, def.id).not.toMatch(doubleDot);
     }
     const gpt3 = EVENTS.find((e) => e.id === 'gpt3-api')!.mail(s);
-    expect(gpt3.body.endsWith('реклама вашего API обойдётся в $300 тыс.')).toBe(true);
+    expect(gpt3.body.endsWith('Реклама собственного API стоит $300 тыс.')).toBe(true);
   });
 
   it('подсказки названы по ТЗ', () => {
@@ -308,7 +308,7 @@ describe('срабатывание по датам (fireDue)', () => {
 });
 
 describe('парные события: срабатывает ровно одно', () => {
-  it('внимание: исследование готово до даты — ветка «Вы опередили историю»', () => {
+  it('внимание: исследование готово до даты — ветка «Механизм внимания изучен до публикации Gogle»', () => {
     const s = newState();
     s.research.done.push('attention');
     s.day = D('2017-06-11');
@@ -318,7 +318,7 @@ describe('парные события: срабатывает ровно одн�
     fireDue(s);
     expect(s.firedEvents).toEqual(['attention-paper-player']);
     expect(s.mail).toHaveLength(1);
-    expect(s.mail[0].title).toBe('Вы опередили историю');
+    expect(s.mail[0].title).toBe('Механизм внимания изучен до публикации Gogle');
     expect(s.mail[0].choices).toHaveLength(2);
     expect(modValue(s, 'researchCost', 'attention').mult).toBe(1);
   });
@@ -350,7 +350,7 @@ describe('парные события: срабатывает ровно одн�
     expect(firedB['attention-paper-player']).toBeUndefined();
   });
 
-  it('ChatGTP: у игрока выпущен чат с RLHF и Эло не ниже OpenBrain — «Ваш момент»', () => {
+  it('ChatGTP: у игрока выпущен чат с RLHF и Эло не ниже OpenBrain — «Чат лаборатории не уступает моделям OpenBrain»', () => {
     const s = newState();
     s.models.push(model({ arenaElo: 1100 }));
     vi.mocked(bestElo).mockReturnValue(1100); // равенство тоже считается
@@ -362,7 +362,7 @@ describe('парные события: срабатывает ровно одн�
     fireDue(s);
     expect(s.firedEvents).toContain('chat-moment-player');
     expect(s.firedEvents).not.toContain('chat-moment-rival');
-    const mail = s.mail.find((m) => m.title === 'Ваш момент');
+    const mail = s.mail.find((m) => m.title === 'Чат лаборатории не уступает моделям OpenBrain');
     expect(mail).toBeDefined();
     expect(mail!.body).toContain('Мозг-1');
     expect(mail!.choices).toBeUndefined();
@@ -458,8 +458,8 @@ describe('парные события: срабатывает ровно одн�
       expect(s.firedEvents).toContain(chat);
       expect(s.firedEvents).not.toContain(chatOther);
       // письмо пары приходит один раз
-      expect(s.mail.filter((m) => m.title === 'Ваш момент' || m.title.startsWith('ChatGTP'))).toHaveLength(1);
-      expect(s.mail.filter((m) => m.title === 'Вы опередили историю' || m.title.startsWith('Gogle опубликовала'))).toHaveLength(1);
+      expect(s.mail.filter((m) => m.title === 'Чат лаборатории не уступает моделям OpenBrain' || m.title.startsWith('ChatGTP'))).toHaveLength(1);
+      expect(s.mail.filter((m) => m.title === 'Механизм внимания изучен до публикации Gogle' || m.title.startsWith('Gogle опубликовала'))).toHaveLength(1);
     },
   );
 
@@ -529,7 +529,7 @@ describe('эффекты выбора', () => {
     expect(s.hype.player).toBe(0);
   });
 
-  it('GTP-2: назвать пиаром', () => {
+  it('GTP-2: назвать это рекламным ходом', () => {
     const s = newState();
     choose(s, 'gpt2-withheld', 1);
     expect(s.reputation).toBe(17);
@@ -610,14 +610,14 @@ describe('эффекты выбора', () => {
     expect(modValue(s, 'labBrand', 'openbrain').add).toBeCloseTo(CHAT_MOMENT_BRAND, 10);
   });
 
-  it('ChatGTP у соперника: «Срочно выпустить свой чат» с RLHF-моделью даёт +15 шумихи', () => {
+  it('ChatGTP у соперника: «Выпустить свой чат» с RLHF-моделью даёт +15 шумихи', () => {
     const s = newState();
     s.models.push(model());
     choose(s, 'chat-moment-rival', 0);
     expect(s.hype.player).toBe(15);
   });
 
-  it('ChatGTP у соперника: «Срочно выпустить свой чат» без выпущенной RLHF-модели — ничего', () => {
+  it('ChatGTP у соперника: «Выпустить свой чат» без выпущенной RLHF-модели — ничего', () => {
     const s = newState();
     s.models.push(model({ releasedDay: null })); // обучена, но не выпущена
     s.models.push(model({ id: 'p2', rlhf: false }));
@@ -795,7 +795,7 @@ describe('поток pendingChoice / applyChoice', () => {
     expect(mail).not.toBeNull();
     expect(mail!.choices).toEqual([
       { label: 'Поддержать осторожность', hint: '+8 репутации' },
-      { label: 'Назвать это пиаром', hint: '+10 шумихи, −3 репутации' },
+      { label: 'Назвать это рекламным ходом', hint: '+10 шумихи, −3 репутации' },
     ]);
     expect(mail!.chosen).toBeUndefined();
     expect(mail!.read).toBe(false);

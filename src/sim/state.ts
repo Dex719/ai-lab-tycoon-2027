@@ -22,6 +22,7 @@ export function createInitialState(labName: string, seed: number): GameState {
     rng: seed >>> 0,
     day: 0,
     labName: labName.trim() || 'Моя лаборатория',
+    founderName: '',
     outcome: null,
     cash: START_CASH,
     reputation: START_REPUTATION,
@@ -45,6 +46,7 @@ export function createInitialState(labName: string, seed: number): GameState {
     modifiers: [],
     flags: {},
     finance: { month: emptyLedger(), history: [], revenueDaily: [], negativeDays: 0 },
+    tutorial: { step: 0, active: false },
     market: { shares: {}, labShares: { ...hype, none: 1 }, playerTokens: 0, lostFraction: 0, totalTokens: 0 },
   };
 }

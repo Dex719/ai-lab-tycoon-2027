@@ -15,19 +15,19 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'bort', lab: 'gogle', gameName: 'BORT', realName: 'BERT (BERT-Large, 340M)', released: '2018-11-02',
     api: false, openWeights: true, chat: false, paramsB: 0.34, priceIn: null, priceOut: null,
     scores: { squad: 91.8, glue: 80.5 }, arenaElo: 500, arenaEstimated: true, contaminated: false,
-    notes: 'Только читает текст: не пишет и не ведёт диалог. Эло — условная заглушка.',
+    notes: 'Только анализирует текст, диалог не ведёт. Эло задано условно.',
   },
   {
     id: 'gtp-2', lab: 'openbrain', gameName: 'GTP-2', realName: 'GPT-2 (1.5B)', released: '2019-02-14',
     api: false, openWeights: true, chat: false, paramsB: 1.5, priceIn: null, priceOut: null,
     scores: { mmlu: 32.4 }, arenaElo: 650, arenaEstimated: true, contaminated: false,
-    notes: 'Полные веса выложили не сразу: сначала опасались злоупотреблений. Эло — оценка.',
+    notes: 'Полные веса опубликованы не сразу из-за риска злоупотреблений. Эло — оценка.',
   },
   {
     id: 't5x', lab: 'gogle', gameName: 'T5x', realName: 'T5 (T5-11B)', released: '2019-10-23',
     api: false, openWeights: true, chat: false, paramsB: 11, priceIn: null, priceOut: null,
     scores: { squad: 96.2, glue: 90.3 }, arenaElo: 650, arenaEstimated: true, contaminated: false,
-    notes: 'Модель «текст в текст», веса открыты. На чат не настраивалась, Эло — заглушка.',
+    notes: 'Модель «текст в текст», веса открыты. Для диалога не настраивалась. Эло задано условно.',
   },
   {
     id: 'meeno', lab: 'gogle', gameName: 'Meeno', realName: 'Meena', released: '2020-01-28',
@@ -63,7 +63,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'gopler', lab: 'gogle', gameName: 'Gopler', realName: 'Gopher (280B)', released: '2021-12-08',
     api: false, openWeights: false, chat: false, paramsB: 280, priceIn: null, priceOut: null,
     scores: { mmlu: 60 }, arenaElo: 840, arenaEstimated: true, contaminated: false,
-    notes: 'Исследовательская модель на 280 млрд параметров: анонсирована и не выпускалась. Эло — заглушка.',
+    notes: 'Исследовательская модель на 280 млрд параметров: не выпускалась. Эло задано условно.',
   },
   {
     id: 'instructgtp', lab: 'openbrain', gameName: 'InstructGTP', realName: 'InstructGPT 175B (text-davinci-001/002)', released: '2022-01-27',
@@ -75,7 +75,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'chinchella', lab: 'gogle', gameName: 'Chinchella', realName: 'Chinchilla (70B)', released: '2022-03-29',
     api: false, openWeights: false, chat: false, paramsB: 70, priceIn: null, priceOut: null,
     scores: { mmlu: 67.6 }, arenaElo: 890, arenaEstimated: true, contaminated: false,
-    notes: 'Показала, что на параметр нужно около 20 токенов данных; не выпускалась. Эло — заглушка.',
+    notes: 'Показала, что на параметр нужно около 20 токенов данных; не выпускалась. Эло задано условно.',
   },
   {
     id: 'paln', lab: 'gogle', gameName: 'PaLN', realName: 'PaLM (540B)', released: '2022-04-04',
@@ -183,7 +183,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'chatgml3-6b', lab: 'zhipo', gameName: 'ChatGML3-6B', realName: 'ChatGLM3-6B', released: '2023-10-27',
     api: false, openWeights: true, chat: true, paramsB: 6.2, priceIn: null, priceOut: null,
     scores: { mmlu: 61.4, humaneval: 58.5, gsm8k: 72.3, gpqa: 26.8 }, arenaElo: 974, arenaEstimated: false, contaminated: true,
-    notes: 'Сообщали об утечке тестов в обучение; скачок GSM8C с 32 до 72 % выглядит подозрительно.',
+    notes: 'Сообщалось об утечке тестов в обучающие данные: GSM8C вырос с 32 до 72 %.',
   },
   {
     id: 'deepseak-coder-33b', lab: 'deepcent', gameName: 'DeepSeak Coder 33B', realName: 'DeepSeek Coder 33B', released: '2023-11-02',
@@ -405,7 +405,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'deepseak-r1-lito-previow', lab: 'deepcent', gameName: 'DeepSeak-R1-Lito-Previow', realName: 'DeepSeek-R1-Lite-Preview', released: '2024-11-20',
     api: false, openWeights: false, chat: true, paramsB: null, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 1240, arenaEstimated: true, contaminated: false,
-    notes: 'Первая рассуждающая модель лаборатории: только в чате на сайте, без API и весов. Эло — догадка.',
+    notes: 'Первая рассуждающая модель лаборатории: только в чате на сайте, без API и весов. Эло — предположение.',
   },
   {
     id: 'qwk-32b-previow', lab: 'alibabo', gameName: 'QwK-32B-Previow', realName: 'QwQ-32B-Preview', released: '2024-11-28',
@@ -423,7 +423,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'gemeni-exp-1206', lab: 'gogle', gameName: 'Gemeni-Exp-1206', realName: 'Gemini-Exp-1206', released: '2024-12-06',
     api: false, openWeights: false, chat: true, paramsB: null, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 1374, arenaEstimated: false, contaminated: false,
-    notes: 'Бесплатная экспериментальная модель; на Арене вышла на первое место.',
+    notes: 'Бесплатная экспериментальная модель; на «Арене» заняла первое место.',
   },
   {
     id: 'gemeni-2-0-flesh', lab: 'gogle', gameName: 'Gemeni 2.0 Flesh', realName: 'Gemini 2.0 Flash (Experimental, Dec 2024)', released: '2024-12-11',
@@ -441,7 +441,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'gemeni-2-0-flesh-thinking', lab: 'gogle', gameName: 'Gemeni 2.0 Flesh Thinking', realName: 'Gemini 2.0 Flash Thinking (Experimental, gemini-2.0-flash-thinking-exp-1219)', released: '2024-12-19',
     api: false, openWeights: false, chat: true, paramsB: null, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 1380, arenaEstimated: true, contaminated: false,
-    notes: 'Первая «думающая» модель лаборатории: бесплатный предпросмотр, платного API нет. Баллов нет, Эло — оценка.',
+    notes: 'Первая модель лаборатории с рассуждением: бесплатный предпросмотр, платного API нет. Баллов нет, Эло — оценка.',
   },
   {
     id: 'deepseak-v3', lab: 'deepcent', gameName: 'DeepSeak-V3', realName: 'DeepSeek-V3', released: '2024-12-26',

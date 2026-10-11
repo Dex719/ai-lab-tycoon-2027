@@ -17,12 +17,12 @@ export function newGame(labName: string, seed: number): GameState {
   for (const b of BENCHMARKS) if (dateToDay(b.introduced) < START_DAY) s.benchmarks[b.id].introduced = true;
   addMail(s, {
     kind: 'news',
-    title: `Добро пожаловать в ${s.labName}`,
+    title: `Лаборатория «${s.labName}» основана`,
     body:
-      'На счету $3 млн. Начните с окна «Мощности»: арендуйте несколько GPU и решите, сколько мощности ' +
-      'отдать экспериментам. В «Исследованиях» выберите «Механизм внимания»: в июне 2017 года ' +
-      'конкуренты опубликуют эту идею, и вы можете успеть первыми. Первые деньги дадут тендеры ' +
-      'в «Контрактах», когда у вас будет своя модель. Цель — к концу 2024 года стать №1 на «Арене».',
+      'Капитал — $3 млн. Цель — к концу 2024 года занять 1-е место на «Арене». ' +
+      'Сначала нужно арендовать GPU в окне «Мощности» и выделить часть мощности на эксперименты. ' +
+      'Конкуренты опубликуют механизм внимания в июне 2017 года; лаборатория может изучить его раньше в окне «Исследования». ' +
+      'Первый доход дают тендеры в окне «Контракты», когда есть своя модель.',
   });
   return s;
 }
@@ -48,7 +48,7 @@ export function releaseModel(s: GameState, modelId: string, price: number): Resu
   s.hype.player = Math.min(100, s.hype.player + bonus);
   addMail(s, {
     kind: 'news',
-    title: `${m.name} выпущена`,
+    title: `Модель «${m.name}» выпущена`,
     body: `Модель доступна клиентам по API. Шумиха от выпуска: +${Math.round(bonus)}.`,
   });
   updateSaturation(s);
@@ -75,7 +75,7 @@ export function setOnApi(s: GameState, modelId: string, onApi: boolean): Result 
 export function renameModel(s: GameState, modelId: string, name: string): Result {
   const m = findModel(s, modelId);
   if (!m) return { ok: false, error: 'Нет такой модели' };
-  if (!name.trim()) return { ok: false, error: 'Пустое название' };
+  if (!name.trim()) return { ok: false, error: 'Название не указано' };
   m.name = name.trim().slice(0, 40);
   return { ok: true };
 }
