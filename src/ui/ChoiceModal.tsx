@@ -15,14 +15,54 @@ export function replyLine(mail: Mail): string | null {
   return `Ответить до ${formatDateShort(mail.replyByDay)}. Без ответа: «${fallback?.label ?? ''}».`;
 }
 
+type Tone = 'good' | 'bad' | 'flat';
+
+/** Цвет части последствия: «+» зелёный, «−» и «-» красный, остальное нейтральное. */
+export function hintTone(part: string): Tone {
+  const c = part.trimStart().charAt(0);
+  if (c === '+') return 'good';
+  if (c === '-' || c === '−') return 'bad';
+  return 'flat';
+}
+
+/** Выделяет числа жирным: «+15 репутации» -> «+», «15» жирным, « репутации». */
+function boldNumbers(text: string) {
+  return text.split(/(\d[\d\s.,]*\d|\d)/).map((p, i) => (i % 2 === 1 ? <b key={i}>{p}</b> : p));
+}
+
+/** Строка последствий: части через «, », каждая своего цвета. */
+export function HintLine({ hint }: { hint: string }) {
+  const parts = hint.split(', ');
+  return (
+    <span className="choice-h">
+      {parts.map((p, i) => (
+        <span key={i} className={`hp ${hintTone(p)}`}>
+          {boldNumbers(p)}
+          {i < parts.length - 1 && <span className="hp-sep">, </span>}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export function ChoiceList({ mail }: { mail: Mail }) {
   if (!mail.choices) return null;
   return (
     <div className="choice-list">
       {mail.choices.map((c, i) => (
-        <button key={i} className="choice" onClick={() => store.dispatch(actions.chooseOption, mail.id, i)}>
-          <span className="choice-l">{c.label}</span>
-          <span className="choice-h">{c.hint}</span>
+        <button
+          key={i}
+          className="choice"
+          title={`Выбрать: ${c.label}`}
+          onClick={() => store.dispatch(actions.chooseOption, mail.id, i)}
+        >
+          <span className="choice-main">
+            <span className="choice-l">{c.label}</span>
+            <HintLine hint={c.hint} />
+          </span>
+          <span className="choice-go" aria-hidden="true">
+            Выбрать
+          </span>
         </button>
       ))}
     </div>

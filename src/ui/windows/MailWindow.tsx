@@ -1,7 +1,7 @@
 // Окно «Почта»: слева список писем с фильтром, справа текст выбранного письма.
 // Письмо становится прочитанным, только когда игрок нажал на него в списке.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { WindowProps } from '.';
 import { unreadCount } from '../../sim/events';
 import { ChoiceList, replyLine } from '../ChoiceModal';
@@ -46,6 +46,18 @@ function awaitsDecision(m: Mail): boolean {
 export default function MailWindow({ s }: WindowProps) {
   const [filter, setFilter] = useState('all');
   const [picked, setPicked] = useState<string | null>(null);
+
+  // «Открыть» в уведомлении просит показать конкретное письмо: сбрасываем фильтр и выбираем его.
+  const focusId = store.mailFocus;
+  useEffect(() => {
+    if (!focusId) return;
+    const m = s.mail.find((x) => x.id === focusId);
+    store.mailFocus = null;
+    if (!m) return;
+    setFilter('all');
+    setPicked(m.id);
+    if (!m.read && !awaitsDecision(m)) store.dispatch(actions.markMailRead, m.id);
+  }, [focusId, s]);
 
   // sim меняет s.mail на месте, поэтому список строится на каждом рендере, без мемоизации.
   const kinds = FILTERS.find((f) => f.id === filter)?.kinds ?? null;
@@ -98,11 +110,11 @@ export default function MailWindow({ s }: WindowProps) {
             <button
               key={m.id}
               type="button"
-              className={`mail-row${m.id === selected?.id ? ' is-selected' : ''}${m.read ? '' : ' unread'}`}
+              className={`mail-row k-${m.kind}${m.id === selected?.id ? ' is-selected' : ''}${m.read ? '' : ' unread'}`}
               aria-current={m.id === selected?.id ? 'true' : undefined}
               onClick={() => pick(m)}
             >
-              <span className="mail-row-title" title={m.title}>
+              <span className={`mail-row-title`} title={m.title}>
                 {m.title}
               </span>
               <span className="mail-row-date">{formatDateShort(m.day)}</span>
@@ -136,7 +148,7 @@ function MailView({ mail }: { mail: Mail }) {
     <article className="mail-view">
       <h2 className="mail-title">{mail.title}</h2>
       <div className="mail-meta">
-        <span>{KIND_NAME[mail.kind]}</span>
+        <span className={`mail-kind k-${mail.kind}`}>{KIND_NAME[mail.kind]}</span>
         <span>{formatDate(mail.day)}</span>
       </div>
       <div className="mail-body">{mail.body}</div>

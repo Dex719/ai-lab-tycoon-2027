@@ -51,3 +51,13 @@
 
 /* Подтверждение */
 .inv-confirm { font-size: 15px; row-gap: 6px; }
+
+/* ---------- Цвет ---------- */
+.inv-top { border-top: 0; }
+.inv .inv-value { color: var(--text-title); }
+.inv-own:not(.warn):not(.bad) .inv-value { color: #1f7a3b; }
+.inv-bar > div { background: var(--c-green); }
+.inv-round-pct { color: var(--c-blue); font-weight: 400; }
+.inv-round { border-top: 3px solid var(--c-green); }
+.inv-bd-row.total .val { color: #1f7a3b; }
+.inv-sub { color: var(--text-dim); }

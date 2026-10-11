@@ -284,6 +284,10 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           <input type="checkbox" checked={settings.pauseOnHidden} onChange={() => toggle('pauseOnHidden')} />
           <span>Пауза, когда вкладка браузера скрыта</span>
         </label>
+        <label className="row">
+          <input type="checkbox" checked={settings.toasts} onChange={() => toggle('toasts')} />
+          <span>Всплывающие уведомления</span>
+        </label>
         <div className="small muted">Управление: пробел - пауза. Кнопки скорости - на верхней панели.</div>
       </div>
     </Dialog>

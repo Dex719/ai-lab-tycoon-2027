@@ -10,6 +10,7 @@ import { IconLogo } from './icons';
 import { SettingsDialog, SlotsDialog } from './MainMenu';
 import { SidePanel } from './SidePanel';
 import { store, useSpeed } from './store';
+import { Toasts } from './Toasts';
 import { TopBar } from './TopBar';
 import { TutorialPanel } from './Tutorial';
 import { clampPos, deskAreaOf, Window, type WinGeom } from './Window';
@@ -90,6 +91,18 @@ function useClock(): string {
   return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
+/** Цвет верхней полосы заголовка каждого окна. */
+const WIN_ACCENT: Record<WindowId, string> = {
+  research: 'var(--c-purple)',
+  compute: 'var(--c-blue)',
+  newModel: 'var(--c-blue)',
+  contracts: 'var(--c-orange)',
+  investors: 'var(--c-green)',
+  models: 'var(--c-teal)',
+  mail: 'var(--c-amber)',
+  analytics: 'var(--c-indigo)',
+};
+
 type GameDialog = null | 'save' | 'load' | 'settings' | 'quit';
 
 export function Game({ s }: { s: GameState }) {
@@ -165,6 +178,7 @@ export function Game({ s }: { s: GameState }) {
               geom={w}
               active={w.z === topZ}
               flush
+              accent={WIN_ACCENT[w.id]}
               onFocus={() => focus(w.id)}
               onClose={() => close(w.id)}
               onMinimize={() => minimize(w.id)}
@@ -221,6 +235,7 @@ export function Game({ s }: { s: GameState }) {
       </footer>
     </div>
 
+      <Toasts s={s} open={open} />
       <ChoiceModal s={s} />
       {showEnd && <EndDialog s={s} onWatch={() => setWatched(s)} />}
       {dialog === 'save' && <SlotsDialog mode="save" onClose={() => setDialog(null)} />}

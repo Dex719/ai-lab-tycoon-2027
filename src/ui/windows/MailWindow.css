@@ -228,3 +228,31 @@
   max-width: 480px;
   margin-bottom: 8px;
 }
+
+/* ---------- Цвет по виду письма ---------- */
+.mail-row { --kc: var(--c-grey); border-left: 4px solid var(--kc); }
+.mail-row.k-training { --kc: var(--c-blue); }
+.mail-row.k-contract { --kc: var(--c-orange); }
+.mail-row.k-finance { --kc: var(--c-green); }
+.mail-row.k-rival { --kc: var(--c-purple); }
+.mail-row.k-research { --kc: var(--c-teal); }
+.mail-row.k-benchmark { --kc: var(--c-indigo); }
+.mail-row.k-event { --kc: var(--accent); }
+.mail-row.is-selected { border-left-color: var(--kc); }
+.mail-row.unread::before { left: 6px; }
+.mail-row-note { color: #a85a00; font-weight: 600; }
+.mail-kind { padding: 0 8px; border-radius: 9px; font-size: 12px; font-weight: 600; color: #fff; background: var(--c-grey); line-height: 20px; }
+.mail-kind.k-training { background: var(--c-blue); }
+.mail-kind.k-contract { background: #bd6a15; }
+.mail-kind.k-finance { background: #248243; }
+.mail-kind.k-rival { background: var(--c-purple); }
+.mail-kind.k-research { background: #178983; }
+.mail-kind.k-benchmark { background: var(--c-indigo); }
+.mail-kind.k-event { background: var(--accent-dark); }
+.mail-title { color: var(--text-title); font-weight: 400; }
+.mail-body { color: var(--text-body); }
+.mail-decision-h { color: var(--text-title); font-weight: 400; border-left: 4px solid var(--c-orange); padding-left: 10px; }
+.mail-decision-hint { color: var(--text-dim); }
+.mail-unread { color: var(--c-red); font-weight: 600; }
+.mail-meta { align-items: center; }
+.mail-row.is-selected { border-left: 4px solid var(--kc); }

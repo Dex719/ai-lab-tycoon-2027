@@ -21,6 +21,8 @@ export class GameStore {
   autosaveError: string | null = null;
   /** Почему игра встала на паузу сама (заголовок важного письма и т. п.) или null. Пропадает, когда игрок продолжает игру. */
   pauseReason: string | null = null;
+  /** Письмо, которое «Почта» должна открыть (после нажатия «Открыть» в уведомлении); окно забирает его и сбрасывает. */
+  mailFocus: string | null = null;
   private listeners = new Set<Listener>();
   private timer: ReturnType<typeof setInterval> | null = null;
 
@@ -30,6 +32,11 @@ export class GameStore {
   };
 
   getVersion = (): number => this.version;
+
+  focusMail(id: string | null): void {
+    this.mailFocus = id;
+    this.bump();
+  }
 
   bump(): void {
     this.version++;
@@ -41,6 +48,7 @@ export class GameStore {
     this.state = state;
     this.autosaveError = null;
     this.pauseReason = null;
+    this.mailFocus = null;
     this.setSpeed(0);
     this.bump();
   }

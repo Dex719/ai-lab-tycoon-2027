@@ -3,10 +3,11 @@
 export interface Settings {
   pauseOnImportant: boolean; // пауза, когда приходит важное письмо
   pauseOnHidden: boolean; // пауза, когда вкладка браузера скрыта
+  toasts: boolean; // всплывающие уведомления о новых письмах
 }
 
 const KEY = 'ailab.settings';
-const DEFAULTS: Settings = { pauseOnImportant: true, pauseOnHidden: true };
+const DEFAULTS: Settings = { pauseOnImportant: true, pauseOnHidden: true, toasts: true };
 
 let cache: Settings | null = null;
 

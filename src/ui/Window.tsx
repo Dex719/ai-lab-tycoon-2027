@@ -43,6 +43,7 @@ interface Props {
   title: string;
   geom: WinGeom;
   active: boolean;
+  accent?: string; // цвет верхней полосы заголовка
   flush?: boolean; // тело без отступов (окно само раскладывает панели)
   onFocus: () => void;
   onClose: () => void;
@@ -51,7 +52,7 @@ interface Props {
   children: ReactNode;
 }
 
-export function Window({ title, geom, active, flush, onFocus, onClose, onMinimize, onMove, children }: Props) {
+export function Window({ title, geom, active, accent, flush, onFocus, onClose, onMinimize, onMove, children }: Props) {
   const drag = useRef<{ dx: number; dy: number } | null>(null);
 
   function startDrag(e: React.PointerEvent) {
@@ -83,7 +84,7 @@ export function Window({ title, geom, active, flush, onFocus, onClose, onMinimiz
   return (
     <div
       className={`window${active ? ' active' : ''}`}
-      style={{ left: geom.x, top: geom.y, width: geom.w, height: geom.h, zIndex: geom.z }}
+      style={{ left: geom.x, top: geom.y, width: geom.w, height: geom.h, zIndex: geom.z, ...(accent ? { ['--wa' as string]: accent } : {}) }}
       onPointerDown={onFocus}
       data-window={title}
     >

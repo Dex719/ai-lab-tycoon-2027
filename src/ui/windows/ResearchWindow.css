@@ -102,3 +102,16 @@
 .rs-d-result b { font-size: 22px; font-weight: 600; color: #1f2023; }
 .rs-d-note { font-size: 13px; color: var(--text-dim); }
 .dialog .foot .rs-d-left { margin-right: auto; }
+
+/* ---------- Цвет ---------- */
+.rs-title { font-weight: 500; color: var(--text-title); }
+.rs-node.available { border-color: #d3c8f3; }
+.rs-node.available:hover { border-color: var(--c-purple); }
+.rs-node.current { border-color: var(--c-purple); box-shadow: 0 0 0 2px rgba(123, 92, 214, 0.25); }
+.rs-node.done { border-color: var(--c-green); }
+.rs-node.current .rs-thumb { background: var(--c-purple); }
+.rs-d-title { color: var(--text-title); border-left: 4px solid var(--c-purple); padding-left: 10px; }
+.rs-d-desc { color: var(--text-body); }
+.rs-d-h b { color: #6244c0; }
+.rs-d-result b { color: #6244c0; }
+.rs-stat .l { color: var(--text-dim); }
