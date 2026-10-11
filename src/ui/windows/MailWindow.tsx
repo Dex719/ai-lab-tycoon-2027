@@ -8,6 +8,8 @@ import type { Mail, MailChoice } from '../../sim/types';
 import { Empty } from '../components/common';
 import { actions, store } from '../store';
 
+const MAX_LIST = 200;
+
 type Kind = Mail['kind'];
 
 const KIND_ICON: Record<Kind, string> = {
@@ -56,6 +58,9 @@ export default function MailWindow({ s }: WindowProps) {
     .reverse() // внутри одного дня новые письма идут позже в массиве
     .sort((a, b) => b.day - a.day) // сортировка стабильная: порядок внутри дня сохраняется
     .filter((m) => !kinds || kinds.includes(m.kind));
+  // К концу игры писем сотни: показываем последние MAX_LIST, чтобы окно не тормозило на каждом тике.
+  const hidden = Math.max(0, list.length - MAX_LIST);
+  if (hidden > 0) list.length = MAX_LIST;
   // По умолчанию открыто самое новое письмо из текущего фильтра.
   const selected: Mail | undefined = list.find((m) => m.id === picked) ?? list[0];
 
@@ -133,6 +138,7 @@ export default function MailWindow({ s }: WindowProps) {
               </tbody>
             </table>
           )}
+          {hidden > 0 && <div className="muted small" style={{ padding: 6 }}>Ещё {hidden} старых писем не показано.</div>}
         </div>
 
         <div className="card" style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>

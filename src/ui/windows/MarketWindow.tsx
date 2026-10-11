@@ -1,6 +1,6 @@
 // Окно «Рынок» (FR-8.4): размер рынка, доли лабораторий, модели на рынке и график доли игрока.
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { WindowProps } from '.';
 import { LABS, PLAYER_COLOR } from '../../data/labs';
@@ -103,45 +103,49 @@ function ModelsTable({ s, entries }: { s: GameState; entries: MarketEntry[] | nu
   );
 }
 
-function ShareChart({ history }: { history: MonthRecord[] }) {
-  // История меняется на месте (push раз в месяц), поэтому пересчитываем по длине.
-  const data = useMemo(
-    () => history.slice(-CHART_MONTHS).map((r) => ({ label: monthLabel(r), share: r.marketShare * 100 })),
-    [history, history.length],
-  );
+// Перерисовывается только при закрытии месяца (len меняется), а не на каждом тике.
+const ShareChart = memo(
+  function ShareChart({ history }: { history: MonthRecord[]; len: number }) {
+    // История меняется на месте (push раз в месяц), поэтому пересчитываем по длине.
+    const data = useMemo(
+      () => history.slice(-CHART_MONTHS).map((r) => ({ label: monthLabel(r), share: r.marketShare * 100 })),
+      [history, history.length],
+    );
 
-  if (data.length < 2) return <Empty>График появится через пару месяцев.</Empty>;
-  return (
-    <ResponsiveContainer width="100%" height={180}>
-      <LineChart data={data} margin={{ top: 6, right: 12, bottom: 0, left: 0 }}>
-        <CartesianGrid stroke="#3a4656" strokeDasharray="3 3" />
-        <XAxis dataKey="label" stroke="#8d9aab" tick={{ fill: '#8d9aab', fontSize: 11 }} minTickGap={16} />
-        <YAxis
-          stroke="#8d9aab"
-          tick={{ fill: '#8d9aab', fontSize: 11 }}
-          width={56}
-          domain={[0, 'auto']}
-          tickFormatter={(v: number) => fmtPct(v, 1)}
-        />
-        <Tooltip
-          contentStyle={{ background: '#232c38', border: '1px solid #4d5b6e', fontSize: 12 }}
-          labelStyle={{ color: '#dbe2ea' }}
-          itemStyle={{ color: '#dbe2ea' }}
-          formatter={(v) => [fmtPct(Number(v), 2), 'Ваша доля рынка']}
-          labelFormatter={(l) => `Конец месяца ${String(l)}`}
-        />
-        <Line
-          type="monotone"
-          dataKey="share"
-          stroke="#4ea1ff"
-          strokeWidth={2}
-          dot={false}
-          isAnimationActive={false}
-        />
-      </LineChart>
-    </ResponsiveContainer>
-  );
-}
+    if (data.length < 2) return <Empty>График появится через пару месяцев.</Empty>;
+    return (
+      <ResponsiveContainer width="100%" height={180}>
+        <LineChart data={data} margin={{ top: 6, right: 12, bottom: 0, left: 0 }}>
+          <CartesianGrid stroke="#3a4656" strokeDasharray="3 3" />
+          <XAxis dataKey="label" stroke="#8d9aab" tick={{ fill: '#8d9aab', fontSize: 11 }} minTickGap={16} />
+          <YAxis
+            stroke="#8d9aab"
+            tick={{ fill: '#8d9aab', fontSize: 11 }}
+            width={56}
+            domain={[0, 'auto']}
+            tickFormatter={(v: number) => fmtPct(v, 1)}
+          />
+          <Tooltip
+            contentStyle={{ background: '#232c38', border: '1px solid #4d5b6e', fontSize: 12 }}
+            labelStyle={{ color: '#dbe2ea' }}
+            itemStyle={{ color: '#dbe2ea' }}
+            formatter={(v) => [fmtPct(Number(v), 2), 'Ваша доля рынка']}
+            labelFormatter={(l) => `Конец месяца ${String(l)}`}
+          />
+          <Line
+            type="monotone"
+            dataKey="share"
+            stroke="#4ea1ff"
+            strokeWidth={2}
+            dot={false}
+            isAnimationActive={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  },
+  (a, b) => a.len === b.len,
+);
 
 export default function MarketWindow({ s, open }: WindowProps) {
   const entries = safeSnapshot(s);
@@ -181,7 +185,7 @@ export default function MarketWindow({ s, open }: WindowProps) {
 
       <div>
         <div className="section-title">Ваша доля рынка по месяцам</div>
-        <ShareChart history={s.finance.history} />
+        <ShareChart history={s.finance.history} len={s.finance.history.length} />
       </div>
 
       <div>

@@ -1,6 +1,6 @@
 // Окно «Финансы» (FR-14.5): деньги, график остатка по месяцам и таблица доходов и расходов по статьям.
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { WindowProps } from '.';
 import { rentPerDay } from '../../sim/compute';
@@ -67,46 +67,50 @@ function LedgerRow({ label, ledger, current }: { label: string; ledger: MonthLed
   );
 }
 
-function CashChart({ history }: { history: MonthRecord[] }) {
-  // История меняется на месте (push раз в месяц), поэтому пересчитываем по длине.
-  const data = useMemo(
-    () => history.map((r) => ({ label: monthLabel(r), cash: r.cashEnd })),
-    [history, history.length],
-  );
+// Перерисовывается только при закрытии месяца (len меняется), а не на каждом тике.
+const CashChart = memo(
+  function CashChart({ history }: { history: MonthRecord[]; len: number }) {
+    // История меняется на месте (push раз в месяц), поэтому пересчитываем по длине.
+    const data = useMemo(
+      () => history.map((r) => ({ label: monthLabel(r), cash: r.cashEnd })),
+      [history, history.length],
+    );
 
-  if (data.length < 2) return <Empty>График появится через пару месяцев.</Empty>;
-  return (
-    <ResponsiveContainer width="100%" height={180}>
-      <AreaChart data={data} margin={{ top: 6, right: 12, bottom: 0, left: 0 }}>
-        <CartesianGrid stroke="#3a4656" strokeDasharray="3 3" />
-        <XAxis dataKey="label" stroke="#8d9aab" tick={{ fill: '#8d9aab', fontSize: 11 }} minTickGap={16} />
-        <YAxis
-          stroke="#8d9aab"
-          tick={{ fill: '#8d9aab', fontSize: 11 }}
-          width={78}
-          tickFormatter={(v: number) => fmtMoney(v)}
-        />
-        <Tooltip
-          contentStyle={{ background: '#232c38', border: '1px solid #4d5b6e', fontSize: 12 }}
-          labelStyle={{ color: '#dbe2ea' }}
-          itemStyle={{ color: '#dbe2ea' }}
-          formatter={(v) => [fmtMoney(Number(v)), 'Деньги на конец месяца']}
-          labelFormatter={(l) => `Конец месяца ${String(l)}`}
-        />
-        <ReferenceLine y={0} stroke="#ff6b6b" strokeDasharray="4 3" />
-        <Area
-          type="monotone"
-          dataKey="cash"
-          stroke="#4ea1ff"
-          strokeWidth={2}
-          fill="#4ea1ff"
-          fillOpacity={0.2}
-          isAnimationActive={false}
-        />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
+    if (data.length < 2) return <Empty>График появится через пару месяцев.</Empty>;
+    return (
+      <ResponsiveContainer width="100%" height={180}>
+        <AreaChart data={data} margin={{ top: 6, right: 12, bottom: 0, left: 0 }}>
+          <CartesianGrid stroke="#3a4656" strokeDasharray="3 3" />
+          <XAxis dataKey="label" stroke="#8d9aab" tick={{ fill: '#8d9aab', fontSize: 11 }} minTickGap={16} />
+          <YAxis
+            stroke="#8d9aab"
+            tick={{ fill: '#8d9aab', fontSize: 11 }}
+            width={78}
+            tickFormatter={(v: number) => fmtMoney(v)}
+          />
+          <Tooltip
+            contentStyle={{ background: '#232c38', border: '1px solid #4d5b6e', fontSize: 12 }}
+            labelStyle={{ color: '#dbe2ea' }}
+            itemStyle={{ color: '#dbe2ea' }}
+            formatter={(v) => [fmtMoney(Number(v)), 'Деньги на конец месяца']}
+            labelFormatter={(l) => `Конец месяца ${String(l)}`}
+          />
+          <ReferenceLine y={0} stroke="#ff6b6b" strokeDasharray="4 3" />
+          <Area
+            type="monotone"
+            dataKey="cash"
+            stroke="#4ea1ff"
+            strokeWidth={2}
+            fill="#4ea1ff"
+            fillOpacity={0.2}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    );
+  },
+  (a, b) => a.len === b.len,
+);
 
 export default function FinanceWindow({ s }: WindowProps) {
   const income = sumValues(s.finance.month.income);
@@ -143,7 +147,7 @@ export default function FinanceWindow({ s }: WindowProps) {
 
       <div>
         <div className="section-title">Деньги на конец месяца</div>
-        <CashChart history={s.finance.history} />
+        <CashChart history={s.finance.history} len={s.finance.history.length} />
       </div>
 
       <div>

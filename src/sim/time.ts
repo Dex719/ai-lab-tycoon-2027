@@ -52,6 +52,9 @@ export function formatDateShort(day: number): string {
 export const START_DAY = dateToDay(START_DATE);
 export const END_DAY = dateToDay(END_DATE);
 
+// Дни точек кривой разбираются один раз на массив (кривые — константы, вызываются много раз за тик).
+const curveDays = new WeakMap<object, number[]>();
+
 /**
  * Значение кривой на дату. points — [['YYYY-MM-DD', value], ...] по возрастанию дат.
  * log = true — интерполяция в логарифме (для величин, растущих на порядки).
@@ -59,7 +62,11 @@ export const END_DAY = dateToDay(END_DATE);
  */
 export function lerpByDate(points: readonly (readonly [string, number])[], day: number, log = false): number {
   if (points.length === 0) return 0;
-  const days = points.map(([iso]) => dateToDay(iso));
+  let days = curveDays.get(points);
+  if (!days) {
+    days = points.map(([iso]) => dateToDay(iso));
+    curveDays.set(points, days);
+  }
   if (day <= days[0]) return points[0][1];
   const last = points.length - 1;
   if (day >= days[last]) return points[last][1];
