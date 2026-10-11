@@ -808,7 +808,6 @@ describe('progressDay', () => {
     const mail = s.mail[s.mail.length - 1];
     expect(mail.kind).toBe('training');
     expect(mail.title).toContain('Орион');
-    expect(mail.body).toContain('Орион');
     expect(mail.body).toMatch(/MMLO \d+,\d %/);
     expect(mail.body).toContain('Эло');
   });
@@ -1321,7 +1320,7 @@ describe('письмо о готовой модели', () => {
     expect(title).toBe('Модель «Альфа» готова');
     expect(body).not.toContain('подгонк');
     expect(body).not.toContain('срыва');
-    expect(body).toContain('после выпуска модели');
+    expect(body).toContain('после выпуска');
     expect(body).toMatch(/около \d[\d ]* Эло/);
     // баллы совпадают с таблицей модели
     const m = s.models[0];
@@ -1401,7 +1400,7 @@ describe('monthlyExposure: письмо и пределы', () => {
     // у HumanEvol разрыв больше, чем у MMLO
     const shown = benchScore('humaneval', m.caps.code, 30).toFixed(1).replace('.', ',');
     const honest = benchScore('humaneval', m.caps.code).toFixed(1).replace('.', ',');
-    expect(body).toContain('HumanEvol (Код)');
+    expect(body).toContain('HumanEvol (код)');
     expect(body).toContain(`вместо заявленных ${shown} % получилось ${honest} %`);
   });
 

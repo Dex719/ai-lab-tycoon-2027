@@ -1,0 +1,82 @@
+/* Окно «Контракты»: слева серая колонка со списком, справа белая карточка (как в Processor Tycoon). */
+
+.ct { display: flex; height: 100%; min-height: 0; color: var(--text); }
+
+/* ---------- Левая колонка ---------- */
+.ct-side {
+  flex: 0 0 272px; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px;
+  background: var(--win-body); border-right: 1px solid var(--line);
+}
+.ct-filter { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 8px; }
+.ct-filter select { min-width: 0; }
+
+.ct-list { flex: 1; min-height: 0; overflow: auto; background: #fff; border: 1px solid var(--line); }
+.ct-list-empty { padding: 14px 12px; color: var(--text-dim); }
+
+.ct-item {
+  width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 10px 7px 8px;
+  background: none; border: none; border-bottom: 1px solid #eceef1; border-left: 3px solid transparent;
+  color: inherit; text-align: left; cursor: pointer;
+}
+.ct-item:hover { background: #f1f4f8; }
+.ct-item.on { background: #dfe9f8; border-left-color: var(--accent); }
+.ct-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ct-item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ct-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct-item-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-dim); }
+.ct-item .progress { height: 4px; margin-top: 4px; }
+.ct-item-end { flex: none; display: flex; align-items: center; gap: 6px; }
+.ct-item-end .ok { display: flex; color: var(--good); }
+.ct-item-end .risk { display: flex; color: var(--bad); }
+.ct-tag { padding: 0 6px; border: 1px solid var(--line); border-radius: 2px; font-size: 12px; line-height: 18px; color: var(--text-dim); }
+
+/* Монограмма клиента */
+.ct-mono {
+  flex: none; display: grid; place-items: center; color: #fff; font-weight: 600; letter-spacing: 0.02em;
+  border-radius: 3px; user-select: none;
+}
+
+/* ---------- Правая область ---------- */
+.ct-main { flex: 1; min-width: 0; overflow: auto; padding: 14px; background: var(--win-title); }
+
+.ct-card {
+  max-width: 800px; display: flex; flex-direction: column; gap: 18px; padding: 18px 20px;
+  background: #fff; border: 1px solid var(--line-soft); border-radius: 4px;
+}
+.ct-head { display: flex; align-items: flex-start; gap: 16px; }
+.ct-head > div { min-width: 0; }
+.ct-name { font-size: 22px; line-height: 1.2; }
+.ct-sub { margin-top: 2px; color: var(--text-dim); }
+.ct-desc { margin: 10px 0 0; }
+
+.ct-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 18px 28px; }
+.ct-col { min-width: 0; display: flex; flex-direction: column; gap: 10px; align-content: start; }
+.ct-h { margin: 0; font-size: 20px; font-weight: 300; color: #2a2c30; }
+.ct-col select { width: 100%; }
+.ct-picked { height: 32px; display: flex; align-items: center; padding: 0 8px; background: var(--win-body); border: 1px solid var(--line); border-radius: 2px; }
+.ct-nomodel { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 32px; color: var(--text-dim); }
+
+/* Сравнение «Модель / Требование» */
+.ct-cmp { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: 6px 18px; }
+.ct-cmp-h { text-align: right; font-size: 13px; color: var(--text-dim); }
+.ct-cmp-l { color: var(--text-dim); }
+
+.ct-bar-row { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 4px; color: var(--text-dim); }
+.ct-bar-row .v { color: var(--text); font-variant-numeric: tabular-nums; }
+.ct-col .progress { height: 10px; }
+
+.ct-alerts { display: flex; flex-direction: column; gap: 6px; }
+.ct-alert { display: flex; align-items: flex-start; gap: 8px; line-height: 1.4; }
+.ct-alert svg { flex: none; margin-top: 2px; }
+.ct-alert .grow { min-width: 0; }
+
+.ct-foot {
+  display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px 14px;
+  padding-top: 14px; border-top: 1px solid var(--line-soft);
+}
+.ct-why { font-size: 13px; color: var(--text-dim); text-align: right; }
+.ct-state { display: flex; align-items: center; gap: 6px; color: var(--good); margin-right: auto; }
+
+.ct-empty { max-width: 800px; padding: 48px 20px; text-align: center; color: var(--text-dim); }
+.ct-empty h3 { margin: 0 0 6px; font-size: 20px; font-weight: 300; color: #2a2c30; }
+.ct-empty p { margin: 0; }

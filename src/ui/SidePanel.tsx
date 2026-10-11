@@ -1,6 +1,6 @@
 // Боковая панель справа (как «Боковое окно» в Processor Tycoon): текущие проекты и модели в продаже.
 
-import { useState , type ReactElement } from 'react';
+import { useState, type ReactElement, type ReactNode } from 'react';
 import { pool } from '../sim/compute';
 import { TRAIN_FLOP_PER_H100E_DAY } from '../sim/constants';
 import { rpPerDay, TECHS, techCost } from '../sim/research';
@@ -128,18 +128,20 @@ function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) 
   );
 }
 
-export function SidePanel({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
-  const [shown, setShown] = useState(true);
+export function SidePanel({ s, open, top }: { s: GameState; open: (id: WindowId | WindowAlias) => void; top?: ReactNode }) {
+  const [shownState, setShown] = useState(true);
+  const shown = shownState || !!top; // пока идёт обучение, панель не сворачивается
   const [tab, setTab] = useState<Tab>('projects');
   const projects = (s.training ? 1 : 0) + (s.research.current ? 1 : 0) + s.contracts.length;
   const onSale = s.models.filter((m) => m.releasedDay !== null && m.onApi).length;
   return (
-    <aside className="side" aria-label="Боковая панель">
+    <aside className={`side${top ? ' with-top' : ''}`} aria-label="Боковая панель">
       <button className="side-tab" onClick={() => setShown((v) => !v)} aria-label={shown ? 'Скрыть панель' : 'Показать панель'}>
         {shown ? <IconChevronRight /> : <IconChevronLeft />}
       </button>
       {shown && (
         <div className="side-body">
+          {top}
           <div className="side-head">Сводка</div>
           <div className="side-tabs">
             <button className={tab === 'projects' ? 'on' : undefined} onClick={() => setTab('projects')}>

@@ -105,10 +105,10 @@ function LineCell({ name, Icon }: { name: string; Icon: ComponentType<LineIconPr
     <Cell name={name}>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         <div style={{ ...chip, background: BAR, color: '#f2f2f2' }}>
-          <Icon size={18} />
+          <Icon />
         </div>
         <div style={{ ...chip, background: WIN, color: '#1f2023' }}>
-          <Icon size={18} />
+          <Icon />
         </div>
         <div style={{ ...chip, width: 44, color: '#f2f2f2' }}>
           <Icon size={36} />
@@ -134,7 +134,7 @@ export function IconGallery() {
       </Section>
 
       <Section title="Недоступные разделы, 56 px">
-        {DESKTOP.map(([name, Icon]) => (
+        {DESKTOP.filter(([name]) => name !== 'IconLogo').map(([name, Icon]) => (
           <Cell key={name} name={name}>
             <Icon size={56} disabled />
           </Cell>
@@ -147,9 +147,9 @@ export function IconGallery() {
             <IconLogo size={160} />
           </span>
         </Cell>
-        <Cell name="Кнопка меню, 28 px">
+        <Cell name="Панель задач, 26 px">
           <span style={{ background: BAR, color: '#f2f2f2', display: 'flex', padding: 6, borderRadius: 2 }}>
-            <IconLogo size={28} />
+            <IconLogo size={26} />
           </span>
         </Cell>
       </Section>

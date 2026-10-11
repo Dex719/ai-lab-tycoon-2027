@@ -323,9 +323,9 @@ export function deserialize(json: string): { ok: true; state: GameState } | { ok
   try {
     data = JSON.parse(json);
   } catch {
-    return { ok: false, error: 'Файл сохранения повреждён' };
+    return { ok: false, error: 'Сохранение повреждено' };
   }
-  if (!isRec(data)) return { ok: false, error: 'Файл сохранения повреждён' };
+  if (!isRec(data)) return { ok: false, error: 'Сохранение повреждено' };
   if (data.version !== 1) return { ok: false, error: 'Сохранение от другой версии игры' };
   // Поля, добавленные после первой версии: старые сохранения получают значения по умолчанию.
   if (data.founderName === undefined) data.founderName = '';

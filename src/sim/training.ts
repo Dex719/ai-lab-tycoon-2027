@@ -181,7 +181,7 @@ export function labelersCost(plan: TrainingPlan): number {
 
 /** Ошибка или null: размеры в границах, токены ≤ MAX_TOKENS_B(год), микс ≈ 1, b в [0, 0.5], ≤ 3 цели (только вышедшие бенчмарки), rlhf только после исследования, нет идущего проекта, хватает денег на разметчиков. */
 export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
-  if (s.training) return 'Уже идёт другой проект обучения. Дождитесь его завершения или отмените.';
+  if (s.training) return 'Уже идёт другой проект обучения. Его нужно завершить или отменить.';
   const name = plan.name.trim();
   if (!name) return 'Название модели не указано.';
   if (name.length > 40) return 'Название модели — не длиннее 40 символов.';
@@ -208,7 +208,7 @@ export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
   for (const t of targets) {
     if (!s.benchmarks[t]?.introduced) return 'Нельзя подгонять под бенчмарк, который ещё не вышел.';
   }
-  if (plan.rlhf && !s.research.done.includes('rlhf')) return 'Исследование «Обучение на отзывах людей (RLHF)» ещё не изучено.';
+  if (plan.rlhf && !s.research.done.includes('rlhf')) return 'Требуется исследование «Обучение на отзывах людей (RLHF)».';
   const labelers = labelersCost(plan);
   // Деньги нужны только тем, кто платит разметчикам: без RLHF (labelers = 0) проект можно начать и при минусе на счету.
   if (labelers > 0 && labelers > s.cash) {
@@ -333,17 +333,17 @@ function finishTraining(s: GameState): void {
   s.bestFlop = Math.max(s.bestFlop, t.flopTotal);
   s.training = null;
 
-  const lines = [`Обучение модели «${model.name}» завершено, модель добавлена в окно «Модели».`];
+  const lines: string[] = [];
   const scores = keyScores(s, model);
   if (scores) lines.push(`Баллы: ${scores}.`);
   lines.push(`«Арена»: около ${fmtInt(model.arenaElo)} Эло.`);
   if (Object.keys(model.overfit).length > 0) {
-    lines.push('Баллы на целевых бенчмарках завышены подгонкой и не влияют на результат на «Арене» и в реальных задачах.');
+    lines.push('Баллы на целевых бенчмарках завышены подгонкой; на «Арене» и в реальных задачах подгонка не помогает.');
   }
   if (t.failPenalty > 0) {
     lines.push(`Из-за срыва обучения способности модели ниже на ${fmtNum(t.failPenalty)} ${pointsWord(t.failPenalty)}.`);
   }
-  lines.push('Продажа доступа начинается после выпуска модели в окне «Модели».');
+  lines.push('Модель добавлена в окно «Модели», продажа доступа начинается после выпуска.');
   addMail(s, { kind: 'training', title: `Модель «${model.name}» готова`, body: lines.join(' '), important: true });
 }
 
@@ -398,7 +398,7 @@ export function monthlyExposure(s: GameState): void {
     const example =
       worst === null
         ? ''
-        : ` На ${benchDef(worst).name} (${DOMAIN_NAMES[benchDef(worst).domain]}) вместо заявленных ${fmtPct(modelScore(m, worst, false))} получилось ${fmtPct(modelScore(m, worst, true))}.`;
+        : ` На ${benchDef(worst).name} (${DOMAIN_NAMES[benchDef(worst).domain].toLowerCase()}) вместо заявленных ${fmtPct(modelScore(m, worst, false))} получилось ${fmtPct(modelScore(m, worst, true))}.`;
     m.exposed = true;
     const repBefore = s.reputation;
     s.reputation = Math.min(100, Math.max(0, s.reputation + EXPOSE_REP));
@@ -410,8 +410,8 @@ export function monthlyExposure(s: GameState): void {
       important: true,
       body:
         `Независимые исследователи заново проверили «${m.name}» на свежих вопросах, которых не было в публичных тестах.${example} ` +
-        `Репутация лаборатории упала на ${fmtNum(Math.round(repBefore - s.reputation))}, шумиха — на ${hypeDropPct} %. ` +
-        'В таблице отображаются честные баллы модели и значок «⚠».',
+        `Репутация лаборатории упала на ${fmtNum(Math.round(repBefore - s.reputation))}, шумиха — на ${hypeDropPct} %; ` +
+        'в таблице теперь честные баллы модели.',
     });
   }
 }

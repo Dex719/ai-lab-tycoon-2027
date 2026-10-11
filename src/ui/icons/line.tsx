@@ -5,22 +5,31 @@ import { Line, type LineIconProps } from './base';
 /** Для кнопок скорости: заполненные фигуры, толщина контура только скругляет углы. */
 const SOLID_STROKE = 1.5;
 
+/** Банк: заполненный значок, как в верхней панели PT. Контур 1 нужен только для скругления углов. */
 export function IconBank(p: LineIconProps) {
   return (
-    <Line {...p}>
-      <path d="M3 9 L12 3.5 L21 9 Z" />
-      <path d="M6 12 V17 M12 12 V17 M18 12 V17" />
-      <path d="M3.5 21 H20.5" />
+    <Line {...p} strokeWidth={1}>
+      <path d="M12 3 L21.5 8.2 V9.4 H2.5 V8.2 Z" fill="currentColor" />
+      <path d="M5 11.8 H8.4 V17.2 H5 Z M10.3 11.8 H13.7 V17.2 H10.3 Z M15.6 11.8 H19 V17.2 H15.6 Z" fill="currentColor" />
+      <path d="M3 19.5 H21 V21.5 H3 Z" fill="currentColor" />
     </Line>
   );
 }
 
+/** Календарь: заполненный значок с двумя кольцами сверху и сеткой дней, вырезанной в корпусе. */
 export function IconCalendar(p: LineIconProps) {
   return (
-    <Line {...p}>
-      <rect x={4} y={5} width={16} height={15} rx={2} />
-      <path d="M4 10 H20 M8 3 V7 M16 3 V7" />
-      <path d="M8 14 H8.01 M12 14 H12.01 M16 14 H16.01 M8 17.2 H8.01 M12 17.2 H12.01" strokeWidth={2.4} />
+    <Line {...p} strokeWidth={0}>
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="M5.5 4.5 H18.5 A2.5 2.5 0 0 1 21 7 V19 A2.5 2.5 0 0 1 18.5 21.5 H5.5 A2.5 2.5 0 0 1 3 19 V7 A2.5 2.5 0 0 1 5.5 4.5 Z
+           M5.5 8.4 H18.5 V9.6 H5.5 Z
+           M6.2 12.2 H8.6 V14.6 H6.2 Z M10.8 12.2 H13.2 V14.6 H10.8 Z M15.4 12.2 H17.8 V14.6 H15.4 Z
+           M6.2 16.4 H8.6 V18.8 H6.2 Z M10.8 16.4 H13.2 V18.8 H10.8 Z"
+      />
+      <rect x={7} y={2} width={2.6} height={5} rx={1.3} fill="currentColor" />
+      <rect x={14.4} y={2} width={2.6} height={5} rx={1.3} fill="currentColor" />
     </Line>
   );
 }
@@ -103,12 +112,12 @@ export function IconLock(p: LineIconProps) {
   );
 }
 
-/** Рост и убыток: зелёная стрелка вверх и красная вниз, цвета заданы в иконке (для тёмной панели). */
+/** Рост и убыток: заполненные стрелки, зелёная вверх и красная вниз. Цвета заданы в иконке (для тёмной панели). */
 export function IconArrowUpDown(p: LineIconProps) {
   return (
-    <Line {...p}>
-      <path d="M8 20 V5 M4 9 L8 5 L12 9" stroke="#5ed37f" />
-      <path d="M16 4 V19 M12 15 L16 19 L20 15" stroke="#ff6b6b" />
+    <Line {...p} strokeWidth={1.2}>
+      <path d="M8 3 L12.8 9.5 H9.3 V19.5 H6.7 V9.5 H3.2 Z" fill="#5ed37f" stroke="#5ed37f" />
+      <path d="M16 21 L20.8 14.5 H17.3 V4.5 H14.7 V14.5 H11.2 Z" fill="#ff6b6b" stroke="#ff6b6b" />
     </Line>
   );
 }

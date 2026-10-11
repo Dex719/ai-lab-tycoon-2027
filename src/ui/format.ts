@@ -57,6 +57,13 @@ export function fmtNum(n: number): string {
   return `${sign}${dec(a / 1e12, 1)} трлн`;
 }
 
+/** Множитель без потери точности: 1,25 → «1,25», 14,55 → «14,6», 120 → «120». */
+export function fmtMult(n: number): string {
+  if (!Number.isFinite(n)) return '—';
+  const a = Math.abs(n);
+  return dec(n, a < 10 ? 2 : a < 100 ? 1 : 0);
+}
+
 const SUP: Record<string, string> = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹', '-': '⁻' };
 
 /** 1.2e25 → «1,2·10²⁵» */
@@ -82,6 +89,11 @@ export function fmtParams(paramsB: number): string {
 
 /** Токены в млрд — как параметры. */
 export const fmtTokens = fmtParams;
+
+/** Точка в конце предложения, если значение (например, «$57 тыс.») уже закончилось точкой. */
+export function endSentence(text: string): string {
+  return text.endsWith('.') ? text : `${text}.`;
+}
 
 export function fmtElo(elo: number): string {
   return Number.isFinite(elo) ? String(Math.round(elo)) : '—';

@@ -1,0 +1,105 @@
+/* Окно «Модели»: серый список слева, светлая карточка справа (как «Инспектор» в Processor Tycoon). */
+.mw { display: flex; height: 100%; min-height: 0; font-variant-numeric: tabular-nums; }
+
+/* ---------- Список ---------- */
+.mw-side {
+  flex: none; width: clamp(190px, 27%, 260px); display: flex; flex-direction: column;
+  background: var(--win-body); border-right: 1px solid var(--line);
+}
+.mw-list { flex: 1; min-height: 0; overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+.mw-item {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 8px 10px 8px 12px;
+  background: none; border: 1px solid transparent; border-radius: 3px; color: var(--text); text-align: left; cursor: pointer;
+}
+.mw-item:hover { background: rgba(255, 255, 255, 0.6); }
+.mw-item.on { background: #fff; border-color: var(--line); box-shadow: inset 3px 0 0 var(--accent); }
+.mw-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.mw-item-text { flex: 1; min-width: 0; }
+.mw-item-name { display: block; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mw-item-state { display: block; font-size: 13px; color: var(--text-dim); }
+.mw-item-state.bad { color: var(--bad); }
+.mw-side-foot {
+  flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 10px 8px 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--text-dim);
+}
+
+.mw-dot { flex: none; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: #aab0b8; }
+.mw-dot.sale { background: var(--good); }
+.mw-dot.off { background: var(--warn); }
+
+/* ---------- Карточка ---------- */
+.mw-main { flex: 1; min-width: 0; overflow: auto; padding: 18px 22px 24px; background: var(--panel); }
+.mw-top { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 18px 24px; }
+.mw-chipcol { flex: none; width: 176px; }
+.mw-chip { height: 176px; display: grid; place-items: center; border-radius: 6px; background: #e1e3e7; }
+
+/* Кристалл: тёмный корпус, по краям выводы. */
+.mw-die {
+  position: relative; isolation: isolate; width: 124px; height: 124px; padding: 12px;
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 2px;
+  border-radius: 5px; background: #25272b; box-shadow: inset 0 0 0 1px #3a3d44; color: #f2f2f2;
+}
+.mw-die::before {
+  content: ''; position: absolute; inset: -6px; z-index: -1; pointer-events: none;
+  background:
+    repeating-linear-gradient(90deg, #8e99a8 0 6px, transparent 6px 12px) 50% 0 / 90px 6px no-repeat,
+    repeating-linear-gradient(90deg, #8e99a8 0 6px, transparent 6px 12px) 50% 100% / 90px 6px no-repeat,
+    repeating-linear-gradient(0deg, #8e99a8 0 6px, transparent 6px 12px) 0 50% / 6px 90px no-repeat,
+    repeating-linear-gradient(0deg, #8e99a8 0 6px, transparent 6px 12px) 100% 50% / 6px 90px no-repeat;
+}
+.mw-led { position: absolute; top: 10px; left: 10px; width: 7px; height: 7px; border-radius: 50%; background: #6c7078; }
+.mw-die.sale .mw-led { background: var(--good-on-dark); }
+.mw-die.off .mw-led { background: #e0a030; }
+.mw-die-lab, .mw-die-name {
+  display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere;
+}
+.mw-die-lab { font-size: 12px; color: #a9aeb7; -webkit-line-clamp: 2; line-clamp: 2; }
+.mw-die-name { font-size: 17px; font-weight: 600; line-height: 1.2; -webkit-line-clamp: 3; line-clamp: 3; }
+.mw-status { margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+.mw-status .mw-dot { margin-top: 0; }
+
+.mw-facts { flex: 1 1 280px; min-width: 0; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; align-content: start; }
+.mw-fact.wide { grid-column: 1 / -1; }
+.mw-fact dt { font-size: 13px; color: var(--text-dim); }
+.mw-fact dd { margin: 0; font-size: 17px; line-height: 1.3; }
+.mw-fact dd small { display: block; font-size: 13px; color: var(--text-dim); }
+
+/* ---------- Блоки ---------- */
+.mw-h { margin: 24px 0 10px; font-size: 20px; font-weight: 300; color: #2a2c30; }
+.mw-sub { font-size: 13px; color: var(--text-dim); }
+.mw-note { margin: 0 0 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 13px; }
+.mw-block { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 28px; }
+
+.mw-rows { flex: 1 1 260px; min-width: 0; margin: 0; }
+.mw-rows > div { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 5px 0; border-bottom: 1px solid var(--line-soft); }
+.mw-rows dt { color: var(--text-dim); }
+.mw-rows dd { margin: 0; font-size: 15px; text-align: right; }
+
+.mw-tiers { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mw-tier {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 8px; margin: 0 -8px;
+  background: none; border: none; border-radius: 3px; color: var(--text); text-align: left; cursor: pointer;
+}
+.mw-tier:hover { background: #eaf1fb; }
+.mw-tier:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.mw-tier b { font-weight: 400; color: var(--accent); }
+.mw-tier.on { background: #e3eefc; }
+.mw-tier.on b { font-weight: 700; }
+
+.mw-ctl { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.mw-field { display: flex; flex-direction: column; gap: 4px; }
+.mw-price-row { display: flex; align-items: center; gap: 6px; }
+.mw-cur { color: var(--text-dim); }
+.mw-price-row input.mw-bad, .mw-price-row input.mw-bad:focus { border-color: var(--bad); border-bottom-color: var(--bad); }
+.mw-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+
+/* ---------- Баллы ---------- */
+table.grid.mw-scores th { position: static; }
+
+/* ---------- Пустое окно ---------- */
+.mw-empty {
+  height: 100%; padding: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: var(--panel); color: var(--text-dim); text-align: center;
+}
+.mw-empty svg { opacity: 0.4; }
+.mw-empty-title { font-size: 20px; font-weight: 300; color: var(--text); }

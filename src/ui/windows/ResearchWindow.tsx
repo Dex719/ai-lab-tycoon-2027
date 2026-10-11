@@ -1,29 +1,77 @@
-// Окно «Исследования» (FR-3): очки исследований и четыре технологии.
+// Окно «Исследования»: дерево технологий на сером холсте (образец — «Исследования» в Processor Tycoon).
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { WindowProps } from '.';
-import { ALGO_COST_GROWTH, ALGO_MULT, TECH_REQUIRES } from '../../sim/constants';
 import { pool } from '../../sim/compute';
-import { earlyPenalty, researchBlockReason, rpPerDay, TECHS, techCost, yearsEarly } from '../../sim/research';
+import { ALGO_MULT, RP_BASE, RP_K } from '../../sim/constants';
+import { earlyPenalty, researchBlockReason, rpPerDay, TECHS, techCost, techHistoryDay } from '../../sim/research';
+import { dayToDate } from '../../sim/time';
 import type { GameState, TechId } from '../../sim/types';
-import { ErrorText, ProgressBar, Stat } from '../components/common';
-import { fmtNum, fmtPct } from '../format';
+import { fmtMult, fmtNum, fmtShare } from '../format';
+import { IconCheck, IconLock } from '../icons';
 import { actions, store } from '../store';
+import './ResearchWindow.css';
 
 type Status = 'done' | 'current' | 'available' | 'blocked';
+
+// Размеры холста, px.
+const NW = 264; // ширина узла
+const NH = 102; // высота узла
+const PAD = 40; // поля слева и справа
+const TOP = 12; // верх первой строки
+const COL_GAP = 100; // между столбцами дерева
+const BRANCH_GAP = 34; // между двумя ветками
+const ROW_GAP = 40; // между строками
+const CAPTION_H = 18; // строка «Раньше истории» под узлом
+const CHIP_W = 60;
+const CHIP_H = 36;
+const CHIP_GAP = 8;
+const CHIP_LINK = 28; // от последнего значка до узла
+const MAX_CHIPS = 8;
+
+const CODES: Record<Exclude<TechId, 'algo'>, string> = { attention: 'ATT', scaling: 'SCL', rlhf: 'RLHF' };
 
 function techName(id: TechId): string {
   return TECHS.find((t) => t.id === id)?.name ?? id;
 }
 
-function statusOf(s: GameState, id: TechId, blockReason: string | null): Status {
+function statusOf(s: GameState, id: TechId, reason: string | null): Status {
   if (id !== 'algo' && s.research.done.includes(id)) return 'done';
   if (s.research.current === id) return 'current';
-  return blockReason ? 'blocked' : 'available';
+  return reason ? 'blocked' : 'available';
 }
 
-function TechCard({ s, id, rp }: { s: GameState; id: TechId; rp: number }) {
-  const [error, setError] = useState<string | null>(null);
+/** Дней до конца технологии при текущей скорости очков; null, если очки не копятся. */
+function daysLeft(s: GameState, id: TechId, rp: number): number | null {
+  if (rp <= 0) return null;
+  return Math.ceil(Math.max(0, techCost(s, id) - (s.research.points[id] ?? 0)) / rp);
+}
+
+interface Chip {
+  label: string;
+  title: string;
+}
+
+/** Значки изученных уровней. Если их больше MAX_CHIPS, первые сворачиваются в один значок «Ур. 1–N». */
+function algoChips(level: number): Chip[] {
+  const one = (k: number): Chip => ({ label: `Ур. ${k}`, title: `Уровень ${k}: эффективность обучения ×${fmtMult(ALGO_MULT ** k)}` });
+  const all = Array.from({ length: level }, (_, i) => one(i + 1));
+  if (level <= MAX_CHIPS) return all;
+  const folded = level - (MAX_CHIPS - 1);
+  return [{ label: `Ур. 1–${folded}`, title: `Уровни 1–${folded} изучены` }, ...all.slice(folded)];
+}
+
+interface NodeProps {
+  s: GameState;
+  id: TechId;
+  rp: number;
+  x: number;
+  y: number;
+  code: string;
+  onPick: (id: TechId, status: Status, reason: string | null) => void;
+}
+
+function TechNode({ s, id, rp, x, y, code, onPick }: NodeProps) {
   const info = TECHS.find((t) => t.id === id);
   if (!info) return null;
 
@@ -31,125 +79,184 @@ function TechCard({ s, id, rp }: { s: GameState; id: TechId; rp: number }) {
   const status = statusOf(s, id, reason);
   const points = s.research.points[id] ?? 0;
   const cost = techCost(s, id);
-  const left = Math.max(0, cost - points);
-  const days = rp > 0 ? Math.ceil(left / rp) : Infinity;
-  const missing = TECH_REQUIRES[id].filter((t) => !s.research.done.includes(t));
+  const days = daysLeft(s, id, rp);
+  const penalty = earlyPenalty(s, id);
+  const year = dayToDate(techHistoryDay(s, id)).year;
+  const share = status === 'done' ? 1 : cost > 0 ? Math.min(1, points / cost) : 0;
 
-  const act = (tech: TechId | null) => {
-    const r = store.dispatch(actions.setResearch, tech);
-    setError(r.ok ? null : r.error);
-  };
-
-  const statusText =
-    status === 'done' ? (
-      <span className="good">Изучено ✓</span>
-    ) : status === 'current' ? (
-      <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Идёт исследование</span>
-    ) : status === 'blocked' ? (
-      <span className="warn">
-        {missing.length > 0 ? `Нужно сначала: ${missing.map(techName).join(', ')}` : reason}
-      </span>
-    ) : (
-      <span className="muted">Доступно</span>
-    );
+  const title =
+    status === 'blocked'
+      ? (reason ?? info.name)
+      : status === 'done'
+        ? info.description
+        : status === 'current'
+          ? `${info.description}\nОстановить исследование. Накопленные очки сохранятся.`
+          : `${info.description}\nНачать исследование.`;
 
   return (
-    <div className="card" style={status === 'current' ? { borderColor: 'var(--accent)' } : undefined}>
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <div style={{ fontWeight: 700 }}>{info.name}</div>
-        <div className="small">{statusText}</div>
-      </div>
-      <div className="muted small" style={{ margin: '2px 0 6px' }}>{info.description}</div>
-
-      {id === 'algo' && (
-        <div className="small" style={{ marginBottom: 6 }}>
-          <b>Уровень {s.research.algoLevel}</b>. Эффективность обучения сейчас:{' '}
-          <b className="num">×{fmtNum(ALGO_MULT ** s.research.algoLevel)}</b> (1,25
-          <sup>{s.research.algoLevel}</sup>).{' '}
-          <span className="muted">
-            Исследование повторяется: после каждого уровня следующий стоит в {fmtNum(ALGO_COST_GROWTH)} раза дороже.
+    <div className="rs-slot" style={{ left: x, top: y, width: NW, height: NH }}>
+      <button
+        type="button"
+        className={`rs-node ${status}`}
+        data-tutorial={id === 'attention' ? 'tech-attention' : undefined}
+        title={title}
+        aria-disabled={status === 'blocked' || status === 'done'}
+        onClick={() => onPick(id, status, reason)}
+      >
+        <span className="rs-name">{info.name}</span>
+        <span className="rs-main">
+          <span className="rs-thumb">
+            {status === 'blocked' && <IconLock size={16} />}
+            <span>{code}</span>
           </span>
-        </div>
+          <span className="rs-kv">
+            <span>Год</span>
+            <span>{year}</span>
+            {status === 'done' ? (
+              <span className="rs-done">
+                <IconCheck size={14} />
+                Изучено
+              </span>
+            ) : (
+              <>
+                <span>Стоимость</span>
+                <span>{fmtNum(cost)} очков</span>
+                <span>Срок</span>
+                <span>{days === null ? '—' : `${fmtNum(days)} дн.`}</span>
+              </>
+            )}
+          </span>
+        </span>
+        <span className="rs-prog" title={status === 'done' ? 'Изучено' : `${fmtNum(points)} из ${fmtNum(cost)} очков`}>
+          <span style={{ width: `${share * 100}%` }} />
+        </span>
+      </button>
+      {status !== 'done' && penalty > 1 && (
+        <span className="rs-caption" title="Цена снижается по мере приближения к году выхода">
+          Раньше истории: цена ×{fmtMult(penalty)}
+        </span>
       )}
-
-      {status === 'done' ? (
-        <ProgressBar value={1} />
-      ) : (
-        <>
-          <ProgressBar value={cost > 0 ? points / cost : 0} title={`${fmtNum(points)} из ${fmtNum(cost)} очков`} />
-          <div className="row small" style={{ marginTop: 4, justifyContent: 'space-between' }}>
-            <span className="num">
-              {fmtNum(points)} / {fmtNum(cost)} очков
-            </span>
-            <span className="muted">
-              {Number.isFinite(days) ? `осталось ≈ ${fmtNum(days)} дн.` : 'очки не копятся'}
-              {status === 'blocked' && ' (после начала)'}
-            </span>
-          </div>
-          {yearsEarly(s, id) > 0 && (
-            <div className="warn small" style={{ marginTop: 2 }}>
-              Вы опережаете историю на ≈ {fmtNum(Math.ceil(yearsEarly(s, id) * 12))} мес.: цена ×{fmtNum(earlyPenalty(s, id))}.
-              С каждым днём она падает.
-            </div>
-          )}
-        </>
-      )}
-
-      {status !== 'done' && (
-        <div className="row" style={{ marginTop: 6 }}>
-          {status === 'current' ? (
-            <button className="btn" onClick={() => act(null)} title="Прогресс сохранится, можно вернуться позже">
-              Остановить
-            </button>
-          ) : (
-            <button
-              className="btn primary"
-              disabled={status === 'blocked'}
-              title={reason ?? 'Сделать текущим исследованием'}
-              onClick={() => act(id)}
-            >
-              Исследовать
-            </button>
-          )}
-          {status === 'blocked' && reason && <span className="muted small">{reason}</span>}
-        </div>
-      )}
-      <ErrorText error={error} />
     </div>
   );
 }
 
 export default function ResearchWindow({ s, open }: WindowProps) {
+  const [note, setNote] = useState<{ text: string } | null>(null);
   const rp = rpPerDay(s);
+  const power = pool(s, 'experiments');
   const current = s.research.current;
-  const expShare = s.compute.alloc.experiments;
+  const level = s.research.algoLevel;
+
+  // Сообщение об отказе гаснет само.
+  useEffect(() => {
+    if (!note) return;
+    const t = setTimeout(() => setNote(null), 4000);
+    return () => clearTimeout(t);
+  }, [note]);
+
+  const pick = (id: TechId, status: Status, reason: string | null) => {
+    if (status === 'done') return;
+    if (status === 'blocked') {
+      setNote({ text: reason ?? 'Исследование недоступно' });
+      return;
+    }
+    const r = store.dispatch(actions.setResearch, status === 'current' ? null : id);
+    setNote(r.ok ? null : { text: r.error });
+  };
+
+  const stop = () => {
+    const r = store.dispatch(actions.setResearch, null);
+    setNote(r.ok ? null : { text: r.error });
+  };
+
+  // Раскладка холста.
+  const colX = PAD + NW + COL_GAP;
+  const scalingY = TOP;
+  const rlhfY = TOP + NH + BRANCH_GAP;
+  const attentionY = (scalingY + rlhfY) / 2;
+  const algoY = rlhfY + NH + ROW_GAP;
+  const chips = algoChips(level);
+  const chipsW = chips.length > 0 ? chips.length * CHIP_W + (chips.length - 1) * CHIP_GAP : 0;
+  const algoX = PAD + (chips.length > 0 ? chipsW + CHIP_LINK : 0);
+  const width = Math.max(colX + NW + PAD, algoX + NW + PAD);
+  const height = algoY + NH + CAPTION_H + 12;
+
+  const midX = PAD + NW + COL_GAP / 2;
+  const attentionCy = attentionY + NH / 2;
+  const algoCy = algoY + NH / 2;
+  const attentionDone = s.research.done.includes('attention');
+  const branch = (toY: number) => `M${PAD + NW} ${attentionCy} H${midX} V${toY + NH / 2} H${colX}`;
+
+  const currentDays = current ? daysLeft(s, current, rp) : null;
 
   return (
-    <div className="col">
-      <div className="row">
-        <Stat label="Очки исследований в день" value={fmtNum(rp)} hint={`Эксперименты: ${fmtPct(expShare * 100, 0)} мощности`} />
-        <Stat label="Сейчас изучается" value={current ? techName(current) : 'ничего'} />
+    <div className="rs">
+      <div className="rs-head">
+        <h2 className="rs-title">Технологии</h2>
+        <div className="rs-state">
+          {current ? (
+            <>
+              <span>
+                Изучается: <b>{techName(current)}</b>
+                {currentDays !== null && <span className="num"> · {fmtNum(currentDays)} дн.</span>}
+              </span>
+              <button type="button" className="btn small" onClick={stop}>
+                Остановить
+              </button>
+            </>
+          ) : (
+            <span>Исследование не выбрано</span>
+          )}
+        </div>
       </div>
 
-      {current === null && (
-        <div className="warn small">Сейчас ничего не исследуется, очки не копятся. Выберите технологию ниже.</div>
-      )}
+      <div className="rs-canvas">
+        <div className="rs-stage" style={{ width, height }}>
+          <svg className="rs-lines" width={width} height={height} aria-hidden="true">
+            <path className={attentionDone ? 'on' : undefined} d={branch(scalingY)} />
+            <path className={attentionDone ? 'on' : undefined} d={branch(rlhfY)} />
+            {chips.length > 0 && <path className="on" d={`M${PAD + CHIP_W / 2} ${algoCy} H${algoX}`} />}
+          </svg>
 
-      <div className="card row">
-        <div className="grow muted small">
-          Очки идут от доли «Эксперименты» в окне «Мощности». Чем больше мощности вы отдадите, тем больше очков в день,
-          но отдача убывает: вдвое больше мощности даёт заметно меньше, чем вдвое больше очков. Сейчас
-          экспериментам выделено {fmtNum(pool(s, 'experiments'))} H100e. Прогресс по каждой технологии сохраняется,
-          если переключиться на другую.
+          <TechNode s={s} id="attention" rp={rp} x={PAD} y={attentionY} code={CODES.attention} onPick={pick} />
+          <TechNode s={s} id="scaling" rp={rp} x={colX} y={scalingY} code={CODES.scaling} onPick={pick} />
+          <TechNode s={s} id="rlhf" rp={rp} x={colX} y={rlhfY} code={CODES.rlhf} onPick={pick} />
+
+          {chips.length > 0 && (
+            <span className="rs-caption free" style={{ left: PAD, top: algoCy - CHIP_H / 2 - 22 }}>
+              Эффективность обучения ×{fmtMult(ALGO_MULT ** level)}
+            </span>
+          )}
+          {chips.map((c, i) => (
+            <span
+              key={c.label}
+              className="rs-chip"
+              title={c.title}
+              style={{ left: PAD + i * (CHIP_W + CHIP_GAP), top: algoCy - CHIP_H / 2, width: CHIP_W, height: CHIP_H }}
+            >
+              {c.label}
+            </span>
+          ))}
+          <TechNode s={s} id="algo" rp={rp} x={algoX} y={algoY} code={`ALG ${level + 1}`} onPick={pick} />
         </div>
-        <button className="btn" onClick={() => open('compute')}>
-          Открыть «Мощности»
+      </div>
+
+      <div className="rs-bar">
+        <span className="rs-stat" title={`${fmtNum(RP_BASE)} + ${fmtNum(RP_K)} × √(H100e экспериментов)`}>
+          <span className="l">Очки в день</span>
+          <b className="num">{fmtNum(rp)}</b>
+        </span>
+        <span className="rs-stat" title={`Доля мощности на эксперименты: ${fmtShare(s.compute.alloc.experiments, 0)}`}>
+          <span className="l">Эксперименты</span>
+          <b className="num">{fmtNum(power)} H100e</b>
+        </span>
+        {power <= 0 && <span className="rs-warn">Мощность на эксперименты не выделена</span>}
+        {note && <span className="rs-note">{note.text}</span>}
+        <button type="button" className="btn small" onClick={() => open('compute')}>
+          Мощности
         </button>
       </div>
-
-      {TECHS.map((t) => (
-        <TechCard key={t.id} s={s} id={t.id} rp={rp} />
-      ))}
     </div>
   );
 }
+

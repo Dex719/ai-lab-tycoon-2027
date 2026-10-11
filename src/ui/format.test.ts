@@ -1,7 +1,7 @@
 // Тесты форматирования чисел: границы единиц и кэш форматтеров.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fmtMoney, fmtNum, fmtParams, fmtPct, fmtSci } from './format';
+import { fmtMoney, fmtMult, fmtNum, fmtParams, fmtPct, fmtSci } from './format';
 
 /** ru-RU разделяет разряды неразрывным пробелом: сводим все пробелы к обычному. */
 const norm = (t: string) => t.replace(/\s/g, ' ');
@@ -74,5 +74,14 @@ describe('кэш форматтеров', () => {
       fmtPct(i / 3);
     }
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe('fmtMult', () => {
+  it('оставляет знаки, которые меняют смысл', () => {
+    expect(norm(fmtMult(1.25))).toBe('1,25');
+    expect(norm(fmtMult(14.55))).toBe('14,6');
+    expect(norm(fmtMult(120.4))).toBe('120');
+    expect(fmtMult(NaN)).toBe('—');
   });
 });

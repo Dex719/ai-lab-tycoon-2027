@@ -1,6 +1,7 @@
-// Окно «Обучение» (FR-4, FR-7): идущий проект и форма нового проекта с оценкой и прогнозом.
+// Окно «Новая модель» (FR-4, FR-7): слева сводка проекта, справа настройки размера, данных и дообучения.
+// Раскладка по образцу «Создание процессора» в Processor Tycoon.
 
-import { useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import type { WindowProps } from '.';
 import { benchDef, benchScore, introducedBenchmarks } from '../../sim/benchmarks';
 import { pool, rentPerDay, totalH100e } from '../../sim/compute';
@@ -8,6 +9,8 @@ import {
   ARCH_MULT,
   BENCH_SHARE_MAX,
   CHIN_OPT_RATIO,
+  EXPOSE_HYPE_MULT,
+  EXPOSE_REP,
   MAX_BENCH_TARGETS,
   MAX_TOKENS_B,
   PARAMS_B_MAX,
@@ -17,24 +20,68 @@ import {
   TRAIN_FLOP_PER_H100E_DAY,
 } from '../../sim/constants';
 import { byYear, END_DAY, formatDateShort, yearOf } from '../../sim/time';
-import { endSentence } from '../../sim/text';
-import { chinchillaFactor, estimate } from '../../sim/training';
+import { archFor, chinchillaFactor, estimate, labelersCost } from '../../sim/training';
 import { DOMAINS } from '../../sim/types';
 import type { BenchmarkId, DomainId, GameState, TrainingPlan, TrainingRun } from '../../sim/types';
 import { ErrorText, ProgressBar } from '../components/common';
-import { fmtElo, fmtMoney, fmtNum, fmtParams, fmtPct, fmtSci, fmtTokens } from '../format';
+import { endSentence, fmtElo, fmtMoney, fmtNum, fmtParams, fmtPct, fmtSci, fmtTokens } from '../format';
+import { IconAlert } from '../icons';
 import { actions, store } from '../store';
+import './TrainingWindow.css';
 
 type Est = ReturnType<typeof estimate>;
 type OpenFn = WindowProps['open'];
 
 const DOMAIN_RU: Record<DomainId, string> = { language: 'Язык', code: 'Код', reasoning: 'Рассуждения' };
-const POS_MAX = 1000;
-// Доля полезных вычислений (множитель Шиншиллы): от 80 % баланс считаем хорошим, ниже 40 % — плохим.
-const RATIO_GOOD_EFF = 0.8;
-const RATIO_BAD_EFF = 0.4;
+const DOMAIN_COLOR: Record<DomainId, string> = {
+  language: 'var(--nm-language)',
+  code: 'var(--nm-code)',
+  reasoning: 'var(--nm-reasoning)',
+};
 
-// ---------- Мелкие помощники ----------
+const NAME_MAX = 40;
+const POS_MAX = 1000;
+const DAYS_IN_MONTH = 30.4;
+// Доля полезных вычислений (множитель Шиншиллы): от 80 % баланс считаем хорошим, ниже 40 % — плохим.
+const EFF_GOOD = 0.8;
+const EFF_BAD = 0.4;
+
+// ---------- Черновик ----------
+
+interface Draft {
+  game: string; // партия, которой принадлежит черновик
+  name: string | null; // null — название по умолчанию «Модель N»
+  paramsB: number;
+  tokensB: number;
+  mix: Record<DomainId, number>; // целые проценты, сумма 100
+  share: number; // целые проценты
+  targets: BenchmarkId[];
+  rlhf: boolean;
+}
+
+/** Черновик живёт вне компонента: свёрнутое окно закрывается полностью, а настройки должны остаться. */
+let saved: Draft | null = null;
+
+function initialDraft(s: GameState): Draft {
+  const game = `${s.seed}:${s.labName}`;
+  if (saved && saved.game === game) return saved;
+  // Новый проект начинается с прошлого (или идущего): обычно следующую модель делают чуть больше.
+  const prev = s.training?.plan ?? s.models.at(-1)?.plan;
+  return {
+    game,
+    name: null,
+    paramsB: prev?.paramsB ?? 0.1,
+    tokensB: prev?.tokensB ?? 2,
+    mix: prev
+      ? { language: Math.round(prev.mix.language * 100), code: Math.round(prev.mix.code * 100), reasoning: Math.round(prev.mix.reasoning * 100) }
+      : { language: 50, code: 25, reasoning: 25 },
+    share: 0,
+    targets: [],
+    rlhf: prev?.rlhf ?? false,
+  };
+}
+
+// ---------- Помощники ----------
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
@@ -59,12 +106,12 @@ function fromPos(pos: number, min: number, max: number): number {
   return clamp(roundSig(v), min, max);
 }
 
-/** Срок в днях с подсказкой в месяцах или годах. */
-function fmtDays(d: number): string {
-  const days = `${fmtNum(d)} дн.`;
-  if (d < 60) return days;
-  if (d < 730) return `${days} (≈ ${fmtNum(Math.round(d / 30.4))} мес.)`;
-  return `${days} (≈ ${fmtNum(Math.round((d / 365.25) * 10) / 10)} г.)`;
+/** Срок: «95 дн.» и приближение в месяцах или годах для длинных проектов. */
+function daysText(d: number): { main: string; approx: string | null } {
+  const main = `${fmtNum(d)} дн.`;
+  if (d < 60) return { main, approx: null };
+  if (d < 730) return { main, approx: `≈ ${fmtNum(Math.round(d / DAYS_IN_MONTH))} мес.` };
+  return { main, approx: `≈ ${fmtNum(Math.round((d / 365.25) * 10) / 10)} г.` };
 }
 
 /** Двигаем одну долю, остальные масштабируем так, чтобы сумма осталась 100 (целые проценты). */
@@ -81,132 +128,116 @@ function rescaleMix(mix: Record<DomainId, number>, id: DomainId, v: number): Rec
   return out;
 }
 
-function Hint({ children }: { children: ReactNode }) {
-  return <div className="muted small">{children}</div>;
+function archName(arch: 'lstm' | 'transformer'): string {
+  return arch === 'transformer' ? 'Трансформер' : 'LSTM';
 }
 
-function Field({ label, hint, children }: { label: ReactNode; hint?: ReactNode; children: ReactNode }) {
+// ---------- Элементы ----------
+
+interface SliderProps {
+  label: ReactNode;
+  text: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+  ends?: [string, string];
+  color?: string;
+  title?: string;
+  ariaLabel: string;
+}
+
+function Slider({ label, text, value, min, max, onChange, ends, color, title, ariaLabel }: SliderProps) {
+  const p = max > min ? ((value - min) / (max - min)) * 100 : 0;
+  const style: CSSProperties & Record<string, string> = { '--p': `${p}%` };
+  if (color) style['--c'] = color;
   return (
-    <div className="field">
-      <label>{label}</label>
-      <div>
-        {children}
-        {hint && <Hint>{hint}</Hint>}
+    <div className="nm-sl" title={title}>
+      <div className="nm-sl-top">
+        <span className="nm-sl-l">{label}</span>
+        <span className="nm-sl-v num">{text}</span>
       </div>
-    </div>
-  );
-}
-
-function LogSlider(props: { value: number; min: number; max: number; onChange: (v: number) => void; format: (v: number) => string }) {
-  const { value, min, max, onChange, format } = props;
-  return (
-    <div className="row" style={{ flexWrap: 'nowrap' }}>
       <input
         type="range"
-        className="grow"
-        style={{ minWidth: 0 }}
-        min={0}
-        max={POS_MAX}
-        step={1}
-        value={toPos(value, min, max)}
-        onChange={(e) => onChange(fromPos(Number(e.target.value), min, max))}
-      />
-      <span className="num" style={{ minWidth: 84 }}>{format(value)}</span>
-    </div>
-  );
-}
-
-function PctSlider({ value, max = 100, onChange }: { value: number; max?: number; onChange: (v: number) => void }) {
-  return (
-    <div className="row" style={{ flexWrap: 'nowrap' }}>
-      <input
-        type="range"
-        className="grow"
-        style={{ minWidth: 0 }}
-        min={0}
+        className="nm-range"
+        style={style}
+        min={min}
         max={max}
         step={1}
         value={value}
+        aria-label={ariaLabel}
         onChange={(e) => onChange(Number(e.target.value))}
       />
-      <span className="num" style={{ minWidth: 84 }}>{fmtPct(value, 0)}</span>
+      {ends && (
+        <div className="nm-sl-ends">
+          <span>{ends[0]}</span>
+          <span>{ends[1]}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Item(props: { label: ReactNode; children: ReactNode; sub?: ReactNode; title?: string; tone?: string }) {
+  return (
+    <div className="nm-item" title={props.title}>
+      <div className="nm-item-l">{props.label}</div>
+      <div className={`nm-item-v${props.tone ? ` ${props.tone}` : ''}`}>{props.children}</div>
+      {props.sub && <div className="nm-item-s">{props.sub}</div>}
+    </div>
+  );
+}
+
+/** Кристалл модели, как чип в Processor Tycoon: размер квадрата растёт с числом параметров. */
+function ModelChip({ name, paramsB, arch }: { name: string; paramsB: number; arch: string }) {
+  const t = toPos(paramsB, PARAMS_B_MIN, PARAMS_B_MAX) / POS_MAX;
+  return (
+    <div className="nm-chip">
+      <div className="nm-die" style={{ width: `${46 + 38 * t}%` }}>
+        <div className="nm-die-name">{name.trim() || 'Без названия'}</div>
+        <div className="nm-die-sub">{fmtParams(paramsB)}</div>
+        <div className="nm-die-sub">{arch}</div>
+      </div>
     </div>
   );
 }
 
 /** Нет мощности на обучение: либо не арендовано ни одной карты, либо доля «Обучение» равна нулю. */
-function NoComputeNote({ s, open, lead }: { s: GameState; open: OpenFn; lead: string }) {
+function NoComputeAlert({ s, open }: { s: GameState; open: OpenFn }) {
   const noGpu = totalH100e(s) <= 0;
   return (
-    <div className="col" style={{ gap: 4 }}>
-      <div className="row">
-        <span className="warn">
-          {lead}: {noGpu ? 'не арендовано ни одного GPU' : 'доля «Обучение» равна нулю'}.
-        </span>
-        <button className="btn small" onClick={() => open('compute')}>Открыть «Мощности»</button>
-      </div>
-      <div className="muted small">
-        {noGpu
-          ? 'Арендуйте видеокарты в окне «Мощности»: без них ни один проект не продвигается.'
-          : 'Поднимите ползунок «Обучение» в окне «Мощности»: сейчас вся арендованная мощность отдана другим задачам.'}
-      </div>
+    <div className="nm-alert" role="status">
+      <IconAlert size={18} />
+      <span>Нет мощности на обучение: {noGpu ? 'не арендовано ни одной карты' : 'доля «Обучение» равна 0 %'}.</span>
+      <button className="btn small" onClick={() => open('compute')}>
+        Открыть «Мощности»
+      </button>
     </div>
-  );
-}
-
-/**
- * Соотношение данных и размера: ориентир около 20 токенов на параметр (CHIN_OPT_RATIO).
- * Показываем всегда; точный оптимум для бюджета и прогноз открывают «Законы масштабирования».
- */
-function RatioField({ s, plan, maxTokens }: { s: GameState; plan: TrainingPlan; maxTokens: number }) {
-  const ratio = plan.tokensB / plan.paramsB;
-  const eff = chinchillaFactor(plan.paramsB, plan.tokensB);
-  const good = eff >= RATIO_GOOD_EFF;
-  const tone = good ? 'good' : eff >= RATIO_BAD_EFF ? 'warn' : 'bad';
-  const tooFewData = ratio < CHIN_OPT_RATIO;
-  const dataCapped = plan.tokensB >= maxTokens * 0.999;
-  const advice = tooFewData
-    ? dataCapped
-      ? `Больше данных в ${yearOf(s.day)} году в мире нет, поэтому лучше уменьшить размер модели.`
-      : 'Добавьте данных или уменьшите размер модели.'
-    : 'Увеличьте размер модели или уменьшите объём данных.';
-
-  return (
-    <Field
-      label="Токенов на параметр"
-      hint={
-        <>
-          Правило: на каждый параметр нужно около {CHIN_OPT_RATIO} токенов данных. Если размер и данные сильно расходятся,
-          часть вычислений пропадает впустую.
-          {!s.research.done.includes('scaling') && ' Точный оптимум для вашего бюджета и прогноз качества покажут «Законы масштабирования».'}
-        </>
-      }
-    >
-      <span className={tone}>
-        <b className="num">{fmtNum(ratio)}</b>
-        {good ? ' — баланс хороший' : ' — баланс нарушен'}
-      </span>
-      {!good && (
-        <div className={`small ${tone}`}>
-          В дело идёт только около {fmtPct(eff * 100, 0)} потраченных вычислений. {advice}
-        </div>
-      )}
-    </Field>
   );
 }
 
 // ---------- Идущий проект ----------
 
-function RunningCard({ s, t, open }: { s: GameState; t: TrainingRun; open: OpenFn }) {
+function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
   const [confirm, setConfirm] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  const p = t.plan;
   const frac = t.flopTotal > 0 ? Math.min(1, t.flopDone / t.flopTotal) : 0;
   const perDay = pool(s, 'training') * TRAIN_FLOP_PER_H100E_DAY;
   const left = Math.max(0, t.flopTotal - t.flopDone);
   const eta = perDay > 0 ? Math.max(1, Math.ceil(left / perDay)) : null;
-  const p = t.plan;
+  const late = eta !== null && s.day + eta > END_DAY;
   const targets = p.benchShare > 0 ? p.benchTargets.map((b) => benchDef(b).name).join(', ') : '';
+  const summary = [
+    archName(t.arch),
+    `${fmtParams(p.paramsB)} параметров`,
+    `${fmtTokens(p.tokensB)} токенов`,
+    p.rlhf ? 'RLHF' : '',
+    targets ? `подгонка ${fmtPct(p.benchShare * 100, 0)}: ${targets}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   function cancel() {
     const r = store.dispatch(actions.cancelTraining);
@@ -215,237 +246,166 @@ function RunningCard({ s, t, open }: { s: GameState; t: TrainingRun; open: OpenF
   }
 
   return (
-    <div className="card col">
-      <div className="row">
-        <b className="grow">Идёт обучение: «{p.name}»</b>
-        <span className="num">{fmtPct(frac * 100)}</span>
+    <div className="nm-run">
+      <div style={{ minWidth: 0 }}>
+        <div className="nm-run-l">Идёт обучение</div>
+        <div className="nm-run-t" title={p.name}>«{p.name}»</div>
+        <div className="nm-run-s" title={summary}>{summary}</div>
       </div>
-      <ProgressBar value={frac} title={`${fmtSci(t.flopDone)} из ${fmtSci(t.flopTotal)} FLOP`} />
-      <div className="muted small">
-        Вычислений сделано: {fmtSci(t.flopDone)} из {fmtSci(t.flopTotal)} FLOP
-      </div>
-      {eta !== null ? (
-        <div>
-          Осталось ≈ {fmtDays(eta)}, готово около {formatDateShort(s.day + eta)}
-          {s.day + eta > END_DAY && <span className="warn"> — это позже конца игры</span>}
+      <div className="nm-run-bar">
+        <ProgressBar value={frac} title={`${fmtSci(t.flopDone)} из ${fmtSci(t.flopTotal)} FLOP`} />
+        <div className="nm-run-meta">
+          <span className="num">{fmtPct(frac * 100)}</span>
+          {eta !== null ? (
+            <>
+              <span>Осталось {fmtNum(eta)} дн.</span>
+              <span className={late ? 'warn' : 'muted'}>
+                Готово {formatDateShort(s.day + eta)}
+                {late && ', позже конца игры'}
+              </span>
+            </>
+          ) : (
+            <span className="warn">Проект стоит: нет мощности на обучение</span>
+          )}
         </div>
-      ) : (
-        <NoComputeNote s={s} open={open} lead="Обучение стоит" />
-      )}
-      <div className="muted small">
-        {t.arch === 'transformer' ? 'Трансформер' : 'LSTM'} · {fmtParams(p.paramsB)} параметров · {fmtTokens(p.tokensB)} токенов
-        {p.rlhf && ' · с RLHF'}
-        {targets && ` · подгонка ${fmtPct(p.benchShare * 100, 0)} под: ${targets}`}
       </div>
-      {confirm ? (
-        <div className="row">
-          <span className="warn">Отменить проект? Затраченные вычисления и деньги разметчикам не вернутся.</span>
-          <button className="btn danger small" onClick={cancel}>Да, отменить</button>
-          <button className="btn small" onClick={() => setConfirm(false)}>Нет</button>
-        </div>
-      ) : (
-        <div className="row">
+      <div className="nm-run-act">
+        {confirm ? (
+          <>
+            <span className="nm-run-ask">Вычисления и оплата разметчиков не возвращаются.</span>
+            <button className="btn danger small" onClick={cancel}>Отменить проект</button>
+            <button className="btn small" onClick={() => setConfirm(false)}>Оставить</button>
+          </>
+        ) : (
           <button className="btn danger small" onClick={() => setConfirm(true)}>Отменить</button>
-        </div>
-      )}
-      <ErrorText error={err} />
+        )}
+        <ErrorText error={err} />
+      </div>
     </div>
   );
 }
 
-// ---------- Оценка проекта ----------
+// ---------- Левая колонка ----------
 
-function ForecastTable({ s, plan, fc }: { s: GameState; plan: TrainingPlan; fc: NonNullable<Est['forecast']> }) {
-  const ids = introducedBenchmarks(s).filter((b) => fc.scores[b] !== undefined);
-  const hasOverfit = plan.benchShare > 0 && plan.benchTargets.length > 0;
-  return (
-    <table className="grid">
-      <thead>
-        <tr>
-          <th>Тест</th>
-          <th>Область</th>
-          <th className="num">Балл</th>
-          {hasOverfit && <th className="num" title="Балл без подгонки: так модель покажет себя на новых вопросах">Без подгонки</th>}
-        </tr>
-      </thead>
-      <tbody>
-        {ids.map((b) => {
-          const def = benchDef(b);
-          const target = hasOverfit && plan.benchTargets.includes(b);
-          return (
-            <tr key={b}>
-              <td>
-                {def.name}
-                {target && <span className="muted small"> · цель</span>}
-              </td>
-              <td className="muted">{DOMAIN_RU[def.domain]}</td>
-              <td className="num">{fmtPct(fc.scores[b] ?? 0)}</td>
-              {hasOverfit && <td className="num muted">{fmtPct(benchScore(b, fc.caps[def.domain], 0))}</td>}
-            </tr>
-          );
-        })}
-        <tr>
-          <td>Арена (Эло)</td>
-          <td className="muted">настоящее качество</td>
-          <td className="num" colSpan={hasOverfit ? 2 : 1}>{fmtElo(fc.elo)}</td>
-        </tr>
-      </tbody>
-    </table>
-  );
-}
+function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; open: OpenFn }) {
+  const { s, plan, est, open } = props;
+  if (!est) return <div className="error">Оценка проекта недоступна.</div>;
 
-function EstimateCard(props: {
-  s: GameState;
-  plan: TrainingPlan;
-  est: Est | null;
-  maxTokens: number;
-  open: OpenFn;
-  onApplyOptimal: () => void;
-}) {
-  const { s, plan, est, maxTokens, open, onApplyOptimal } = props;
-  if (!est) {
-    return (
-      <div className="card">
-        <div className="section-title">Оценка проекта</div>
-        <div className="error">Не удалось посчитать оценку. Попробуйте изменить параметры проекта.</div>
-      </div>
-    );
-  }
+  const days = est.days;
+  const share = s.compute.alloc.training;
+  const rentDay = rentPerDay(s) * share;
+  const rent = days !== null ? days * rentDay : null;
+  const cost = rent !== null ? rent + est.labelers : null;
+  const late = days !== null && s.day + days > END_DAY;
+  const dayText = days !== null ? daysText(days) : null;
+  const fc = est.forecast;
+  const hasFit = plan.benchShare > 0 && plan.benchTargets.length > 0;
+  const scoreIds = fc ? introducedBenchmarks(s).filter((b) => fc.scores[b] !== undefined) : [];
 
-  const trainPool = pool(s, 'training');
-  const total = totalH100e(s);
-  const opt = est.optimal;
-  const limited = opt !== null && (opt.tokensB > maxTokens || opt.tokensB < TOKENS_B_MIN || opt.paramsB > PARAMS_B_MAX || opt.paramsB < PARAMS_B_MIN);
-  const lateFinish = est.days !== null && s.day + est.days > END_DAY;
-  // Деньги проекта: часть аренды парка, занятая обучением, за весь срок (приблизительно: по сегодняшней аренде) плюс разметчики.
-  const rentShare = est.days !== null && total > 0 ? est.days * rentPerDay(s) * (trainPool / total) : null;
+  const costTitle =
+    rent !== null
+      ? `Аренда доли «Обучение» за весь срок: ${endSentence(fmtMoney(rent))}${est.labelers > 0 ? ` Разметчики: ${endSentence(fmtMoney(est.labelers))}` : ''} Оценка по сегодняшним ценам.`
+      : undefined;
 
   return (
-    <div className="card col">
-      <div className="section-title">Оценка проекта</div>
-      <Field label="Нужно вычислений">{fmtSci(est.flop)} FLOP</Field>
-      <Field
+    <>
+      <Item label="Стоимость проекта" title={costTitle}>
+        {cost !== null ? (
+          <>
+            ≈ {fmtMoney(cost)} <small>({fmtMoney(rentDay * DAYS_IN_MONTH)}/мес.)</small>
+          </>
+        ) : (
+          '—'
+        )}
+      </Item>
+      <Item label="Срок" sub={late ? 'Позже конца игры' : undefined} tone={late ? 'warn' : undefined}>
+        {dayText ? (
+          <>
+            {dayText.main} {dayText.approx && <small>{dayText.approx}</small>}
+          </>
+        ) : (
+          '—'
+        )}
+      </Item>
+      <Item label="Дата готовности" tone={late ? 'warn' : undefined}>
+        {days !== null ? formatDateShort(s.day + days) : '—'}
+      </Item>
+      <Item
         label="Архитектура"
-        hint={
+        title={est.arch === 'lstm' ? 'Трансформер откроется после исследования «Механизм внимания».' : undefined}
+        sub={
           est.arch === 'lstm' ? (
             <>
-              LSTM примерно в {Math.round(1 / ARCH_MULT.lstm)} раз менее эффективна, чем трансформер. Трансформер откроется после
-              исследования «Механизм внимания».{' '}
-              <button className="btn small" onClick={() => open('research')}>Исследования</button>
+              В {Math.round(1 / ARCH_MULT.lstm)} раз менее эффективна.{' '}
+              <button className="nm-link" onClick={() => open('research')}>Исследования</button>
             </>
           ) : undefined
         }
       >
-        {est.arch === 'transformer' ? 'Трансформер' : 'LSTM (устаревшая)'}
-      </Field>
-      <Field label="Срок обучения" hint={`При текущей мощности «Обучение»: ${fmtNum(trainPool)} H100e.`}>
-        {est.days !== null ? (
-          <>
-            {fmtDays(est.days)}
-            {lateFinish && <span className="warn"> — не успеет до конца игры</span>}
-          </>
-        ) : (
-          <NoComputeNote s={s} open={open} lead="Обучение не пойдёт" />
-        )}
-      </Field>
-      {rentShare !== null && (
-        <Field
-          label="Стоимость проекта"
-          hint={
-            [
-              plan.rlhf
-                ? `Аренда доли «Обучение» за весь срок — ${fmtMoney(rentShare)}`
-                : 'Это аренда доли «Обучение» за весь срок',
-              ...(plan.rlhf ? [`Разметчики — ${fmtMoney(est.labelers)}`] : []),
-              'Оценка по сегодняшним ценам: аренду вы платите и без проекта, проект лишь занимает часть парка',
-            ]
-              .map(endSentence)
-              .join(' ')
-          }
-        >
-          ≈ {fmtMoney(rentShare + est.labelers)}
-        </Field>
-      )}
-      {plan.rlhf && (
-        <Field
-          label="Разметчики (RLHF)"
-          hint={
-            <>
-              {endSentence(`На счету: ${fmtMoney(s.cash)}`)} Вычислений станет больше на {fmtPct(RLHF_FLOP_EXTRA * 100, 0)}.
-              {trainPool <= 0 && (
-                <div className="warn">
-                  Запуск закрыт: разметчикам платят сразу, а без мощности на обучение проект стоит. Сначала выделите мощность на обучение.
-                </div>
-              )}
-            </>
-          }
-        >
-          <span className={est.labelers > s.cash ? 'bad' : undefined}>{fmtMoney(est.labelers)}</span> при старте
-        </Field>
-      )}
-
-      <div className="section-title">Прогноз качества</div>
-      {est.forecast ? (
-        <ForecastTable s={s} plan={plan} fc={est.forecast} />
-      ) : (
-        <div className="row">
-          <span className="muted">Прогноз: ??? — изучите «Законы масштабирования».</span>
-          <button className="btn small" onClick={() => open('research')}>Исследования</button>
-        </div>
-      )}
-
-      {opt && (
-        <div className="col" style={{ gap: 4 }}>
-          <div className="row">
-            <span>
-              Оптимум для этого бюджета: <b>{fmtParams(opt.paramsB)}</b> параметров, <b>{fmtTokens(opt.tokensB)}</b> токенов.
-            </span>
-            <button className="btn small" onClick={onApplyOptimal}>Подставить</button>
+        {archName(est.arch)}
+      </Item>
+      <Item label="Вычисления">{fmtSci(est.flop)} FLOP</Item>
+      <Item
+        label="Прогноз Эло на «Арене»"
+        sub={
+          fc ? undefined : (
+            <button className="nm-link" onClick={() => open('research')}>Нужны «Законы масштабирования»</button>
+          )
+        }
+      >
+        {fc ? fmtElo(fc.elo) : <span className="muted">нет прогноза</span>}
+      </Item>
+      {fc && scoreIds.length > 0 && (
+        <div className="nm-scores">
+          <div className="nm-item-l">Прогноз баллов</div>
+          <div className="kv">
+            {scoreIds.map((b) => {
+              const def = benchDef(b);
+              const target = hasFit && plan.benchTargets.includes(b);
+              const title = target ? `Без подгонки: ${fmtPct(benchScore(b, fc.caps[def.domain], 0))}` : undefined;
+              return (
+                <Fragment key={b}>
+                  <span title={title}>
+                    {def.name}
+                    {target && <span className="muted"> · цель</span>}
+                  </span>
+                  <span title={title}>{fmtPct(fc.scores[b] ?? 0)}</span>
+                </Fragment>
+              );
+            })}
           </div>
-          <Hint>
-            Тот же объём вычислений с оптимальным балансом: около {CHIN_OPT_RATIO} токенов на параметр.
-            {limited && ` Оптимум выходит за допустимые границы (данных в мире в ${yearOf(s.day)} году не больше ${fmtTokens(maxTokens)}): подставится ближайшее допустимое.`}
-          </Hint>
         </div>
       )}
-
-      <ErrorText error={est.error} />
-    </div>
+    </>
   );
 }
 
 // ---------- Окно ----------
 
 export default function TrainingWindow({ s, open }: WindowProps) {
-  // Новый проект начинается с прошлого (или идущего): обычно следующую модель делают чуть больше.
-  const prev = s.training?.plan ?? s.models.at(-1)?.plan;
-  const [name, setName] = useState<string | null>(null); // null — название по умолчанию «Модель N»
-  const [paramsB, setParamsB] = useState(prev?.paramsB ?? 0.1);
-  const [tokensB, setTokensB] = useState(prev?.tokensB ?? 1);
-  const [mix, setMix] = useState<Record<DomainId, number>>(
-    prev
-      ? { language: Math.round(prev.mix.language * 100), code: Math.round(prev.mix.code * 100), reasoning: Math.round(prev.mix.reasoning * 100) }
-      : { language: 50, code: 25, reasoning: 25 },
-  );
-  const [share, setShare] = useState(0);
-  const [targets, setTargets] = useState<BenchmarkId[]>([]);
-  const [rlhf, setRlhf] = useState(prev?.rlhf ?? false);
+  const [d, setD] = useState<Draft>(() => initialDraft(s));
   const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    saved = d;
+  }, [d]);
+  const patch = (p: Partial<Draft>) => setD((x) => ({ ...x, ...p }));
 
-  const maxTokens = byYear(MAX_TOKENS_B, yearOf(s.day));
-  const tokens = Math.min(tokensB, maxTokens);
+  const t = s.training;
+  const year = yearOf(s.day);
+  const maxTokens = byYear(MAX_TOKENS_B, year);
+  const tokens = Math.min(d.tokensB, maxTokens);
   const benches = introducedBenchmarks(s);
   const rlhfDone = s.research.done.includes('rlhf');
-  const nameValue = name ?? `Модель ${s.nextModelNum}`;
+  const nameValue = d.name ?? `Модель ${s.nextModelNum}`;
 
   const plan: TrainingPlan = {
     name: nameValue,
-    paramsB,
+    paramsB: d.paramsB,
     tokensB: tokens,
-    mix: { language: mix.language / 100, code: mix.code / 100, reasoning: mix.reasoning / 100 },
-    benchShare: share / 100,
-    benchTargets: share > 0 ? targets : [],
-    rlhf: rlhf && rlhfDone,
+    mix: { language: d.mix.language / 100, code: d.mix.code / 100, reasoning: d.mix.reasoning / 100 },
+    benchShare: d.share / 100,
+    benchTargets: d.share > 0 ? d.targets : [],
+    rlhf: d.rlhf && rlhfDone,
   };
 
   let est: Est | null = null;
@@ -454,147 +414,274 @@ export default function TrainingWindow({ s, open }: WindowProps) {
   } catch {
     est = null;
   }
+
+  const trainPool = pool(s, 'training');
+  const noCompute = trainPool <= 0;
   // RLHF платит разметчикам сразу, а без мощности на обучение проект не движется: такой запуск закрываем.
-  const rlhfNoCompute = plan.rlhf && pool(s, 'training') <= 0;
+  const rlhfNoCompute = plan.rlhf && noCompute;
   const canStart = est !== null && est.error === null && !rlhfNoCompute;
-  const startBlock = est?.error ?? (rlhfNoCompute ? 'Сначала выделите мощность на обучение: разметчикам платят при старте, а без мощности проект стоит.' : null);
+  const reason =
+    est === null
+      ? 'Оценка проекта недоступна.'
+      : (est.error ?? (rlhfNoCompute ? 'Выделите мощность на обучение: разметчикам платят при старте.' : null));
+
+  const ratio = plan.tokensB / plan.paramsB;
+  const eff = chinchillaFactor(plan.paramsB, plan.tokensB);
+  const effTone = eff >= EFF_GOOD ? 'good' : eff >= EFF_BAD ? 'warn' : 'bad';
+  const opt = est?.optimal ?? null;
+  const optParams = opt ? clamp(roundSig(opt.paramsB), PARAMS_B_MIN, PARAMS_B_MAX) : 0;
+  const optTokens = opt ? clamp(roundSig(opt.tokensB), TOKENS_B_MIN, maxTokens) : 0;
+  const atOptimum = opt !== null && Math.abs(optParams / d.paramsB - 1) < 0.01 && Math.abs(optTokens / tokens - 1) < 0.01;
+
+  const rlhfCost = labelersCost({ ...plan, rlhf: true });
+  const rlhfShort = plan.rlhf && rlhfCost > s.cash;
 
   function toggleTarget(b: BenchmarkId) {
-    setTargets((t) => (t.includes(b) ? t.filter((x) => x !== b) : t.length >= MAX_BENCH_TARGETS ? t : [...t, b]));
+    const has = d.targets.includes(b);
+    if (!has && d.targets.length >= MAX_BENCH_TARGETS) return;
+    patch({ targets: has ? d.targets.filter((x) => x !== b) : [...d.targets, b] });
   }
 
   function applyOptimal() {
-    const o = est?.optimal;
-    if (!o) return;
-    setParamsB(clamp(roundSig(o.paramsB), PARAMS_B_MIN, PARAMS_B_MAX));
-    setTokensB(clamp(roundSig(o.tokensB), TOKENS_B_MIN, maxTokens));
+    if (!opt) return;
+    patch({ paramsB: optParams, tokensB: optTokens });
   }
 
   function start() {
     const r = store.dispatch(actions.startTraining, plan);
     if (r.ok) {
       setErr(null);
-      setName(null);
+      patch({ name: null });
     } else {
       setErr(r.error);
     }
   }
 
+  const fitLine =
+    d.share > 0 && d.targets.length === 0
+      ? 'Бенчмарки не выбраны: доля данных потратится впустую.'
+      : `Подгонка снижает Эло на «Арене». После выпуска её могут раскрыть: репутация −${fmtNum(Math.abs(EXPOSE_REP))}, шумиха −${fmtPct((1 - EXPOSE_HYPE_MULT) * 100, 0)}.`;
+
   return (
-    <div className="col">
-      {s.training && <RunningCard s={s} t={s.training} open={open} />}
+    <div className="nm">
+      {t && <RunningBar s={s} t={t} />}
 
-      <div>
-        <div className="section-title">Новый проект</div>
-        {s.training && <Hint>Идёт другой проект: настроить новый можно сейчас, а начать — когда текущий закончится.</Hint>}
-      </div>
-
-      <div className="card col">
-        <Field label="Название">
-          <input type="text" style={{ width: '100%' }} maxLength={40} value={nameValue} onChange={(e) => setName(e.target.value)} />
-        </Field>
-
-        <Field
-          label="Размер (параметры)"
-          hint="Качество зависит от общего объёма вычислений и от баланса между размером и данными: большая модель на малом объёме данных выходит слабой. Чем больше параметров, тем дороже обучение, а каждый токен клиента тратит больше вычислений."
-        >
-          <LogSlider value={paramsB} min={PARAMS_B_MIN} max={PARAMS_B_MAX} onChange={setParamsB} format={fmtParams} />
-        </Field>
-
-        <Field
-          label="Данные (токены)"
-          hint={`Объём обучающих текстов. В ${yearOf(s.day)} году в мире набирается не больше ${fmtTokens(maxTokens)} токенов. Чем больше модель, тем больше данных ей нужно.`}
-        >
-          <LogSlider value={tokens} min={TOKENS_B_MIN} max={maxTokens} onChange={setTokensB} format={fmtTokens} />
-        </Field>
-
-        <RatioField s={s} plan={plan} maxTokens={maxTokens} />
-
-        <div>
-          <div className="section-title">Состав данных</div>
-          <Hint>Чему учить модель. Доли всегда дают в сумме 100 %: при движении одного ползунка остальные подстраиваются. На «Арене» язык весит вдвое больше, чем код или рассуждения.</Hint>
-        </div>
-        {DOMAINS.map((d) => (
-          <Field key={d} label={DOMAIN_RU[d]}>
-            <PctSlider value={mix[d]} onChange={(v) => setMix((m) => rescaleMix(m, d, v))} />
-          </Field>
-        ))}
-
-        <div>
-          <div className="section-title">Подгонка под бенчмарки</div>
-        </div>
-        <Field label="Данные под бенчмарки">
-          <PctSlider value={share} max={Math.round(BENCH_SHARE_MAX * 100)} onChange={setShare} />
-        </Field>
-        <div className={share > 0 ? 'warn small' : 'muted small'}>
-          {share > 0 ? '⚠ ' : ''}Баллы на выбранных тестах вырастут, но настоящее качество (Арена, реальные задачи) немного упадёт. Если модель выпустить, подгонку могут раскрыть:
-          тогда упадут репутация и шумиха, а в таблице покажут честные баллы.
-        </div>
-        <div className="col" style={{ gap: 4 }}>
-          <Hint>
-            Под какие тесты подгонять (не больше {MAX_BENCH_TARGETS}; выбрано {targets.length}). Учитывается, только если доля данных больше нуля.
-          </Hint>
-          {benches.length === 0 && <Hint>Пока не вышло ни одного теста.</Hint>}
-          <div className="row" style={{ gap: 14 }}>
-            {benches.map((b) => {
-              const def = benchDef(b);
-              const checked = targets.includes(b);
-              const blocked = !checked && targets.length >= MAX_BENCH_TARGETS;
-              return (
-                <label
-                  key={b}
-                  className="row"
-                  style={{ gap: 4 }}
-                  title={blocked ? `Уже выбрано ${MAX_BENCH_TARGETS} теста: снимите отметку с другого` : def.description}
-                >
-                  <input type="checkbox" checked={checked} disabled={blocked} onChange={() => toggleTarget(b)} />
-                  <span className={blocked ? 'dim' : undefined}>{def.name}</span>
-                  <span className="muted small">{DOMAIN_RU[def.domain]}</span>
-                </label>
-              );
-            })}
+      <div className="nm-main">
+        <aside className="nm-side">
+          <div className="nm-side-head">
+            <label>
+              <span className="nm-name-l">Название</span>
+              <input
+                type="text"
+                className="nm-name"
+                maxLength={NAME_MAX}
+                value={nameValue}
+                onChange={(e) => patch({ name: e.target.value })}
+              />
+            </label>
+            <div className="nm-count num">
+              {nameValue.length}/{NAME_MAX}
+            </div>
           </div>
-          {share > 0 && targets.length === 0 && benches.length > 0 && (
-            <div className="warn small">Тесты не выбраны: данные под бенчмарки потратятся впустую и только снизят качество.</div>
-          )}
+
+          <div className="nm-side-scroll">
+            <Summary s={s} plan={plan} est={est} open={open} />
+          </div>
+
+          <div className="nm-side-foot">
+            {reason && <div className={`nm-reason ${t ? 'warn' : 'error'}`}>{reason}</div>}
+            <ErrorText error={err} />
+            <button
+              className="btn primary wide nm-start"
+              data-tutorial="train-start"
+              disabled={!canStart}
+              title={canStart ? undefined : (reason ?? undefined)}
+              onClick={start}
+            >
+              Начать обучение
+            </button>
+          </div>
+        </aside>
+
+        <div className="nm-area">
+          {noCompute && <NoComputeAlert s={s} open={open} />}
+
+          <section className="nm-block">
+            <h2 className="nm-h">Размер</h2>
+            <div className="nm-size">
+              <div>
+                <ModelChip name={nameValue} paramsB={d.paramsB} arch={archName(archFor(s))} />
+                <div
+                  className="nm-eff"
+                  title="Доля вычислений, которая идёт в качество модели при таком соотношении данных и параметров."
+                >
+                  <span>Полезные вычисления</span>
+                  <span className={`num ${effTone}`}>{fmtPct(eff * 100, 0)}</span>
+                </div>
+              </div>
+
+              <div className="nm-sliders">
+                <Slider
+                  label="Параметры"
+                  text={fmtParams(d.paramsB)}
+                  value={toPos(d.paramsB, PARAMS_B_MIN, PARAMS_B_MAX)}
+                  min={0}
+                  max={POS_MAX}
+                  onChange={(v) => patch({ paramsB: fromPos(v, PARAMS_B_MIN, PARAMS_B_MAX) })}
+                  ends={[fmtParams(PARAMS_B_MIN), fmtParams(PARAMS_B_MAX)]}
+                  title="Больше параметров — больше вычислений на обучение и на каждый запрос клиента."
+                  ariaLabel="Параметры"
+                />
+                <Slider
+                  label="Данные, токены"
+                  text={fmtTokens(tokens)}
+                  value={toPos(tokens, TOKENS_B_MIN, maxTokens)}
+                  min={0}
+                  max={POS_MAX}
+                  onChange={(v) => patch({ tokensB: fromPos(v, TOKENS_B_MIN, maxTokens) })}
+                  ends={[fmtTokens(TOKENS_B_MIN), fmtTokens(maxTokens)]}
+                  title={`Максимум объёма данных в ${year} году: ${fmtTokens(maxTokens)} токенов.`}
+                  ariaLabel="Данные, токены"
+                />
+                <div className="nm-ratio">
+                  <span>
+                    Токенов на параметр: <b className={`num ${effTone}`}>{fmtNum(ratio)}</b>
+                  </span>
+                  <span className="muted">оптимум ≈ {CHIN_OPT_RATIO}</span>
+                  {opt && (
+                    <button
+                      className="btn small"
+                      disabled={atOptimum}
+                      title={
+                        atOptimum
+                          ? 'Значения уже оптимальны.'
+                          : `Тот же объём вычислений: ${fmtParams(optParams)} параметров, ${fmtTokens(optTokens)} токенов.`
+                      }
+                      onClick={applyOptimal}
+                    >
+                      Подставить оптимум
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="nm-block">
+            <h2
+              className="nm-h"
+              title="Доли в сумме дают 100 %: при движении одного ползунка остальные подстраиваются. На «Арене» язык весит вдвое больше, чем код или рассуждения."
+            >
+              Состав данных
+            </h2>
+            <div className="nm-mixbar" aria-hidden="true">
+              {DOMAINS.map((k) => (
+                <div key={k} style={{ width: `${d.mix[k]}%`, background: DOMAIN_COLOR[k] }} />
+              ))}
+            </div>
+            <div className="nm-mix">
+              {DOMAINS.map((k) => (
+                <Slider
+                  key={k}
+                  label={
+                    <>
+                      <span className="nm-dot" style={{ background: DOMAIN_COLOR[k] }} />
+                      {DOMAIN_RU[k]}
+                    </>
+                  }
+                  text={fmtPct(d.mix[k], 0)}
+                  value={d.mix[k]}
+                  min={0}
+                  max={100}
+                  color={DOMAIN_COLOR[k]}
+                  onChange={(v) => patch({ mix: rescaleMix(d.mix, k, v) })}
+                  ariaLabel={DOMAIN_RU[k]}
+                />
+              ))}
+            </div>
+          </section>
+
+          <section className="nm-block">
+            <h2 className="nm-h">Дообучение</h2>
+            <div className="nm-ft">
+              <div className="nm-ft-col">
+                <label
+                  className={`nm-check${rlhfDone ? '' : ' off'}`}
+                  title={
+                    rlhfDone
+                      ? `Повышает Эло на «Арене» и способности в языке. Вычислений нужно на ${fmtPct(RLHF_FLOP_EXTRA * 100, 0)} больше. Разметчикам платят при старте.`
+                      : 'Нужно исследование «Обучение на отзывах людей (RLHF)».'
+                  }
+                >
+                  <input
+                    type="checkbox"
+                    checked={plan.rlhf}
+                    disabled={!rlhfDone}
+                    onChange={(e) => patch({ rlhf: e.target.checked })}
+                  />
+                  <span>RLHF</span>
+                </label>
+                {rlhfDone ? (
+                  <div className="kv">
+                    <span>Разметчики</span>
+                    <span className={rlhfShort ? 'bad' : undefined}>{fmtMoney(rlhfCost)}</span>
+                    <span>Вычисления</span>
+                    <span>+{fmtPct(RLHF_FLOP_EXTRA * 100, 0)}</span>
+                  </div>
+                ) : (
+                  <div className="nm-note muted">
+                    Нужно исследование RLHF.{' '}
+                    <button className="nm-link" onClick={() => open('research')}>Исследования</button>
+                  </div>
+                )}
+              </div>
+
+              <div className="nm-ft-col">
+                <Slider
+                  label="Подгонка под бенчмарки"
+                  text={fmtPct(d.share, 0)}
+                  value={d.share}
+                  min={0}
+                  max={Math.round(BENCH_SHARE_MAX * 100)}
+                  onChange={(v) => patch({ share: v })}
+                  ends={[fmtPct(0, 0), fmtPct(BENCH_SHARE_MAX * 100, 0)]}
+                  ariaLabel="Подгонка под бенчмарки"
+                />
+                <div className="nm-sub-head">
+                  <span>Целевые бенчмарки</span>
+                  <span className="num muted">{d.targets.length} из {MAX_BENCH_TARGETS}</span>
+                </div>
+                {benches.length === 0 ? (
+                  <div className="nm-note muted">Бенчмарков пока нет.</div>
+                ) : (
+                  <div className="nm-tags">
+                    {benches.map((b) => {
+                      const def = benchDef(b);
+                      const checked = d.targets.includes(b);
+                      const full = !checked && d.targets.length >= MAX_BENCH_TARGETS;
+                      const off = d.share <= 0 || full;
+                      const title =
+                        d.share <= 0
+                          ? 'Сначала задайте долю подгонки.'
+                          : full
+                            ? `Выбрано максимум бенчмарков: ${MAX_BENCH_TARGETS}. Снимите отметку с другого.`
+                            : `${def.description} Область: ${DOMAIN_RU[def.domain]}.`;
+                      return (
+                        <label key={b} className={`nm-check${off ? ' off' : ''}`} title={title}>
+                          <input type="checkbox" checked={checked} disabled={off && !checked} onChange={() => toggleTarget(b)} />
+                          <span>{def.name}</span>
+                          <span className="nm-tag-d">{DOMAIN_RU[def.domain]}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {d.share > 0 && <div className="nm-note warn">{fitLine}</div>}
+              </div>
+            </div>
+          </section>
         </div>
-
-        <Field
-          label="RLHF"
-          hint={
-            rlhfDone ? (
-              `Обучение на отзывах людей: выше Эло на «Арене» и чуть лучше язык. Платите разметчикам при старте и тратите на ${fmtPct(RLHF_FLOP_EXTRA * 100, 0)} больше вычислений.`
-            ) : (
-              <>
-                Пока недоступно: сначала изучите «RLHF» в окне «Исследования».{' '}
-                <button className="btn small" onClick={() => open('research')}>Исследования</button>
-              </>
-            )
-          }
-        >
-          <label className="row" style={{ gap: 6 }} title={rlhfDone ? undefined : 'Сначала изучите «RLHF» в окне «Исследования»'}>
-            <input type="checkbox" checked={rlhf && rlhfDone} disabled={!rlhfDone} onChange={(e) => setRlhf(e.target.checked)} />
-            Обучение на отзывах людей
-          </label>
-        </Field>
       </div>
-
-      <EstimateCard s={s} plan={plan} est={est} maxTokens={maxTokens} open={open} onApplyOptimal={applyOptimal} />
-
-      <div className="row">
-        <button className="btn primary" disabled={!canStart} title={canStart ? undefined : (startBlock ?? 'Оценка проекта недоступна')} onClick={start}>
-          Начать обучение
-        </button>
-        {!canStart && (
-          <span className="muted small">
-            {est?.error || est === null ? 'Сначала исправьте ошибку в оценке проекта.' : 'Сначала выделите мощность на обучение в окне «Мощности».'}
-          </span>
-        )}
-        {canStart && est?.days === null && (
-          <span className="warn small">Проект начнётся, но будет стоять, пока на обучение нет мощности.</span>
-        )}
-      </div>
-      <ErrorText error={err} />
     </div>
   );
 }

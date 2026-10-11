@@ -214,7 +214,7 @@ function finishContract(s: GameState, c: Contract): void {
 export function cancelContract(s: GameState, contractId: string): Result {
   const c = s.contracts.find((x) => x.id === contractId);
   if (!c) return { ok: false, error: 'Нет такого контракта' };
-  failContract(s, c, 'Контракт расторгнут', 'Лаборатория отказалась от выполнения контракта.', false); // решение игрока: пауза не нужна
+  failContract(s, c, 'Контракт расторгнут', 'Лаборатория отказалась от контракта.', false); // решение игрока: пауза не нужна
   return { ok: true };
 }
 
@@ -259,8 +259,10 @@ function resolveApplication(s: GameState, t: Tender): void {
     body:
       `Исполнитель — модель «${model.name}». ` +
       `Срок — ${t.durationDays} дн., оплата после сдачи — ${endSentence(fmtMoney(t.payment))} ` +
-      `Мощность берётся из доли «Контракты».${labelersNote}` +
-      (noCompute ? ' Доля «Контракты» равна 0 %: пока мощность не выделена в окне «Мощности», работа не начнётся.' : ''),
+      (noCompute
+        ? 'Доля «Контракты» равна 0 %: работа не начнётся, пока мощность не выделена в окне «Мощности».'
+        : 'Мощность берётся из доли «Контракты».') +
+      labelersNote,
   });
 }
 

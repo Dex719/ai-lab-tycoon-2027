@@ -1,0 +1,78 @@
+/* Окно «Исследования»: серый холст с узлами, как дерево в Processor Tycoon. */
+
+.rs { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+
+/* Заголовок блока */
+.rs-head {
+  flex: none; display: flex; align-items: center; gap: 16px; min-height: 46px; padding: 4px 14px;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.rs-title { margin: 0; font-size: 20px; font-weight: 300; color: #2a2c30; }
+.rs-state { margin-left: auto; display: flex; align-items: center; gap: 12px; min-width: 0; color: #50545b; }
+.rs-state b { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Холст */
+.rs-canvas { flex: 1; min-height: 0; display: flex; overflow: auto; background: var(--line); user-select: none; }
+.rs-stage { position: relative; flex: none; margin: auto; }
+.rs-lines { position: absolute; left: 0; top: 0; pointer-events: none; }
+.rs-lines path { fill: none; stroke: #868a91; stroke-width: 2; stroke-linejoin: round; }
+.rs-lines path.on { stroke: #2f3135; }
+
+.rs-slot { position: absolute; }
+.rs-caption { position: absolute; left: 0; top: 100%; margin-top: 3px; font-size: 12px; line-height: 15px; color: #34373c; white-space: nowrap; }
+.rs-caption.free { position: absolute; margin: 0; }
+
+/* Узел */
+.rs-node {
+  position: relative; display: block; width: 100%; height: 100%; padding: 6px 8px 0; text-align: left;
+  background: #fff; color: var(--text); border: 2px solid transparent; border-radius: 3px; cursor: pointer; font: inherit;
+  transition: border-color 100ms ease-out;
+}
+.rs-node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rs-node.available:hover { border-color: #8db8f0; }
+.rs-node.current { border-color: var(--accent); }
+.rs-node.done { background: #45474c; color: #f2f2f2; cursor: default; }
+.rs-node.blocked { background: #b3b6bc; color: #34373c; cursor: default; }
+
+.rs-name { display: block; height: 18px; font-size: 14px; font-weight: 500; line-height: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-main { display: flex; gap: 10px; margin-top: 4px; }
+
+.rs-thumb {
+  flex: none; width: 52px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: #e6e8eb; color: #4a4d53; border-radius: 3px; font: 600 12px/1 var(--mono);
+}
+.rs-node.current .rs-thumb { background: var(--accent); color: #fff; }
+.rs-node.done .rs-thumb { background: #34363a; color: #c9ccd1; }
+.rs-node.blocked .rs-thumb { background: #a3a6ac; color: #34373c; }
+
+.rs-kv { flex: 1; min-width: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-content: start; font-size: 12.5px; line-height: 17px; }
+.rs-kv > :nth-child(odd) { color: var(--text-dim); }
+.rs-kv > :nth-child(even) { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rs-node.done .rs-kv > :nth-child(odd) { color: #b5b8be; }
+.rs-node.blocked .rs-kv > :nth-child(odd) { color: #50545b; }
+.rs-node .rs-kv > .rs-done { grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; color: var(--good-on-dark); font-weight: 600; text-align: left; }
+.rs-node.done .rs-kv > .rs-done { color: var(--good-on-dark); }
+
+.rs-prog { position: absolute; left: 8px; right: 8px; bottom: 7px; height: 6px; background: #d9dce1; border-radius: 2px; overflow: hidden; }
+.rs-prog > span { display: block; height: 100%; background: var(--accent); }
+.rs-node.done .rs-prog { background: #2f3134; }
+.rs-node.done .rs-prog > span { background: #3d9b5b; }
+.rs-node.blocked .rs-prog { background: #a3a6ac; }
+
+/* Изученные уровни цепочки */
+.rs-chip {
+  position: absolute; display: grid; place-items: center; background: #45474c; color: #e6e8eb; border-radius: 3px;
+  font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* Нижняя строка */
+.rs-bar {
+  flex: none; display: flex; align-items: center; gap: 22px; height: 42px; padding: 0 14px;
+  background: var(--win-title); border-top: 1px solid var(--line); font-size: 13px;
+}
+.rs-stat { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.rs-stat .l { color: #50545b; }
+.rs-stat b { font-size: 14px; font-weight: 600; }
+.rs-note { color: var(--bad); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-warn { color: var(--warn); white-space: nowrap; }
+.rs-bar .btn { margin-left: auto; flex: none; }

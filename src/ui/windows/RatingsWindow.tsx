@@ -1,122 +1,163 @@
-// Окно «Рейтинги» (FR-5, FR-6, FR-7.3/4): вкладки «Бенчмарки» и «Арена».
+// Вкладки «Бенчмарки» (баллы моделей по бенчмаркам) и «Арена» (рейтинг по Эло).
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { WindowProps } from '.';
 import { BENCHMARKS } from '../../data/benchmarks';
-import { LABS, PLAYER_COLOR } from '../../data/labs';
 import { ARENA_OPEN_DATE } from '../../sim/constants';
 import { leaderboard, type BoardRow } from '../../sim/leaderboard';
-import { dateToDay, formatDateShort } from '../../sim/time';
+import { dateToDay, END_DAY, formatDateShort } from '../../sim/time';
 import type { BenchmarkDef, BenchmarkId, GameState } from '../../sim/types';
-import { Empty, Stat, Tabs } from '../components/common';
 import { fmtElo, fmtNum, fmtPct } from '../format';
+import { IconAlert, IconLock } from '../icons';
+import { ownerColor, ownerName, OwnerTag, safe, StatStrip } from './analyticsShared';
 
-type TabId = 'bench' | 'arena';
+type SortKey = 'name' | 'owner' | 'date' | BenchmarkId;
 type SortDir = 'asc' | 'desc';
+interface Sort {
+  key: SortKey;
+  dir: SortDir;
+}
 
-const BENCH_ROW_LIMIT = 40;
-const ARENA_ROW_LIMIT = 60;
-
-const TIP_ESTIMATE = 'оценка: лаборатория не публиковала этот балл';
-const TIP_ELO_ESTIMATE = 'оценка: точный рейтинг этой модели на Арене неизвестен';
-const TIP_SATURATED =
-  'Бенчмарк насыщен: лучшие модели уже набирают почти максимум, поэтому он больше не влияет на шумиху и тендеры.';
+const TIP_ESTIMATE = 'Оценка: лаборатория не публиковала этот балл';
+const TIP_SATURATED = 'Бенчмарк насыщен: не влияет на шумиху и тендеры.';
 
 const rowKey = (r: BoardRow) => `${r.ref.kind}:${r.ref.id}`;
 
-function ownerInfo(s: GameState, r: BoardRow): { name: string; color: string } {
-  if (r.owner === 'player') return { name: s.labName, color: PLAYER_COLOR };
-  const lab = LABS.find((l) => l.id === r.owner);
-  return { name: lab ? lab.name : String(r.owner), color: lab ? lab.color : PLAYER_COLOR };
+/** Подсказка к значку предупреждения: у вашей модели — раскрытая подгонка, у соперника — сообщения об утечке. */
+function flagTitle(r: BoardRow): string {
+  return r.owner === 'player' ? 'Подгонка под бенчмарки раскрыта' : 'Были сообщения об утечке бенчмарка';
 }
 
-function OwnerCell({ s, row }: { s: GameState; row: BoardRow }) {
-  const o = ownerInfo(s, row);
-  return <td style={{ color: o.color }}>{o.name}</td>;
+function Flag({ row }: { row: BoardRow }) {
+  return row.flagged ? (
+    <span className="flag" title={flagTitle(row)}>
+      <IconAlert size={14} />
+    </span>
+  ) : null;
 }
 
-function NameCell({ row, withFlag }: { row: BoardRow; withFlag: boolean }) {
-  const flagTitle = row.owner === 'player' ? 'подгонка под тесты' : 'есть сообщения об утечке тестов';
+// ---------- Бенчмарки ----------
+
+/** Сортировка по умолчанию: новейший ещё не насыщенный бенчмарк (если все насыщены, то новейший из вышедших), по убыванию. */
+function defaultSort(s: GameState, active: BenchmarkDef[]): Sort {
+  if (active.length === 0) return { key: 'date', dir: 'desc' };
+  const live = active.filter((b) => !s.benchmarks[b.id].saturated);
+  const pool = live.length > 0 ? live : active;
+  return { key: pool.reduce((a, b) => (b.introduced > a.introduced ? b : a)).id, dir: 'desc' };
+}
+
+function isStaticKey(k: SortKey): boolean {
+  return k === 'name' || k === 'owner' || k === 'date';
+}
+
+function Th(props: {
+  id: SortKey;
+  sort: Sort;
+  onSort: (k: SortKey) => void;
+  num?: boolean;
+  muted?: boolean;
+  title?: string;
+  children: ReactNode;
+}) {
+  const on = props.sort.key === props.id;
   return (
-    <td>
-      {withFlag && row.flagged && (
-        <span className="warn" title={flagTitle} style={{ marginRight: 4 }}>
-          ⚠
-        </span>
-      )}
-      {row.name}
-    </td>
+    <th
+      className={`sortable${props.num ? ' num' : ''}${props.muted ? ' sat' : ''}`}
+      title={props.title}
+      aria-sort={on ? (props.sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+    >
+      <button className="th-btn" onClick={() => props.onSort(props.id)}>
+        {props.children}
+        {on && <i className={`sort-mark ${props.sort.dir}`} />}
+      </button>
+    </th>
   );
 }
 
-/** Новейший активный (ненасыщенный) бенчмарк; если все насыщены — новейший из вышедших. */
-function defaultSortKey(s: GameState, active: BenchmarkDef[]): BenchmarkId | null {
-  if (active.length === 0) return null;
-  const live = active.filter((b) => !s.benchmarks[b.id].saturated);
-  const pool = live.length > 0 ? live : active;
-  return pool.reduce((a, b) => (b.introduced > a.introduced ? b : a)).id;
+function compareRows(s: GameState, sort: Sort, a: BoardRow, b: BoardRow): number {
+  const sign = sort.dir === 'asc' ? 1 : -1;
+  switch (sort.key) {
+    case 'name':
+      return sign * a.name.localeCompare(b.name, 'ru');
+    case 'owner':
+      return sign * ownerName(s, a.owner).localeCompare(ownerName(s, b.owner), 'ru');
+    case 'date':
+      return sign * (a.releasedDay - b.releasedDay);
+    default: {
+      const va = a.scores[sort.key]?.value;
+      const vb = b.scores[sort.key]?.value;
+      if (va === undefined && vb === undefined) return 0;
+      if (va === undefined) return 1; // пустые всегда внизу
+      if (vb === undefined) return -1;
+      return sign * (va - vb);
+    }
+  }
 }
 
-function BenchTable(props: {
-  s: GameState;
-  rows: BoardRow[];
-  active: BenchmarkDef[];
-  sortKey: BenchmarkId | null;
-  dir: SortDir;
-  onSort: (id: BenchmarkId) => void;
-  onlyMarket: boolean;
-  setOnlyMarket: (v: boolean) => void;
-}) {
-  const { s, rows, active, sortKey, dir, onSort, onlyMarket, setOnlyMarket } = props;
+export function BenchmarksTab({ s }: WindowProps) {
+  const [sortState, setSort] = useState<Sort | null>(null);
+  const [onlyMarket, setOnlyMarket] = useState(false);
 
-  const filtered = onlyMarket ? rows.filter((r) => r.onMarket) : rows;
-  const sorted = filtered.slice();
-  if (sortKey) {
-    sorted.sort((a, b) => {
-      const va = a.scores[sortKey]?.value;
-      const vb = b.scores[sortKey]?.value;
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1; // пустые всегда внизу
-      if (vb == null) return -1;
-      return dir === 'desc' ? vb - va : va - vb;
-    });
+  const rows = safe(() => leaderboard(s));
+  const active = BENCHMARKS.filter((b) => s.benchmarks[b.id]?.introduced);
+  const sort: Sort =
+    sortState && (isStaticKey(sortState.key) || active.some((b) => b.id === sortState.key))
+      ? sortState
+      : defaultSort(s, active);
+
+  const onSort = (key: SortKey) =>
+    setSort(
+      sort.key === key
+        ? { key, dir: sort.dir === 'desc' ? 'asc' : 'desc' }
+        : { key, dir: key === 'name' || key === 'owner' ? 'asc' : 'desc' },
+    );
+
+  const shown = (rows ?? []).filter((r) => !onlyMarket || r.onMarket).sort((a, b) => compareRows(s, sort, a, b));
+
+  // Лучший опубликованный балл в каждом столбце.
+  const best: Partial<Record<BenchmarkId, number>> = {};
+  for (const r of shown) {
+    for (const b of active) {
+      const sc = r.scores[b.id];
+      if (sc && !sc.estimated && sc.value > (best[b.id] ?? -Infinity)) best[b.id] = sc.value;
+    }
   }
-  const shown = sorted.slice(0, BENCH_ROW_LIMIT);
-  const hidden = sorted.length - shown.length;
 
-  return (
-    <div className="col">
-      <div className="row">
-        <label className="row" style={{ gap: 4, cursor: 'pointer' }}>
-          <input type="checkbox" checked={onlyMarket} onChange={(e) => setOnlyMarket(e.target.checked)} />
-          Только модели на рынке
-        </label>
-      </div>
-      <div className="muted small">
-        Нажмите на название бенчмарка, чтобы отсортировать таблицу (ещё раз — в обратную сторону). Значок «≈» — оценка:
-        лаборатория этот балл не публиковала. Значок «⚠» — подгонка под тесты или сообщения об утечке тестов.
-      </div>
-      {active.length === 0 ? (
-        <Empty>Пока не вышел ни один бенчмарк.</Empty>
-      ) : shown.length === 0 ? (
-        <Empty>{onlyMarket ? 'Сейчас на рынке нет ни одной модели.' : 'Пока ни одна модель не выпущена.'}</Empty>
-      ) : (
-        <table className="grid">
+  let body: ReactNode;
+  if (rows === null) body = <div className="an-empty">Не удалось построить таблицу.</div>;
+  else if (active.length === 0) body = <div className="an-empty">Бенчмарки пока не вышли.</div>;
+  else if (shown.length === 0)
+    body = <div className="an-empty">{onlyMarket ? 'На рынке нет моделей.' : 'Выпущенных моделей нет.'}</div>;
+  else
+    body = (
+      <div className="an-scroll">
+        <table className="grid an-grid">
           <thead>
             <tr>
-              <th>Модель</th>
-              <th>Владелец</th>
-              <th>Выпущена</th>
+              <Th id="name" sort={sort} onSort={onSort}>
+                Модель
+              </Th>
+              <Th id="owner" sort={sort} onSort={onSort}>
+                Лаборатория
+              </Th>
+              <Th id="date" sort={sort} onSort={onSort}>
+                Выпущена
+              </Th>
               {active.map((b) => {
                 const saturated = s.benchmarks[b.id].saturated;
-                const arrow = sortKey === b.id ? (dir === 'desc' ? ' ▼' : ' ▲') : '';
-                const title = saturated ? `${b.description} ${TIP_SATURATED}` : b.description;
                 return (
-                  <th key={b.id} className={`sortable num${saturated ? ' dim' : ''}`} title={title} onClick={() => onSort(b.id)}>
+                  <Th
+                    key={b.id}
+                    id={b.id}
+                    sort={sort}
+                    onSort={onSort}
+                    num
+                    muted={saturated}
+                    title={saturated ? `${b.description} ${TIP_SATURATED}` : b.description}
+                  >
+                    {saturated && <IconLock size={12} />}
                     {b.name}
-                    {saturated ? ' (насыщен)' : ''}
-                    {arrow}
-                  </th>
+                  </Th>
                 );
               })}
             </tr>
@@ -124,27 +165,37 @@ function BenchTable(props: {
           <tbody>
             {shown.map((r) => (
               <tr key={rowKey(r)} className={r.owner === 'player' ? 'player' : undefined}>
-                <NameCell row={r} withFlag />
-                <OwnerCell s={s} row={r} />
+                <td>
+                  <Flag row={r} />
+                  {r.name}
+                </td>
+                <td>
+                  <OwnerTag s={s} owner={r.owner} />
+                </td>
                 <td>{formatDateShort(r.releasedDay)}</td>
                 {active.map((b) => {
                   const sc = r.scores[b.id];
+                  const cls = `num${s.benchmarks[b.id].saturated ? ' sat' : ''}`;
                   if (!sc) {
                     return (
-                      <td key={b.id} className="num muted">
+                      <td key={b.id} className={`${cls} muted`}>
                         —
                       </td>
                     );
                   }
-                  return (
-                    <td key={b.id} className="num">
-                      {sc.estimated ? (
+                  if (sc.estimated) {
+                    return (
+                      <td key={b.id} className={cls}>
                         <span className="est" title={TIP_ESTIMATE}>
                           ≈{fmtPct(sc.value, 1)}
                         </span>
-                      ) : (
-                        fmtPct(sc.value, 1)
-                      )}
+                      </td>
+                    );
+                  }
+                  const top = sc.value === best[b.id];
+                  return (
+                    <td key={b.id} className={`${cls}${top ? ' top' : ''}`} title={top ? 'Лучший результат в таблице' : undefined}>
+                      {fmtPct(sc.value, 1)}
                     </td>
                   );
                 })}
@@ -152,163 +203,124 @@ function BenchTable(props: {
             ))}
           </tbody>
         </table>
-      )}
-      {hidden > 0 && (
-        <div className="muted small">
-          Показаны первые {fmtNum(shown.length)} моделей, ещё {fmtNum(hidden)} скрыто. Включите фильтр «Только модели на
-          рынке» или смените сортировку, чтобы увидеть остальные.
-        </div>
-      )}
+      </div>
+    );
+
+  return (
+    <div className="an-page fill">
+      <div className="an-toolbar">
+        <label className="an-check">
+          <input type="checkbox" checked={onlyMarket} onChange={(e) => setOnlyMarket(e.target.checked)} />
+          Только на рынке
+        </label>
+        <span className="muted">Моделей: {fmtNum(shown.length)}</span>
+        <span className="grow" />
+        <span className="an-key">
+          <b>≈</b> оценка
+        </span>
+        <span className="an-key">
+          <span className="flag">
+            <IconAlert size={14} />
+          </span>
+          утечка бенчмарка или подгонка
+        </span>
+      </div>
+      {body}
     </div>
   );
 }
 
-function ArenaTable({ s, rows }: { s: GameState; rows: BoardRow[] }) {
+// ---------- Арена ----------
+
+export function ArenaTab({ s }: WindowProps) {
+  const rows = safe(() => leaderboard(s));
   const arenaOpen = s.day >= dateToDay(ARENA_OPEN_DATE);
 
-  // Места считаются по всему списку, даже если часть строк скрыта.
-  const ranked = rows
+  // Места: больше Эло — выше; при равенстве выше модель, вышедшая раньше (порядок как в sim/leaderboard).
+  const ranked = (rows ?? [])
     .slice()
-    .sort((a, b) => b.elo - a.elo)
-    .map((r, i) => ({ row: r, rank: i + 1 }));
-  const shown = ranked.filter((x) => x.rank <= ARENA_ROW_LIMIT || x.row.owner === 'player');
-  const hidden = ranked.length - shown.length;
-
-  const bestPlayer = ranked.find((x) => x.row.owner === 'player') ?? null;
+    .reverse()
+    .sort((a, b) => b.elo - a.elo || a.releasedDay - b.releasedDay)
+    .map((row, i) => ({ row, rank: i + 1 }));
+  const mine = ranked.find((x) => x.row.owner === 'player') ?? null;
   const leader = ranked[0] ?? null;
 
-  return (
-    <div className="col">
-      <div className="muted small">
-        «Арена» — пользователи вслепую сравнивают ответы моделей; подгонка под тесты здесь не помогает. Цель игры — №1 к
-        концу 2024 года.
-        {!arenaOpen && ' Арена откроется в мае 2023 года; до этого здесь оценка качества по отзывам клиентов.'}
-      </div>
-      <div className="row">
-        <Stat
-          label="Ваше лучшее место"
-          value={bestPlayer ? `№${fmtNum(bestPlayer.rank)}` : '—'}
-          hint={
-            bestPlayer
-              ? `из ${fmtNum(ranked.length)} моделей · Эло ${fmtElo(bestPlayer.row.elo)}`
-              : 'у вас пока нет выпущенных моделей'
-          }
-        />
-        <Stat
-          label="Лидер рейтинга"
-          value={leader ? fmtElo(leader.row.elo) : '—'}
-          hint={leader ? `${leader.row.name} · ${ownerInfo(s, leader.row).name}` : undefined}
-        />
-      </div>
-      {shown.length === 0 ? (
-        <Empty>Пока ни одна модель не выпущена.</Empty>
-      ) : (
-        <table className="grid">
+  const hi = leader ? leader.row.elo : 0;
+  const lo = ranked.length > 0 ? ranked[ranked.length - 1].row.elo : 0;
+  const barWidth = (elo: number): number => (hi > lo ? 8 + (92 * (elo - lo)) / (hi - lo) : 100);
+
+  let body: ReactNode;
+  if (rows === null) body = <div className="an-empty">Не удалось построить рейтинг.</div>;
+  else if (ranked.length === 0) body = <div className="an-empty">Выпущенных моделей нет.</div>;
+  else
+    body = (
+      <div className="an-scroll">
+        <table className="grid an-grid">
           <thead>
             <tr>
               <th className="num">№</th>
               <th>Модель</th>
-              <th>Владелец</th>
-              <th className="num" title="Рейтинг Эло: чем выше, тем чаще пользователи выбирают ответы модели">
-                Эло
-              </th>
+              <th>Лаборатория</th>
+              <th title="Рейтинг Эло: чем выше, тем чаще пользователи выбирают ответы модели">Эло</th>
               <th>Выпущена</th>
               <th>Рынок</th>
             </tr>
           </thead>
           <tbody>
-            {shown.map(({ row: r, rank }) => (
+            {ranked.map(({ row: r, rank }) => (
               <tr key={rowKey(r)} className={r.owner === 'player' ? 'player' : undefined}>
                 <td className="num">{fmtNum(rank)}</td>
-                <NameCell row={r} withFlag={false} />
-                <OwnerCell s={s} row={r} />
-                <td className="num">
-                  {r.eloEstimated ? (
-                    <span className="est" title={TIP_ELO_ESTIMATE}>
-                      ≈{fmtElo(r.elo)}
+                <td>{r.name}</td>
+                <td>
+                  <OwnerTag s={s} owner={r.owner} />
+                </td>
+                <td>
+                  <div className="elo-cell">
+                    <span className="elo-track">
+                      <span className="elo-fill" style={{ width: `${barWidth(r.elo)}%`, background: ownerColor(r.owner) }} />
                     </span>
-                  ) : (
-                    fmtElo(r.elo)
-                  )}
+                    {r.eloEstimated ? (
+                      <span className="est elo-val" title="Оценка: точный рейтинг неизвестен">
+                        ≈{fmtElo(r.elo)}
+                      </span>
+                    ) : (
+                      <span className="elo-val">{fmtElo(r.elo)}</span>
+                    )}
+                  </div>
                 </td>
                 <td>{formatDateShort(r.releasedDay)}</td>
-                <td>
-                  {r.onMarket ? (
-                    <span className="good small" title="Модель сейчас продаётся клиентам">
-                      на рынке
-                    </span>
-                  ) : (
-                    ''
-                  )}
-                </td>
+                <td>{r.onMarket ? <span className="good">На рынке</span> : ''}</td>
               </tr>
             ))}
           </tbody>
         </table>
-      )}
-      {hidden > 0 && (
-        <div className="muted small">
-          Показаны первые {fmtNum(ARENA_ROW_LIMIT)} моделей (и все ваши), ещё {fmtNum(hidden)} скрыто — это самые слабые
-          модели рейтинга.
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function RatingsWindow({ s }: WindowProps) {
-  const [tab, setTab] = useState<TabId>('bench');
-  const [sortKey, setSortKey] = useState<BenchmarkId | null>(null);
-  const [dir, setDir] = useState<SortDir>('desc');
-  const [onlyMarket, setOnlyMarket] = useState(false);
-
-  let rows: BoardRow[] | null = null;
-  try {
-    rows = leaderboard(s);
-  } catch {
-    rows = null;
-  }
-
-  const active = BENCHMARKS.filter((b) => s.benchmarks[b.id]?.introduced);
-  const defKey = defaultSortKey(s, active);
-  const effKey = sortKey && active.some((b) => b.id === sortKey) ? sortKey : defKey;
-
-  const onSort = (id: BenchmarkId) => {
-    if (effKey === id) {
-      setSortKey(id);
-      setDir((d) => (d === 'desc' ? 'asc' : 'desc'));
-    } else {
-      setSortKey(id);
-      setDir('desc');
-    }
-  };
+      </div>
+    );
 
   return (
-    <div className="col">
-      <Tabs
-        tabs={[
-          { id: 'bench' as const, label: 'Бенчмарки' },
-          { id: 'arena' as const, label: 'Арена' },
+    <div className="an-page fill">
+      <StatStrip
+        items={[
+          {
+            value: mine ? `№${fmtNum(mine.rank)}` : '—',
+            label: mine ? `Ваше лучшее место из ${fmtNum(ranked.length)}` : 'Выпущенных моделей нет',
+          },
+          {
+            value: mine ? fmtElo(mine.row.elo) : '—',
+            label: mine ? `Эло: ${mine.row.name}` : 'Эло вашей лучшей модели',
+          },
+          {
+            value: leader ? fmtElo(leader.row.elo) : '—',
+            label: leader ? `Лидер: ${leader.row.name} (${ownerName(s, leader.row.owner)})` : 'Лидер рейтинга',
+          },
+          { value: '№1', label: `Цель на ${formatDateShort(END_DAY)}` },
         ]}
-        value={tab}
-        onChange={setTab}
       />
-      {rows === null ? (
-        <Empty>Не удалось построить таблицу рейтингов. Попробуйте открыть окно ещё раз чуть позже.</Empty>
-      ) : tab === 'bench' ? (
-        <BenchTable
-          s={s}
-          rows={rows}
-          active={active}
-          sortKey={effKey}
-          dir={dir}
-          onSort={onSort}
-          onlyMarket={onlyMarket}
-          setOnlyMarket={setOnlyMarket}
-        />
-      ) : (
-        <ArenaTable s={s} rows={rows} />
-      )}
+      <div className="an-toolbar">
+        <span className="muted">Моделей: {fmtNum(ranked.length)}</span>
+        {!arenaOpen && <span className="muted">Арена открывается {formatDateShort(dateToDay(ARENA_OPEN_DATE))}.</span>}
+      </div>
+      {body}
     </div>
   );
 }

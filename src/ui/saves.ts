@@ -93,12 +93,17 @@ export function writeSlot(id: SlotId, s: GameState): boolean {
   try {
     const payload = `{"v":1,"meta":${JSON.stringify(metaOf(s))},"state":${serialize(s)}}`;
     localStorage.setItem(keyOf(id), payload);
-    const legacy = LEGACY[String(id)];
-    if (legacy) localStorage.removeItem(legacy);
-    return true;
   } catch {
     return false;
   }
+  // Запись удалась. Старый ключ первой версии убираем отдельно: его отсутствие не делает сохранение неудачным.
+  try {
+    const legacy = LEGACY[String(id)];
+    if (legacy) localStorage.removeItem(legacy);
+  } catch {
+    // старый ключ останется, читается он только если новый пуст
+  }
+  return true;
 }
 
 /** Загрузить ячейку: состояние или текст ошибки. */

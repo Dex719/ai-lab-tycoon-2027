@@ -150,7 +150,7 @@ describe('introduceDue', () => {
       const mail = s.mail.find((m) => m.title === `Новый бенчмарк: ${def.name}`);
       expect(mail).toBeDefined();
       expect(mail!.body).toContain(def.description);
-      expect(mail!.body).toContain(domainRu[def.domain]);
+      expect(mail!.body).toContain(domainRu[def.domain].toLowerCase());
       expect(mail!.body).not.toContain(def.realName);
       expect(mail!.title).not.toContain(def.realName);
     }

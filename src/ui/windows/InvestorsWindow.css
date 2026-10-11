@@ -1,0 +1,43 @@
+/* Окно «Инвесторы»: белая верхняя полоса с оценкой, ниже серое поле с разбором оценки и раундами. */
+
+.inv { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+
+/* Верхняя полоса */
+.inv-top { flex: none; padding: 16px 22px 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.inv .inv-value {
+  margin: 2px 0 4px; font-size: 44px; font-weight: 300; line-height: 1.1; letter-spacing: -0.01em;
+  text-align: left; font-variant-numeric: tabular-nums;
+}
+.inv-share { color: var(--text-dim); }
+.inv-share b { color: var(--text); font-weight: 600; }
+.inv-bar { height: 6px; margin-top: 12px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.inv-bar > div { height: 100%; background: var(--accent); }
+.inv-bar-cap { margin-top: 5px; font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+/* Серое поле с прокруткой */
+.inv-body { flex: 1; min-height: 0; overflow: auto; padding: 14px 22px 22px; }
+.inv-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.inv-section + .inv-section { margin-top: 18px; }
+
+/* Разбор оценки */
+.inv-bd { background: var(--panel); border: 1px solid var(--line-soft); border-radius: 4px; }
+.inv-bd-row {
+  display: grid; grid-template-columns: minmax(160px, 1.2fr) minmax(0, 1fr) minmax(84px, auto); gap: 2px 16px;
+  align-items: baseline; padding: 9px 14px; border-bottom: 1px solid var(--line-soft);
+}
+.inv-bd-row:last-child { border-bottom: none; }
+.inv-bd-row .calc { font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.inv-bd-row .val { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.inv-bd-row.sub { background: #f1f2f4; }
+.inv-bd-row.sub .lab, .inv-bd-row.sub .val { font-weight: 500; }
+.inv-bd-row.total { background: #fff; padding-top: 12px; padding-bottom: 12px; border-radius: 0 0 4px 4px; }
+.inv-bd-row.total .lab, .inv-bd-row.total .val { font-size: 18px; font-weight: 600; }
+
+/* Раунды */
+.inv-rounds { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.inv-round { display: flex; flex-direction: column; gap: 12px; padding: 14px; background: var(--panel); border: 1px solid var(--line-soft); border-radius: 4px; }
+.inv-round-head { display: flex; align-items: center; gap: 12px; }
+.inv-round-pct { font-size: 30px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+
+/* Подтверждение */
+.inv-confirm { font-size: 15px; row-gap: 6px; }

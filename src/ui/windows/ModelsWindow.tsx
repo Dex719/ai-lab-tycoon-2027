@@ -1,284 +1,387 @@
-// Окно «Модели» (FR-4.4, FR-8.1, FR-7.3): список моделей игрока, баллы, выпуск, цена и продажа.
+// Окно «Модели»: список моделей игрока слева, карточка выбранной справа.
+// Образец — «Инспектор» и «Проект завершён» из Processor Tycoon.
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { WindowProps } from '.';
-import { benchDef, introducedBenchmarks } from '../../sim/benchmarks';
+import { benchDef, DOMAIN_NAMES, introducedBenchmarks } from '../../sim/benchmarks';
 import { pool } from '../../sim/compute';
+import { arenaRank, benchRank } from '../../sim/leaderboard';
 import { refPrice } from '../../sim/market';
+import { formatDateShort } from '../../sim/time';
 import { modelScore } from '../../sim/training';
-import type { BenchmarkId, GameState, PlayerModel } from '../../sim/types';
-import { Empty, ErrorText } from '../components/common';
-import { fmtElo, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare } from '../format';
+import { DOMAINS, type BenchmarkId, type GameState, type ModelRef, type PlayerModel, type Result } from '../../sim/types';
+import { ErrorText } from '../components/common';
+import { fmtElo, fmtMoney, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare, fmtTokens } from '../format';
+import { IconModels } from '../icons';
 import { actions, store } from '../store';
+import './ModelsWindow.css';
 
 const MAX_PRICE = 10_000;
-const BASE_COLS = 7; // название, статус, параметры, Эло, цена, доля, токены в день
 
-/** Опорная цена рынка; null, если сим-модуль не смог её посчитать. */
-function safeRefPrice(day: number): number | null {
-  try {
-    const p = refPrice(day);
-    return Number.isFinite(p) && p > 0 ? p : null;
-  } catch {
-    return null;
-  }
+/** Рекомендуемые цены относительно опорной цены рынка. */
+const TIERS = [
+  { id: 'cheap', label: 'Дешевле рынка', k: 0.6 },
+  { id: 'market', label: 'Рынок', k: 1 },
+  { id: 'dear', label: 'Дороже рынка', k: 1.5 },
+] as const;
+
+type Tone = 'idle' | 'sale' | 'off';
+
+function saleState(m: PlayerModel): { text: string; tone: Tone } {
+  if (m.releasedDay === null) return { text: 'Обучена', tone: 'idle' };
+  return m.onApi ? { text: 'В продаже', tone: 'sale' } : { text: 'Снята', tone: 'off' };
 }
 
-/** Цена по умолчанию при выпуске: 80 % от опорной цены рынка, запасной вариант — $20. */
-function defaultPrice(day: number): number {
-  try {
-    const p = Math.round(refPrice(day) * 0.8 * 100) / 100;
-    return Number.isFinite(p) && p > 0 ? p : 20;
-  } catch {
-    return 20;
-  }
+/** Округление до тех знаков, которые показывает fmtPrice: подставленная цена совпадает с видимой. */
+function roundPrice(v: number): number {
+  const k = 10 ** (v < 1 ? 3 : v < 10 ? 2 : 0);
+  return Math.round(v * k) / k;
 }
 
 function parsePrice(text: string): number | null {
-  const v = Number(text.replace(',', '.').trim());
+  if (text.trim() === '') return null;
+  const v = Number(text.replace(',', '.'));
   return Number.isFinite(v) && v > 0 && v <= MAX_PRICE ? v : null;
 }
 
-function relativeToRef(price: number, ref: number): string {
-  const rel = (price / ref - 1) * 100;
-  const sign = Math.round(rel) > 0 ? '+' : Math.round(rel) < 0 ? '−' : '';
-  return `${sign}${fmtPct(Math.abs(rel), 0)}`;
+function priceError(text: string): string | null {
+  if (text.trim() === '' || parsePrice(text) !== null) return null;
+  return `Цена должна быть больше нуля и не больше ${fmtPrice(MAX_PRICE)}.`;
 }
 
-// ---------- Ячейки ----------
-
-function StatusCell({ m }: { m: PlayerModel }) {
-  let text = 'Обучена — не выпущена';
-  let cls = 'muted';
-  if (m.releasedDay !== null) {
-    if (m.onApi) {
-      text = 'В продаже';
-      cls = 'good';
-    } else {
-      text = 'Снята с продажи';
-      cls = 'warn';
-    }
-  }
-  return (
-    <td>
-      <span className={cls}>{text}</span>
-      {m.exposed && <div className="bad small">⚠ подгонка раскрыта</div>}
-    </td>
-  );
+function versusMarket(price: number, ref: number): string {
+  const rel = Math.round((price / ref - 1) * 100);
+  if (rel === 0) return 'На уровне рынка';
+  return `${rel > 0 ? '+' : '−'}${fmtPct(Math.abs(rel), 0)} к рынку`;
 }
 
-function ScoreCell({ m, bid, saturated }: { m: PlayerModel; bid: BenchmarkId; saturated: boolean }) {
-  const cls = `num${saturated ? ' dim' : ''}`;
-  const shown = modelScore(m, bid, false);
-  if (!((m.overfit[bid] ?? 0) > 0)) return <td className={cls}>{fmtPct(shown)}</td>;
-  const honest = modelScore(m, bid, true);
+const PRICE_TITLE = 'Цена за 1 млн токенов в долларах. Чем ниже цена, тем больше доля рынка и выше нагрузка на мощности «Клиенты».';
+
+// ---------- Левая колонка ----------
+
+function ModelList(props: { models: PlayerModel[]; selectedId: string; onSelect: (id: string) => void; open: WindowProps['open'] }) {
   return (
-    <td className={cls} title={`честный балл: ${fmtPct(honest)}`}>
-      {fmtPct(shown)}
-      {m.exposed ? <span className="bad"> ⚠</span> : <span className="muted">*</span>}
-    </td>
-  );
-}
-
-// ---------- Действия над моделью ----------
-
-function ModelActions({ s, m }: { s: GameState; m: PlayerModel }) {
-  const released = m.releasedDay !== null;
-  const [text, setText] = useState<string | null>(null); // null — показываем цену по умолчанию или текущую
-  const [err, setErr] = useState<string | null>(null);
-
-  const shown = text ?? String(released ? m.price : defaultPrice(s.day));
-  const price = parsePrice(shown);
-  const ref = safeRefPrice(s.day);
-  const priceHint =
-    price === null
-      ? shown.trim() === ''
-        ? 'Введите цену за 1 млн токенов.'
-        : `Цена должна быть больше нуля и не выше ${fmtPrice(MAX_PRICE)} за 1 млн токенов.`
-      : null;
-
-  function done(r: { ok: true } | { ok: false; error: string }) {
-    if (r.ok) {
-      setErr(null);
-      setText(null);
-    } else {
-      setErr(r.error);
-    }
-  }
-
-  function release() {
-    if (price === null) return;
-    done(store.dispatch(actions.releaseModel, m.id, price));
-  }
-
-  function changePrice() {
-    if (price === null) return;
-    done(store.dispatch(actions.setModelPrice, m.id, price));
-  }
-
-  function toggleSale() {
-    done(store.dispatch(actions.setOnApi, m.id, !m.onApi));
-  }
-
-  return (
-    <div className="col" style={{ gap: 4 }}>
-      <div className="row">
-        <span className="muted">{released ? 'Цена:' : 'Цена выпуска:'}</span>
-        <span className="muted">$</span>
-        <input
-          type="number"
-          min={0}
-          step="any"
-          value={shown}
-          onChange={(e) => setText(e.target.value)}
-          title="Цена за 1 млн токенов, в долларах"
-          aria-invalid={price === null}
-          style={price === null ? { borderColor: 'var(--bad)' } : undefined}
-        />
-        <span className="muted small">за 1 млн токенов</span>
-        {price !== null && ref !== null && (
-          <span className="muted small">({relativeToRef(price, ref)} к опорной цене {fmtPrice(ref)})</span>
-        )}
-        {!released ? (
-          <button className="btn primary small" disabled={price === null} title={priceHint ?? undefined} onClick={release}>
-            Выпустить
-          </button>
-        ) : (
-          <>
+    <aside className="mw-side">
+      <div className="mw-list">
+        {props.models.map((m) => {
+          const st = saleState(m);
+          return (
             <button
-              className="btn small"
-              disabled={price === null || price === m.price}
-              title={priceHint ?? (price === m.price ? 'Цена не изменилась' : undefined)}
-              onClick={changePrice}
+              key={m.id}
+              className={`mw-item${m.id === props.selectedId ? ' on' : ''}`}
+              aria-current={m.id === props.selectedId}
+              onClick={() => props.onSelect(m.id)}
             >
-              Изменить цену
+              <span className={`mw-dot ${st.tone}`} />
+              <span className="mw-item-text">
+                <span className="mw-item-name" title={m.name}>{m.name}</span>
+                <span className="mw-item-state">{st.text}</span>
+                {m.exposed && <span className="mw-item-state bad">Подгонка раскрыта</span>}
+              </span>
             </button>
-            <button className={`btn small${m.onApi ? ' danger' : ''}`} onClick={toggleSale}>
-              {m.onApi ? 'Снять с продажи' : 'Вернуть в продажу'}
-            </button>
-          </>
-        )}
+          );
+        })}
       </div>
-      {!released && (
-        <div className="muted small">
-          Выпуск открывает продажу по API и даёт шумиху. Цена по умолчанию — 80 % от опорной цены рынка.
-        </div>
-      )}
-      {priceHint && <div className="error">{priceHint}</div>}
-      <ErrorText error={err} />
+      <div className="mw-side-foot">
+        <span>Моделей: {props.models.length}</span>
+        <button className="btn small" onClick={() => props.open('newModel')}>Новая модель</button>
+      </div>
+    </aside>
+  );
+}
+
+// ---------- Визуал модели ----------
+
+function Chip({ lab, name, tone }: { lab: string; name: string; tone: Tone }) {
+  return (
+    <div className="mw-chip" role="img" aria-label={`${lab}, ${name}`}>
+      <div className={`mw-die ${tone}`}>
+        <span className="mw-led" />
+        <span className="mw-die-lab">{lab}</span>
+        <span className="mw-die-name">{name}</span>
+      </div>
     </div>
   );
 }
 
-// ---------- Строки таблицы ----------
+function Fact(props: { label: string; value: string; sub?: string; title?: string; wide?: boolean }) {
+  return (
+    <div className={`mw-fact${props.wide ? ' wide' : ''}`} title={props.title}>
+      <dt>{props.label}</dt>
+      <dd>
+        {props.value}
+        {props.sub && <small>{props.sub}</small>}
+      </dd>
+    </div>
+  );
+}
 
-function ModelRows({ s, m, benches }: { s: GameState; m: PlayerModel; benches: BenchmarkId[] }) {
-  const released = m.releasedDay !== null;
-  const onSale = released && m.onApi;
-  const share: number | undefined = onSale ? s.market.shares[`player:${m.id}`] : undefined;
-  const tokens = share !== undefined ? share * s.market.totalTokens * (1 - s.market.lostFraction) : undefined;
+// ---------- Цена ----------
+
+function PriceInput(props: { label: string; value: string; onChange: (v: string) => void; onEnter: () => void; invalid: boolean }) {
+  const id = useId();
+  return (
+    <div className="mw-field">
+      <label className="mw-sub" htmlFor={id}>{props.label}</label>
+      <div className="mw-price-row">
+        <span className="mw-cur">$</span>
+        <input
+          id={id}
+          type="number"
+          min={0}
+          step="any"
+          value={props.value}
+          className={props.invalid ? 'mw-bad' : undefined}
+          aria-invalid={props.invalid}
+          title={PRICE_TITLE}
+          onChange={(e) => props.onChange(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && props.onEnter()}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ---------- Выпуск (модель обучена, но не продаётся) ----------
+
+function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
+  const ref = refPrice(s.day);
+  const tiers = TIERS.map((t) => ({ ...t, price: roundPrice(ref * t.k) }));
+  const [text, setText] = useState(() => String(roundPrice(ref)));
+  const [err, setErr] = useState<string | null>(null);
+  const price = parsePrice(text);
+  const error = priceError(text);
+
+  function release() {
+    if (price === null) return;
+    const r = store.dispatch(actions.releaseModel, m.id, price);
+    setErr(r.ok ? null : r.error);
+  }
 
   return (
-    <>
-      <tr>
-        <td>
-          <b>{m.name}</b>
-          <div className="muted small">
-            {m.arch === 'transformer' ? 'Трансформер' : 'LSTM'}
-            {m.rlhf && ' · RLHF'}
+    <section>
+      <h3 className="mw-h">Выпуск</h3>
+      <div className="mw-block">
+        <div className="mw-tiers">
+          <div className="mw-sub">Рекомендуемые цены</div>
+          {tiers.map((t) => (
+            <button key={t.id} className={`mw-tier${price === t.price ? ' on' : ''}`} title="Подставить цену" onClick={() => setText(String(t.price))}>
+              <span>{t.label}</span>
+              <b className="num">{fmtPrice(t.price)}</b>
+            </button>
+          ))}
+        </div>
+        <div className="mw-ctl">
+          <PriceInput label="Цена за 1 млн токенов" value={text} onChange={setText} onEnter={release} invalid={error !== null} />
+          {price !== null && <div className="mw-sub">{versusMarket(price, ref)}</div>}
+          {error && <div className="error">{error}</div>}
+          <div className="mw-btns">
+            <button
+              className="btn primary"
+              data-tutorial="release"
+              disabled={price === null}
+              title={price === null ? (error ?? 'Укажите цену') : undefined}
+              onClick={release}
+            >
+              Выпустить
+            </button>
           </div>
-        </td>
-        <StatusCell m={m} />
-        <td className="num">{fmtParams(m.plan.paramsB)}</td>
-        <td className="num" title="Рейтинг на «Арене»: подгонкой под тесты его не накрутить">{fmtElo(m.arenaElo)}</td>
-        {benches.map((b) => (
-          <ScoreCell key={b} m={m} bid={b} saturated={s.benchmarks[b].saturated} />
-        ))}
-        <td className={`num${onSale ? '' : ' muted'}`}>{released ? fmtPrice(m.price) : '—'}</td>
-        <td className="num">{share !== undefined ? fmtShare(share) : '—'}</td>
-        <td className="num">{tokens !== undefined ? fmtNum(tokens) : '—'}</td>
-      </tr>
-      <tr>
-        <td colSpan={BASE_COLS + benches.length} style={{ paddingTop: 2, paddingBottom: 10 }}>
-          <ModelActions s={s} m={m} />
-        </td>
-      </tr>
-    </>
+          <ErrorText error={err} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------- Продажи (модель выпущена) ----------
+
+function SalesBlock({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowProps['open'] }) {
+  const ref = refPrice(s.day);
+  const [text, setText] = useState(() => String(Math.round(m.price * 100) / 100).replace('.', ','));
+  const [err, setErr] = useState<string | null>(null);
+  const price = parsePrice(text);
+  const error = priceError(text);
+
+  const share: number | undefined = m.onApi ? s.market.shares[`player:${m.id}`] : undefined;
+  const lost = s.market.lostFraction;
+  const tokens = share !== undefined ? share * s.market.totalTokens * (1 - lost) : undefined;
+  const revenue = tokens !== undefined ? (tokens * m.price) / 1e6 : undefined;
+  const noInference = m.onApi && pool(s, 'inference') <= 0;
+  const losing = m.onApi && !noInference && lost > 0.01;
+  const dash = <span className="muted">—</span>;
+
+  function run(r: Result) {
+    setErr(r.ok ? null : r.error);
+  }
+  const changePrice = () => price !== null && run(store.dispatch(actions.setModelPrice, m.id, price));
+  const toggleSale = () => run(store.dispatch(actions.setOnApi, m.id, !m.onApi));
+
+  const unchanged = price !== null && price === m.price;
+
+  return (
+    <section>
+      <h3 className="mw-h">Продажи</h3>
+      {noInference && (
+        <div className="mw-note warn">
+          <span>Доля «Клиенты» равна нулю: запросы не обслуживаются.</span>
+          <button className="btn small" onClick={() => open('compute')}>Открыть «Мощности»</button>
+        </div>
+      )}
+      {losing && <div className="mw-note warn">Не хватает мощности «Клиенты»: теряется {fmtShare(lost, 0)} спроса.</div>}
+      <div className="mw-block">
+        <dl className="mw-rows">
+          <div>
+            <dt>Цена за 1 млн токенов</dt>
+            <dd className={m.onApi ? undefined : 'muted'}>{fmtPrice(m.price)}</dd>
+          </div>
+          <div>
+            <dt>Доля рынка</dt>
+            <dd>{share !== undefined ? fmtShare(share, share < 0.01 ? 2 : 1) : dash}</dd>
+          </div>
+          <div title="Сколько токенов модель обслуживает за день.">
+            <dt>Токенов в день</dt>
+            <dd>{tokens !== undefined ? fmtNum(tokens) : dash}</dd>
+          </div>
+          <div>
+            <dt>Выручка в день</dt>
+            <dd>{revenue !== undefined ? fmtMoney(revenue) : dash}</dd>
+          </div>
+        </dl>
+        <div className="mw-ctl">
+          <PriceInput label="Новая цена" value={text} onChange={setText} onEnter={changePrice} invalid={error !== null} />
+          {price !== null && <div className="mw-sub">{versusMarket(price, ref)}</div>}
+          {error && <div className="error">{error}</div>}
+          <div className="mw-btns">
+            <button
+              className="btn"
+              disabled={price === null || unchanged}
+              title={price === null ? (error ?? 'Укажите цену') : unchanged ? 'Цена не изменилась' : undefined}
+              onClick={changePrice}
+            >
+              Изменить цену
+            </button>
+            <button className={`btn${m.onApi ? ' danger' : ' primary'}`} onClick={toggleSale}>
+              {m.onApi ? 'Снять с продажи' : 'Вернуть в продажу'}
+            </button>
+          </div>
+          <ErrorText error={err} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ---------- Баллы ----------
+
+function ScoresBlock({ s, m, benches }: { s: GameState; m: PlayerModel; benches: BenchmarkId[] }) {
+  if (benches.length === 0) return null;
+  const released = m.releasedDay !== null;
+  const ref: ModelRef = { kind: 'player', id: m.id };
+  const showHonest = benches.some((b) => (m.overfit[b] ?? 0) > 0);
+
+  return (
+    <section>
+      <h3 className="mw-h">Баллы</h3>
+      {m.exposed && <div className="mw-note bad">Подгонка раскрыта: показаны честные баллы.</div>}
+      <table className="grid mw-scores">
+        <thead>
+          <tr>
+            <th>Бенчмарк</th>
+            <th>Область</th>
+            <th className="num">Балл</th>
+            {showHonest && <th className="num" title="Балл без учёта подгонки под бенчмарк">Честный балл</th>}
+            {released && <th className="num" title="Место среди выпущенных моделей по этому бенчмарку">Место</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {benches.map((b) => {
+            const def = benchDef(b);
+            const saturated = s.benchmarks[b].saturated;
+            const overfit = (m.overfit[b] ?? 0) > 0;
+            const rank = released ? benchRank(s, ref, b) : null;
+            return (
+              <tr key={b} className={saturated ? 'dim' : undefined}>
+                <td title={def.description}>
+                  {def.name}
+                  {saturated && <span className="muted small" title="Бенчмарк насыщен: не влияет на шумиху и тендеры."> · насыщен</span>}
+                </td>
+                <td className="muted">{DOMAIN_NAMES[def.domain]}</td>
+                <td className="num">{fmtPct(modelScore(m, b, false))}</td>
+                {showHonest && <td className={`num${overfit ? '' : ' muted'}`}>{overfit ? fmtPct(modelScore(m, b, true)) : '—'}</td>}
+                {released && <td className="num">{rank ?? '—'}</td>}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+// ---------- Карточка модели ----------
+
+function ModelCard({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowProps['open'] }) {
+  const released = m.releasedDay !== null;
+  const st = saleState(m);
+  const rank = released ? arenaRank(s, { kind: 'player', id: m.id }) : null;
+  const mix = DOMAINS.map((d) => `${DOMAIN_NAMES[d]} ${fmtShare(m.plan.mix[d], 0)}`).join(' · ');
+
+  return (
+    <div className="mw-main">
+      <div className="mw-top">
+        <div className="mw-chipcol">
+          <Chip lab={s.labName} name={m.name} tone={st.tone} />
+          <div className="mw-status">
+            <span className={`mw-dot ${st.tone}`} />
+            <span>{st.text}</span>
+          </div>
+        </div>
+        <dl className="mw-facts">
+          <Fact label="Архитектура" value={m.arch === 'transformer' ? 'Трансформер' : 'LSTM'} />
+          <Fact label="Параметры" value={fmtParams(m.plan.paramsB)} />
+          <Fact label="Данные" value={`${fmtTokens(m.plan.tokensB)} токенов`} sub={mix} wide />
+          <Fact label="RLHF" value={m.rlhf ? 'Да' : 'Нет'} />
+          <Fact label="Эло на «Арене»" value={fmtElo(m.arenaElo)} title="Рейтинг на «Арене». Подгонка под бенчмарки его не повышает." />
+          <Fact
+            label="Место на «Арене»"
+            value={rank !== null ? String(rank) : '—'}
+            title={released ? undefined : 'Модель не выпущена'}
+          />
+          <Fact label="Дата обучения" value={formatDateShort(m.trainedDay)} />
+          {m.releasedDay !== null && <Fact label="Дата выпуска" value={formatDateShort(m.releasedDay)} />}
+        </dl>
+      </div>
+      {released ? <SalesBlock s={s} m={m} open={open} /> : <ReleaseBlock s={s} m={m} />}
+      <ScoresBlock s={s} m={m} benches={introducedBenchmarks(s)} />
+    </div>
   );
 }
 
 // ---------- Окно ----------
 
 export default function ModelsWindow({ s, open }: WindowProps) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
   if (s.models.length === 0) {
+    const t = s.training;
+    const done = t && t.flopTotal > 0 ? t.flopDone / t.flopTotal : 0;
     return (
-      <div className="col">
-        <Empty>У вас пока нет моделей. Обучите первую в окне «Обучение»: после завершения она появится здесь.</Empty>
-        <div>
-          <button className="btn primary" onClick={() => open('training')}>Открыть «Обучение»</button>
-        </div>
+      <div className="mw-empty">
+        <IconModels size={64} />
+        <div className="mw-empty-title">Моделей нет.</div>
+        {t && <div className="small">Идёт обучение: «{t.plan.name}», {fmtShare(done, 0)}.</div>}
+        <button className="btn primary" onClick={() => open('newModel')}>Новая модель</button>
       </div>
     );
   }
 
   const models = [...s.models].reverse(); // новые сверху
-  const benches = introducedBenchmarks(s);
-  const ref = safeRefPrice(s.day);
-  const anyOnSale = s.models.some((m) => m.releasedDay !== null && m.onApi);
-  const anyOverfit = s.models.some((m) => Object.values(m.overfit).some((v) => (v ?? 0) > 0));
-  const noInference = pool(s, 'inference') <= 0;
-  const lost = s.market.lostFraction;
+  const m = models.find((x) => x.id === selectedId) ?? models[0];
 
   return (
-    <div className="col">
-      <div className="muted small">
-        Цена — в долларах за 1 млн токенов{ref !== null && <>; опорная цена рынка сейчас {fmtPrice(ref)}</>}. Дешевле — больше доли рынка,
-        но каждый токен клиента тратит вычисления из доли «Клиенты»; если их не хватает, часть спроса теряется, а шумиха падает.
-      </div>
-
-      {anyOnSale && noInference && (
-        <div className="row">
-          <span className="warn small">Доля «Клиенты» равна нулю: модели в продаже никого не обслуживают.</span>
-          <button className="btn small" onClick={() => open('compute')}>Открыть «Мощности»</button>
-        </div>
-      )}
-      {anyOnSale && !noInference && lost > 0.01 && (
-        <div className="warn small">Мощности «Клиенты» не хватает: теряется {fmtShare(lost, 0)} спроса, шумиха падает.</div>
-      )}
-
-      <table className="grid">
-        <thead>
-          <tr>
-            <th>Модель</th>
-            <th>Статус</th>
-            <th className="num">Параметры</th>
-            <th className="num" title="Рейтинг на «Арене»">Эло</th>
-            {benches.map((b) => {
-              const def = benchDef(b);
-              const saturated = s.benchmarks[b].saturated;
-              return (
-                <th key={b} className={`num${saturated ? ' dim' : ''}`} title={saturated ? `${def.description} Тест насыщен: больше не влияет на шумиху.` : def.description}>
-                  {def.name}
-                </th>
-              );
-            })}
-            <th className="num">Цена за 1М</th>
-            <th className="num">Доля рынка</th>
-            <th className="num" title="Сколько токенов в день обслуживает модель">Токенов в день</th>
-          </tr>
-        </thead>
-        <tbody>
-          {models.map((m) => (
-            <ModelRows key={m.id} s={s} m={m} benches={benches} />
-          ))}
-        </tbody>
-      </table>
-
-      {anyOverfit && (
-        <div className="muted small">
-          * — балл завышен подгонкой под тест: наведите курсор на число, чтобы увидеть честный балл. ⚠ — подгонка раскрыта, показаны честные баллы.
-        </div>
-      )}
+    <div className="mw">
+      <ModelList models={models} selectedId={m.id} onSelect={setSelectedId} open={open} />
+      <ModelCard key={m.id} s={s} m={m} open={open} />
     </div>
   );
 }

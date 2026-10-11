@@ -63,7 +63,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'gopler', lab: 'gogle', gameName: 'Gopler', realName: 'Gopher (280B)', released: '2021-12-08',
     api: false, openWeights: false, chat: false, paramsB: 280, priceIn: null, priceOut: null,
     scores: { mmlu: 60 }, arenaElo: 840, arenaEstimated: true, contaminated: false,
-    notes: 'Исследовательская модель на 280 млрд параметров: не выпускалась. Эло задано условно.',
+    notes: 'Исследовательская модель на 280 млрд параметров: анонсирована и не выпускалась. Эло задано условно.',
   },
   {
     id: 'instructgtp', lab: 'openbrain', gameName: 'InstructGTP', realName: 'InstructGPT 175B (text-davinci-001/002)', released: '2022-01-27',

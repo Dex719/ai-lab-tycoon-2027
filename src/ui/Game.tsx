@@ -1,7 +1,7 @@
 // Экран партии (как в Processor Tycoon): верхняя панель, рабочий стол с иконками и окнами, боковая панель, панель задач.
 
 import { memo, useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
-import { unreadCount } from '../sim/events';
+import { pendingChoice, unreadCount } from '../sim/events';
 import type { GameState } from '../sim/types';
 import { ChoiceModal } from './ChoiceModal';
 import { EndDialog } from './EndDialog';
@@ -19,9 +19,9 @@ interface OpenWin extends WinGeom {
   min: boolean;
 }
 
-/** Ширина колонки иконок слева и сетки справа: окна открываются между ними. */
+/** Ширина колонки иконок слева и боковой панели справа: окна открываются между ними. */
 const LEFT_ICONS = 118;
-const RIGHT_ICONS = 222;
+const RIGHT_ICONS = 316;
 
 interface BodyProps extends WindowProps {
   C: ComponentType<WindowProps>;
@@ -106,6 +106,8 @@ export function Game({ s }: { s: GameState }) {
   const unread = unreadCount(s);
   const openTenders = s.tenders.filter((t) => !t.application).length;
   const showEnd = !!s.outcome && watched !== s;
+  // Пока открыт выбор в письме, итог или диалог, остальной интерфейс закрыт для кликов и клавиатуры.
+  const blocked = showEnd || pendingChoice(s) !== null || dialog !== null;
 
   function iconCount(id: WindowId): number {
     if (id === 'mail') return unread;
@@ -120,7 +122,8 @@ export function Game({ s }: { s: GameState }) {
   }
 
   return (
-    <div className="game">
+    <>
+    <div className="game" inert={blocked}>
       <TopBar s={s} />
       <div className="desk" ref={deskRef} onPointerDown={() => setStartOpen(false)}>
         <div className="desk-logo">
@@ -150,7 +153,7 @@ export function Game({ s }: { s: GameState }) {
               title={def.title}
               geom={w}
               active={w.z === topZ}
-              flush={w.id === 'analytics'}
+              flush
               onFocus={() => focus(w.id)}
               onClose={() => close(w.id)}
               onMinimize={() => minimize(w.id)}
@@ -160,8 +163,11 @@ export function Game({ s }: { s: GameState }) {
             </Window>
           );
         })}
-        <SidePanel s={s} open={open} />
-        <TutorialPanel s={s} open={openIds} speed={speed} />
+        <SidePanel
+          s={s}
+          open={open}
+          top={s.tutorial.active && !s.outcome ? <TutorialPanel s={s} open={openIds} speed={speed} /> : undefined}
+        />
       </div>
       <footer className="taskbar">
         <button className={`task-start${startOpen ? ' on' : ''}`} title="Меню игры" aria-label="Меню игры" onClick={() => setStartOpen((v) => !v)}>
@@ -202,6 +208,7 @@ export function Game({ s }: { s: GameState }) {
         })}
         <div className="task-clock">{clock}</div>
       </footer>
+    </div>
 
       <ChoiceModal s={s} />
       {showEnd && <EndDialog s={s} onWatch={() => setWatched(s)} />}
@@ -209,7 +216,7 @@ export function Game({ s }: { s: GameState }) {
       {dialog === 'load' && <SlotsDialog mode="load" onClose={() => setDialog(null)} />}
       {dialog === 'settings' && <SettingsDialog onClose={() => setDialog(null)} />}
       {dialog === 'quit' && <QuitDialog onClose={() => setDialog(null)} />}
-    </div>
+    </>
   );
 }
 

@@ -63,8 +63,8 @@ export function introduceDue(s: GameState): void {
       kind: 'benchmark',
       title: `Новый бенчмарк: ${def.name}`,
       body:
-        `${def.description} Область: ${DOMAIN_NAMES[def.domain]}. ` +
-        'Баллы моделей отображаются в окне «Аналитика», вкладка «Бенчмарки».',
+        `${def.description} Область: ${DOMAIN_NAMES[def.domain].toLowerCase()}. ` +
+        'Баллы моделей — в окне «Аналитика», на вкладке «Бенчмарки».',
     });
   }
 }

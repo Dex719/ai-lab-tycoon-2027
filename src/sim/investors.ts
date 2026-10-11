@@ -89,7 +89,7 @@ export function raiseRound(s: GameState, fraction: number): Result {
     kind: 'finance',
     title: `Раунд инвестиций закрыт: ${fmtMoney(money)}`,
     body:
-      `Оценка лаборатории — ${fmtMoney(value)}. Инвесторы вложили ${fmtMoney(money)} ` +
+      `При оценке лаборатории в ${fmtMoney(value)} инвесторы вложили ${fmtMoney(money)} ` +
       `за ${Math.round(f * 100)} % компании. Доля основателя — ${share} %. ` +
       `Следующий раунд возможен через ${ROUND_COOLDOWN_DAYS} дн.`,
   });

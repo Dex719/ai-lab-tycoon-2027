@@ -10,10 +10,12 @@ vi.mock('../sim/tick', async (importOriginal) => {
 
 import { newGame } from '../sim/actions';
 import { addMail } from '../sim/events';
-import { AUTOSAVE_KEY } from '../sim/save';
 import * as tick from '../sim/tick';
 import type { GameState } from '../sim/types';
 import { GameStore } from './store';
+
+// Автосохранение пишется в ячейку «авто» (см. ./saves).
+const AUTOSAVE_SLOT_KEY = 'ailab.slot.auto';
 
 const advanceDay = vi.mocked(tick.advanceDay);
 
@@ -194,7 +196,7 @@ describe('автосохранение', () => {
     s.flags.autosaveDue = true;
     store.setSpeed(1);
     vi.advanceTimersByTime(500);
-    expect(setItem).toHaveBeenCalledWith(AUTOSAVE_KEY, expect.any(String));
+    expect(setItem).toHaveBeenCalledWith(AUTOSAVE_SLOT_KEY, expect.any(String));
     expect(store.autosaveError).toBeNull();
     store.setSpeed(0);
   });
