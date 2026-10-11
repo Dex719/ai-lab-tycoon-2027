@@ -74,6 +74,7 @@ export function closeMonth(s: GameState): void {
     year: d.year,
     month: d.month,
     cashEnd: s.cash,
+    // Доля и токены - после ограничения мощностью (market.dayStep пишет обслуженные значения).
     marketShare: s.market.labShares.player ?? 0,
     tokensPerDay: s.market.playerTokens,
   });

@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useRef, useState, type ComponentType } fr
 import { openChoices, pendingChoice, unreadCount } from '../sim/events';
 import type { GameState } from '../sim/types';
 import { ChoiceModal } from './ChoiceModal';
+import { Dialog } from './components/common';
 import { EndDialog } from './EndDialog';
 import { IconLogo } from './icons';
 import { SettingsDialog, SlotsDialog } from './MainMenu';
@@ -99,20 +100,27 @@ export function Game({ s }: { s: GameState }) {
   const [startOpen, setStartOpen] = useState(false);
   const [dialog, setDialog] = useState<GameDialog>(null);
   const [watched, setWatched] = useState<GameState | null>(null);
+  const [contractsSeenDay, setContractsSeenDay] = useState(-1); // день, когда игрок последний раз видел список тендеров
 
   const visible = wins.filter((w) => !w.min);
   const topZ = visible.reduce((m, w) => Math.max(m, w.z), 0);
   const openIds = new Set(wins.filter((w) => !w.min).map((w) => w.id));
   // Отложенные решения прочитаны, но ещё ждут ответа: их тоже считаем на значке «Почты».
   const unread = unreadCount(s) + openChoices(s).filter((m) => m.read).length;
-  const openTenders = s.tenders.filter((t) => !t.application).length;
+  // Значок «Контрактов» считает только тендеры, появившиеся после последнего открытия окна:
+  // пока окно открыто, игрок их видит, и день просмотра сдвигается вместе с игрой.
+  const contractsVisible = openIds.has('contracts');
+  useEffect(() => {
+    if (contractsVisible) setContractsSeenDay(s.day);
+  }, [contractsVisible, s.day]);
+  const newTenders = s.tenders.filter((t) => !t.application && t.appearedDay > contractsSeenDay).length;
   const showEnd = !!s.outcome && watched !== s;
   // Пока открыт выбор в письме, итог или диалог, остальной интерфейс закрыт для кликов и клавиатуры.
   const blocked = showEnd || pendingChoice(s) !== null || dialog !== null;
 
   function iconCount(id: WindowId): number {
     if (id === 'mail') return unread;
-    if (id === 'contracts') return openTenders;
+    if (id === 'contracts') return newTenders;
     return 0;
   }
 
@@ -234,13 +242,11 @@ function DeskIcon(props: { def: (typeof WINDOWS)[number]; count: number; selecte
 
 function QuitDialog({ onClose }: { onClose: () => void }) {
   return (
-    <div className="modal-backdrop">
-      <div className="dialog" role="dialog" aria-modal="true" aria-label="Выйти в главное меню">
-        <div className="titlebar">
-          <span className="t">Выйти в главное меню</span>
-        </div>
-        <div className="body">Несохранённый прогресс будет потерян. Автосохранение делается в начале каждого месяца.</div>
-        <div className="foot">
+    <Dialog
+      title="Выйти в главное меню"
+      onClose={onClose}
+      footer={
+        <>
           <button className="btn" onClick={onClose}>
             Отмена
           </button>
@@ -253,8 +259,10 @@ function QuitDialog({ onClose }: { onClose: () => void }) {
           >
             Выйти
           </button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      Несохранённый прогресс будет потерян. Автосохранение делается в начале каждого месяца.
+    </Dialog>
   );
 }

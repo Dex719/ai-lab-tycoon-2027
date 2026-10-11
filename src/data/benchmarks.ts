@@ -4,9 +4,11 @@
 import type { BenchmarkDef } from '../sim/types';
 
 export const BENCHMARKS: BenchmarkDef[] = [
+  // SQuAT: при нулевой способности 50 % (логистическая регрессия 2016 года давала F1 51 %), 91 % - со способности ≈ 49.
+  // Так первая LSTM игрока (способность ≈ 28, 2017 год) не насыщает бенчмарк; насыщает BORT (91,8 %) в ноябре 2018-го.
   {
     id: 'squad', name: 'SQuAT', realName: 'SQuAD 1.1', domain: 'language', introduced: '2016-06-16',
-    guess: 0, difficulty: -30, spread: 21, saturation: 91,
+    guess: 0, difficulty: 0, spread: 21, saturation: 91,
     description: 'Ответы на вопросы по прочитанному тексту (F1).',
   },
   {

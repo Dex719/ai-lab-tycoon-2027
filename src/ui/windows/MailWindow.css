@@ -69,13 +69,14 @@
 }
 
 .mail-row {
+  position: relative;
   flex: none;
   width: 100%;
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: start;
   gap: 2px 10px;
-  padding: 7px 10px 7px 12px;
+  padding: 7px 10px 7px 14px;
   text-align: left;
   color: var(--text);
   background: var(--win-body);
@@ -94,13 +95,22 @@
   outline-offset: 1px;
 }
 
-.mail-row.on {
-  background: #fff;
+/* Выбранное письмо - общий вид .is-selected из theme.css; свой селектор нужен, чтобы перебить рамку и фон .mail-row. */
+.mail-row.is-selected {
   border-color: var(--accent);
+  background: #e3eefc;
 }
 
-.mail-row.unread {
-  box-shadow: inset 3px 0 0 var(--accent);
+/* Непрочитанное: жирный заголовок и точка цвета акцента в левом поле строки. */
+.mail-row.unread::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 13px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
 .mail-row-title {
@@ -208,8 +218,10 @@
 
 .mail-decision-h {
   margin: 0 0 10px;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 300;
+  line-height: 1.2;
+  color: #2a2c30;
 }
 
 .mail-decision .choice-list {

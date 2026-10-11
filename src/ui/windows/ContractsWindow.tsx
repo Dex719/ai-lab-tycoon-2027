@@ -10,7 +10,7 @@ import { REP_CONTRACT_FAIL, RLHF_TENDER_LABELERS, TENDER_APPLY_DAYS } from '../.
 import { applyChance, canApply } from '../../sim/contracts';
 import { modelScore } from '../../sim/training';
 import type { Contract, GameState, PlayerModel, Tender } from '../../sim/types';
-import { Dialog, ErrorText, ProgressBar } from '../components/common';
+import { Alert, Dialog, ErrorText, ProgressBar } from '../components/common';
 import { endSentence, fmtMoney, fmtNum, fmtPct, fmtShare } from '../format';
 import { IconAlert, IconCheck } from '../icons';
 import { actions, store } from '../store';
@@ -146,7 +146,7 @@ function riskOf(info: ContractInfo): string | null {
 
 function TenderItem({ t, on, onPick }: { t: Tender; on: boolean; onPick: () => void }) {
   return (
-    <button className={`ct-item${on ? ' on' : ''}`} onClick={onPick}>
+    <button className={`ct-item${on ? ' is-selected' : ''}`} onClick={onPick}>
       <Monogram clientId={t.clientId} size={32} />
       <span className="ct-item-text">
         <span className="ct-item-name">{clientName(t.clientId)}</span>
@@ -172,7 +172,7 @@ function ContractItem({ s, c, on, onPick }: { s: GameState; c: Contract; on: boo
   const info = contractInfo(s, c);
   const risk = riskOf(info);
   return (
-    <button className={`ct-item${on ? ' on' : ''}`} onClick={onPick}>
+    <button className={`ct-item${on ? ' is-selected' : ''}`} onClick={onPick}>
       <Monogram clientId={c.tender.clientId} size={32} />
       <span className="ct-item-text">
         <span className="ct-item-name">{clientName(c.tender.clientId)}</span>
@@ -343,14 +343,7 @@ function TenderCard(props: {
         </section>
       </div>
 
-      {weak && honest !== null && (
-        <div className="ct-alerts">
-          <div className="ct-alert bad">
-            <IconAlert size={16} />
-            <span>Честный балл модели - {fmtPct(honest)}: при сдаче контракт провалится.</span>
-          </div>
-        </div>
-      )}
+      {weak && honest !== null && <Alert tone="bad">Честный балл модели - {fmtPct(honest)}: при сдаче контракт провалится.</Alert>}
 
       <div className="ct-foot">
         {app ? (
@@ -431,11 +424,7 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
     if (!r.ok) setErr(r.error);
   }
 
-  const openCompute = (
-    <button className="btn small" onClick={() => open('compute')}>
-      Открыть «Мощности»
-    </button>
-  );
+  const openCompute = { label: 'Открыть «Мощности»', onClick: () => open('compute') };
 
   return (
     <div className="ct-card">
@@ -485,27 +474,18 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
       {(info.stalled || info.late || info.weak) && (
         <div className="ct-alerts">
           {info.stalled && (
-            <div className="ct-alert bad">
-              <IconAlert size={16} />
-              <span className="grow">Мощность для контрактов не выделена: работа не идёт.</span>
-              {openCompute}
-            </div>
+            <Alert tone="warn" action={openCompute}>
+              Мощность для контрактов не выделена: работа не идёт.
+            </Alert>
           )}
           {info.late && info.eta !== null && (
-            <div className="ct-alert bad">
-              <IconAlert size={16} />
-              <span className="grow">
-                Работа займёт ещё {days(info.eta)}, до срока осталось {days(info.left)} Контракт будет просрочен, штраф -{' '}
-                {endSentence(fmtMoney(t.penalty))}
-              </span>
-              {openCompute}
-            </div>
+            <Alert tone="bad" action={openCompute}>
+              Работа займёт ещё {days(info.eta)}, до срока осталось {days(info.left)}. Контракт будет просрочен, штраф -{' '}
+              {endSentence(fmtMoney(t.penalty))}
+            </Alert>
           )}
           {info.weak && info.honest !== null && (
-            <div className="ct-alert bad">
-              <IconAlert size={16} />
-              <span>Честный балл модели - {fmtPct(info.honest)}: при сдаче контракт провалится.</span>
-            </div>
+            <Alert tone="bad">Честный балл модели - {fmtPct(info.honest)}: при сдаче контракт провалится.</Alert>
           )}
         </div>
       )}

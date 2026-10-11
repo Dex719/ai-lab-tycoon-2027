@@ -10,6 +10,7 @@ import { byYear, formatDateShort, lerpByDate, yearOf } from '../../sim/time';
 import type { GameState } from '../../sim/types';
 import { Dialog, ErrorText } from '../components/common';
 import { fmtMoney, fmtMult, fmtNum, fmtShare } from '../format';
+import { fmtRank } from '../labels';
 import { actions, store } from '../store';
 import './InvestorsWindow.css';
 
@@ -56,7 +57,7 @@ function Breakdown({ s, v }: { s: GameState; v: Valuation }) {
       />
       <Row
         label="Место на «Арене» × «ИИ-лихорадка» года"
-        calc={v.bestRank === null ? 'Нет моделей на рынке' : `${v.bestRank}-е место: ×${fmtMult(v.rankFactor)} от ${fmtMoney(mania)}`}
+        calc={v.bestRank === null ? 'Нет моделей на рынке' : `${fmtRank(v.bestRank)}: ×${fmtMult(v.rankFactor)} от ${fmtMoney(mania)}`}
         value={fmtMoney(v.techPart)}
         title="Учитывается лучшая модель, которая продаётся по API"
       />

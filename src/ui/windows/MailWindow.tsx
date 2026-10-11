@@ -98,7 +98,7 @@ export default function MailWindow({ s }: WindowProps) {
             <button
               key={m.id}
               type="button"
-              className={`mail-row${m.id === selected?.id ? ' on' : ''}${m.read ? '' : ' unread'}`}
+              className={`mail-row${m.id === selected?.id ? ' is-selected' : ''}${m.read ? '' : ' unread'}`}
               aria-current={m.id === selected?.id ? 'true' : undefined}
               onClick={() => pick(m)}
             >

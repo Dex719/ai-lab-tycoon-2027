@@ -11,6 +11,7 @@ import { dateToDay, END_DAY, formatDateShort } from '../../sim/time';
 import type { BenchmarkDef, BenchmarkId, GameState } from '../../sim/types';
 import { fmtElo, fmtNum, fmtPct } from '../format';
 import { IconAlert, IconLock } from '../icons';
+import { fmtRank } from '../labels';
 import { ownerColor, ownerName, OwnerTag, safe, StatStrip } from './analyticsShared';
 
 type SortKey = 'name' | 'owner' | 'date' | 'context' | BenchmarkId;
@@ -36,6 +37,34 @@ function rowContext(s: GameState, r: BoardRow): number {
 
 /** Контекст модели: «128 тыс.», «1 млн»; если контекст неизвестен - «-». */
 const ctxLabel = (tokens: number): string => (tokens > 0 ? contextLabel(tokens) : '-');
+
+/** Модель соперника, которую только показали (статья, демо): в продажу она не выходила, дата в строке - дата анонса. */
+export function isAnnouncedRow(r: BoardRow): boolean {
+  return r.ref.kind === 'rival' && !!findRivalDef(r.ref.id)?.announcedOnly;
+}
+
+const TIP_DATE_MIXED = 'Дата выпуска; у показанных моделей - дата анонса';
+const TIP_ANNOUNCED = 'Модель только показали: в продажу она не выходила';
+
+/** Заголовок столбца даты: «Выпущена», а если среди строк есть только показанные модели - «Дата». */
+export function dateHeader(rows: BoardRow[]): { label: string; title?: string } {
+  return rows.some(isAnnouncedRow) ? { label: 'Дата', title: TIP_DATE_MIXED } : { label: 'Выпущена' };
+}
+
+/** Ячейка даты: у показанной модели рядом пометка «показана». */
+function DateCell({ row }: { row: BoardRow }) {
+  return (
+    <td>
+      {formatDateShort(row.releasedDay)}
+      {isAnnouncedRow(row) && (
+        <span className="est" title={TIP_ANNOUNCED}>
+          {' '}
+          показана
+        </span>
+      )}
+    </td>
+  );
+}
 
 /** Подсказка к значку предупреждения: у вашей модели - раскрытая подгонка, у соперника - сообщения об утечке. */
 function flagTitle(r: BoardRow): string {
@@ -139,6 +168,8 @@ export function BenchmarksTab({ s }: WindowProps) {
     }
   }
 
+  const date = dateHeader(shown);
+
   let body: ReactNode;
   if (rows === null) body = <div className="an-empty">Не удалось построить таблицу.</div>;
   else if (active.length === 0) body = <div className="an-empty">Бенчмарки пока не вышли.</div>;
@@ -156,8 +187,8 @@ export function BenchmarksTab({ s }: WindowProps) {
               <Th id="owner" sort={sort} onSort={onSort}>
                 Лаборатория
               </Th>
-              <Th id="date" sort={sort} onSort={onSort}>
-                Выпущена
+              <Th id="date" sort={sort} onSort={onSort} title={date.title}>
+                {date.label}
               </Th>
               <Th id="context" sort={sort} onSort={onSort} num title={TIP_CONTEXT}>
                 Контекст
@@ -191,7 +222,7 @@ export function BenchmarksTab({ s }: WindowProps) {
                 <td>
                   <OwnerTag s={s} owner={r.owner} />
                 </td>
-                <td>{formatDateShort(r.releasedDay)}</td>
+                <DateCell row={r} />
                 <td className="num">{ctxLabel(rowContext(s, r))}</td>
                 {active.map((b) => {
                   const sc = r.scores[b.id];
@@ -268,6 +299,7 @@ export function ArenaTab({ s }: WindowProps) {
   const hi = leader ? leader.row.elo : 0;
   const lo = ranked.length > 0 ? ranked[ranked.length - 1].row.elo : 0;
   const barWidth = (elo: number): number => (hi > lo ? 8 + (92 * (elo - lo)) / (hi - lo) : 100);
+  const date = dateHeader(ranked.map((x) => x.row));
 
   let body: ReactNode;
   if (rows === null) body = <div className="an-empty">Не удалось построить рейтинг.</div>;
@@ -282,7 +314,7 @@ export function ArenaTab({ s }: WindowProps) {
               <th>Модель</th>
               <th>Лаборатория</th>
               <th title="Рейтинг Эло: чем выше, тем чаще пользователи выбирают ответы модели">Эло</th>
-              <th>Выпущена</th>
+              <th title={date.title}>{date.label}</th>
               <th className="num" title={TIP_CONTEXT}>
                 Контекст
               </th>
@@ -311,7 +343,7 @@ export function ArenaTab({ s }: WindowProps) {
                     )}
                   </div>
                 </td>
-                <td>{formatDateShort(r.releasedDay)}</td>
+                <DateCell row={r} />
                 <td className="num">{ctxLabel(rowContext(s, r))}</td>
                 <td>{r.onMarket ? <span className="good">На рынке</span> : ''}</td>
               </tr>
@@ -326,8 +358,8 @@ export function ArenaTab({ s }: WindowProps) {
       <StatStrip
         items={[
           {
-            value: mine ? `№${fmtNum(mine.rank)}` : '-',
-            label: mine ? `Ваше лучшее место из ${fmtNum(ranked.length)}` : 'Выпущенных моделей нет',
+            value: mine ? fmtRank(mine.rank) : '-',
+            label: mine ? `Ваша лучшая модель из ${fmtNum(ranked.length)}` : 'Выпущенных моделей нет',
           },
           {
             value: mine ? fmtElo(mine.row.elo) : '-',
@@ -337,7 +369,7 @@ export function ArenaTab({ s }: WindowProps) {
             value: leader ? fmtElo(leader.row.elo) : '-',
             label: leader ? `Лидер: ${leader.row.name} (${ownerName(s, leader.row.owner)})` : 'Лидер рейтинга',
           },
-          { value: '№1', label: `Цель на ${formatDateShort(END_DAY)}` },
+          { value: fmtRank(1), label: `Цель на ${formatDateShort(END_DAY)}` },
         ]}
       />
       <div className="an-toolbar">

@@ -16,17 +16,26 @@ export interface DeskArea {
   h: number;
 }
 
-/** Размер рабочего стола, которому принадлежит элемент (запасной вариант - окно браузера без верхней панели). */
+/** Высота заголовка окна (.titlebar в theme.css). */
+export const TITLEBAR_H = 32;
+/** Верхняя панель и панель задач вместе: столько места занимает не стол (запасной расчёт без элемента стола). */
+const BARS_H = 80;
+
+/** Размер рабочего стола (.desk), которому принадлежит элемент; запасной вариант - окно браузера без панелей. */
 export function deskAreaOf(el: Element | null): DeskArea {
-  const d = el?.closest('.desktop');
-  return d ? { w: d.clientWidth, h: d.clientHeight } : { w: window.innerWidth, h: window.innerHeight - 40 };
+  const d = el?.closest('.desk');
+  return d ? { w: d.clientWidth, h: d.clientHeight } : { w: window.innerWidth, h: Math.max(0, window.innerHeight - BARS_H) };
 }
 
-/** Положение окна, при котором заголовок остаётся на столе и за него можно взяться. */
+/**
+ * Положение окна, при котором заголовок целиком остаётся на столе и за него можно взяться:
+ * сверху не выше нуля, снизу - не ниже высоты стола минус заголовок, по бокам - не меньше 120 px окна на столе.
+ */
 export function clampPos(g: Pick<WinGeom, 'x' | 'y' | 'w'>, area: DeskArea): Pick<WinGeom, 'x' | 'y'> {
+  const maxY = Math.max(0, area.h - TITLEBAR_H);
   return {
-    x: Math.min(area.w - 80, Math.max(-g.w + 120, g.x)),
-    y: Math.min(area.h - 40, Math.max(0, g.y)),
+    x: Math.min(Math.max(0, area.w - 80), Math.max(-g.w + 120, g.x)),
+    y: Math.min(maxY, Math.max(0, g.y)),
   };
 }
 

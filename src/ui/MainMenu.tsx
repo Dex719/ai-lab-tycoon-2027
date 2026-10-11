@@ -5,6 +5,7 @@ import { START_CASH } from '../sim/constants';
 import { formatDateShort } from '../sim/time';
 import { Dialog, ErrorText } from './components/common';
 import { fmtMoney } from './format';
+import { fmtRank } from './labels';
 import { deleteSlot, formatSavedAt, latestSlot, listSlots, MANUAL_SLOTS, type SlotId, type SlotInfo } from './saves';
 import { getSettings, setSettings } from './settings';
 import { store } from './store';
@@ -96,7 +97,7 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
           <span>Конец партии</span>
           <span>31.12.2024</span>
           <span>Цель</span>
-          <span>№1 на «Арене»</span>
+          <span>{fmtRank(1)} на «Арене»</span>
           <span>Соперники</span>
           <span>7 лабораторий</span>
         </div>
@@ -128,7 +129,7 @@ function SlotRow({ slot, children }: { slot: SlotInfo; children: React.ReactNode
           <>
             <div className="t">{m.labName}</div>
             <div className="m">
-              {formatDateShort(m.day)} · {fmtMoney(m.cash)} · {m.arenaRank !== null ? `${m.arenaRank}-е место на «Арене»` : 'моделей на «Арене» нет'}
+              {formatDateShort(m.day)} · {fmtMoney(m.cash)} · {m.arenaRank !== null ? `${fmtRank(m.arenaRank)} на «Арене»` : 'моделей на «Арене» нет'}
             </div>
             <div className="m">Сохранено {formatSavedAt(m.savedAt)}</div>
           </>
@@ -208,10 +209,10 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
                   <>
                     <span className="small">Перезаписать?</span>
                     <button className="btn small primary" onClick={() => save(slot.id)}>
-                      Да
+                      Перезаписать
                     </button>
                     <button className="btn small" onClick={() => setConfirm(null)}>
-                      Нет
+                      Отмена
                     </button>
                   </>
                 ) : (

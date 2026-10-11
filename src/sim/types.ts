@@ -74,6 +74,7 @@ export interface RivalModelDef {
   arenaEstimated: boolean;
   contaminated: boolean; // были сообщения об утечке тестов
   context: number; // контекст на момент выхода, токенов
+  announcedOnly?: boolean; // модель только показали (статья, демо): в продажу и на рынок она не выходила
   notes?: string;
 }
 
@@ -246,8 +247,8 @@ export interface GameState {
   /** Обучение для новичков: номер текущего шага (с 0) и включено ли оно. */
   tutorial: { step: number; active: boolean };
   market: {
-    shares: Record<string, number>; // ключ: 'player:<id>' | 'rival:<id>' | 'none'
-    labShares: Record<HypeOwner | 'none', number>;
+    shares: Record<string, number>; // ключ: 'player:<id>' | 'rival:<id>' | 'none'; доли после ограничения мощностью
+    labShares: Record<HypeOwner | 'none', number>; // тоже после ограничения мощностью
     playerTokens: number; // обслужено вчера
     lostFraction: number;
     totalTokens: number;

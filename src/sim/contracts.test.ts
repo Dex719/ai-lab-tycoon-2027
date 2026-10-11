@@ -52,6 +52,19 @@ function realBenchScore(id: BenchmarkId, cap: number, overfit = 0): number {
   return 100 * (b.guess + (1 - b.guess) * sigmoid((cap + overfit - b.difficulty) / b.spread));
 }
 
+/** Угадывание бенчмарка в процентах. */
+function guessPct(id: BenchmarkId): number {
+  return BENCHMARKS.find((x) => x.id === id)!.guess * 100;
+}
+
+/** Множитель оплаты без надбавки за сложность 1 + (требование − угадывание) / 100 и без цены работы. */
+function baseMult(t: Tender): number {
+  return t.payment / (t.work * PRICE) / (1 + (t.requirement - guessPct(t.benchmark)) / 100);
+}
+
+// Все бенчмарки среза активны: в 2017-2019 годах порог проходят только SQuAT и GLUU.
+const ALL_ACTIVE: BenchmarkId[] = ['squad', 'glue', 'mmlu', 'humaneval', 'gsm8k'];
+
 beforeEach(() => {
   shownScore = 70;
   honestScore = 70;
@@ -141,6 +154,7 @@ function lastMail(s: GameState) {
 
 describe('generateMonthly: количество', () => {
   function counts(year: number): number[] {
+    m.activeBenchmarks.mockReturnValue(ALL_ACTIVE);
     const set = new Set<number>();
     for (let k = 1; k <= 60; k++) {
       const s = newState(k * 104729);
@@ -165,8 +179,10 @@ describe('generateMonthly: количество', () => {
 
   it('нумерует тендеры подряд: t1, t2, …', () => {
     const s = newState();
+    s.day = dateToDay('2023-03-01');
     generateMonthly(s);
     generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThan(0);
     const ids = s.tenders.map((t) => t.id);
     expect(ids).toEqual(ids.map((_, i) => `t${i + 1}`));
     expect(s.nextTenderNum).toBe(ids.length + 1);
@@ -194,6 +210,7 @@ describe('generateMonthly: количество', () => {
 
 describe('generateMonthly: поля тендера', () => {
   it('срок, штраф, оплата и работа в границах design.md', () => {
+    m.activeBenchmarks.mockReturnValue(['squad', 'glue']); // в 2017 году порог проходят только они
     const s = newState(7);
     s.day = dateToDay('2017-01-01');
     for (let i = 0; i < 20; i++) generateMonthly(s);
@@ -201,7 +218,7 @@ describe('generateMonthly: поля тендера', () => {
     const workBase = lerpByDate(WORK_BASE, s.day);
     for (const t of s.tenders) {
       expect(CLIENTS.map((c) => c.id)).toContain(t.clientId);
-      expect(['mmlu', 'humaneval', 'gsm8k']).toContain(t.benchmark);
+      expect(['squad', 'glue']).toContain(t.benchmark);
       expect(t.type).toBe('finetune');
       expect(t.application).toBeNull();
       expect(t.appearedDay).toBe(s.day);
@@ -210,14 +227,15 @@ describe('generateMonthly: поля тендера', () => {
       expect(t.durationDays).toBeLessThanOrEqual(150);
       expect(t.work).toBeGreaterThanOrEqual(workBase * 0.5);
       expect(t.work).toBeLessThan(workBase * 1.5);
-      const payMult = t.payment / (t.work * PRICE);
-      expect(payMult).toBeGreaterThanOrEqual(2);
+      const payMult = baseMult(t);
+      expect(payMult).toBeGreaterThanOrEqual(2 - 1e-9);
       expect(payMult).toBeLessThan(3.5);
       expect(t.penalty).toBeCloseTo(TENDER_PENALTY * t.payment, 6);
     }
   });
 
   it('работа растёт со временем (кривая WORK_BASE)', () => {
+    m.activeBenchmarks.mockReturnValue(ALL_ACTIVE);
     const early = newState(3);
     early.day = dateToDay('2017-06-01');
     const late = newState(3);
@@ -236,7 +254,7 @@ describe('generateMonthly: требование', () => {
     m.activeBenchmarks.mockReturnValue(['mmlu']);
     const day = dateToDay('2020-03-01');
     const level = byYear(CAP_LEVEL, 2020);
-    const lo = Math.max(1, Math.round(realBenchScore('mmlu', level - 15)));
+    const lo = Math.max(Math.round(guessPct('mmlu')) + 3, Math.round(realBenchScore('mmlu', level - 15)));
     const hi = Math.round(realBenchScore('mmlu', level));
     const seen = new Set<number>();
     for (let k = 1; k <= 40; k++) {
@@ -257,12 +275,90 @@ describe('generateMonthly: требование', () => {
     }
   });
 
-  it('требование не меньше 1', () => {
-    m.benchScore.mockReturnValue(0.2);
+  it('требование не ниже угадывания + 3: при низком балле на «уровень − 0…15» берётся пол', () => {
+    m.activeBenchmarks.mockReturnValue(['mmlu']);
+    const level = byYear(CAP_LEVEL, 2020);
+    // На уровне года бенчмарк проходит порог (40 ≥ 25 + 10), но на ослабленной способности даёт лишь 20 %.
+    m.benchScore.mockImplementation((_id: BenchmarkId, cap: number) => (cap === level ? 40 : 20));
     const s = newState();
+    s.day = dateToDay('2020-03-01');
+    for (let i = 0; i < 5; i++) generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThan(10);
+    for (const t of s.tenders) expect(t.requirement).toBe(28);
+  });
+
+  it('GPQE: требование выше угадывания 25 % хотя бы на 3 п.п., а не «25 % проходит любая модель»', () => {
+    m.activeBenchmarks.mockReturnValue(['gpqa']);
+    const s = newState(5);
+    s.day = dateToDay('2024-06-01');
+    for (let i = 0; i < 10; i++) generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThan(30);
+    for (const t of s.tenders) {
+      expect(t.benchmark).toBe('gpqa');
+      expect(t.requirement).toBeGreaterThanOrEqual(28);
+    }
+  });
+});
+
+describe('generateMonthly: порог бенчмарка и оплата за сложность', () => {
+  it('бенчмарк берётся, только если балл уровня года не ниже угадывания + 10 п.п.', () => {
+    // 2017, уровень 0: SQuAT даёт 80 %, MMLO - 25 % при угадывании 25 %, GSM8C - 0 %.
+    m.activeBenchmarks.mockReturnValue(['squad', 'mmlu', 'gsm8k']);
+    const s = newState(3);
+    s.day = dateToDay('2017-03-01');
+    for (let i = 0; i < 10; i++) generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThan(15);
+    expect(s.tenders.every((t) => t.benchmark === 'squad')).toBe(true);
+    expect(realBenchScore('squad', 0)).toBeGreaterThanOrEqual(10);
+    expect(realBenchScore('mmlu', 0)).toBeLessThan(35);
+  });
+
+  it('SWE-banch в срезе не попадает в тендеры: даже уровень 2024 года даёт меньше 10 %', () => {
+    m.activeBenchmarks.mockReturnValue(['swebench', 'gpqa']);
+    const level = byYear(CAP_LEVEL, 2024);
+    expect(realBenchScore('swebench', level)).toBeLessThan(10);
+    const s = newState(5);
+    s.day = dateToDay('2024-06-01');
+    for (let i = 0; i < 10; i++) generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThan(30);
+    expect(s.tenders.every((t) => t.benchmark === 'gpqa')).toBe(true);
+  });
+
+  it('ни один бенчмарк не проходит порог - тендеров нет', () => {
+    m.activeBenchmarks.mockReturnValue(['humaneval']);
+    m.introducedBenchmarks.mockReturnValue(['humaneval']);
+    const s = newState();
+    s.day = dateToDay('2017-03-01');
     generateMonthly(s);
-    expect(s.tenders.length).toBeGreaterThan(0);
-    for (const t of s.tenders) expect(t.requirement).toBe(1);
+    expect(s.tenders).toHaveLength(0);
+    expect(s.nextTenderNum).toBe(1);
+  });
+
+  it('оплата умножается на 1 + (требование − угадывание) / 100', () => {
+    m.activeBenchmarks.mockReturnValue(['mmlu']);
+    m.benchScore.mockReturnValue(60); // требование 60 при угадывании 25: ×1,35
+    const s = newState(7);
+    s.day = dateToDay('2021-03-01');
+    for (let i = 0; i < 10; i++) generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThan(20);
+    for (const t of s.tenders) {
+      expect(t.requirement).toBe(60);
+      const mult = t.payment / (t.work * PRICE);
+      expect(mult).toBeGreaterThanOrEqual(2 * 1.35 - 1e-9);
+      expect(mult).toBeLessThan(3.5 * 1.35);
+      expect(t.penalty).toBeCloseTo(TENDER_PENALTY * t.payment, 6);
+    }
+  });
+
+  it('сложнее бенчмарк - дороже: при равной базе SQuAT с требованием около 80 % платит больше GLUU', () => {
+    const avgMult = (bench: BenchmarkId): number => {
+      m.activeBenchmarks.mockReturnValue([bench]);
+      const s = newState(11);
+      s.day = dateToDay('2018-06-01');
+      for (let i = 0; i < 20; i++) generateMonthly(s);
+      return s.tenders.reduce((a, t) => a + t.payment / (t.work * PRICE), 0) / s.tenders.length;
+    };
+    expect(avgMult('squad')).toBeGreaterThan(avgMult('glue') * 1.1);
   });
 });
 
@@ -291,7 +387,7 @@ describe('generateMonthly: бенчмарк и RLHF', () => {
     expect(share).toBeLessThan(0.4);
     for (const t of rlhf) {
       expect(t.benchmark).toBe('mmlu'); // единственный активный языковой
-      const mult = t.payment / (t.work * PRICE);
+      const mult = baseMult(t);
       expect(mult).toBeGreaterThanOrEqual(2 * RLHF_TENDER_PAY_MULT - 1e-9);
       expect(mult).toBeLessThan(3.5 * RLHF_TENDER_PAY_MULT);
     }
@@ -302,9 +398,19 @@ describe('generateMonthly: бенчмарк и RLHF', () => {
   it('нет активных бенчмарков - берётся самый новый из вышедших', () => {
     m.activeBenchmarks.mockReturnValue([]);
     const s = newState(9);
+    s.day = dateToDay('2023-03-01'); // уровень 72: GSM8C проходит порог
     for (let i = 0; i < 10; i++) generateMonthly(s);
     expect(s.tenders.length).toBeGreaterThan(0);
     expect(s.tenders.every((t) => t.benchmark === 'gsm8k')).toBe(true);
+  });
+
+  it('нет активных: самый новый из вышедших, но только проходящий порог', () => {
+    m.activeBenchmarks.mockReturnValue([]);
+    const s = newState(9);
+    s.day = dateToDay('2017-03-01'); // уровень 0: из вышедших порог проходят SQuAT и GLUU, новее - GLUU
+    for (let i = 0; i < 10; i++) generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThan(0);
+    expect(s.tenders.every((t) => t.benchmark === 'glue')).toBe(true);
   });
 
   it('RLHF без активных: самый новый вышедший языковой бенчмарк', () => {
@@ -321,6 +427,7 @@ describe('generateMonthly: особые случаи', () => {
   it('клиенты разные, список CLIENTS не меняется', () => {
     const before = JSON.stringify(CLIENTS);
     const s = newState(21);
+    s.day = dateToDay('2023-03-01');
     for (let i = 0; i < 30; i++) generateMonthly(s);
     expect(new Set(s.tenders.map((t) => t.clientId)).size).toBeGreaterThan(8);
     expect(JSON.stringify(CLIENTS)).toBe(before);
@@ -338,8 +445,7 @@ describe('generateMonthly: особые случаи', () => {
     expect(s.tenders.every((t) => t.type === 'finetune')).toBe(true);
     expect(s.tenders.every((t) => t.benchmark === 'gsm8k')).toBe(true); // самый новый из вышедших
     for (const t of s.tenders) {
-      const mult = t.payment / (t.work * PRICE);
-      expect(mult).toBeLessThan(3.5); // без множителя RLHF ×1,6
+      expect(baseMult(t)).toBeLessThan(3.5); // без множителя RLHF ×1,6
     }
   });
 

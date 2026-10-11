@@ -39,7 +39,7 @@
       "gameName": "GTP-2",
       "released": "2019-02-14",
       "api": false,
-      "openWeights": true,
+      "openWeights": false,
       "paramsB": 1.5,
       "trainFlop": 1.92e21,
       "priceInPer1M": null,

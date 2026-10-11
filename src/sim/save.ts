@@ -3,7 +3,7 @@
 // или битый файл отклоняются понятной ошибкой, а не роняют тик и отрисовку позже (например, нет нового бенчмарка).
 
 import { EVENTS } from '../data/events';
-import { HYPE_OWNERS } from './constants';
+import { CHOICE_DAYS, FAIL_CHOICE_DAYS, HYPE_OWNERS } from './constants';
 import type {
   Contract,
   ExpenseKind,
@@ -345,6 +345,21 @@ function migrateContext(data: Record<string, unknown>): void {
   }
 }
 
+/**
+ * Срок ответа появился позже: в старых сохранениях письмо с выбором без replyByDay не истекало никогда.
+ * Такому письму (выбор есть, ответа нет) ставим срок от сегодняшнего дня игры (или дня письма, если он позже):
+ * CHOICE_DAYS, для срыва обучения - FAIL_CHOICE_DAYS; вариант по умолчанию - последний, как в triggerEvent.
+ */
+function migrateChoices(data: Record<string, unknown>): void {
+  if (!Array.isArray(data.mail) || typeof data.day !== 'number') return;
+  for (const m of data.mail) {
+    if (!isRec(m) || !Array.isArray(m.choices) || m.chosen !== undefined || m.replyByDay !== undefined) continue;
+    const from = typeof m.day === 'number' ? Math.max(m.day, data.day) : data.day;
+    m.replyByDay = from + (m.eventId === 'training-fail' ? FAIL_CHOICE_DAYS : CHOICE_DAYS);
+    if (m.defaultChoice === undefined) m.defaultChoice = m.choices.length - 1;
+  }
+}
+
 export function deserialize(json: string): { ok: true; state: GameState } | { ok: false; error: string } {
   let data: unknown;
   try {
@@ -358,6 +373,7 @@ export function deserialize(json: string): { ok: true; state: GameState } | { ok
   if (data.founderName === undefined) data.founderName = '';
   if (data.tutorial === undefined) data.tutorial = { step: 0, active: false };
   migrateContext(data);
+  migrateChoices(data);
   const problem = WHOLE_STATE(data, '') ?? pendingChoiceProblem(data.mail as Mail[]);
   if (problem) return { ok: false, error: problemText(problem) };
   return { ok: true, state: data as unknown as GameState };

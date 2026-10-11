@@ -1,6 +1,6 @@
 // Окно «Исследования»: дерево технологий на сером холсте (образец - «Исследования» в Processor Tycoon).
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
 import { GPUS } from '../../data/gpus';
@@ -20,7 +20,7 @@ import {
 import { dayToDate, formatDateShort } from '../../sim/time';
 import type { GameState, TechId } from '../../sim/types';
 import { percentsOf, toAllocation, withPercent } from '../alloc';
-import { Dialog, ErrorText, Range } from '../components/common';
+import { Alert, Dialog, ErrorText, Range } from '../components/common';
 import { fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
 import { IconCheck, IconLock } from '../icons';
 import { actions, store } from '../store';
@@ -159,24 +159,18 @@ function TechNode({ s, id, label, rp, x, y, code, onPick }: NodeProps) {
 }
 
 export default function ResearchWindow({ s, open }: WindowProps) {
-  const [note, setNote] = useState<{ text: string } | null>(null);
+  // Сообщение об отказе висит до следующего действия (выбор узла или остановка).
+  const [note, setNote] = useState<string | null>(null);
   const [dialog, setDialog] = useState<TechId | null>(null);
   const rp = rpPerDay(s);
   const power = pool(s, 'experiments');
   const current = s.research.current;
   const level = s.research.algoLevel;
 
-  // Сообщение об отказе гаснет само.
-  useEffect(() => {
-    if (!note) return;
-    const t = setTimeout(() => setNote(null), 4000);
-    return () => clearTimeout(t);
-  }, [note]);
-
   const pick = (id: TechId, status: Status, reason: string | null) => {
     if (status === 'done') return;
     if (status === 'blocked') {
-      setNote({ text: reason ?? 'Исследование недоступно' });
+      setNote(reason ?? 'Исследование недоступно');
       return;
     }
     setNote(null);
@@ -185,7 +179,7 @@ export default function ResearchWindow({ s, open }: WindowProps) {
 
   const stop = () => {
     const r = store.dispatch(actions.setResearch, null);
-    setNote(r.ok ? null : { text: r.error });
+    setNote(r.ok ? null : r.error);
   };
 
   // Раскладка холста.
@@ -295,6 +289,16 @@ export default function ResearchWindow({ s, open }: WindowProps) {
         </div>
       </div>
 
+      {(power <= 0 || note) && (
+        <div className="rs-alerts">
+          {power <= 0 && (
+            <Alert tone="warn" action={{ label: 'Открыть «Мощности»', onClick: () => open('compute') }}>
+              Мощность на исследования не выделена.
+            </Alert>
+          )}
+          {note && <Alert tone="bad">{note}</Alert>}
+        </div>
+      )}
       <div className="rs-bar">
         <span className="rs-stat" title={`${fmtNum(RP_BASE)} + ${fmtNum(RP_K)} × √(H100e на исследования)`}>
           <span className="l">Очки в день</span>
@@ -304,10 +308,8 @@ export default function ResearchWindow({ s, open }: WindowProps) {
           <span className="l">Мощность</span>
           <b className="num">{fmtNum(power)} H100e</b>
         </span>
-        {power <= 0 && <span className="rs-warn">Мощность на исследования не выделена</span>}
-        {note && <span className="rs-note">{note.text}</span>}
         <button type="button" className="btn small" onClick={() => open('compute')}>
-          Мощности
+          Открыть «Мощности»
         </button>
       </div>
       {dialog &&
@@ -444,7 +446,7 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
             <div className="rs-d-empty">
               <span>Карты не арендованы. Исследование идёт медленно.</span>
               <button className="btn small" onClick={onRent}>
-                Арендовать карты
+                Открыть «Мощности»
               </button>
             </div>
           ) : (

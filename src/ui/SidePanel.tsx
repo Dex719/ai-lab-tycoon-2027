@@ -112,12 +112,12 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
 function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
   const onSale = s.models.filter((m) => m.releasedDay !== null && m.onApi);
   if (!onSale.length) return <div className="side-empty">Моделей в продаже нет.</div>;
-  const served = 1 - s.market.lostFraction;
   return (
     <>
       {onSale.map((m) => {
+        // Доля в s.market уже после ограничения мощностью (market.ts servedShares), отдельно на served не умножаем.
         const share = s.market.shares[`player:${m.id}`] ?? 0;
-        const tokens = share * s.market.totalTokens * served;
+        const tokens = share * s.market.totalTokens;
         return (
           <div className="side-item" key={m.id} onClick={() => open('models')} style={{ cursor: 'pointer' }}>
             <div className="t">{m.name}</div>
@@ -146,14 +146,22 @@ function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) 
 
 export function SidePanel({ s, open, top }: { s: GameState; open: (id: WindowId | WindowAlias) => void; top?: ReactNode }) {
   const [shownState, setShown] = useState(true);
-  const shown = shownState || !!top; // пока идёт обучение, панель не сворачивается
+  const pinned = !!top; // пока идёт обучение, панель закреплена: подсказка помощника должна оставаться на виду
+  const shown = shownState || pinned;
   const [tab, setTab] = useState<Tab>('projects');
   const projects =
     openChoices(s).filter((m) => m.deferred).length + (s.training ? 1 : 0) + (s.research.current ? 1 : 0) + s.contracts.length;
   const onSale = s.models.filter((m) => m.releasedDay !== null && m.onApi).length;
+  const tabLabel = shown ? 'Скрыть панель' : 'Показать панель';
   return (
     <aside className={`side${top ? ' with-top' : ''}`} aria-label="Боковая панель">
-      <button className="side-tab" onClick={() => setShown((v) => !v)} aria-label={shown ? 'Скрыть панель' : 'Показать панель'}>
+      <button
+        className="side-tab"
+        onClick={() => setShown((v) => !v)}
+        disabled={pinned}
+        aria-label={tabLabel}
+        title={pinned ? 'Панель закреплена на время обучения' : tabLabel}
+      >
         {shown ? <IconChevronRight /> : <IconChevronLeft />}
       </button>
       {shown && (

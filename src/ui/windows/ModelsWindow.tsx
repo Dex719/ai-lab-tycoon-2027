@@ -9,7 +9,7 @@ import { TOKENS_PER_USER_DAY, TRAIN_FLOP_PER_H100E_DAY } from '../../sim/constan
 import { awaitingEvent } from '../../sim/events';
 import { contextLabel } from '../../sim/research';
 import { arenaRank, benchRank } from '../../sim/leaderboard';
-import { refPrice } from '../../sim/market';
+import { minPrice, refPrice } from '../../sim/market';
 import { formatDateShort } from '../../sim/time';
 import { arenaElo as forecastElo, capsFromPlan, modelScore } from '../../sim/training';
 import {
@@ -22,9 +22,10 @@ import {
   type TrainingPlan,
   type TrainingRun,
 } from '../../sim/types';
-import { ErrorText, ProgressBar } from '../components/common';
+import { Alert, ErrorText, ProgressBar } from '../components/common';
 import { fmtElo, fmtMoney, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare, fmtTokens } from '../format';
 import { IconModels } from '../icons';
+import { fmtRank } from '../labels';
 import { actions, store } from '../store';
 import './ModelsWindow.css';
 
@@ -50,15 +51,18 @@ function roundPrice(v: number): number {
   return Math.round(v * k) / k;
 }
 
-function parsePrice(text: string): number | null {
-  if (text.trim() === '') return null;
+/**
+ * Цена из поля и причина отказа. price - null, если поле пустое или цена не годится.
+ * Границы и слова те же, что в проверке симуляции (actions.ts): нижняя - minPrice(day), опорная цена / 100.
+ */
+function parsePrice(text: string, day: number): { price: number | null; error: string | null } {
+  if (text.trim() === '') return { price: null, error: null };
   const v = Number(text.replace(',', '.'));
-  return Number.isFinite(v) && v > 0 && v <= MAX_PRICE ? v : null;
-}
-
-function priceError(text: string): string | null {
-  if (text.trim() === '' || parsePrice(text) !== null) return null;
-  return `Цена должна быть больше нуля и не больше ${fmtPrice(MAX_PRICE)}.`;
+  if (!Number.isFinite(v)) return { price: null, error: 'Цена должна быть числом.' };
+  const min = minPrice(day);
+  if (v < min) return { price: null, error: `Цена не может быть ниже ${fmtPrice(min)} за 1 млн токенов.` };
+  if (v > MAX_PRICE) return { price: null, error: `Цена не может быть выше ${fmtPrice(MAX_PRICE)} за 1 млн токенов.` };
+  return { price: v, error: null };
 }
 
 function versusMarket(price: number, ref: number): string {
@@ -70,7 +74,8 @@ function versusMarket(price: number, ref: number): string {
 /** Продажи модели сегодня: доля, токены, пользователи, выручка в день (undefined - не в продаже). */
 function salesOf(s: GameState, m: PlayerModel) {
   const share: number | undefined = m.onApi ? s.market.shares[`player:${m.id}`] : undefined;
-  const tokens = share !== undefined ? share * s.market.totalTokens * (1 - s.market.lostFraction) : undefined;
+  // Доля в s.market уже после ограничения мощностью (market.ts servedShares), отдельно на served не умножаем.
+  const tokens = share !== undefined ? share * s.market.totalTokens : undefined;
   const users = tokens !== undefined ? tokens / TOKENS_PER_USER_DAY : undefined;
   const revenue = tokens !== undefined ? (tokens * m.price) / 1e6 : undefined;
   return { share, tokens, users, revenue };
@@ -96,7 +101,7 @@ function ModelList(props: {
       <div className="mw-list">
         {t && (
           <button
-            className={`mw-item${props.selectedId === TRAINING_ID ? ' on' : ''}`}
+            className={`mw-item${props.selectedId === TRAINING_ID ? ' is-selected' : ''}`}
             aria-current={props.selectedId === TRAINING_ID}
             onClick={() => props.onSelect(TRAINING_ID)}
           >
@@ -112,7 +117,7 @@ function ModelList(props: {
           return (
             <button
               key={m.id}
-              className={`mw-item${m.id === props.selectedId ? ' on' : ''}`}
+              className={`mw-item${m.id === props.selectedId ? ' is-selected' : ''}`}
               aria-current={m.id === props.selectedId}
               onClick={() => props.onSelect(m.id)}
             >
@@ -128,7 +133,7 @@ function ModelList(props: {
       </div>
       <div className="mw-side-foot">
         <span>Моделей: {props.models.length}</span>
-        <button className="btn small" onClick={() => props.open('newModel')}>Новая модель</button>
+        <button className="btn small" onClick={() => props.open('newModel')}>Создать модель</button>
       </div>
     </aside>
   );
@@ -180,8 +185,7 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
   const tiers = TIERS.map((t) => ({ ...t, price: roundPrice(ref * t.k) }));
   const [text, setText] = useState(() => String(roundPrice(ref)).replace('.', ','));
   const [err, setErr] = useState<string | null>(null);
-  const price = parsePrice(text);
-  const error = priceError(text);
+  const { price, error } = parsePrice(text, s.day);
 
   function release() {
     if (price === null) return;
@@ -234,8 +238,7 @@ function SalesBlock({ s, m, open }: { s: GameState; m: PlayerModel; open: Window
   const ref = refPrice(s.day);
   const [text, setText] = useState(() => String(Math.round(m.price * 100) / 100).replace('.', ','));
   const [err, setErr] = useState<string | null>(null);
-  const price = parsePrice(text);
-  const error = priceError(text);
+  const { price, error } = parsePrice(text, s.day);
 
   const { share, tokens } = salesOf(s, m);
   const lost = s.market.lostFraction;
@@ -255,14 +258,11 @@ function SalesBlock({ s, m, open }: { s: GameState; m: PlayerModel; open: Window
     <section>
       <h3 className="mw-h">Продажи</h3>
       {noInference && (
-        <div className="mw-note warn">
-          <span>Доля «Клиенты» равна нулю: запросы не обслуживаются.</span>
-          <button className="btn small" onClick={() => open('compute')}>
-            Открыть «Мощности»
-          </button>
-        </div>
+        <Alert tone="warn" action={{ label: 'Открыть «Мощности»', onClick: () => open('compute') }}>
+          Доля «Клиенты» равна нулю: запросы не обслуживаются.
+        </Alert>
       )}
-      {losing && <div className="mw-note warn">Не хватает мощности «Клиенты»: теряется {fmtShare(lost, 0)} спроса.</div>}
+      {losing && <Alert tone="warn">Не хватает мощности «Клиенты»: теряется {fmtShare(lost, 0)} спроса.</Alert>}
       <div className="mw-panel">
         <div className="mw-price">
           <div className="mw-price-now">
@@ -362,7 +362,7 @@ function Kpis({ s, m }: { s: GameState; m: PlayerModel }) {
     ? [
         {
           label: 'Место на «Арене»',
-          value: rank !== null ? String(rank) : '-',
+          value: fmtRank(rank),
           sub: `Эло ${fmtElo(m.arenaElo)}`,
           title: 'Рейтинг на «Арене». Подгонка под бенчмарки его не повышает.',
         },
@@ -458,9 +458,10 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
   const items: Kpi[] = [
     { label: 'Готово', value: fmtShare(frac, 0) },
     {
+      // Пока проект стоит, срока нет: в плитке «-», причина - в подписи.
       label: 'Осталось',
-      value: waiting ? 'ждёт решения' : left !== null ? `${fmtNum(left)} дн.` : 'нет мощности',
-      sub: !waiting && left !== null ? `до ${formatDateShort(s.day + left)}` : undefined,
+      value: !waiting && left !== null ? `${fmtNum(left)} дн.` : '-',
+      sub: waiting ? 'ждёт решения в «Почте»' : left !== null ? `до ${formatDateShort(s.day + left)}` : 'нет мощности на обучение',
     },
     {
       label: 'Аренда в месяц',
@@ -498,7 +499,7 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
             </span>
             <span className="mw-btns">
               <button className="btn small" onClick={() => open('compute')}>
-                Мощности
+                Открыть «Мощности»
               </button>
               <button className="btn small" onClick={() => open('newModel')}>
                 Открыть «Новая модель»
@@ -536,7 +537,7 @@ function ModelCard({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowP
         </div>
         <span className={`mw-pill ${st.tone}`}>{st.text}</span>
       </header>
-      {m.exposed && <div className="mw-note bad">Подгонка под бенчмарки раскрыта: показаны честные баллы.</div>}
+      {m.exposed && <Alert tone="bad">Подгонка под бенчмарки раскрыта: показаны честные баллы.</Alert>}
       <Kpis s={s} m={m} />
       {released ? <SalesBlock s={s} m={m} open={open} /> : <ReleaseBlock s={s} m={m} />}
       <ScoresBlock s={s} m={m} benches={introducedBenchmarks(s)} />
@@ -560,7 +561,7 @@ export default function ModelsWindow({ s, open }: WindowProps) {
       <div className="mw-empty">
         <IconModels size={64} />
         <div className="mw-empty-title">Моделей нет.</div>
-        <button className="btn primary" onClick={() => open('newModel')}>Новая модель</button>
+        <button className="btn primary" onClick={() => open('newModel')}>Создать модель</button>
       </div>
     );
   }

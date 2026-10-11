@@ -94,13 +94,13 @@ export function setAllocation(s: GameState, a: Allocation): Result {
 /** Действие: поставить число арендованных GPU типа (целое 0..лимит, тип доступен; уменьшать можно всегда). */
 export function setRent(s: GameState, id: GpuId, count: number): Result {
   const def = GPUS.find((g) => g.id === id);
-  if (!def) return { ok: false, error: 'Неизвестный тип GPU' };
+  if (!def) return { ok: false, error: 'Неизвестный тип карты' };
   if (!Number.isInteger(count) || count < 0) {
-    return { ok: false, error: 'Число GPU должно быть целым и не меньше нуля' };
+    return { ok: false, error: 'Число карт должно быть целым и не меньше нуля' };
   }
   // Уменьшать (и оставлять как есть) можно всегда, даже если лимит упал.
   if (count > s.compute.rented[id]) {
-    if (!isGpuAvailable(s, id)) return { ok: false, error: 'Этот GPU ещё не вышел' };
+    if (!isGpuAvailable(s, id)) return { ok: false, error: 'Эта карта ещё не вышла' };
     const cap = rentCapFor(s, id);
     if (count > cap) {
       return { ok: false, error: `Лимит аренды ${def.name} в этом году - ${cap} шт.` };

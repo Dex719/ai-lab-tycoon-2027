@@ -1,6 +1,7 @@
 // Общие мелкие компоненты для окон.
 
 import { useCallback, useEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { IconAlert, IconInfo } from '../icons';
 
 export function Tabs<T extends string>(props: { tabs: { id: T; label: ReactNode }[]; value: T; onChange: (id: T) => void }) {
   return (
@@ -77,6 +78,36 @@ export function ErrorText({ error }: { error: string | null | undefined }) {
 
 export function Empty({ children }: { children: ReactNode }) {
   return <div className="muted" style={{ padding: '12px 0' }}>{children}</div>;
+}
+
+export type AlertTone = 'warn' | 'bad' | 'info';
+
+/**
+ * Единое предупреждение в окнах: значок, текст и необязательная кнопка справа.
+ * warn - «нет мощности», «ждёт решения»; bad - ошибка или минус на счёте; info - подсказка.
+ * Стили - .alert в theme.css.
+ */
+export function Alert({
+  tone,
+  children,
+  action,
+}: {
+  tone: AlertTone;
+  children: ReactNode;
+  action?: { label: string; onClick: () => void };
+}) {
+  const Icon = tone === 'info' ? IconInfo : IconAlert;
+  return (
+    <div className={`alert ${tone}`} role={tone === 'info' ? 'status' : 'alert'}>
+      <Icon size={18} />
+      <div className="alert-text">{children}</div>
+      {action && (
+        <button type="button" className="btn small" onClick={action.onClick}>
+          {action.label}
+        </button>
+      )}
+    </div>
+  );
 }
 
 const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])';

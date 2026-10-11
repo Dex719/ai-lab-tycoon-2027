@@ -6,6 +6,7 @@ import { applyTender, cancelContract } from './contracts';
 import { addMail, applyChoice, deferChoice, markRead } from './events';
 import { raiseRound } from './investors';
 import { releaseHypeBonus, updateSaturation } from './leaderboard';
+import { minPrice } from './market';
 import { setResearch } from './research';
 import { createInitialState } from './state';
 import { dateToDay, START_DAY } from './time';
@@ -31,8 +32,21 @@ function findModel(s: GameState, modelId: string) {
   return s.models.find((m) => m.id === modelId);
 }
 
-function validPrice(price: number): boolean {
-  return Number.isFinite(price) && price > 0 && price <= 10_000;
+const MAX_PRICE = 10_000; // $ за 1 млн токенов
+
+/** «$1», «$0,6», «$0,025», «$10 000». */
+function fmtPrice(x: number): string {
+  if (x >= 1000) return `$${String(Math.round(x)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`;
+  return `$${String(Number(x.toFixed(3))).replace('.', ',')}`;
+}
+
+/** Причина, по которой цена не годится, или null. Нижняя граница - minPrice(day): опорная цена / 100. */
+function priceError(s: GameState, price: number): string | null {
+  if (!Number.isFinite(price)) return 'Цена не указана';
+  const min = minPrice(s.day);
+  if (price < min) return `Цена не может быть ниже ${fmtPrice(min)} за 1 млн токенов.`;
+  if (price > MAX_PRICE) return `Цена не может быть выше ${fmtPrice(MAX_PRICE)} за 1 млн токенов.`;
+  return null;
 }
 
 /** Выпустить обученную модель на рынок API по цене за 1М токенов. */
@@ -40,7 +54,8 @@ export function releaseModel(s: GameState, modelId: string, price: number): Resu
   const m = findModel(s, modelId);
   if (!m) return { ok: false, error: 'Нет такой модели' };
   if (m.releasedDay !== null) return { ok: false, error: 'Модель уже выпущена' };
-  if (!validPrice(price)) return { ok: false, error: 'Цена должна быть больше нуля' };
+  const bad = priceError(s, price);
+  if (bad !== null) return { ok: false, error: bad };
   m.releasedDay = s.day;
   m.onApi = true;
   m.price = price;
@@ -58,7 +73,8 @@ export function releaseModel(s: GameState, modelId: string, price: number): Resu
 export function setModelPrice(s: GameState, modelId: string, price: number): Result {
   const m = findModel(s, modelId);
   if (!m) return { ok: false, error: 'Нет такой модели' };
-  if (!validPrice(price)) return { ok: false, error: 'Цена должна быть больше нуля' };
+  const bad = priceError(s, price);
+  if (bad !== null) return { ok: false, error: bad };
   m.price = price;
   return { ok: true };
 }

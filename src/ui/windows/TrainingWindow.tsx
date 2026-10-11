@@ -28,9 +28,9 @@ import { CONTEXT_MAX_LEVEL, contextLabel, maxContext } from '../../sim/research'
 import { archFor, chinchillaFactor, contextFlopMult, estimate, labelersCost } from '../../sim/training';
 import { DOMAINS } from '../../sim/types';
 import type { BenchmarkId, DomainId, GameState, TrainingPlan, TrainingRun } from '../../sim/types';
-import { ErrorText, ProgressBar, Range } from '../components/common';
+import { Alert, ErrorText, ProgressBar, Range } from '../components/common';
 import { endSentence, fmtCardDays, fmtElo, fmtMoney, fmtNum, fmtParams, fmtPct, fmtTokens } from '../format';
-import { IconAlert, IconLock } from '../icons';
+import { IconLock } from '../icons';
 import { actions, store } from '../store';
 import './TrainingWindow.css';
 
@@ -206,13 +206,9 @@ function ModelChip({ name, paramsB, arch }: { name: string; paramsB: number; arc
 function NoComputeAlert({ s, open }: { s: GameState; open: OpenFn }) {
   const noGpu = totalH100e(s) <= 0;
   return (
-    <div className="nm-alert" role="status">
-      <IconAlert size={18} />
-      <span>Нет мощности на обучение: {noGpu ? 'не арендовано ни одной карты' : 'доля «Обучение» равна 0 %'}.</span>
-      <button className="btn small" onClick={() => open('compute')}>
-        Открыть «Мощности»
-      </button>
-    </div>
+    <Alert tone="warn" action={{ label: 'Открыть «Мощности»', onClick: () => open('compute') }}>
+      Нет мощности на обучение: {noGpu ? 'не арендовано ни одной карты' : 'доля «Обучение» равна 0 %'}.
+    </Alert>
   );
 }
 
@@ -257,7 +253,7 @@ function ContextBlock(props: { s: GameState; value: number; onChange: (v: number
         </span>
         {level < CONTEXT_MAX_LEVEL && (
           <button className="nm-link" onClick={() => open('research')}>
-            Исследования
+            Открыть «Исследования»
           </button>
         )}
       </div>
@@ -392,7 +388,7 @@ function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; ope
           est.arch === 'lstm' ? (
             <>
               В {Math.round(1 / ARCH_MULT.lstm)} раз менее эффективна.{' '}
-              <button className="nm-link" onClick={() => open('research')}>Исследования</button>
+              <button className="nm-link" onClick={() => open('research')}>Открыть «Исследования»</button>
             </>
           ) : undefined
         }
@@ -409,7 +405,7 @@ function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; ope
         label="Прогноз Эло на «Арене»"
         sub={
           fc ? undefined : (
-            <button className="nm-link" onClick={() => open('research')}>Нужны «Законы масштабирования»</button>
+            <button className="nm-link" onClick={() => open('research')}>Изучить «Законы масштабирования»</button>
           )
         }
       >
@@ -696,7 +692,7 @@ export default function TrainingWindow({ s, open }: WindowProps) {
                 ) : (
                   <div className="nm-note muted">
                     Нужно исследование RLHF.{' '}
-                    <button className="nm-link" onClick={() => open('research')}>Исследования</button>
+                    <button className="nm-link" onClick={() => open('research')}>Открыть «Исследования»</button>
                   </div>
                 )}
               </div>

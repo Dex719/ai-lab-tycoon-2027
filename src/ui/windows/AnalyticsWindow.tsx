@@ -7,7 +7,9 @@ import { marketSnapshot, type MarketEntry } from '../../sim/market';
 import { contextLabel } from '../../sim/research';
 import { dayToDate, formatDateShort } from '../../sim/time';
 import type { PlayerModel } from '../../sim/types';
+import { Alert } from '../components/common';
 import { fmtElo, fmtMoney, fmtNum, fmtPrice, fmtShare } from '../format';
+import { INCOME_LABELS } from '../labels';
 import './AnalyticsWindow.css';
 import { buildChartData, ChartPanel, finite, liveMonthLabel, safe, type SeriesDef } from './analyticsShared';
 import FinanceTab from './FinanceWindow';
@@ -61,8 +63,8 @@ export default function AnalyticsWindow(props: WindowProps) {
 // ---------- Ваши модели ----------
 
 const REVENUE_SERIES: SeriesDef[] = [
-  { id: 'api', label: 'Выручка API', color: '#4ea1ff', pick: (r) => r.income.api },
-  { id: 'contracts', label: 'Контракты', color: '#f2c14e', pick: (r) => r.income.contracts },
+  { id: 'api', label: INCOME_LABELS.api, color: '#4ea1ff', pick: (r) => r.income.api },
+  { id: 'contracts', label: INCOME_LABELS.contracts, color: '#f2c14e', pick: (r) => r.income.contracts },
 ];
 
 function YourModelsTab({ s, open }: WindowProps) {
@@ -89,12 +91,9 @@ function YourModelsTab({ s, open }: WindowProps) {
       <section>
         <h2 className="an-h">Выпущенные модели</h2>
         {lost > 0.01 && (
-          <div className="an-note bad">
-            <span className="grow">Не хватает мощности: теряется {fmtShare(lost, 0)} спроса.</span>
-            <button className="btn small" onClick={() => open('compute')}>
-              Открыть «Мощности»
-            </button>
-          </div>
+          <Alert tone="warn" action={{ label: 'Открыть «Мощности»', onClick: () => open('compute') }}>
+            Не хватает мощности: теряется {fmtShare(lost, 0)} спроса.
+          </Alert>
         )}
         {released.length === 0 ? (
           <div className="an-empty">

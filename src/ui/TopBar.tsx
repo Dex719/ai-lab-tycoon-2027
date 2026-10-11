@@ -5,10 +5,11 @@ import { pendingChoice } from '../sim/events';
 import { overheadPerDay } from '../sim/finance';
 import { rentPerDay } from '../sim/compute';
 import { playerBestArenaRank } from '../sim/tick';
-import { dayToDate } from '../sim/time';
-import type { ExpenseKind, GameState, IncomeKind, Speed } from '../sim/types';
+import { formatDateShort } from '../sim/time';
+import type { GameState, Speed } from '../sim/types';
 import { fmtMoney, fmtShare } from './format';
 import { IconAlert, IconArrowUpDown, IconBank, IconCalendar, IconFast, IconFaster, IconPause, IconPlay } from './icons';
+import { EXPENSE_KINDS, EXPENSE_LABELS, fmtRank, INCOME_KINDS, INCOME_LABELS } from './labels';
 import { store, useSpeed } from './store';
 
 const SPEEDS: { speed: Speed; title: string; Icon: () => ReactElement }[] = [
@@ -16,18 +17,6 @@ const SPEEDS: { speed: Speed; title: string; Icon: () => ReactElement }[] = [
   { speed: 1, title: 'Скорость ×1', Icon: () => <IconPlay /> },
   { speed: 2, title: 'Скорость ×2', Icon: () => <IconFast /> },
   { speed: 4, title: 'Скорость ×4', Icon: () => <IconFaster /> },
-];
-
-const INCOME: { k: IncomeKind; label: string }[] = [
-  { k: 'api', label: 'Продажа API' },
-  { k: 'contracts', label: 'Контракты' },
-  { k: 'investors', label: 'Инвесторы' },
-];
-const EXPENSE: { k: ExpenseKind; label: string }[] = [
-  { k: 'rent', label: 'Аренда мощностей' },
-  { k: 'overhead', label: 'Зарплаты и офис' },
-  { k: 'labelers', label: 'Разметчики' },
-  { k: 'penalties', label: 'Штрафы' },
 ];
 
 /** Изменение денег в месяц: итог прошлого месяца без инвесторов, а в первый месяц - текущие расходы. */
@@ -41,11 +30,6 @@ function monthlyRate(s: GameState): number {
   return -(rentPerDay(s) + overheadPerDay(s)) * 30;
 }
 
-function dateText(day: number): string {
-  const d = dayToDate(day);
-  return `${String(d.day).padStart(2, '0')}/${String(d.month).padStart(2, '0')}/${d.year}`;
-}
-
 function MoneyPopup({ s }: { s: GameState }) {
   const m = s.finance.month;
   return (
@@ -54,15 +38,15 @@ function MoneyPopup({ s }: { s: GameState }) {
         <span>С начала месяца</span>
         <span />
       </div>
-      {INCOME.map(({ k, label }) => (
+      {INCOME_KINDS.map((k) => (
         <div className="r" key={k} style={m.income[k] > 0 ? { color: 'var(--good-on-dark)' } : undefined}>
-          <span>{label}:</span>
+          <span>{INCOME_LABELS[k]}:</span>
           <span className="v">{fmtMoney(m.income[k])}</span>
         </div>
       ))}
-      {EXPENSE.map(({ k, label }) => (
+      {EXPENSE_KINDS.map((k) => (
         <div className="r" key={k} style={m.expense[k] > 0 ? { color: 'var(--bad-on-dark)' } : undefined}>
-          <span>{label}:</span>
+          <span>{EXPENSE_LABELS[k]}:</span>
           <span className="v">{m.expense[k] > 0 ? '−' : ''}{fmtMoney(m.expense[k])}</span>
         </div>
       ))}
@@ -76,10 +60,13 @@ export function TopBar({ s }: { s: GameState }) {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      const tag = (e.target as HTMLElement)?.tagName;
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      const tag = target?.tagName;
       if (e.code !== 'Space' || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
-      if ((e.target as HTMLElement)?.closest('[aria-modal="true"]')) return;
+      // Пробел на кнопке или ссылке нажимает её, а не ставит паузу.
+      if (target?.closest('button, a[href], [role="button"], [role="menuitem"]')) return;
+      if (target?.closest('[aria-modal="true"]')) return;
       e.preventDefault();
       store.togglePause();
     }
@@ -114,7 +101,7 @@ export function TopBar({ s }: { s: GameState }) {
           <span className={s.cash < 0 ? 'tb-bad' : undefined}>{fmtMoney(s.cash)}</span>
           {hover && <MoneyPopup s={s} />}
         </div>
-        <div className="tb-item" title="Доходы минус расходы за прошлый месяц">
+        <div className="tb-item" title="Доходы минус расходы за прошлый месяц, без вложений инвесторов">
           <IconArrowUpDown />
           <span className={rate >= 0 ? 'tb-good' : 'tb-bad'}>
             {rate >= 0 ? '' : '−'}
@@ -123,7 +110,7 @@ export function TopBar({ s }: { s: GameState }) {
         </div>
         <div className="tb-item">
           <IconCalendar />
-          <span>{dateText(s.day)}</span>
+          <span>{formatDateShort(s.day)}</span>
         </div>
         <div className="speed">
           {SPEEDS.map(({ speed: sp, title, Icon }) => (
@@ -144,7 +131,7 @@ export function TopBar({ s }: { s: GameState }) {
       </div>
       <div className="topbar-right">
         <span>Доля рынка: {fmtShare(s.market.labShares.player ?? 0, 2)}</span>
-        <span>«Арена»: {rank !== null ? `${rank}-е место` : '-'}</span>
+        <span>«Арена»: {fmtRank(rank)}</span>
       </div>
       {(store.pauseReason || negative) && speed === 0 && (
         <div className="pause-note">

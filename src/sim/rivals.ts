@@ -123,6 +123,18 @@ function fmtPrice(x: number): string {
   return `$${String(Number(x.toFixed(2))).replace('.', ',')}`;
 }
 
+/**
+ * Цена для письма: обе цены каталога, если они разные («$30 за 1 млн входных и $60 за 1 млн выходных токенов»),
+ * иначе одна («$60 за 1 млн токенов»; без цен в каталоге - defaultPricePer1M лаборатории).
+ */
+function priceText(def: RivalModelDef, day: number): string {
+  const { priceIn, priceOut } = def;
+  if (priceIn !== null && priceOut !== null && priceIn !== priceOut) {
+    return `${fmtPrice(priceIn)} за 1 млн входных и ${fmtPrice(priceOut)} за 1 млн выходных токенов`;
+  }
+  return `${fmtPrice(rivalPrice(def, day))} за 1 млн токенов`;
+}
+
 /** До двух реальных баллов по вышедшим бенчмаркам: сначала не насыщенные, потом самые трудные. */
 function headlineScores(s: GameState, def: RivalModelDef): string[] {
   const list: { name: string; value: number; saturated: boolean; difficulty: number }[] = [];
@@ -147,7 +159,7 @@ function releaseBody(s: GameState, def: RivalModelDef): string {
   sentences.push(`Эло на «Арене» - ${def.arenaEstimated ? '≈' : ''}${Math.round(def.arenaElo)}.`);
 
   const access: string[] = [];
-  if (def.api) access.push(`цена API - ${fmtPrice(rivalPrice(def, s.day))} за 1М токенов`);
+  if (def.api) access.push(`цена API - ${priceText(def, s.day)}`);
   if (def.openWeights) access.push('веса открыты');
   if (access.length > 0) {
     const text = access.join(', ');
@@ -160,6 +172,7 @@ function releaseBody(s: GameState, def: RivalModelDef): string {
  * Ежедневно: модели каталога с датой ≤ сегодня, которых нет в s.rivalsReleased, - выпустить:
  * добавить id, прибавить шумиху лаборатории (leaderboard.releaseHypeBonus), письмо kind 'rival'
  * с названием, лабораторией и 1-2 главными баллами по вышедшим бенчмаркам.
+ * Модель, которую только показали (announcedOnly), в заголовке «показала», а не «выпустила».
  * Модели, вышедшие до старта игры (день < 0), появляются молча: без письма и шумихи.
  */
 export function releaseDue(s: GameState): void {
@@ -176,22 +189,22 @@ export function releaseDue(s: GameState): void {
     s.hype[def.lab] = Math.min(100, (s.hype[def.lab] ?? 0) + bonus);
     addMail(s, {
       kind: 'rival',
-      title: `${LAB_NAME.get(def.lab) ?? def.lab} выпустила ${def.gameName}`,
+      title: `${LAB_NAME.get(def.lab) ?? def.lab} ${def.announcedOnly ? 'показала' : 'выпустила'} ${def.gameName}`,
       body: releaseBody(s, def),
     });
   }
 }
 
 /**
- * Модели соперников на рынке: выпущены, (api || openWeights), не старше MARKET_MAX_AGE_DAYS,
- * по MARKET_MODELS_PER_LAB новейших на лабораторию (при равной дате - с большим Эло).
+ * Модели соперников на рынке: выпущены, (api || openWeights), не только показаны (announcedOnly),
+ * не старше MARKET_MAX_AGE_DAYS, по MARKET_MODELS_PER_LAB новейших на лабораторию (при равной дате - с большим Эло).
  * Порядок: по лабораториям, внутри - от новых к старым.
  */
 export function marketRivals(s: GameState): RivalModelDef[] {
   const perLab = new Map<LabId, RivalModelDef[]>();
   for (const id of s.rivalsReleased) {
     const def = BY_ID.get(id);
-    if (!def || !(def.api || def.openWeights)) continue;
+    if (!def || !(def.api || def.openWeights) || def.announcedOnly) continue;
     if (s.day - rivalDay(def) > MARKET_MAX_AGE_DAYS) continue;
     const list = perLab.get(def.lab);
     if (list) list.push(def);

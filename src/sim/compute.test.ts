@@ -333,7 +333,7 @@ describe('setRent', () => {
     for (const bad of [1.5, -1, Number.NaN, Infinity, -Infinity, '5' as unknown as number]) {
       const r = setRent(s, 'p100', bad);
       expect(r.ok).toBe(false);
-      if (!r.ok) expect(r.error).toBe('Число GPU должно быть целым и не меньше нуля');
+      if (!r.ok) expect(r.error).toBe('Число карт должно быть целым и не меньше нуля');
     }
     expect(s.compute.rented.p100).toBe(0);
   });
@@ -349,7 +349,7 @@ describe('setRent', () => {
     const s = createInitialState('Тест', 1);
     const before = JSON.stringify(s);
     const r = setRent(s, 'x999' as GpuId, 5);
-    expect(r).toEqual({ ok: false, error: 'Неизвестный тип GPU' });
+    expect(r).toEqual({ ok: false, error: 'Неизвестный тип карты' });
     expect(JSON.stringify(s)).toBe(before);
   });
 
@@ -388,12 +388,12 @@ describe('setRent', () => {
 
   it('недоступный тип отклоняется раньше, чем проверяется лимит', () => {
     const s = createInitialState('Тест', 1);
-    expect(setRent(s, 'h200', 1_000_000)).toEqual({ ok: false, error: 'Этот GPU ещё не вышел' });
+    expect(setRent(s, 'h200', 1_000_000)).toEqual({ ok: false, error: 'Эта карта ещё не вышла' });
   });
 
-  it('недоступный тип - ошибка «Этот GPU ещё не вышел», состояние не меняется', () => {
+  it('недоступный тип - ошибка «Эта карта ещё не вышла», состояние не меняется', () => {
     const s = createInitialState('Тест', 1);
-    expect(setRent(s, 'h100', 5)).toEqual({ ok: false, error: 'Этот GPU ещё не вышел' });
+    expect(setRent(s, 'h100', 5)).toEqual({ ok: false, error: 'Эта карта ещё не вышла' });
     expect(s.compute.rented.h100).toBe(0);
   });
 

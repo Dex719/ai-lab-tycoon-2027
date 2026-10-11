@@ -1,6 +1,6 @@
 // Тесты бенчмарков (TSK-005): формула балла, обратная формула, появление по датам.
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BENCHMARKS } from '../data/benchmarks';
 import { activeBenchmarks, benchDef, benchScore, capFromScore, introduceDue, introducedBenchmarks } from './benchmarks';
 import { createInitialState } from './state';
@@ -178,8 +178,8 @@ describe('числовые контрольные значения', () => {
     // σ(ln 3) = 0,75: на HumanEvol (g = 0) это 75 %, на MMLO (g = 0,25) это 25 + 75 × 0,75 = 81,25 %
     expect(benchScore('humaneval', 73.4 + 5.2 * Math.log(3))).toBeCloseTo(75, 6);
     expect(benchScore('mmlu', 62 + 11.3 * Math.log(3))).toBeCloseTo(81.25, 6);
-    // SQuAT: на способности −30 ровно половина
-    expect(benchScore('squad', -30)).toBeCloseTo(50, 9);
+    // SQuAT: на способности 0 ровно половина
+    expect(benchScore('squad', 0)).toBeCloseTo(50, 9);
     // GSM8C: на четверть ниже середины
     expect(benchScore('gsm8k', 64.6 - 5.1 * Math.log(3))).toBeCloseTo(25, 6);
     // очень слабая модель на GPQE не опускается ниже угадывания (25 %)
@@ -191,7 +191,7 @@ describe('числовые контрольные значения', () => {
   it('capFromScore даёт ожидаемую способность в характерных точках', () => {
     expect(capFromScore('humaneval', 75)).toBeCloseTo(73.4 + 5.2 * Math.log(3), 6);
     expect(capFromScore('mmlu', 81.25)).toBeCloseTo(62 + 11.3 * Math.log(3), 6);
-    expect(capFromScore('squad', 50)).toBeCloseTo(-30, 9);
+    expect(capFromScore('squad', 50)).toBeCloseTo(0, 9);
     // балл на уровне угадывания и ниже не даёт бесконечность
     expect(Number.isFinite(capFromScore('gpqa', 25))).toBe(true);
     expect(Number.isFinite(capFromScore('gpqa', 0))).toBe(true);
@@ -203,6 +203,39 @@ describe('числовые контрольные значения', () => {
     const edge = benchScore('humaneval', 40, 5) - benchScore('humaneval', 40);
     expect(mid).toBeGreaterThan(edge);
     expect(edge).toBeGreaterThan(0);
+  });
+});
+
+describe('SQuAT насыщается по истории, а не первой моделью игрока', () => {
+  afterEach(() => {
+    vi.resetModules();
+  });
+
+  it('на нулевой способности половина, 91 % - только со способности около 49; BORT (91,8 %) порог проходит', () => {
+    const def = benchDef('squad');
+    expect(benchScore('squad', 0)).toBeCloseTo(50, 9);
+    // Первая LSTM игрока в 2017 году - способность около 28: до порога далеко.
+    expect(benchScore('squad', 30)).toBeLessThan(85);
+    // Способность для порога по прямой формуле (capFromScore обрезает её до Dif + 40).
+    const capAtSaturation = def.difficulty + def.spread * Math.log(def.saturation / (100 - def.saturation));
+    expect(capAtSaturation).toBeGreaterThan(45);
+    expect(capAtSaturation).toBeLessThan(55);
+    expect(benchScore('squad', capAtSaturation)).toBeCloseTo(def.saturation, 6);
+    expect(91.8).toBeGreaterThanOrEqual(def.saturation);
+  });
+
+  it('разумный бот не насыщает SQuAT до 01.06.2018 (один прогон)', async () => {
+    // Боту нужна настоящая почта событий, а не подмена из этого файла.
+    vi.doUnmock('./events');
+    vi.resetModules();
+    const { runBot } = await import('./bots');
+    const until = dateToDay('2018-06-01');
+    const { state: s } = runBot('reasonable', 1, until);
+    expect(s.outcome).toBeNull();
+    expect(s.day).toBe(until);
+    expect(s.models.length).toBeGreaterThan(0);
+    expect(s.benchmarks.squad.saturated).toBe(false);
+    expect(s.mail.some((m) => m.title === 'Бенчмарк SQuAT насыщен')).toBe(false);
   });
 });
 

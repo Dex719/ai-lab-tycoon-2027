@@ -61,11 +61,9 @@
 .an-key { display: inline-flex; align-items: center; color: var(--text-dim); font-size: 13px; }
 .an-key b { margin-right: 6px; font-weight: 600; color: var(--text); }
 
-.an-note {
-  display: flex; align-items: center; gap: 12px; margin-bottom: 8px; padding: 8px 12px;
-  background: #fff; border: 1px solid var(--line); border-radius: 4px;
-}
-.an-note.bad { background: #fdeeee; color: #7a1f1f; border-color: #e8a5a5; }
+/* Предупреждение (Alert) над таблицей или под ней. */
+.an-page .alert { margin-bottom: 8px; }
+.an-grid + .alert { margin: 8px 0 0; }
 .an-empty {
   display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 28px 16px;
   background: #fff; border: 1px solid var(--line); color: var(--text-dim);

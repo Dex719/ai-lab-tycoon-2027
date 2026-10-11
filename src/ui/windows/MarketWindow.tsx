@@ -9,6 +9,7 @@ import { contextLabel } from '../../sim/research';
 import { findRivalDef, rivalDay } from '../../sim/rivals';
 import { dayToDate, formatDateShort } from '../../sim/time';
 import type { GameState, HypeOwner } from '../../sim/types';
+import { Alert } from '../components/common';
 import { fmtElo, fmtNum, fmtPrice, fmtShare } from '../format';
 import {
   buildChartData,
@@ -88,7 +89,9 @@ function MarketTable({ s, entries }: { s: GameState; entries: MarketEntry[] | nu
           <th className="num" title="Длина контекста, токенов">
             Контекст
           </th>
-          <th className="num">Цена за 1 млн токенов</th>
+          <th className="num" title="У соперников - средняя цена: (3 × входные + выходные) / 4">
+            Средняя цена за 1 млн токенов
+          </th>
           <th className="num">Доля</th>
           <th className="num" title="Спрос на модель до ограничения мощностью">
             Токенов в день
@@ -147,12 +150,9 @@ export default function MarketTab({ s, open }: WindowProps) {
         <h2 className="an-h">Модели на рынке</h2>
         <MarketTable s={s} entries={entries} />
         {entries !== null && !hasPlayer && (
-          <div className="an-note">
-            <span className="grow">Ваших моделей на рынке нет.</span>
-            <button className="btn small" onClick={() => open('models')}>
-              Открыть «Модели»
-            </button>
-          </div>
+          <Alert tone="info" action={{ label: 'Открыть «Модели»', onClick: () => open('models') }}>
+            Ваших моделей на рынке нет.
+          </Alert>
         )}
       </section>
     </div>
@@ -170,8 +170,11 @@ interface LabRow {
   since: number | null;
 }
 
-/** По каждому владельцу: число выпущенных моделей, лучший Эло, доля рынка, последняя модель и дата первой. */
-function labRows(s: GameState): LabRow[] {
+/**
+ * По каждому владельцу: число выпущенных моделей, лучший Эло, доля рынка, последняя модель и дата первой.
+ * Модели, которые соперник только показал (announcedOnly), выпущенными не считаются.
+ */
+export function labRows(s: GameState): LabRow[] {
   const acc = new Map<HypeOwner, { count: number; lastDay: number; lastName: string | null; since: number | null }>();
   const add = (owner: HypeOwner, name: string, day: number) => {
     const a = acc.get(owner) ?? { count: 0, lastDay: -Infinity, lastName: null, since: null };
@@ -185,7 +188,7 @@ function labRows(s: GameState): LabRow[] {
   };
   for (const id of s.rivalsReleased) {
     const def = findRivalDef(id);
-    if (def) add(def.lab, def.gameName, rivalDay(def));
+    if (def && !def.announcedOnly) add(def.lab, def.gameName, rivalDay(def));
   }
   for (const m of s.models) if (m.releasedDay !== null) add('player', m.name, m.releasedDay);
 

@@ -26,6 +26,8 @@ import type { BenchmarkId, Contract, GameState, PlayerModel, Result, Tender } fr
 // Числа, которых нет в constants.ts: доля RLHF-тендеров и формула шанса победы.
 const RLHF_TENDER_SHARE = 0.3; // доля RLHF среди новых тендеров (если RLHF изучен)
 const CAP_SPREAD = 15; // насколько требование может быть легче уровня года
+const BENCH_MIN_OVER_GUESS = 10; // бенчмарк берётся в тендер, если балл уровня года не ниже угадывания + 10 п.п.
+const REQ_MIN_OVER_GUESS = 3; // требование не ниже угадывания + 3 п.п.
 const DURATION_MIN = 45;
 const DURATION_MAX = 150;
 const PAY_MULT_MIN = 2;
@@ -70,13 +72,26 @@ function addReputation(s: GameState, delta: number): void {
   s.reputation = clamp(s.reputation + delta, 0, 100);
 }
 
+/** Угадывание в процентах: балл, который даёт модель без всяких способностей. */
+function guessPct(id: BenchmarkId): number {
+  return benchDef(id).guess * 100;
+}
+
 /**
- * Бенчмарк для нового тендера: случайный активный (для RLHF - только языковой).
- * Если активных нет - самый новый из вышедших (для RLHF - самый новый языковой).
+ * Бенчмарк годится для тендера, если на уровне года даёт не меньше угадывания + 10 п.п.:
+ * иначе требование упёрлось бы в пол (GPQE «25 %» проходила любая модель, SWE-banch давал «1 %»).
+ */
+function feasible(id: BenchmarkId, level: number): boolean {
+  return benchScore(id, level, 0) >= guessPct(id) + BENCH_MIN_OVER_GUESS;
+}
+
+/**
+ * Бенчмарк для нового тендера: случайный активный (для RLHF - только языковой), проходящий порог feasible.
+ * Если таких активных нет - самый новый из вышедших (для RLHF - самый новый языковой), тоже проходящий порог.
  * null - подходящих вышедших бенчмарков нет вовсе.
  */
-function pickBenchmark(s: GameState, rlhf: boolean): BenchmarkId | null {
-  const fits = (id: BenchmarkId) => !rlhf || benchDef(id).domain === 'language';
+function pickBenchmark(s: GameState, rlhf: boolean, level: number): BenchmarkId | null {
+  const fits = (id: BenchmarkId) => (!rlhf || benchDef(id).domain === 'language') && feasible(id, level);
   const active = activeBenchmarks(s).filter(fits);
   if (active.length > 0) return pick(s, active);
   let best: BenchmarkId | null = null;
@@ -91,9 +106,14 @@ function pickBenchmark(s: GameState, rlhf: boolean): BenchmarkId | null {
   return best;
 }
 
-/** Раз в месяц: TENDERS_PER_MONTH(год) + randInt(0, 1) новых тендеров по правилам design.md («Тендеры»). */
+/**
+ * Раз в месяц: TENDERS_PER_MONTH(год) + randInt(0, 1) новых тендеров по правилам design.md («Тендеры»).
+ * Требование = max(угадывание + 3, балл при способности «уровень года − 0…15»);
+ * оплата умножается на 1 + (требование − угадывание) / 100: сложнее бенчмарк - дороже тендер.
+ */
 export function generateMonthly(s: GameState): void {
   const year = yearOf(s.day);
+  const level = byYear(CAP_LEVEL, year);
   const count = byYear(TENDERS_PER_MONTH, year) + randInt(s, 0, 1);
   const rlhfOpen = s.research.done.includes('rlhf');
   const unitPrice = cheapestH100eDay(s);
@@ -101,17 +121,20 @@ export function generateMonthly(s: GameState): void {
   for (let i = 0; i < count; i++) {
     let rlhf = rlhfOpen && chance(s, RLHF_TENDER_SHARE);
     const client = pick(s, CLIENTS);
-    let benchmark = pickBenchmark(s, rlhf);
+    let benchmark = pickBenchmark(s, rlhf, level);
     if (benchmark === null && rlhf) {
       rlhf = false; // языковых бенчмарков ещё нет: вместо RLHF выходит обычное дообучение
-      benchmark = pickBenchmark(s, false);
+      benchmark = pickBenchmark(s, false, level);
     }
     if (benchmark === null) continue;
-    const cap = byYear(CAP_LEVEL, year) - randRange(s, 0, CAP_SPREAD);
-    const requirement = Math.max(1, Math.round(benchScore(benchmark, cap, 0)));
+    const cap = level - randRange(s, 0, CAP_SPREAD);
+    const guess = guessPct(benchmark);
+    const requirement = Math.max(Math.round(guess) + REQ_MIN_OVER_GUESS, Math.round(benchScore(benchmark, cap, 0)));
+    const difficulty = 1 + (requirement - guess) / 100;
     const work = lerpByDate(WORK_BASE, s.day) * randRange(s, WORK_MULT_MIN, WORK_MULT_MAX);
     const durationDays = randInt(s, DURATION_MIN, DURATION_MAX);
-    const payment = work * unitPrice * randRange(s, PAY_MULT_MIN, PAY_MULT_MAX) * (rlhf ? RLHF_TENDER_PAY_MULT : 1);
+    const payment =
+      work * unitPrice * randRange(s, PAY_MULT_MIN, PAY_MULT_MAX) * (rlhf ? RLHF_TENDER_PAY_MULT : 1) * difficulty;
     s.tenders.push({
       id: `t${s.nextTenderNum++}`,
       clientId: client.id,

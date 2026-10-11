@@ -73,9 +73,14 @@
 .rs-stat { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
 .rs-stat .l { color: #50545b; }
 .rs-stat b { font-size: 14px; font-weight: 600; }
-.rs-note { color: var(--bad); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rs-warn { color: var(--warn); white-space: nowrap; }
 .rs-bar .btn { margin-left: auto; flex: none; }
+
+/* Предупреждения над нижней строкой (компонент Alert): нет мощности, отказ последнего действия. */
+.rs-alerts {
+  flex: none; display: flex; flex-direction: column; gap: 6px; padding: 8px 14px;
+  background: var(--win-title); border-top: 1px solid var(--line);
+}
+.rs-alerts + .rs-bar { border-top: none; }
 
 /* ---------- Диалог исследования ---------- */
 .rs-d { display: flex; flex-direction: column; gap: 14px; font-variant-numeric: tabular-nums; }

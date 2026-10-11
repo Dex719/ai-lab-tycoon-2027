@@ -35,7 +35,7 @@ export interface MarketEntry {
   context: number; // токенов
   quality: number; // Q = Elo + k_h × hype[owner]
   utility: number;
-  share: number; // доля токенов, 0..1
+  share: number; // доля спроса в токенах, 0..1 (до ограничения мощностью)
   tokens: number; // спрос в токенах в день (до ограничения мощностью)
 }
 
@@ -45,8 +45,17 @@ export interface MarketSnapshot {
   totalTokens: number; // T(t) с модификатором demand
 }
 
-// Цена ниже этого порога в логарифме не учитывается (защита от ln(0)).
-const PRICE_FLOOR = 0.01;
+/** Доли после ограничения мощностью: по моделям (ключи как в s.market.shares) и по лабораториям. */
+export interface ServedShares {
+  shares: Record<string, number>;
+  labShares: Record<HypeOwner | 'none', number>;
+}
+
+// Отношение цены к опорной в логарифме зажато в [1/20; 20]: дешевле P_ref/20 доля уже не растёт, дороже 20·P_ref - не падает.
+const PRICE_RATIO_MIN = 1 / 20;
+const PRICE_RATIO_MAX = 20;
+// Минимальная цена - сотая часть опорной.
+const MIN_PRICE_SHARE = 1 / 100;
 
 // День открытия «Арены»: с него шумиха весит меньше.
 const ARENA_OPEN_DAY = dateToDay(ARENA_OPEN_DATE);
@@ -70,6 +79,18 @@ export function demandTokens(s: GameState): number {
 /** Опорная цена $ за 1М токенов (интерполяция в логарифме). */
 export function refPrice(day: number): number {
   return lerpByDate(REF_PRICE, day, true);
+}
+
+/** Минимальная цена $ за 1 млн токенов: опорная / 100, до тысячных (столько знаков показывает интерфейс). */
+export function minPrice(day: number): number {
+  return Math.round(refPrice(day) * MIN_PRICE_SHARE * 1000) / 1000;
+}
+
+/** Отношение цены к опорной в пределах [1/20; 20]; битая цена (NaN, ноль, минус) считается нижней границей. */
+function priceRatio(price: number, pRef: number): number {
+  const ratio = price / pRef;
+  if (ratio > PRICE_RATIO_MAX) return PRICE_RATIO_MAX;
+  return ratio >= PRICE_RATIO_MIN ? ratio : PRICE_RATIO_MIN;
 }
 
 /** Обычный контекст на рынке в этот день (интерполяция в логарифме). */
@@ -150,8 +171,8 @@ export function marketSnapshot(s: GameState): MarketSnapshot {
       brand = labBrand(s, r.owner);
       brands.set(r.owner, brand);
     }
-    const price = r.price > PRICE_FLOOR ? r.price : PRICE_FLOOR;
-    const u = (quals[i] - 1000) / 100 + brand - PRICE_ELASTICITY * Math.log(price / pRef) + contextUtility(r.context, s.day);
+    const u =
+      (quals[i] - 1000) / 100 + brand - PRICE_ELASTICITY * Math.log(priceRatio(r.price, pRef)) + contextUtility(r.context, s.day);
     // Нечисловая полезность (например, из-за битого Эло) даёт почти нулевую долю, а не портит весь расчёт.
     return Number.isFinite(u) ? u : -1e9;
   });
@@ -196,8 +217,36 @@ export function inferenceNeed(s: GameState, snap: MarketSnapshot): number {
 }
 
 /**
+ * Доли после ограничения мощностью: модели игрока получают share × served, а потерянный спрос уходит
+ * соперникам и внешнему варианту пропорционально их весам (сумма по-прежнему 1).
+ */
+export function servedShares(snap: MarketSnapshot, served: number): ServedShares {
+  const k = Number.isFinite(served) ? Math.min(1, Math.max(0, served)) : 1;
+  let playerShare = 0;
+  let otherShare = snap.noneShare;
+  for (const e of snap.entries) {
+    if (e.ref.kind === 'player') playerShare += e.share;
+    else otherShare += e.share;
+  }
+  const lost = playerShare * (1 - k);
+  // Ни соперников, ни внешнего варианта (их веса ушли в ноль): потерянное остаётся внешнему варианту.
+  const gain = otherShare > 0 ? 1 + lost / otherShare : 1;
+  const none = otherShare > 0 ? snap.noneShare * gain : snap.noneShare + lost;
+  const shares: Record<string, number> = { none };
+  const labShares = { none } as Record<HypeOwner | 'none', number>;
+  for (const o of HYPE_OWNERS) labShares[o] = 0;
+  for (const e of snap.entries) {
+    const share = e.ref.kind === 'player' ? e.share * k : e.share * gain;
+    shares[e.key] = share;
+    labShares[e.owner] += share;
+  }
+  return { shares, labShares };
+}
+
+/**
  * Ежедневно: снимок, ограничение мощностью pool(inference), выручка earn('api'),
  * падение шумихи при нехватке, запись s.market (shares, labShares, playerTokens, lostFraction, totalTokens).
+ * Доли в s.market - после ограничения мощностью: необслуженный спрос игрока достаётся соперникам.
  */
 export function dayStep(s: GameState): void {
   const snap = marketSnapshot(s);
@@ -223,12 +272,6 @@ export function dayStep(s: GameState): void {
 
   if (need > 0) s.hype.player = Math.max(0, s.hype.player - HYPE_LOST_DEMAND_K * lostFraction);
 
-  const shares: Record<string, number> = { none: snap.noneShare };
-  const labShares = { none: snap.noneShare } as Record<HypeOwner | 'none', number>;
-  for (const o of HYPE_OWNERS) labShares[o] = 0;
-  for (const e of snap.entries) {
-    shares[e.key] = e.share;
-    labShares[e.owner] += e.share;
-  }
+  const { shares, labShares } = servedShares(snap, served);
   s.market = { shares, labShares, playerTokens, lostFraction, totalTokens: snap.totalTokens };
 }

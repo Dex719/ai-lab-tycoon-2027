@@ -109,7 +109,7 @@
 .cw-alloc-pct { min-width: 44px; text-align: right; font-weight: 600; }
 .cw-alloc-pct.changed { color: var(--accent); }
 .cw-need { margin-top: 2px; font-size: 13px; color: var(--text-dim); }
-.cw-need.bad { color: var(--bad); }
+.cw-alloc-row .alert { margin-top: 6px; }
 .cw-panel .error { margin: 4px 0; }
 .cw-alloc-foot {
   display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; padding-top: 10px;
@@ -128,7 +128,7 @@
   align-items: center;
   gap: 10px;
 }
-.cw-gpu-head { padding: 0 10px 0 13px; font-size: 12px; color: var(--text-dim); align-items: end; }
+.cw-gpu-head { padding: 0 10px; font-size: 12px; color: var(--text-dim); align-items: end; }
 .cw-gpu-head span:not(:first-child),
 .cw-gpu .n { text-align: right; }
 .cw-gpu {
@@ -139,12 +139,12 @@
   color: var(--text);
   background: #fff;
   border: 1px solid var(--line);
-  border-left: 3px solid transparent;
   border-radius: 2px;
   cursor: pointer;
 }
 .cw-gpu:hover:not(:disabled) { background: #f1f4f8; }
-.cw-gpu[aria-checked='true'] { background: #dfe9f8; border-color: #aac3e8; border-left-color: var(--accent); }
+/* Выбранная карта - общий вид .is-selected из theme.css; свой селектор нужен, чтобы перебить рамку и фон .cw-gpu. */
+.cw-gpu.is-selected { border-color: var(--accent); background: #e3eefc; }
 .cw-gpu:disabled { opacity: 0.55; cursor: default; }
 .cw-gpu:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .cw-gpu-name { display: flex; flex-direction: column; min-width: 0; }

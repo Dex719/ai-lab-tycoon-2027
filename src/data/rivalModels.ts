@@ -19,7 +19,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
   },
   {
     id: 'gtp-2', lab: 'openbrain', gameName: 'GTP-2', realName: 'GPT-2 (1.5B)', released: '2019-02-14',
-    api: false, openWeights: true, chat: false, paramsB: 1.5, priceIn: null, priceOut: null,
+    api: false, openWeights: false, chat: false, paramsB: 1.5, priceIn: null, priceOut: null,
     scores: { mmlu: 32.4 }, arenaElo: 650, arenaEstimated: true, contaminated: false, context: 1024,
     notes: 'Полные веса опубликованы не сразу из-за риска злоупотреблений. Эло - оценка.',
   },
@@ -31,7 +31,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
   },
   {
     id: 'meeno', lab: 'gogle', gameName: 'Meeno', realName: 'Meena', released: '2020-01-28',
-    api: false, openWeights: false, chat: false, paramsB: 2.6, priceIn: null, priceOut: null,
+    api: false, openWeights: false, announcedOnly: true, chat: false, paramsB: 2.6, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 760, arenaEstimated: true, contaminated: false, context: 128,
     notes: 'Исследовательский чат-бот: анонсирован и не выпущен. Эло - оценка.',
   },
@@ -39,11 +39,11 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'gtp-3', lab: 'openbrain', gameName: 'GTP-3 Davanci', realName: 'GPT-3 175B (davinci)', released: '2020-06-11',
     api: true, openWeights: false, chat: false, paramsB: 175, priceIn: 60, priceOut: 60,
     scores: { mmlu: 43.9, humaneval: 0 }, arenaElo: 800, arenaEstimated: true, contaminated: false, context: 2048,
-    notes: 'Закрытая бета API с июня 2020, $60 за 1М токенов. Эло - оценка.',
+    notes: 'Закрытая бета API с июня 2020, $60 за 1 млн токенов. Эло - оценка.',
   },
   {
     id: 'lamba', lab: 'gogle', gameName: 'LaMBA', realName: 'LaMDA (137B)', released: '2021-05-18',
-    api: false, openWeights: false, chat: false, paramsB: 137, priceIn: null, priceOut: null,
+    api: false, openWeights: false, announcedOnly: true, chat: false, paramsB: 137, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 900, arenaEstimated: true, contaminated: false, context: 2048,
     notes: 'Диалоговая модель без API и весов, только закрытые испытания. Эло - оценка.',
   },
@@ -61,7 +61,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
   },
   {
     id: 'gopler', lab: 'gogle', gameName: 'Gopler', realName: 'Gopher (280B)', released: '2021-12-08',
-    api: false, openWeights: false, chat: false, paramsB: 280, priceIn: null, priceOut: null,
+    api: false, openWeights: false, announcedOnly: true, chat: false, paramsB: 280, priceIn: null, priceOut: null,
     scores: { mmlu: 60 }, arenaElo: 840, arenaEstimated: true, contaminated: false, context: 2048,
     notes: 'Исследовательская модель на 280 млрд параметров: анонсирована и не выпускалась. Эло задано условно.',
   },
@@ -73,13 +73,13 @@ export const RIVAL_MODELS: RivalModelDef[] = [
   },
   {
     id: 'chinchella', lab: 'gogle', gameName: 'Chinchella', realName: 'Chinchilla (70B)', released: '2022-03-29',
-    api: false, openWeights: false, chat: false, paramsB: 70, priceIn: null, priceOut: null,
+    api: false, openWeights: false, announcedOnly: true, chat: false, paramsB: 70, priceIn: null, priceOut: null,
     scores: { mmlu: 67.6 }, arenaElo: 890, arenaEstimated: true, contaminated: false, context: 2048,
     notes: 'Показала, что на параметр нужно около 20 токенов данных; не выпускалась. Эло задано условно.',
   },
   {
     id: 'paln', lab: 'gogle', gameName: 'PaLN', realName: 'PaLM (540B)', released: '2022-04-04',
-    api: false, openWeights: false, chat: false, paramsB: 540, priceIn: null, priceOut: null,
+    api: false, openWeights: false, announcedOnly: true, chat: false, paramsB: 540, priceIn: null, priceOut: null,
     scores: { mmlu: 69.3, humaneval: 26.2, gsm8k: 56.5 }, arenaElo: 900, arenaEstimated: true, contaminated: false, context: 2048,
     notes: 'Анонсирована и не выпущена; позже API работал на PaLN 2. Эло - оценка.',
   },
@@ -99,7 +99,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'tixt-davanci-003', lab: 'openbrain', gameName: 'Tixt-Davanci-003', realName: 'text-davinci-003 (GPT-3.5 series)', released: '2022-11-28',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 20, priceOut: 20,
     scores: { mmlu: 64.6 }, arenaElo: 960, arenaEstimated: true, contaminated: false, context: 4096,
-    notes: 'Флагман серии GTP-3.5 за два дня до ChatGTP; $20 за 1М токенов.',
+    notes: 'Флагман серии GTP-3.5 за два дня до ChatGTP; $20 за 1 млн токенов.',
   },
   {
     id: 'chatgtp', lab: 'openbrain', gameName: 'ChatGTP (GTP-3.5)', realName: 'ChatGPT (GPT-3.5)', released: '2022-11-30',
@@ -111,7 +111,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'gtp-3-5-turbu', lab: 'openbrain', gameName: 'GTP-3.5 Turbu', realName: 'gpt-3.5-turbo (0301)', released: '2023-03-01',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 2, priceOut: 2,
     scores: { mmlu: 70, humaneval: 48.1, gsm8k: 57.1, gpqa: 28.1 }, arenaElo: 1107, arenaEstimated: false, contaminated: false, context: 4096,
-    notes: 'Чат-модель по API за $2 за 1М токенов: в десять раз дешевле Tixt-Davanci-003.',
+    notes: 'Чат-модель по API за $2 за 1 млн токенов: в десять раз дешевле Tixt-Davanci-003.',
   },
   {
     id: 'gtp-4', lab: 'openbrain', gameName: 'GTP-4', realName: 'GPT-4 (gpt-4-0314)', released: '2023-03-14',
@@ -219,7 +219,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'gemeni-1-0-pro', lab: 'gogle', gameName: 'Gemeni 1.0 Pro', realName: 'Gemini 1.0 Pro', released: '2023-12-06',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 0.5, priceOut: 1.5,
     scores: { mmlu: 71.8, humaneval: 67.7, gsm8k: 77.9, gpqa: 27.9 }, arenaElo: 1131, arenaEstimated: false, contaminated: false, context: 32768,
-    notes: 'В чате с 6 декабря 2023, в API с 13 декабря; $0,5 / $1,5 за 1М токенов.',
+    notes: 'В чате с 6 декабря 2023, в API с 13 декабря; $0,5 / $1,5 за 1 млн токенов.',
   },
   {
     id: 'deepseak-moe-16b', lab: 'deepcent', gameName: 'DeepSeak-MoE 16B', realName: 'DeepSeekMoE 16B', released: '2024-01-11',
@@ -231,7 +231,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'gml-4', lab: 'zhipo', gameName: 'GML-4', realName: 'GLM-4 (0116)', released: '2024-01-16',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 13.95, priceOut: 13.95,
     scores: { mmlu: 81.5, humaneval: 72, gsm8k: 87.6, gpqa: 35.7 }, arenaElo: 1163, arenaEstimated: false, contaminated: false, context: 128000,
-    notes: 'Флагман: API около $14 за 1М токенов, контекст 128 тыс. токенов.',
+    notes: 'Флагман: API около $14 за 1 млн токенов, контекст 128 тыс. токенов.',
   },
   {
     id: 'qwin1-5-72b', lab: 'alibabo', gameName: 'Qwin1.5-72B', realName: 'Qwen1.5-72B', released: '2024-02-04',
@@ -243,7 +243,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'moonshoot-v1', lab: 'moonshoot', gameName: 'moonshoot-v1', realName: 'moonshot-v1 (8k/32k/128k API)', released: '2024-02-06',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 8.33, priceOut: 8.33,
     scores: {}, arenaElo: 1150, arenaEstimated: true, contaminated: false, context: 128000,
-    notes: 'API для разработчиков с контекстом 8k, 32k и 128k; старшая модель - $8,3 за 1М токенов.',
+    notes: 'API для разработчиков с контекстом 8k, 32k и 128k; старшая модель - $8,3 за 1 млн токенов.',
   },
   {
     id: 'gemeni-1-0-ultro', lab: 'gogle', gameName: 'Gemeni 1.0 Ultro', realName: 'Gemini 1.0 Ultra', released: '2024-02-08',
@@ -261,7 +261,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'clade-3-opos', lab: 'antropik', gameName: 'Clade 3 Opos', realName: 'Claude 3 Opus', released: '2024-03-04',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 15, priceOut: 75,
     scores: { mmlu: 86.8, humaneval: 84.9, gsm8k: 95, gpqa: 50.4, swebench: 22.2 }, arenaElo: 1247, arenaEstimated: false, contaminated: false, context: 200000,
-    notes: 'Старшая модель поколения: $15 / $75 за 1М токенов.',
+    notes: 'Старшая модель поколения: $15 / $75 за 1 млн токенов.',
   },
   {
     id: 'clade-3-sonet', lab: 'antropik', gameName: 'Clade 3 Sonet', realName: 'Claude 3 Sonnet', released: '2024-03-04',
@@ -285,25 +285,25 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'deepseak-v2', lab: 'deepcent', gameName: 'DeepSeak-V2', realName: 'DeepSeek-V2', released: '2024-05-06',
     api: true, openWeights: true, chat: true, paramsB: 236, priceIn: 0.14, priceOut: 0.28,
     scores: { mmlu: 78.5, humaneval: 81.1, gsm8k: 92.2, gpqa: 35.3 }, arenaElo: 1170, arenaEstimated: true, contaminated: false, context: 128000,
-    notes: 'Смесь экспертов на 236 млрд; веса открыты, API по $0,14 / $0,28 за 1М токенов.',
+    notes: 'Смесь экспертов на 236 млрд; веса открыты, API по $0,14 / $0,28 за 1 млн токенов.',
   },
   {
     id: 'gtp-4o', lab: 'openbrain', gameName: 'GTP-4o', realName: 'GPT-4o (2024-05-13)', released: '2024-05-13',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 5, priceOut: 15,
     scores: { mmlu: 88.7, humaneval: 90.2, gsm8k: 96.1, gpqa: 53.6, swebench: 33.2 }, arenaElo: 1285, arenaEstimated: false, contaminated: false, context: 128000,
-    notes: 'Флагман с картинками и звуком: $5 за 1М входных токенов и $15 за выходные.',
+    notes: 'Флагман с картинками и звуком: $5 за 1 млн входных токенов и $15 за выходные.',
   },
   {
     id: 'gemeni-1-5-flesh', lab: 'gogle', gameName: 'Gemeni 1.5 Flesh', realName: 'Gemini 1.5 Flash', released: '2024-05-14',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 0.35, priceOut: 1.05,
     scores: { mmlu: 78.9, humaneval: 74.3, gsm8k: 86.2, gpqa: 39.5 }, arenaElo: 1227, arenaEstimated: false, contaminated: false, context: 1000000,
-    notes: 'Быстрая и дешёвая версия: $0,35 / $1,05 за 1М токенов.',
+    notes: 'Быстрая и дешёвая версия: $0,35 / $1,05 за 1 млн токенов.',
   },
   {
     id: 'gml-4-0520', lab: 'zhipo', gameName: 'GML-4 (0520)', realName: 'GLM-4 (0520)', released: '2024-05-20',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 13.83, priceOut: 13.83,
     scores: { mmlu: 83.3, humaneval: 78.5, gsm8k: 93.3, gpqa: 39.9 }, arenaElo: 1189, arenaEstimated: false, contaminated: false, context: 128000,
-    notes: 'Майское обновление GML-4, цена прежняя - около $13,8 за 1М токенов.',
+    notes: 'Майское обновление GML-4, цена прежняя - около $13,8 за 1 млн токенов.',
   },
   {
     id: 'gml-4-9b', lab: 'zhipo', gameName: 'GML-4-9B', realName: 'GLM-4-9B (Chat)', released: '2024-06-05',
@@ -315,7 +315,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'gml-4-aer', lab: 'zhipo', gameName: 'GML-4-Aer', realName: 'GLM-4-Air (0605)', released: '2024-06-05',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 0.14, priceOut: 0.14,
     scores: { mmlu: 81.9, humaneval: 75.7, gsm8k: 90.9, gpqa: 38.4 }, arenaElo: 1170, arenaEstimated: true, contaminated: false, context: 128000,
-    notes: 'Дешёвая и быстрая версия GML-4: около $0,14 за 1М токенов.',
+    notes: 'Дешёвая и быстрая версия GML-4: около $0,14 за 1 млн токенов.',
   },
   {
     id: 'qwin2-72b', lab: 'alibabo', gameName: 'Qwin2-72B', realName: 'Qwen2-72B', released: '2024-06-07',
@@ -345,13 +345,13 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'gtp-4o-mino', lab: 'openbrain', gameName: 'GTP-4o Mino', realName: 'GPT-4o mini', released: '2024-07-18',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 0.15, priceOut: 0.6,
     scores: { mmlu: 82, humaneval: 87.2, gpqa: 40.2 }, arenaElo: 1273, arenaEstimated: false, contaminated: false, context: 128000,
-    notes: 'Дешёвая замена GTP-3.5: $0,15 за 1М входных токенов. GSM8C не публиковали.',
+    notes: 'Дешёвая замена GTP-3.5: $0,15 за 1 млн входных токенов. GSM8C не публиковали.',
   },
   {
     id: 'gml-4-plos', lab: 'zhipo', gameName: 'GML-4-Plos', realName: 'GLM-4-Plus', released: '2024-08-29',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 7, priceOut: 7,
     scores: { mmlu: 86.8, gpqa: 50.7 }, arenaElo: 1235, arenaEstimated: false, contaminated: false, context: 128000,
-    notes: 'Флагман 2024 года; API в день анонса, $7 за 1М токенов. HumanEvol и GSM8C не публиковали.',
+    notes: 'Флагман 2024 года; API в день анонса, $7 за 1 млн токенов. HumanEvol и GSM8C не публиковали.',
   },
   {
     id: 'deepseak-v2-5', lab: 'deepcent', gameName: 'DeepSeak-V2.5', realName: 'DeepSeek-V2.5', released: '2024-09-05',

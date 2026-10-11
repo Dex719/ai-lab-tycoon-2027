@@ -155,7 +155,7 @@ describe('данные событий', () => {
   it('подсказки названы по ТЗ', () => {
     const byId = (id: string) => EVENTS.find((e) => e.id === id)!;
     expect(byId('gpt3-api').choices![0].hint).toBe('−$300 тыс., +15 шумихи');
-    expect(byId('training-fail').choices![0].hint).toBe('−25 % прогресса');
+    expect(byId('training-fail').choices![0].hint).toBe('откат на 25 % всего объёма');
     expect(byId('training-fail').choices![1].hint).toBe('модель выйдет на 3 очка слабее');
     expect(byId('attention-paper-player').choices![1].hint).toContain('1,25 раза');
   });
@@ -626,14 +626,39 @@ describe('эффекты выбора', () => {
     expect(modValue(s, 'labBrand', 'openbrain').add).toBeCloseTo(CHAT_MOMENT_BRAND, 10);
   });
 
-  it('ChatGTP у соперника: «Выпустить свой чат» с RLHF-моделью даёт +15 шумихи', () => {
+  it('тексты по ревью: API GTP-3 по заявкам, дефицит видеокарт, рассуждающие модели, чат соперника', () => {
+    const s = newState();
+    const byId = (id: string) => EVENTS.find((e) => e.id === id)!;
+    const gpt3 = byId('gpt3-api').mail(s);
+    expect(gpt3.title).toBe('OpenBrain открыла API для GTP-3');
+    expect(gpt3.body).toContain('по заявкам');
+    expect(gpt3.body).toContain('$60 за 1 млн токенов');
+    expect(gpt3.body).not.toContain('Любой разработчик');
+
+    const shortage = byId('gpu-shortage').mail(s);
+    expect(shortage.title).toBe('Дефицит видеокарт в облаках');
+    expect(shortage.body).toContain('Спрос на видеокарты превысил предложение.');
+    expect(shortage.body).not.toContain('GPU');
+
+    const reasoning = byId('reasoning-models').mail(s);
+    expect(reasoning.title).toBe('Модели, которые думают: q1-Previow');
+    expect(reasoning.body).toContain('GPQE (наука)');
+    expect(reasoning.body).toContain('SWE-banch (код)');
+    expect(reasoning.body).not.toContain('GSM8C');
+    expect(reasoning.body).not.toContain('математика');
+
+    expect(byId('chat-moment-rival').choices![0].label).toBe('Объявить о своём чате');
+    expect(byId('chat-moment-rival').choices![0].hint).toBe('+15 шумихи, если выпущена модель с RLHF');
+  });
+
+  it('ChatGTP у соперника: «Объявить о своём чате» с RLHF-моделью даёт +15 шумихи', () => {
     const s = newState();
     s.models.push(model());
     choose(s, 'chat-moment-rival', 0);
     expect(s.hype.player).toBe(15);
   });
 
-  it('ChatGTP у соперника: «Выпустить свой чат» без выпущенной RLHF-модели - ничего', () => {
+  it('ChatGTP у соперника: «Объявить о своём чате» без выпущенной RLHF-модели - ничего', () => {
     const s = newState();
     s.models.push(model({ releasedDay: null })); // обучена, но не выпущена
     s.models.push(model({ id: 'p2', rlhf: false }));

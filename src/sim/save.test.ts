@@ -4,7 +4,8 @@
 import { describe, expect, it } from 'vitest';
 import { newGame } from './actions';
 import { botAct, runBot } from './bots';
-import { applyChoice, FOREVER, pendingChoice } from './events';
+import { CHOICE_DAYS, FAIL_CHOICE_DAYS } from './constants';
+import { applyChoice, expireChoices, FOREVER, pendingChoice } from './events';
 import { deserialize, serialize } from './save';
 import { createInitialState } from './state';
 import { advanceDay, advanceDays } from './tick';
@@ -272,6 +273,65 @@ describe('письма с выбором в сохранении', () => {
 
   it('отвеченный выбор от старого события не мешает', () => {
     expect(load(withChoiceMail({ eventId: 'removed-event', chosen: 0 })).ok).toBe(true);
+  });
+
+  /** Загрузить и вернуть письмо m99 (сохранение обязано загрузиться). */
+  function loadedMail(obj: Json) {
+    const r = load(obj);
+    expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error(r.error);
+    return r.state.mail.find((m) => m.id === 'm99')!;
+  }
+
+  it('старое сохранение: письмо с выбором без срока получает срок от дня игры и вариант по умолчанию', () => {
+    const o = withChoiceMail({ day: 3 });
+    const today = o.day as number;
+    const m = loadedMail(o);
+    expect(m.replyByDay).toBe(Math.max(3, today) + CHOICE_DAYS);
+    expect(m.defaultChoice).toBe(2); // последний вариант, как в triggerEvent
+  });
+
+  it('старое сохранение: если письмо датировано позже дня игры, срок идёт от дня письма', () => {
+    const o = withChoiceMail({ day: 100 });
+    expect(o.day as number).toBeLessThan(100);
+    expect(loadedMail(o).replyByDay).toBe(100 + CHOICE_DAYS);
+  });
+
+  it('старое сохранение: срыв обучения получает короткий срок FAIL_CHOICE_DAYS', () => {
+    const o = withChoiceMail({
+      eventId: 'training-fail',
+      kind: 'training',
+      choices: [
+        { label: 'Вернуться к чекпоинту', hint: 'а' },
+        { label: 'Продолжить', hint: 'б' },
+      ],
+    });
+    const m = loadedMail(o);
+    expect(m.replyByDay).toBe((o.day as number) + FAIL_CHOICE_DAYS);
+    expect(m.defaultChoice).toBe(1);
+  });
+
+  it('срок и вариант из сохранения не перезаписываются; отвеченное письмо срока не получает', () => {
+    const kept = loadedMail(withChoiceMail({ replyByDay: 7, defaultChoice: 0 }));
+    expect(kept.replyByDay).toBe(7);
+    expect(kept.defaultChoice).toBe(0);
+    const answered = loadedMail(withChoiceMail({ eventId: 'removed-event', chosen: 1 }));
+    expect(answered.replyByDay).toBeUndefined();
+    expect(answered.defaultChoice).toBeUndefined();
+  });
+
+  it('после загрузки отложенное письмо со старым сроком решается само по варианту по умолчанию', () => {
+    const r = load(withChoiceMail({ deferred: true }));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const m = r.state.mail.find((x) => x.id === 'm99')!;
+    r.state.day = m.replyByDay! - 1;
+    expireChoices(r.state);
+    expect(m.chosen).toBeUndefined();
+    r.state.day = m.replyByDay!;
+    expireChoices(r.state);
+    expect(m.chosen).toBe(2);
+    expect(m.autoChosen).toBe(true);
   });
 });
 

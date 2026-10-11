@@ -65,10 +65,15 @@ export function maxContext(s: GameState): number {
 /** Последний уровень «Длинного контекста». */
 export const CONTEXT_MAX_LEVEL = CONTEXT_LEVELS.length - 1;
 
-/** 512 → «512», 2048 → «2 тыс.», 128000 → «128 тыс.», 1000000 → «1 млн». */
+/**
+ * 512 → «512», 2048 → «2 тыс.», 128000 → «128 тыс.», 1000000 → «1 млн».
+ * Круглые числа считаются по 1000, остальные степени двойки - по 1024: 32768 → «32 тыс.», 131072 → «128 тыс.»,
+ * 2097152 → «2 млн».
+ */
 export function contextLabel(tokens: number): string {
-  if (tokens >= 1e6) return `${String(Math.round((tokens / 1e6) * 10) / 10).replace('.', ',')} млн`;
-  if (tokens >= 1000) return `${Math.round(tokens / 1000)} тыс.`;
+  const k = tokens % 1000 !== 0 && tokens % 1024 === 0 ? 1024 : 1000;
+  if (tokens >= k * k) return `${String(Math.round((tokens / (k * k)) * 10) / 10).replace('.', ',')} млн`;
+  if (tokens >= k) return `${Math.round(tokens / k)} тыс.`;
   return String(Math.round(tokens));
 }
 

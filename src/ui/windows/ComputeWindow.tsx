@@ -10,7 +10,7 @@ import { inferenceNeed, marketSnapshot } from '../../sim/market';
 import { dateToDay, formatDateShort } from '../../sim/time';
 import type { GameState, GpuDef, GpuId } from '../../sim/types';
 import { ALLOC_ROWS, percentsOf, samePercents, toAllocation, withPercent, type Percents } from '../alloc';
-import { Dialog, ErrorText, Range } from '../components/common';
+import { Alert, Dialog, ErrorText, Range } from '../components/common';
 import { fmtMoney, fmtNum, fmtPct } from '../format';
 import { actions, store } from '../store';
 import './ComputeWindow.css';
@@ -31,6 +31,13 @@ function fmtH(n: number): string {
 
 function monthlyCost(s: GameState, id: GpuId, count: number): number {
   return count * rentPerGpuDay(s, id) * DAYS_IN_MONTH;
+}
+
+/** Разница со знаком: «+$1,2 тыс. в месяц, +4,5 H100e» или «−$1,2 тыс. в месяц, −4,5 H100e». */
+function fmtChange(costDelta: number, hDelta: number): string {
+  const money = costDelta > 0 ? `+${fmtMoney(costDelta)}` : fmtMoney(costDelta);
+  const h = hDelta > 0 ? `+${fmtH(hDelta)}` : hDelta < 0 ? `−${fmtH(-hDelta)}` : fmtH(0);
+  return `${money} в месяц, ${h} H100e`;
 }
 
 /** Самая дешёвая по цене за H100e в день среди доступных; пока доступна одна карта, сравнивать не с чем. */
@@ -89,16 +96,11 @@ function Summary({ s, onRent }: { s: GameState; onRent: () => void }) {
 
 // ---------- Карточки арендованных карт ----------
 
-function RentedCard({ s, g, onEdit }: { s: GameState; g: GpuDef; onEdit: () => void }) {
-  const [error, setError] = useState<string | null>(null);
+/** Карточка арендованного типа карт. «Изменить» и «Вернуть» открывают диалог аренды: возврат всех карт - с нулём в поле. */
+function RentedCard({ s, g, onEdit, onGiveBack }: { s: GameState; g: GpuDef; onEdit: () => void; onGiveBack: () => void }) {
   const count = s.compute.rented[g.id];
   const cap = rentCapFor(s, g.id);
   const perDay = rentPerGpuDay(s, g.id);
-
-  const giveBack = () => {
-    const r = store.dispatch(actions.setRent, g.id, 0);
-    setError(r.ok ? null : r.error);
-  };
 
   return (
     <div className="cw-card">
@@ -120,20 +122,25 @@ function RentedCard({ s, g, onEdit }: { s: GameState; g: GpuDef; onEdit: () => v
         <button className="btn small" onClick={onEdit}>
           Изменить
         </button>
-        <button className="btn small" onClick={giveBack} title={`Вернуть все карты ${g.name}`}>
+        <button className="btn small" onClick={onGiveBack} title={`Вернуть все карты ${g.name}`}>
           Вернуть
         </button>
       </div>
-      <ErrorText error={error} />
     </div>
   );
 }
 
 // ---------- Диалог «Аренда мощностей» ----------
 
-function RentDialog({ s, initialId, onClose }: { s: GameState; initialId: GpuId; onClose: () => void }) {
-  const [id, setId] = useState<GpuId>(initialId);
-  const [text, setText] = useState(String(s.compute.rented[initialId]));
+/** Что открыть в диалоге аренды: тип карты и число в поле (по умолчанию - сколько уже арендовано). */
+interface RentTarget {
+  id: GpuId;
+  count?: number;
+}
+
+function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; onClose: () => void }) {
+  const [id, setId] = useState<GpuId>(target.id);
+  const [text, setText] = useState(String(target.count ?? s.compute.rented[target.id]));
   const [error, setError] = useState<string | null>(null);
 
   const g = GPUS.find((x) => x.id === id) ?? GPUS[0];
@@ -202,7 +209,7 @@ function RentDialog({ s, initialId, onClose }: { s: GameState; initialId: GpuId;
                 type="button"
                 role="radio"
                 aria-checked={x.id === id}
-                className="cw-gpu"
+                className={`cw-gpu${x.id === id ? ' is-selected' : ''}`}
                 disabled={!avail}
                 onClick={() => pick(x)}
                 title={avail ? undefined : `Доступна с ${from}`}
@@ -246,6 +253,14 @@ function RentDialog({ s, initialId, onClose }: { s: GameState; initialId: GpuId;
             <dd>{count === null ? '-' : `${fmtMoney(monthlyCost(s, g.id, count))} в месяц`}</dd>
             <dt>Сейчас в аренде</dt>
             <dd>{fmtNum(rented)} шт.</dd>
+            {count !== null && count !== rented && (
+              <>
+                <dt title="Разница с текущей арендой этого типа карт">Изменение</dt>
+                <dd className={lowering ? 'good' : undefined}>
+                  {fmtChange(monthlyCost(s, g.id, count - rented), (count - rented) * g.h100e)}
+                </dd>
+              </>
+            )}
           </dl>
         </div>
         <ErrorText error={error} />
@@ -270,11 +285,14 @@ function ClientNeed({ s, have }: { s: GameState; have: number }) {
   const need = safeInferenceNeed(s);
   if (need === null || need <= 0) return null;
   const short = need > have * (1 + 1e-9) + 1e-9;
-  return (
-    <div className={`cw-need${short ? ' bad' : ''}`}>
-      Нужно клиентам: {fmtH(need)} H100e{short ? `, не хватает ${fmtH(need - have)}` : ''}
-    </div>
-  );
+  if (short) {
+    return (
+      <Alert tone="warn">
+        Нужно клиентам: {fmtH(need)} H100e, не хватает {fmtH(need - have)}
+      </Alert>
+    );
+  }
+  return <div className="cw-need">Нужно клиентам: {fmtH(need)} H100e</div>;
 }
 
 function AllocPanel({ s }: { s: GameState }) {
@@ -349,12 +367,12 @@ function defaultRentId(s: GameState): GpuId {
 }
 
 export default function ComputeWindow({ s }: WindowProps) {
-  const [dialogId, setDialogId] = useState<GpuId | null>(null);
+  const [dialog, setDialog] = useState<RentTarget | null>(null);
   const rentedGpus = GPUS.filter((g) => s.compute.rented[g.id] > 0);
 
   return (
     <div className="cw">
-      <Summary s={s} onRent={() => setDialogId(defaultRentId(s))} />
+      <Summary s={s} onRent={() => setDialog({ id: defaultRentId(s) })} />
       <div className="cw-scroll">
         <div className="cw-main">
           <section className="cw-rented">
@@ -364,7 +382,13 @@ export default function ComputeWindow({ s }: WindowProps) {
             ) : (
               <div className="cw-cards">
                 {rentedGpus.map((g) => (
-                  <RentedCard key={g.id} s={s} g={g} onEdit={() => setDialogId(g.id)} />
+                  <RentedCard
+                    key={g.id}
+                    s={s}
+                    g={g}
+                    onEdit={() => setDialog({ id: g.id })}
+                    onGiveBack={() => setDialog({ id: g.id, count: 0 })}
+                  />
                 ))}
               </div>
             )}
@@ -372,7 +396,7 @@ export default function ComputeWindow({ s }: WindowProps) {
           <AllocPanel s={s} />
         </div>
       </div>
-      {dialogId && createPortal(<RentDialog s={s} initialId={dialogId} onClose={() => setDialogId(null)} />, document.body)}
+      {dialog && createPortal(<RentDialog s={s} target={dialog} onClose={() => setDialog(null)} />, document.body)}
     </div>
   );
 }

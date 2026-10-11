@@ -580,4 +580,18 @@ describe('длинный контекст', () => {
     expect(contextLabel(128000)).toBe('128 тыс.');
     expect(contextLabel(1_000_000)).toBe('1 млн');
   });
+
+  it('подписи контекста: степени двойки считаются по 1024, круглые числа - по 1000', () => {
+    expect(contextLabel(1024)).toBe('1 тыс.');
+    expect(contextLabel(32_768)).toBe('32 тыс.');
+    expect(contextLabel(131_072)).toBe('128 тыс.');
+    expect(contextLabel(1_048_576)).toBe('1 млн');
+    expect(contextLabel(2_097_152)).toBe('2 млн');
+    expect(contextLabel(100_000)).toBe('100 тыс.');
+    expect(contextLabel(200_000)).toBe('200 тыс.');
+    expect(contextLabel(2_000_000)).toBe('2 млн');
+    expect(contextLabel(1_500_000)).toBe('1,5 млн');
+    // Все уровни «Длинного контекста» подписаны без хвостов вроде «33 тыс.» или «2,1 млн».
+    for (const [tokens] of CONTEXT_LEVELS) expect(contextLabel(tokens), String(tokens)).toMatch(/^(\d+|\d+ тыс\.|\d+ млн)$/);
+  });
 });

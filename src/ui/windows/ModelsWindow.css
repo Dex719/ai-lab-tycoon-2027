@@ -9,10 +9,11 @@
 .mw-list { flex: 1; min-height: 0; overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 2px; }
 .mw-item {
   display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 8px 10px 8px 12px;
-  background: none; border: 1px solid transparent; border-radius: 3px; color: var(--text); text-align: left; cursor: pointer;
+  border-radius: 3px; color: var(--text); text-align: left; cursor: pointer;
 }
-.mw-item:hover { background: rgba(255, 255, 255, 0.6); }
-.mw-item.on { background: #fff; border-color: var(--line); box-shadow: inset 3px 0 0 var(--accent); }
+/* Сброс фона и рамки кнопки без веса селектора: выбранная строка берёт общий .is-selected из theme.css. */
+:where(.mw-item) { background: none; border: 1px solid transparent; }
+.mw-item:hover:not(.is-selected) { background: rgba(255, 255, 255, 0.6); }
 .mw-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .mw-item-text { flex: 1; min-width: 0; }
 .mw-item-name { display: block; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -61,21 +62,23 @@
 .mw-die.off .mw-led { background: #e0a030; }
 .mw-die-lab, .mw-die-name { display: none; }
 
-/* Крупные показатели */
+/* Крупные показатели. Подписи и значения переносятся, а не обрезаются: в окне 900 px плитка узкая. */
 .mw-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
-.mw-kpi { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px; background: #fff; border: 1px solid var(--line-soft); border-radius: 4px; }
-.mw-kpi-l { font-size: 12px; color: #5f636a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mw-kpi-v { font-size: 22px; font-weight: 600; line-height: 1.2; color: #1f2023; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mw-kpi-s { font-size: 12px; color: #5f636a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mw-kpi { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px; background: #fff; border: 1px solid var(--line-soft); border-radius: 4px; overflow-wrap: anywhere; }
+.mw-kpi-l { font-size: 12px; color: #5f636a; }
+.mw-kpi-v { font-size: 22px; font-weight: 600; line-height: 1.2; color: #1f2023; text-align: left; }
+.mw-kpi-s { font-size: 12px; color: #5f636a; }
 .mw-sales-line { display: flex; flex-wrap: wrap; gap: 4px 18px; }
 .mw-panel .progress { height: 10px; }
 .mw-btns { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* ---------- Блоки ---------- */
-.mw-h { margin: 22px 0 8px; font-size: 17px; font-weight: 600; color: #1f2023; }
+/* Заголовок блока - как .section-title в других окнах: 20 px, лёгкий. */
+.mw-h { margin: 22px 0 8px; font-size: 20px; font-weight: 300; color: #2a2c30; }
 .mw-sub { font-size: 13px; color: #5f636a; }
-.mw-note { margin: 12px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 13px; }
-.mw-h + .mw-note { margin-top: 0; margin-bottom: 8px; }
+/* Предупреждения (компонент Alert): под шапкой карточки и под заголовком блока. */
+.mw-head + .alert { margin-top: 12px; }
+.mw-h + .alert { margin-bottom: 8px; }
 .mw-panel { padding: 14px 16px; background: #fff; border: 1px solid var(--line-soft); border-radius: 4px; }
 
 .mw-price { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 32px; }
@@ -116,7 +119,8 @@
 /* ---------- Баллы ---------- */
 table.grid.mw-scores th { position: static; }
 
-@container (max-width: 470px) {
+/* Карточка уже 640 px (окно по умолчанию 900 px минус список): показатели в два столбца. */
+@container (max-width: 640px) {
   .mw-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 

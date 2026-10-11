@@ -7,25 +7,28 @@ import { BANKRUPT_DAYS, OVERHEAD_MONTHLY, OVERHEAD_REVENUE_SHARE } from '../../s
 import { overheadPerDay, revenueLast90 } from '../../sim/finance';
 import { dayToDate, formatMonth } from '../../sim/time';
 import type { ExpenseKind, IncomeKind, MonthLedger, MonthRecord } from '../../sim/types';
+import { Alert } from '../components/common';
 import { fmtMoney, fmtNum, fmtShare } from '../format';
+import { EXPENSE_KINDS, EXPENSE_LABELS, INCOME_KINDS, INCOME_LABELS } from '../labels';
 import { buildChartData, ChartPanel, finite, liveMonthLabel, StatStrip, type SeriesDef } from './analyticsShared';
 
-const INCOME_COLS: { kind: IncomeKind; label: string; title?: string }[] = [
-  { kind: 'api', label: 'API' },
-  { kind: 'contracts', label: 'Контракты' },
-  { kind: 'investors', label: 'Инвесторы' },
-];
+const INCOME_COLS: { kind: IncomeKind; label: string; title?: string }[] = INCOME_KINDS.map((kind) => ({
+  kind,
+  label: INCOME_LABELS[kind],
+  title: kind === 'investors' ? 'Вложения инвесторов: в «Итог без инвесторов» не входят' : undefined,
+}));
 
-const EXPENSE_COLS: { kind: ExpenseKind; label: string; title: string }[] = [
-  { kind: 'rent', label: 'Аренда', title: 'Аренда карт' },
-  {
-    kind: 'overhead',
-    label: 'Накладные',
-    title: `${fmtMoney(OVERHEAD_MONTHLY)} в месяц плюс ${fmtShare(OVERHEAD_REVENUE_SHARE, 0)} выручки прошлого месяца`,
-  },
-  { kind: 'labelers', label: 'Разметчики', title: 'Оплата разметки ответов при обучении с RLHF' },
-  { kind: 'penalties', label: 'Штрафы', title: 'Штрафы за сорванные контракты' },
-];
+const EXPENSE_TITLES: Record<ExpenseKind, string> = {
+  rent: 'Оплата арендованных карт',
+  overhead: `${fmtMoney(OVERHEAD_MONTHLY)} в месяц плюс ${fmtShare(OVERHEAD_REVENUE_SHARE, 0)} выручки прошлого месяца`,
+  labelers: 'Оплата разметки ответов при обучении с RLHF',
+  penalties: 'Штрафы за сорванные контракты',
+};
+const EXPENSE_COLS: { kind: ExpenseKind; label: string; title: string }[] = EXPENSE_KINDS.map((kind) => ({
+  kind,
+  label: EXPENSE_LABELS[kind],
+  title: EXPENSE_TITLES[kind],
+}));
 
 const TABLE_MONTHS = 12;
 
@@ -36,6 +39,9 @@ function sumValues(r: Record<string, number>): number {
 }
 
 const revenueOf = (l: MonthLedger): number => finite(l.income.api) + finite(l.income.contracts);
+
+/** Итог месяца так же, как «/мес.» на верхней панели: продажа API и контракты минус все расходы, без инвесторов. */
+const netWithoutInvestors = (l: MonthLedger): number => revenueOf(l) - sumValues(l.expense);
 
 const FLOW_SERIES: SeriesDef[] = [
   { id: 'revenue', label: 'Выручка', color: '#5ed37f', title: 'API и контракты, без вложений инвесторов', pick: revenueOf },
@@ -48,7 +54,7 @@ function Money({ value }: { value: number }) {
 }
 
 function LedgerRow({ label, ledger, current }: { label: string; ledger: MonthLedger; current?: boolean }) {
-  const net = sumValues(ledger.income) - sumValues(ledger.expense);
+  const net = netWithoutInvestors(ledger);
   return (
     <tr>
       <td className={current ? 'est' : undefined}>{label}</td>
@@ -92,9 +98,9 @@ export default function FinanceTab({ s }: WindowProps) {
       />
 
       {negDays > 0 && (
-        <div className="an-note bad">
+        <Alert tone="bad">
           Деньги в минусе {fmtNum(negDays)} дн. До банкротства осталось {fmtNum(Math.max(0, BANKRUPT_DAYS - negDays))} дн.
-        </div>
+        </Alert>
       )}
 
       <section>
@@ -128,8 +134,8 @@ export default function FinanceTab({ s }: WindowProps) {
                   {c.label}
                 </th>
               ))}
-              <th className="num" title="Доходы минус расходы за месяц">
-                Итог
+              <th className="num" title="Продажа API и контракты минус расходы за месяц, без вложений инвесторов">
+                Итог без инвесторов
               </th>
             </tr>
           </thead>

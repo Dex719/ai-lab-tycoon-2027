@@ -358,7 +358,7 @@ describe('releaseDue', () => {
     expect(gtp4.body).not.toContain('GPQE'); // GPQE выйдет только в ноябре 2023
     expect(gtp4.body).toContain('Эло на «Арене» - 1186.');
     expect(gtp4.body).not.toContain('≈1186');
-    expect(gtp4.body).toContain('Цена API - $37,5 за 1М токенов.');
+    expect(gtp4.body).toContain('Цена API - $30 за 1 млн входных и $60 за 1 млн выходных токенов.');
     expect(gtp4.body).not.toContain('веса открыты');
   });
 
@@ -373,7 +373,7 @@ describe('releaseDue', () => {
     const gtp3 = stateAt('2020-06-11').mail.find((m) => m.title === 'OpenBrain выпустила GTP-3 Davanci')!;
     expect(gtp3.body).toContain('175 млрд параметров');
     expect(gtp3.body).toContain('≈800');
-    expect(gtp3.body).toContain('Цена API - $60 за 1М токенов.');
+    expect(gtp3.body).toContain('Цена API - $60 за 1 млн токенов.');
     // MMLO и HumanEvol на 11.06.2020 ещё не вышли - баллов в письме нет.
     expect(gtp3.body).not.toContain('MMLO');
     expect(gtp3.body).not.toContain('%');
@@ -390,8 +390,45 @@ describe('releaseDue', () => {
       expect(m.body.split(/(?<=\.)\s/).length, m.title).toBeLessThanOrEqual(3);
       expect(m.body.length, m.title).toBeLessThan(220);
       expect(m.body, m.title).not.toMatch(/NaN|undefined|null|Infinity/);
-      expect(m.title, m.title).toMatch(/ выпустила /);
+      expect(m.title, m.title).toMatch(/ (выпустила|показала) /);
     }
+  });
+
+  it('модель, которую только показали: в заголовке «показала», а не «выпустила»', () => {
+    const announced = RIVAL_MODELS.filter((m) => m.announcedOnly).map((m) => m.id);
+    expect(announced).toEqual(['meeno', 'lamba', 'gopler', 'chinchella', 'paln']);
+    for (const id of announced) {
+      const def = byId(id);
+      expect(def.api || def.openWeights, id).toBe(false);
+    }
+    const s = stateAt('2022-04-04');
+    const titles = s.mail.filter((m) => m.kind === 'rival').map((m) => m.title);
+    expect(titles).toContain('Gogle DeepMynd показала PaLN');
+    expect(titles).toContain('Gogle DeepMynd показала Chinchella');
+    expect(titles).toContain('Gogle DeepMynd показала Gopler');
+    expect(titles).toContain('Gogle DeepMynd показала LaMBA');
+    expect(titles).toContain('Gogle DeepMynd показала Meeno');
+    expect(titles.filter((t) => t.includes('показала'))).toHaveLength(5);
+    expect(titles).toContain('Gogle DeepMynd выпустила BORT');
+  });
+
+  it('GTP-2 в день выхода без открытых весов: письмо не спорит с событием «не опубликовала целиком»', () => {
+    const gtp2 = byId('gtp-2');
+    expect(gtp2.openWeights).toBe(false);
+    expect(gtp2.api).toBe(false);
+    const mail = stateAt('2019-02-14').mail.find((m) => m.title === 'OpenBrain выпустила GTP-2')!;
+    expect(mail).toBeDefined();
+    expect(mail.body).not.toMatch(/веса открыты/i);
+    expect(mail.body).not.toContain('Цена API');
+  });
+
+  it('цена в письме: обе цены, если входная и выходная разные; одна - если они равны или одна', () => {
+    const s = stateAt('2024-05-13');
+    const gpt4o = s.mail.find((m) => m.title === 'OpenBrain выпустила GTP-4o')!;
+    expect(gpt4o.body).toContain('Цена API - $5 за 1 млн входных и $15 за 1 млн выходных токенов.');
+    const turbo = s.mail.find((m) => m.title === 'OpenBrain выпустила GTP-3.5 Turbu')!;
+    expect(turbo.body).toContain('Цена API - $2 за 1 млн токенов.');
+    for (const m of s.mail.filter((x) => x.kind === 'rival')) expect(m.body, m.title).not.toContain('1М');
   });
 
   it('догоняет пропущенные выходы: на поздней дате вышли все прежние модели', () => {
@@ -491,6 +528,14 @@ describe('marketRivals', () => {
     expect(ids).not.toContain('meeno');
     expect(ids).toContain('gtp-3-5-turbu');
     expect(ids).toContain('gtp-4');
+  });
+
+  it('модели, которые только показали, на рынок не выходят', () => {
+    const s = stateAt('2022-04-05');
+    for (const id of ['meeno', 'lamba', 'gopler', 'chinchella', 'paln']) expect(s.rivalsReleased, id).toContain(id);
+    const ids = marketRivals(s).map((d) => d.id);
+    for (const id of ['meeno', 'lamba', 'gopler', 'chinchella', 'paln']) expect(ids, id).not.toContain(id);
+    for (const def of marketRivals(s)) expect(def.announcedOnly, def.id).toBeFalsy();
   });
 
   it('граница возраста: ровно три года ещё на рынке, на день больше - уже нет', () => {

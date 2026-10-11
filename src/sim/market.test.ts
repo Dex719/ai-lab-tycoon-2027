@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { releaseModel, setModelPrice } from './actions';
 import { HYPE_OWNERS } from './constants';
 import { addModifier, FOREVER } from './events';
 import {
@@ -9,10 +10,12 @@ import {
   inferenceNeed,
   labBrand,
   marketSnapshot,
+  minPrice,
   perceivedQuality,
   refContext,
   refPrice,
   refQuality,
+  servedShares,
 } from './market';
 import { createInitialState } from './state';
 import { END_DAY, dateToDay } from './time';
@@ -571,8 +574,28 @@ describe('dayStep', () => {
     expect(half.market.lostFraction).toBeCloseTo(0.5, 9);
     expect(half.market.playerTokens / full.market.playerTokens).toBeCloseTo(0.5, 9);
     expect(half.hype.player).toBeCloseTo(40 - 0.3 * 0.5, 9);
-    // доли - это спрос, они от мощности не зависят
-    expect(half.market.shares['player:p1']).toBeCloseTo(full.market.shares['player:p1'], 12);
+    // доли в s.market - после ограничения мощностью: у игрока половина спроса, потерянное ушло соперникам
+    expect(half.market.shares['player:p1']).toBeCloseTo(full.market.shares['player:p1'] * 0.5, 12);
+    expect(half.market.labShares.player).toBeCloseTo(full.market.labShares.player * 0.5, 12);
+    expect(half.market.shares['rival:r1']).toBeGreaterThan(full.market.shares['rival:r1']);
+    expect(half.market.shares['rival:r2']).toBeGreaterThan(full.market.shares['rival:r2']);
+    expect(Object.values(half.market.shares).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
+  });
+
+  it('пишет обслуженные доли: при мощности 40 % доля игрока - 40 % его спроса, спрос для «нужно» не меняется', () => {
+    const s = withPlayer();
+    const need = giveInference(s, 0.4);
+    const snap = marketSnapshot(s);
+    const demand = snap.entries.find((e) => e.owner === 'player')!.share;
+    dayStep(s);
+    expect(s.market.shares['player:p1']).toBeCloseTo(demand * 0.4, 9);
+    expect(s.market.labShares.player).toBeCloseTo(demand * 0.4, 9);
+    expect(s.market.lostFraction).toBeCloseTo(0.6, 9);
+    // обслуженные токены = обслуженная доля × спрос рынка
+    expect(s.market.playerTokens).toBeCloseTo(s.market.shares['player:p1'] * s.market.totalTokens, 0);
+    expect(Object.values(s.market.shares).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
+    expect(Object.values(s.market.labShares).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
+    expect(inferenceNeed(s, marketSnapshot(s))).toBeCloseTo(need, 6);
   });
 
   it('нехватка мощности делит все модели игрока поровну: у каждой та же доля обслуженного', () => {
@@ -714,6 +737,174 @@ describe('dayStep', () => {
     dayStep(s);
     expect(s.cash).toBe(cash0);
     expect(s.market.shares['player:p1']).toBeUndefined();
+  });
+});
+
+describe('servedShares: доли после ограничения мощностью', () => {
+  function snapWith() {
+    const s = makeState();
+    s.models.push(player(), player({ id: 'p2', name: 'Мой-2', price: 5, arenaElo: 1100 }));
+    rivalState.list = [
+      rival(),
+      rival({ id: 'r2', lab: 'gogle', gameName: 'Гем-1', arenaElo: 1200, priceIn: 2, priceOut: 2 }),
+    ];
+    const snap = marketSnapshot(s);
+    const at = (key: string) => snap.entries.find((e) => e.key === key)!;
+    return { s, snap, p1: at('player:p1'), p2: at('player:p2'), r1: at('rival:r1'), r2: at('rival:r2') };
+  }
+
+  it('полная мощность: доли совпадают со спросом', () => {
+    const { snap, p1, p2 } = snapWith();
+    const { shares, labShares } = servedShares(snap, 1);
+    for (const e of snap.entries) expect(shares[e.key]).toBeCloseTo(e.share, 12);
+    expect(shares.none).toBeCloseTo(snap.noneShare, 12);
+    expect(labShares.player).toBeCloseTo(p1.share + p2.share, 12);
+  });
+
+  it('половина мощности: у моделей игрока половина спроса, остальным - пропорционально весам, сумма 1', () => {
+    const { snap, p1, p2, r1, r2 } = snapWith();
+    const { shares, labShares } = servedShares(snap, 0.5);
+    expect(shares['player:p1']).toBeCloseTo(p1.share * 0.5, 12);
+    expect(shares['player:p2']).toBeCloseTo(p2.share * 0.5, 12);
+    const lost = (p1.share + p2.share) * 0.5;
+    const gain = 1 + lost / (r1.share + r2.share + snap.noneShare);
+    expect(shares['rival:r1']).toBeCloseTo(r1.share * gain, 12);
+    expect(shares['rival:r2']).toBeCloseTo(r2.share * gain, 12);
+    expect(shares.none).toBeCloseTo(snap.noneShare * gain, 12);
+    // отношения между соперниками и внешним вариантом не меняются
+    expect(shares['rival:r1'] / shares['rival:r2']).toBeCloseTo(r1.share / r2.share, 9);
+    expect(shares.none / shares['rival:r1']).toBeCloseTo(snap.noneShare / r1.share, 9);
+    expect(Object.values(shares).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
+    expect(Object.values(labShares).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
+    expect(labShares.player).toBeCloseTo((p1.share + p2.share) * 0.5, 12);
+    expect(labShares.openbrain).toBeCloseTo(shares['rival:r1'], 12);
+    expect(labShares.gogle).toBeCloseTo(shares['rival:r2'], 12);
+    expect(labShares.zhipo).toBe(0);
+  });
+
+  it('без мощности доля игрока 0, весь его спрос у соперников и внешнего варианта', () => {
+    const { snap } = snapWith();
+    const { shares, labShares } = servedShares(snap, 0);
+    expect(shares['player:p1']).toBe(0);
+    expect(shares['player:p2']).toBe(0);
+    expect(labShares.player).toBe(0);
+    expect(Object.values(shares).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
+  });
+
+  it('served вне [0; 1] или NaN не ломает доли', () => {
+    const { snap, p1 } = snapWith();
+    expect(servedShares(snap, 2).shares['player:p1']).toBeCloseTo(p1.share, 12);
+    expect(servedShares(snap, NaN).shares['player:p1']).toBeCloseTo(p1.share, 12);
+    expect(servedShares(snap, -1).shares['player:p1']).toBe(0);
+  });
+
+  it('снимок не меняется', () => {
+    const { snap } = snapWith();
+    const before = JSON.stringify(snap);
+    servedShares(snap, 0.3);
+    expect(JSON.stringify(snap)).toBe(before);
+  });
+
+  it('некуда уходить (веса соперников и внешнего варианта - ноль): потерянное остаётся внешнему варианту, без NaN', () => {
+    const s = makeState();
+    s.models.push(player({ arenaElo: 1e6 }));
+    rivalState.list = [rival({ arenaElo: -1e6 })];
+    const snap = marketSnapshot(s);
+    expect(snap.noneShare).toBe(0);
+    const { shares, labShares } = servedShares(snap, 0.25);
+    expect(shares['player:p1']).toBeCloseTo(0.25, 12);
+    expect(shares.none).toBeCloseTo(0.75, 12);
+    expect(labShares.none).toBeCloseTo(0.75, 12);
+    for (const v of Object.values(shares)) expect(Number.isFinite(v)).toBe(true);
+    expect(Object.values(shares).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
+  });
+});
+
+describe('границы цены', () => {
+  // 1 января 2024: P_ref = 3 $/1М
+  const DAY_2024 = dateToDay('2024-01-01');
+  const shareAt = (price: number): number => {
+    const s = makeState(DAY_2024);
+    s.models.push(player({ price }));
+    rivalState.list = [rival()];
+    return marketSnapshot(s).entries.find((e) => e.owner === 'player')!.share;
+  };
+  const utilityAt = (price: number): number => {
+    const s = makeState(DAY_2024);
+    s.models.push(player({ price }));
+    return marketSnapshot(s).entries[0].utility;
+  };
+
+  it('дешевле P_ref/20 доля не растёт: $0,01 даёт столько же, сколько $0,15', () => {
+    const floor = shareAt(3 / 20);
+    expect(shareAt(0.01)).toBeCloseTo(floor, 12);
+    expect(shareAt(0.1)).toBeCloseTo(floor, 12);
+    expect(shareAt(0.2)).toBeLessThan(floor);
+    expect(floor).toBeLessThan(0.99);
+  });
+
+  it('дороже 20·P_ref доля не падает дальше', () => {
+    const cap = shareAt(60);
+    expect(shareAt(1000)).toBeCloseTo(cap, 12);
+    expect(shareAt(10_000)).toBeCloseTo(cap, 12);
+    expect(shareAt(50)).toBeGreaterThan(cap);
+  });
+
+  it('полезность: −1,2·ln(clamp(цена/P_ref, 1/20, 20))', () => {
+    expect(utilityAt(6) - utilityAt(3)).toBeCloseTo(-1.2 * Math.log(2), 9);
+    expect(utilityAt(0.01) - utilityAt(3)).toBeCloseTo(1.2 * Math.log(20), 9);
+    expect(utilityAt(1000) - utilityAt(3)).toBeCloseTo(-1.2 * Math.log(20), 9);
+    expect(utilityAt(0) - utilityAt(3)).toBeCloseTo(1.2 * Math.log(20), 9);
+  });
+
+  it('minPrice = опорная / 100, до тысячных', () => {
+    expect(minPrice(dateToDay('2017-01-01'))).toBeCloseTo(1, 9);
+    expect(minPrice(dateToDay('2020-01-01'))).toBeCloseTo(0.6, 9);
+    expect(minPrice(DAY_2024)).toBeCloseTo(0.03, 9);
+    expect(minPrice(dateToDay('2024-12-31'))).toBeCloseTo(0.025, 9);
+    for (let d = 0; d <= END_DAY; d += 7) {
+      const v = minPrice(d);
+      expect(v).toBeGreaterThan(0);
+      expect(Math.abs(v - refPrice(d) / 100)).toBeLessThanOrEqual(0.0005 + 1e-12);
+    }
+  });
+});
+
+describe('действия: цена в границах', () => {
+  it('выпуск и смена цены ниже minPrice отклоняются с подсказкой', () => {
+    const s = makeState(dateToDay('2024-01-01')); // минимальная цена $0,03
+    s.models.push(player({ releasedDay: null, onApi: false }));
+    expect(releaseModel(s, 'p1', 0.01)).toEqual({ ok: false, error: 'Цена не может быть ниже $0,03 за 1 млн токенов.' });
+    expect(s.models[0].releasedDay).toBeNull();
+    expect(releaseModel(s, 'p1', 0.03).ok).toBe(true);
+    expect(s.models[0].price).toBe(0.03);
+    const r = setModelPrice(s, 'p1', 0.029);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe('Цена не может быть ниже $0,03 за 1 млн токенов.');
+    expect(s.models[0].price).toBe(0.03);
+    expect(setModelPrice(s, 'p1', 2.5).ok).toBe(true);
+    expect(s.models[0].price).toBe(2.5);
+  });
+
+  it('в 2017 году минимальная цена $1', () => {
+    const s = makeState(dateToDay('2017-01-01'));
+    s.models.push(player({ releasedDay: null, onApi: false }));
+    expect(releaseModel(s, 'p1', 0.5)).toEqual({ ok: false, error: 'Цена не может быть ниже $1 за 1 млн токенов.' });
+    expect(releaseModel(s, 'p1', 1).ok).toBe(true);
+  });
+
+  it('выше $10 000 и нечисловая цена отклоняются', () => {
+    const s = makeState();
+    s.models.push(player());
+    expect(setModelPrice(s, 'p1', 10_001)).toEqual({
+      ok: false,
+      error: 'Цена не может быть выше $10 000 за 1 млн токенов.',
+    });
+    expect(setModelPrice(s, 'p1', 10_000).ok).toBe(true);
+    expect(setModelPrice(s, 'p1', NaN).ok).toBe(false);
+    expect(setModelPrice(s, 'p1', Infinity).ok).toBe(false);
+    expect(setModelPrice(s, 'p1', -1).ok).toBe(false);
+    expect(s.models[0].price).toBe(10_000);
   });
 });
 
