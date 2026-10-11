@@ -1044,7 +1044,7 @@ describe('exposureChance', () => {
     return playerModel({ overfit: { mmlu: 12 }, ...over });
   }
 
-  it('= 0,006 × разрыв в п.п. до открытия Арены', () => {
+  it('= EXPOSE_PER_PP (0,004) × разрыв в п.п. до открытия Арены', () => {
     const s = lateState();
     s.day = dateToDay(ARENA_OPEN_DATE) - 1;
     const m = released();
@@ -1067,7 +1067,12 @@ describe('exposureChance', () => {
     for (const id of BENCHMARK_IDS) s.benchmarks[id].introduced = true;
     const m = released({ overfit: { mmlu: 3, humaneval: 60 }, caps: { language: 50, code: 63.4, reasoning: 50 } });
     expect(gap(m, 'humaneval')).toBeGreaterThan(gap(m, 'mmlu'));
+    // 0,004 × ≈87 п.п. чуть ниже потолка; с бонусом Арены - выше, и шанс упирается в EXPOSE_MAX.
+    expect(exposureChance(s, m)).toBeCloseTo(Math.min(EXPOSE_MAX, EXPOSE_PER_PP * gap(m, 'humaneval')), 9);
+    s.day = dateToDay(ARENA_OPEN_DATE);
+    expect(EXPOSE_PER_PP * gap(m, 'humaneval') + EXPOSE_ARENA_BONUS).toBeGreaterThan(EXPOSE_MAX);
     expect(exposureChance(s, m)).toBe(EXPOSE_MAX);
+    s.day = 0;
     const small = released({ overfit: { mmlu: 3, humaneval: 1 } });
     expect(exposureChance(s, small)).toBeCloseTo(EXPOSE_PER_PP * Math.max(gap(small, 'mmlu'), gap(small, 'humaneval')), 9);
   });
@@ -1112,12 +1117,18 @@ describe('exposureChance', () => {
     const s = lateState();
     s.day = 0;
     for (const id of BENCHMARK_IDS) s.benchmarks[id].introduced = true;
+    s.day = dateToDay(ARENA_OPEN_DATE);
     const huge = released({ overfit: { mmlu: 3, humaneval: 60 }, caps: { language: 50, code: 63.4, reasoning: 50 } });
+    const raw = EXPOSE_PER_PP * gap(huge, 'humaneval') + EXPOSE_ARENA_BONUS;
     expect(exposureChance(s, huge)).toBe(EXPOSE_MAX);
     addModifier(s, { id: 'easy', kind: 'exposure', mult: 0.7, untilDay: FOREVER });
-    expect(exposureChance(s, huge)).toBe(EXPOSE_MAX); // шанс и после ×0,7 выше прежнего потолка
+    expect(exposureChance(s, huge)).toBeCloseTo(Math.min(EXPOSE_MAX, raw * 0.7), 9);
     addModifier(s, { id: 'deny', kind: 'exposure', target: 'p1', mult: 2, untilDay: FOREVER });
     expect(EXPOSE_CAP_WITH_RIVALS).toBeGreaterThan(EXPOSE_MAX);
+    // Множитель 0,7 × 2 = 1,4 выше 1: потолок поднимается до EXPOSE_CAP_WITH_RIVALS, шанс выше прежнего потолка.
+    expect(exposureChance(s, huge)).toBeCloseTo(Math.min(EXPOSE_CAP_WITH_RIVALS, raw * 1.4), 9);
+    expect(exposureChance(s, huge)).toBeGreaterThan(EXPOSE_MAX);
+    addModifier(s, { id: 'audit', kind: 'exposure', target: 'p1', mult: 3, untilDay: FOREVER });
     expect(exposureChance(s, huge)).toBe(EXPOSE_CAP_WITH_RIVALS);
   });
 });
@@ -1703,8 +1714,8 @@ describe('уровни моделей', () => {
     expect(mid.tokensB).toBeCloseTo(20 * mid.paramsB, 6);
     expect(tierOf(mid.paramsB, s.day)).toBe('mid');
     const flag = tierPreset(s, 'flagship');
-    expect(flag.paramsB).toBeCloseTo(0.7 * f, 6);
-    expect(flag.tokensB).toBe(MAX_TOKENS_B[2024]); // 20 × 1 350 млрд больше лимита года
+    expect(flag.paramsB).toBeCloseTo(0.4 * f, 6); // было 0,7: флагман по пресету в 2024 году обучался больше года
+    expect(flag.tokensB).toBeCloseTo(Math.min(MAX_TOKENS_B[2024], 20 * flag.paramsB), 6);
     s.day = 0;
     const light = tierPreset(s, 'light');
     expect(light.paramsB).toBe(0.05); // 0,04 × 1 ниже минимума
@@ -1847,17 +1858,17 @@ describe('внешняя проверка сильной модели', () => {
     expect(reviewRequired(s, weak)).toBe(false);
   });
 
-  it('стоимость и срок: $300 тыс. + $2 тыс. за млрд; 30…45 дней без случайности', () => {
+  it('стоимость и срок: $300 тыс. + $2 тыс. за млрд; 20…30 дней без случайности (было 30…45)', () => {
     const s = withRival();
     const small = playerModel({ plan: plan({ paramsB: 10 }) });
     expect(reviewCost(small)).toBe(320_000);
-    expect(reviewDays(s, small)).toBe(30);
+    expect(reviewDays(s, small)).toBe(20);
     const huge = playerModel({ plan: plan({ paramsB: 1800 }) });
     expect(reviewCost(huge)).toBe(3_900_000);
-    expect(reviewDays(s, huge)).toBe(44); // 1 800 млрд - 0,93 переднего края в июне 2024 года
-    expect(reviewDays(s, playerModel({ plan: plan({ paramsB: 2000 }) }))).toBe(45);
+    expect(reviewDays(s, huge)).toBe(29); // 1 800 млрд - 0,93 переднего края в июне 2024 года
+    expect(reviewDays(s, playerModel({ plan: plan({ paramsB: 2000 }) }))).toBe(30);
     const mid = playerModel({ plan: plan({ paramsB: frontierParams(s.day) / 2 }) });
-    expect(reviewDays(s, mid)).toBe(38);
+    expect(reviewDays(s, mid)).toBe(25);
     const rng = s.rng;
     reviewDays(s, mid);
     expect(s.rng).toBe(rng);
@@ -1870,7 +1881,7 @@ describe('внешняя проверка сильной модели', () => {
     const cash = s.cash;
     expect(startReview(s, 'p1')).toEqual({ ok: true });
     expect(m.review).toBe('pending');
-    expect(m.reviewEndDay).toBe(s.day + 30);
+    expect(m.reviewEndDay).toBe(s.day + 20);
     expect(s.cash).toBe(cash - 320_000);
     expect(s.finance.month.expense.review).toBe(320_000);
     const mail = s.mail[s.mail.length - 1];

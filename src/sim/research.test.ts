@@ -216,7 +216,7 @@ describe('rpPerDay', () => {
     expect(rpPerDay(createInitialState('Тест', 1))).toBe(RP_BASE);
   });
 
-  it('10 + 25 × sqrt(мощность экспериментов)', () => {
+  it('RP_BASE + 25 × sqrt(мощность экспериментов)', () => {
     const s = labWithExperiments(ANCHOR_P100); // ≈ 2 H100e
     expect(rpPerDay(s)).toBeCloseTo(RP_BASE + RP_K * Math.sqrt(ANCHOR_P100 * h100eOf('p100')), 9);
   });
@@ -233,10 +233,10 @@ describe('rpPerDay', () => {
     expect(b / a).toBeCloseTo(2, 9);
   });
 
-  it('опорное число: ≈ 2 H100e на эксперименты дают ≈ 45 очков в день', () => {
+  it('опорное число: ≈ 2 H100e на эксперименты дают ≈ 55 очков в день (база команды 20, было 10 и ≈ 45)', () => {
     const rp = rpPerDay(labWithExperiments(ANCHOR_P100));
     expect(rp).toBeCloseTo(RP_BASE + RP_K * Math.sqrt(ANCHOR_P100 * h100eOf('p100')), 9);
-    expect(rp).toBeCloseTo(45, 0);
+    expect(rp).toBeCloseTo(55, 0);
   });
 
   it('половина мощности на эксперименты: корень считается от доли, а не от всей мощности', () => {
@@ -546,6 +546,8 @@ describe('алгоритмические улучшения повторяютс
 
   it('реальный ход: уровень 1 за 5000 очков, затем уровень 2 дольше', () => {
     const s = labWithExperiments(ANCHOR_P100);
+    // После исторических дат уровней 1 и 2 (243 дня на уровень): без надбавки за опережение.
+    s.day = 2 * 243;
     setResearch(s, 'algo');
     const rp = rpPerDay(s);
 
@@ -580,7 +582,7 @@ describe('опорный сценарий: внимание успеть до 12
 
     expect(s.research.done).toContain('attention');
     expect(s.day).toBeLessThan(deadline);
-    // sanity: не мгновенно - 4000 очков при ≈45 в день это около трёх месяцев
+    // sanity: не мгновенно - 4000 очков при ≈55 в день это больше двух месяцев
     expect(s.day).toBeGreaterThan(60);
     expect(researchMail(s)).toHaveLength(1);
   });

@@ -284,11 +284,11 @@ describe('сложность', () => {
     expect(normal.modifiers).toHaveLength(0);
     const hard = game('2017-01-01', 'hard');
     applyDifficultyModifiers(hard);
-    expect(modValue(hard, 'rentPrice').mult).toBeCloseTo(1.1);
+    expect(modValue(hard, 'rentPrice').mult).toBeCloseTo(1.6); // было 1,1: сильный бот побеждал на Сложной на всех зёрнах 1-5
     expect(exposureMultIn(hard, 'p1')).toBeCloseTo(1.3);
     const easy = game('2017-01-01', 'easy');
     applyDifficultyModifiers(easy);
-    expect(modValue(easy, 'rentPrice').mult).toBeCloseTo(0.9);
+    expect(modValue(easy, 'rentPrice').mult).toBeCloseTo(0.8); // было 0,9
     expect(exposureMultIn(easy, 'p1')).toBeCloseTo(0.7);
   });
 });

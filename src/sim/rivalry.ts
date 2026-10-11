@@ -245,7 +245,7 @@ export interface DifficultyDef {
 export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
   easy: {
     name: 'Лёгкая',
-    description: 'Соперники отвечают редко: слухи за 60 дней, не больше одного хода сразу, соперники не учатся. Аренда дешевле на 10 %, разоблачение реже.',
+    description: 'Соперники отвечают редко: слухи за 60 дней, не больше одного хода сразу, соперники не учатся. Аренда дешевле на 20 %, разоблачение реже.',
     gain: 0.6,
     threshold: 70,
     delay: 60,
@@ -263,7 +263,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     auditCooldown: 365,
     priceLabsAtOnce: 1,
     actorsPerMonth: 1,
-    rentPrice: 0.9,
+    rentPrice: 0.8,
     exposure: 0.7,
   },
   normal: {
@@ -291,7 +291,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
   },
   hard: {
     name: 'Сложная',
-    description: 'Слухи за 14 дней, до трёх ходов сразу, соперники помнят, что сработало, и действуют вдвоём. Аренда дороже на 10 %, разоблачение вероятнее.',
+    description: 'Слухи за 14 дней, до трёх ходов сразу, соперники помнят, что сработало, и действуют вдвоём. Аренда дороже на 60 %, разоблачение вероятнее.',
     gain: 1.4,
     threshold: 35,
     delay: 14,
@@ -309,7 +309,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
     auditCooldown: 240,
     priceLabsAtOnce: 2,
     actorsPerMonth: 2,
-    rentPrice: 1.1,
+    rentPrice: 1.6,
     exposure: 1.3,
   },
 };

@@ -150,7 +150,7 @@ describe('releaseModel с подпиской', () => {
     expect(s.mail.indexOf(mail)).toBe(s.mail.indexOf(releaseMail(s)) + 1); // сразу после письма о выпуске
     expect(mail.body).toContain('Эло 1 300 против 1 250 у лучшего соперника');
     expect(mail.body).toContain('только по API корпоративным клиентам и разработчикам');
-    expect(mail.body).toContain('Проверка займёт 30 дней и стоит $320 тыс.; начать её можно в окне «Модели».');
+    expect(mail.body).toContain('Проверка займёт 20 дней и стоит $320 тыс.; начать её можно в окне «Модели».');
     expect(setOnSubs(s, 'p1', true)).toEqual({ ok: false, error: 'Сначала пройдите внешнюю проверку.' });
     // Без денег проверка не начинается; с деньгами - pending, подписка всё ещё закрыта.
     s.cash = reviewCost(m) - 1;

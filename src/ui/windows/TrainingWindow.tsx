@@ -41,6 +41,7 @@ import {
   tierPreset,
   tierRange,
   trainingPoolPerRun,
+  trainOverhead,
 } from '../../sim/training';
 import { DOMAINS, TIER_IDS, TIER_NAMES } from '../../sim/types';
 import type { BenchmarkId, DomainId, GameState, Tier, TrainingPlan, TrainingRun } from '../../sim/types';
@@ -208,6 +209,11 @@ function rescaleMix(mix: Record<DomainId, number>, id: DomainId, v: number): Rec
   out[others[0]] = first;
   out[others[1]] = rest - first;
   return out;
+}
+
+/** Накладные раннего обучения для подписи: «300», «12», «1,8». */
+function fmtOverhead(x: number): string {
+  return x >= 10 ? String(Math.round(x)) : String(Math.round(x * 10) / 10).replace('.', ',');
 }
 
 function archName(arch: 'lstm' | 'transformer'): string {
@@ -433,6 +439,7 @@ function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; ope
   if (!est) return <div className="error">Оценка проекта недоступна.</div>;
 
   const days = est.days;
+  const overhead = trainOverhead(s.day);
   const share = s.compute.alloc.training;
   // Новый проект делит долю «Обучение» с идущими: его аренда - соответствующая часть аренды доли.
   const power = trainingPoolPerRun(s, 1);
@@ -508,6 +515,7 @@ function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; ope
       <Item
         label="Объём вычислений"
         title="Сколько дней одна карта H100 считала бы это обучение. Срок зависит от мощности на обучение."
+        sub={overhead >= 1.05 ? `Ранние фреймворки и сети: обучение в ${fmtOverhead(overhead)} раз дольше, к середине 2020 года - как на зрелом стеке.` : undefined}
       >
         {fmtCardDays(est.flop / TRAIN_FLOP_PER_H100E_DAY)} H100e-дн.
       </Item>

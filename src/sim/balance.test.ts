@@ -3,6 +3,9 @@
 // выручка за игру $0,5…2 млрд, подписки в 2024 году есть, но не больше 70 % выручки года; «сильный» побеждает хотя бы
 // на одном зерне из трёх, иначе 1-3-е место; «подгонщик» хуже разумного; деньги инвесторов за игру - не больше ~1,5 выручки
 // (API + подписки + контракты); касса в конце - не больше года расходов. Чистые опоры рынка - без ботов.
+// Темп и сложность (ночной проход баланса): первая средняя модель 2017 года по пресету - 1-2 месяца, флагман 2024 года -
+// 3-6 месяцев; на Сложной сильный бот побеждает не больше чем на трёх зёрнах из пяти, разумный - ниже, чем на Обычной;
+// на Лёгкой разумный - 1-3-е место; «подгонщик» - 5-12-е место (зерно 3).
 
 import { describe, expect, it } from 'vitest';
 import { newGame } from './actions';
@@ -15,7 +18,9 @@ import { deserialize, serialize } from './save';
 import { advanceDay, advanceDays, playerBestArenaRank } from './tick';
 import { dateToDay, END_DAY, formatDate } from './time';
 import { SUBS_REF_PRICE } from './constants';
-import type { GameState, MonthLedger, MonthRecord } from './types';
+import { setRent } from './compute';
+import { estimate, tierPreset } from './training';
+import type { GameState, MonthLedger, MonthRecord, Tier, TrainingPlan } from './types';
 
 // Зёрна «разумного»: с запасом денег у ботов (bots.ts, runwayRentPerDay) поток случайных чисел с 2017 года другой;
 // на зерне 1 разумный бот побеждает. Рынок v2 (SUBS_USERS × 0,75, раунды бота по 10 %): на зёрнах 2, 3, 5 - 3-е место,
@@ -130,9 +135,8 @@ describe('баланс', () => {
   });
 
   it('бот «сильный» побеждает хотя бы на одном зерне из трёх, на остальных - 1-3-е место', () => {
-    // Зёрна 1-3: с запасом денег (runwayRentPerDay) бот не уходит в минус, поток случайных чисел с 2017 года другой:
-    // зерно 1 - 2-е место, зерно 2 - 3-е, зерно 3 - победа. Зерно 4 тоже побеждает, но при высокой оценке
-    // берёт у инвесторов 2,1 выручки.
+    // Зёрна 1-3: с запасом денег (runwayRentPerDay) бот не уходит в минус. После прохода темпа (накладные раннего
+    // обучения, быстрые тендеры) побеждает на всех трёх зёрнах Обычной; Сложная (аренда ×1,6) - не больше трёх побед из пяти.
     const results = [1, 2, 3].map((seed) => summary('strong', seed));
     expect(results.filter((r) => r.s.outcome === 'victory').length).toBeGreaterThanOrEqual(1);
     for (const r of results) {
@@ -145,21 +149,74 @@ describe('баланс', () => {
     }
   });
 
-  it('бот «сильный» на Сложной (аренда ×1,1) доживает до конца на зёрнах 1-5, соперники делают ходы', () => {
+  it('бот «сильный» на Сложной (аренда ×1,6) доживает до конца на зёрнах 1-5, соперники делают ходы, побед не больше трёх', () => {
+    // Было: аренда ×1,1, и сильный бот побеждал на Сложной на всех пяти зёрнах - сложность ничего не меняла.
+    // С арендой ×1,6 он побеждает на 2 зёрнах из 5, на остальных - 3-е место.
+    let wins = 0;
     for (const seed of [1, 2, 3, 4, 5]) {
       const { s } = summary('strong', seed, 'hard');
       expect(s.outcome).not.toBe('bankrupt');
       expect(s.day).toBe(END_DAY);
       expect(s.rivalry.history.length).toBeGreaterThan(0);
+      if (s.outcome === 'victory') wins++;
+    }
+    expect(wins).toBeLessThanOrEqual(3);
+  });
+
+  it('бот «разумный» на Сложной в среднем ниже, чем на Обычной; на Лёгкой - 1-3-е место', () => {
+    // Сейчас: Обычная - 3, 3, 3; Сложная - 6, 10, 6; Лёгкая (аренда ×0,8) - 1, 3, 3.
+    const avg = (d: Difficulty) => REASONABLE_SEEDS.reduce((a, seed) => a + (summary('reasonable', seed, d).rank ?? 99), 0) / REASONABLE_SEEDS.length;
+    expect(avg('hard')).toBeGreaterThan(avg('normal'));
+    for (const seed of REASONABLE_SEEDS) {
+      const { rank } = summary('reasonable', seed, 'easy');
+      expect(rank).not.toBeNull();
+      expect(rank!).toBeLessThanOrEqual(3);
     }
   });
 
-  it('бот «подгонщик» хуже разумного на том же зерне', () => {
+  it('бот «подгонщик» хуже разумного на том же зерне, но в пределах 5-12-го места', () => {
     const bench = summary('benchmaxx', 3);
     const fair = summary('reasonable', 3);
     console.log('разоблачено моделей:', bench.s.models.filter((m) => m.exposed).length);
     expect(bench.rank).not.toBeNull();
     expect(bench.rank!).toBeGreaterThan(fair.rank!);
+    // Хуже, но не на дне: было 23-29-е место (провалы контрактов и −15 репутации за разоблачение), сейчас 10-е.
+    expect(bench.rank!).toBeGreaterThanOrEqual(5);
+    expect(bench.rank!).toBeLessThanOrEqual(12);
+  });
+});
+
+describe('темп обучения (пресеты уровней)', () => {
+  function presetDays(date: string, gpu: 'p100' | 'h100', count: number, tier: Tier): number | null {
+    const s = newGame('Темп', 1);
+    s.day = dateToDay(date);
+    expect(setRent(s, gpu, count)).toEqual({ ok: true });
+    // Доли по умолчанию: обучение 40 %.
+    const plan: TrainingPlan = {
+      name: 'Темп',
+      ...tierPreset(s, tier),
+      mix: { language: 0.45, code: 0.3, reasoning: 0.25 },
+      benchShare: 0,
+      benchTargets: [],
+      rlhf: false,
+      context: 512,
+      tier,
+    };
+    return estimate(s, plan).days;
+  }
+
+  it('январь 2017 года, 100 P100 (как в обучении для новичков): средняя модель по пресету - 1-2 месяца', () => {
+    // Было: меньше дня. Накладные раннего обучения (TRAIN_OVERHEAD) - 300 в начале 2017 года.
+    const days = presetDays('2017-01-01', 'p100', 100, 'mid');
+    expect(days).toBeGreaterThanOrEqual(30);
+    expect(days).toBeLessThanOrEqual(60);
+  });
+
+  it('март 2024 года, 30 000 H100 (как у сильного бота): флагман по пресету - 3-6 месяцев', () => {
+    // Было: пресет флагмана 0,7 переднего края - больше полугода; теперь 0,4.
+    const days = presetDays('2024-03-01', 'h100', 30_000, 'flagship');
+    expect(days).toBeGreaterThanOrEqual(90);
+    expect(days).toBeLessThanOrEqual(180);
   });
 });
 

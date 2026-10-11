@@ -17,7 +17,7 @@
 4. Спрос API `T(t)` остаётся прежней кривой и делится между корпоративными и разработчиками долей `DEV_SHARE_OF_API(t)`; спрос подписок - новая кривая `SUBS_USERS(t)` в пользователях. Доли по сегментам - softmax с прежней структурой полезности и своими весами.
 5. Мощность: по каналам, `served_api = min(1, pool(api)/need_api)`, `served_subs = min(1, pool(subs)/need_subs)`; `servedShares` переиспользуется по сегментам. Общие `shares`/`labShares` - взвешенная по потенциальной выручке сумма сегментов, сумма по-прежнему 1, поэтому `rivalry.ts`, `investors.ts`, `finance.closeMonth` работают без правок логики.
 6. Уровни моделей `tier: 'light' | 'mid' | 'flagship'` в плане обучения; уровень обязан совпадать с правилом `tierOf(paramsB, day)` относительно переднего края `FRONTIER_PARAMS_B(t)`. Соперникам уровень выводится из каталога (параметры, иначе цена, иначе Эло).
-7. Внешняя проверка: модель с Эло не ниже лучшего соперника минус 10 или с уровнем по коду выше лучшего соперника на 5 очков перед подпиской проходит проверку 30-45 дней за `$300 тыс. + $2 тыс. × млрд параметров`. API при этом доступен (корпоративные и разработчики - единственные покупатели API).
+7. Внешняя проверка: модель с Эло не ниже лучшего соперника минус 10 или с уровнем по коду выше лучшего соперника на 5 очков перед подпиской проходит проверку 20-30 дней за `$300 тыс. + $2 тыс. × млрд параметров`. API при этом доступен (корпоративные и разработчики - единственные покупатели API).
 8. Параллельное обучение: `training: TrainingRun | null` заменяется на `trainings: TrainingRun[]` (не больше 2), доля «Обучение» делится поровну. Вариант «второе поле `training2`» отвергнут: два поля усложняют каждый цикл.
 9. Победа, `monthsFirst`, `marketArenaRank` и оценка техчасти у инвесторов по-прежнему считаются среди моделей **по API** (планка победы не меняется, опоры баланса остаются). Оценка инвесторов по выручке включает подписки автоматически через `revenueDaily`.
 10. Версия сохранения остаётся 1; старые поля дополняются значениями по умолчанию в `save.ts`.
@@ -193,7 +193,7 @@ earnedSubs: number;        // новое, 0; earned - по обоим канал
 
 - `rivalFrontierElo(s) = max_{lab} bestElo(s, lab)` (leaderboard.ts); `rivalCodeFrontier(s) = max codeLevel` по `marketRivals(s,'api') ∪ marketRivals(s,'subs')`, `null`, если нечего считать.
 - `reviewRequired(s, m)`: `rivalFrontierElo(s) > 0 && m.arenaElo ≥ rivalFrontierElo(s) − REVIEW_ELO_GAP (10)` или `(codeLevel(s, m) !== null && rivalCodeFrontier(s) !== null && codeLevel ≥ rivalCodeFrontier + REVIEW_CODE_GAP (5))`. Считается один раз в `releaseModel` (край только растёт, поэтому позже проверка не появится).
-- `reviewDays(s, m) = REVIEW_DAYS_MIN (30) + round(REVIEW_DAYS_EXTRA (15) × min(1, paramsB / F(day)))`: 30…45 дней, без случайности (поток случайных чисел сидов не меняется).
+- `reviewDays(s, m) = REVIEW_DAYS_MIN (30) + round(REVIEW_DAYS_EXTRA (15) × min(1, paramsB / F(day)))`: 20…30 дней, без случайности (поток случайных чисел сидов не меняется).
 - `reviewCost(m) = REVIEW_COST_BASE ($300 000) + REVIEW_COST_PER_B ($2 000) × paramsB` (1,8 трлн - $3,9 млн).
 - Действие `startReview(s, id)`: модель выпущена, `review === 'required'`, `cash ≥ cost` (иначе «Не хватает денег на проверку: нужно $X, на счету $Y»); `spend('review', cost)`, `review = 'pending'`, `reviewEndDay = day + reviewDays`.
 - `reviewDay(s)` (тик, после обучения): `pending && day ≥ reviewEndDay` → `passed`, важное письмо.

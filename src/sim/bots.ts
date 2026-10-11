@@ -21,11 +21,13 @@ import {
   contextFlopMult,
   labelersCost,
   maxTokensB,
+  modelScore,
   modelTechs,
   reviewCost,
   startTraining,
   tierOf,
   trainingPoolPerRun,
+  trainOverhead,
 } from './training';
 import type { Allocation, GameState, GpuId, TechId, TrainingPlan } from './types';
 
@@ -212,7 +214,8 @@ function manageAlloc(s: GameState): void {
 export function chinchillaPlan(s: GameState, budget: number, name: string, benchShare: number): TrainingPlan {
   const maxTokens = maxTokensB(s);
   // Надбавка за контекст входит в бюджет: модель должна уложиться в тот же срок.
-  const flop = budget / contextFlopMult(maxContext(s));
+  // Накладные раннего обучения (trainOverhead) тоже: в 2017 году тот же срок даёт модель много меньше.
+  const flop = budget / contextFlopMult(maxContext(s)) / trainOverhead(s.day);
   let paramsB = Math.sqrt(flop / 120) / 1e9;
   let tokensB = 20 * paramsB;
   if (tokensB > maxTokens) {
@@ -290,7 +293,9 @@ function manageTenders(s: GameState, p: BotProfile): void {
   let load = plannedLoad(s);
   for (const t of s.tenders) {
     if (t.application) continue;
-    const model = s.models.find((m) => canApply(s, t, m) === null);
+    // Как автоподбор (contracts.bestAutoModel): заявка только моделью, которая сдаст работу честным баллом.
+    // Иначе «подгонщик» проваливал почти каждый контракт, терял репутацию до нуля и падал на 25-30-е место.
+    const model = s.models.find((m) => canApply(s, t, m) === null && modelScore(m, t.benchmark, true) >= t.requirement);
     if (!model) continue;
     const next = addLoad(load, contractWorkFor(s, t, model), t.durationDays - 7);
     if (loadNeed(next) > capacity) continue;

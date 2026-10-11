@@ -23,6 +23,16 @@ export const BANKRUPT_DAYS = 60;
 // Вычисления
 export const TRAIN_FLOP_PER_H100E_DAY = 989e12 * 0.4 * 86400;
 export const INF_FLOP_PER_H100E_DAY = 989e12 * 0.15 * 86400;
+/**
+ * Накладные раннего обучения (лог-линейно по дате начала проекта): объём вычислений проекта × столько.
+ * Незрелые фреймворки, FP32, медленные сети между картами: в 2017 году обучение идёт в разы дольше, к середине 2020 года - как на
+ * зрелом стеке. На способности не влияет (они считаются от 6·N·D). Без накладных первая модель 2017 года на ~100 P100
+ * обучалась за день, а боты обучали модели в 15 млрд параметров (в 2017 году в истории - 0,2 млрд, «Трансформер»).
+ * Опоры: средняя модель по пресету на 100 P100 в январе 2017 года - 1-2 месяца; флагманы 2023-2024 годов - 3-6 месяцев.
+ */
+export const TRAIN_OVERHEAD: [string, number][] = [
+  ['2017-01-01', 300], ['2018-01-01', 150], ['2019-01-01', 30], ['2019-07-01', 8], ['2020-06-11', 1], ['2024-12-31', 1],
+];
 export const RENT_CAP_2017 = 512; // на тип GPU, удваивается каждый год
 // Мягкий лимит аренды: сверх обычного лимита карты дают по цене × RENT_OVER_CAP_MULT,
 // но не больше RENT_HARD_CAP_MULT × лимит (жёсткий потолок).
@@ -36,7 +46,7 @@ export const PARAMS_B_MAX = 2000;
 export const TOKENS_B_MIN = 0.5;
 
 // Исследования
-export const RP_BASE = 10;
+export const RP_BASE = 20; // было 10: в 2017-2018 годах первые исследования шли по 4-6 месяцев; на поздние почти не влияет. Больше 24 нельзя: одной базой команды «Механизм внимания» успевался бы до 12.06.2017
 export const RP_K = 25;
 export const TECH_COST: Record<Exclude<TechId, ChainTech>, number> = {
   attention: 4000,
@@ -278,7 +288,7 @@ export const FRONTIER_PARAMS_B: [string, number][] = [
 ];
 /** Доли переднего края [от, до) для каждого уровня; у лёгких нижняя граница - PARAMS_B_MIN. */
 export const TIER_PARAMS_RATIO: Record<Tier, [number, number]> = { light: [0, 0.08], mid: [0.08, 0.35], flagship: [0.35, 1.5] };
-export const TIER_PRESET_RATIO: Record<Tier, number> = { light: 0.04, mid: 0.17, flagship: 0.7 };
+export const TIER_PRESET_RATIO: Record<Tier, number> = { light: 0.04, mid: 0.17, flagship: 0.4 };
 /** Цена API по умолчанию при выпуске: множитель к опорной цене. */
 export const TIER_API_PRICE_MULT: Record<Tier, number> = { light: 0.25, mid: 1, flagship: 3 };
 /** Цена подписки по умолчанию, $ в месяц. */
@@ -291,8 +301,8 @@ export const RIVAL_TIER_ELO_GAP = 30;
 // Внешняя проверка сильной модели перед подпиской (design market-v2, раздел 4.2).
 export const REVIEW_ELO_GAP = 10; // Эло не ниже лучшего соперника минус столько
 export const REVIEW_CODE_GAP = 5; // уровень по коду выше лучшего соперника на столько
-export const REVIEW_DAYS_MIN = 30;
-export const REVIEW_DAYS_EXTRA = 15; // × min(1, paramsB / передний край): 30…45 дней
+export const REVIEW_DAYS_MIN = 20; // было 30: меньше ожидания перед подпиской
+export const REVIEW_DAYS_EXTRA = 10; // × min(1, paramsB / передний край): 20…30 дней (было 30…45)
 export const REVIEW_COST_BASE = 300_000;
 export const REVIEW_COST_PER_B = 2_000; // $ за миллиард параметров
 
@@ -303,15 +313,17 @@ export const TENDERS_PER_MONTH: Record<number, number> = {
 export const CAP_LEVEL: Record<number, number> = {
   2017: 0, 2018: 15, 2019: 30, 2020: 45, 2021: 55, 2022: 62, 2023: 72, 2024: 80,
 };
+// Было 10 000 на 2023 год и 50 000 на конец 2024 года: с короткими сроками контрактов (45…150 дней) и быстрыми
+// тендерами (20 дней) «разумный» бот зарабатывал больше  млрд за игру (опора balance.test.ts - до  млрд).
 export const WORK_BASE: [string, number][] = [
-  ['2017-01-01', 100], ['2020-01-01', 1000], ['2023-01-01', 10000], ['2024-12-31', 50000],
+  ['2017-01-01', 100], ['2020-01-01', 1000], ['2023-01-01', 7500], ['2024-12-31', 25000],
 ];
 // Объём контракта зависит от размера выбранной модели: work × (параметры / эталон)^EXP, где эталон - 0,17 переднего края.
 export const WORK_SIZE_REF = 0.17;
 export const WORK_SIZE_EXP = 0.5;
 export const WORK_SIZE_MIN = 0.4;
 export const WORK_SIZE_MAX = 2.5;
-export const TENDER_EXPIRE_DAYS = 30;
+export const TENDER_EXPIRE_DAYS = 20; // было 30: решение по заявке приходит быстрее
 export const TENDER_PENALTY = 0.3;
 export const RLHF_TENDER_PAY_MULT = 1.6;
 export const RLHF_TENDER_LABELERS = 0.25;
@@ -320,7 +332,7 @@ export const REP_CONTRACT_FAIL = -8;
 
 // Инвесторы. Деньги инвесторов за игру - не больше ~1,5 выручки (API + контракты): мания и множители
 // выручки снижены ещё в 3-4 раза, раунд - раз в год. Иначе раунды кормили аренду в десятки раз больше рынка.
-export const VALUATION_FLOOR = 4_000_000;
+export const VALUATION_FLOOR = 6_000_000; // было 4 млн: посевной раунд до первой модели заметнее
 export const MANIA: [string, number][] = [
   ['2017-01-01', 10e6], ['2019-01-01', 20e6], ['2020-01-01', 50e6], ['2021-01-01', 80e6],
   ['2022-01-01', 100e6], ['2023-01-01', 0.2e9], ['2024-01-01', 0.5e9], ['2024-12-31', 0.7e9],
@@ -347,10 +359,12 @@ export const OVERHEAD_MONTHLY = 100_000;
 export const OVERHEAD_REVENUE_SHARE = 0.03;
 
 // Разоблачение
-export const EXPOSE_PER_PP = 0.006;
+// Было 0,006 и −15: «подгонщик» (bots.ts) терял репутацию до нуля после 10-12 разоблачений и падал на 20-30-е место;
+// теперь он на 6-9-м месте (зёрна 1-5), заметно ниже «разумного», но не на дне.
+export const EXPOSE_PER_PP = 0.004;
 export const EXPOSE_ARENA_BONUS = 0.02;
 export const EXPOSE_MAX = 0.35;
-export const EXPOSE_REP = -15;
+export const EXPOSE_REP = -5;
 export const EXPOSE_HYPE_MULT = 0.5;
 
 export const HYPE_OWNERS: readonly HypeOwner[] = ['player', 'openbrain', 'antropik', 'gogle', 'zhipo', 'moonshoot', 'deepcent', 'alibabo'];

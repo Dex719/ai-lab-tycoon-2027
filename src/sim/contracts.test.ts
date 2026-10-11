@@ -239,8 +239,8 @@ describe('generateMonthly: поля тендера', () => {
       expect(t.application).toBeNull();
       expect(t.appearedDay).toBe(s.day);
       expect(t.expiresDay).toBe(s.day + TENDER_EXPIRE_DAYS);
-      expect(t.durationDays).toBeGreaterThanOrEqual(60);
-      expect(t.durationDays).toBeLessThanOrEqual(180);
+      expect(t.durationDays).toBeGreaterThanOrEqual(45); // было 60…180: оплата после сдачи приходила слишком поздно
+      expect(t.durationDays).toBeLessThanOrEqual(150);
       expect(t.work).toBeGreaterThanOrEqual(workBase * 0.5);
       expect(t.work).toBeLessThan(workBase * 1.5);
       const payMult = baseMult(t);

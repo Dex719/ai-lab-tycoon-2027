@@ -56,6 +56,7 @@ import {
   TIER_SUBS_PRICE,
   TOKENS_B_MIN,
   TRAIN_FLOP_PER_H100E_DAY,
+  TRAIN_OVERHEAD,
 } from './constants';
 import { addMail, awaitingEvent, dropChoices, triggerEvent } from './events';
 import { spend } from './finance';
@@ -195,9 +196,14 @@ export function contextFlopMult(context: number): number {
   return 1 + CONTEXT_FLOP_PER_DOUBLING * Math.log2(ratio);
 }
 
-/** 6 × N × D × (1 + RLHF_FLOP_EXTRA, если rlhf) × надбавка за контекст. */
-export function planFlop(plan: TrainingPlan): number {
-  return 6 * plan.paramsB * 1e9 * plan.tokensB * 1e9 * (plan.rlhf ? 1 + RLHF_FLOP_EXTRA : 1) * contextFlopMult(plan.context);
+/** Накладные раннего обучения на день начала проекта (TRAIN_OVERHEAD, в логарифме): 300 в начале 2017 года, 1 с середины 2020 года. */
+export function trainOverhead(day: number): number {
+  return lerpByDate(TRAIN_OVERHEAD, day, true);
+}
+
+/** 6 × N × D × (1 + RLHF_FLOP_EXTRA, если rlhf) × надбавка за контекст × накладные раннего обучения (overhead, по умолчанию 1). */
+export function planFlop(plan: TrainingPlan, overhead = 1): number {
+  return 6 * plan.paramsB * 1e9 * plan.tokensB * 1e9 * (plan.rlhf ? 1 + RLHF_FLOP_EXTRA : 1) * contextFlopMult(plan.context) * overhead;
 }
 
 /** Трансформер доступен после «Механизма внимания», раньше - LSTM. */
@@ -361,7 +367,8 @@ export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
 
 /** Оценка проекта для формы: объём вычислений, срок, разметчики; с «Законами масштабирования» - прогноз и подсказка. */
 export function estimate(s: GameState, plan: TrainingPlan): TrainingEstimate {
-  const flop = planFlop(plan);
+  const overhead = trainOverhead(s.day);
+  const flop = planFlop(plan, overhead);
   const arch = archFor(s);
   // Новый проект разделит долю «Обучение» с уже идущими: срок считается по мощности на проект.
   const perDay = trainingPoolPerRun(s, 1) * TRAIN_FLOP_PER_H100E_DAY;
@@ -396,7 +403,7 @@ export function estimate(s: GameState, plan: TrainingPlan): TrainingEstimate {
   result.forecast = { caps, scores, elo: arenaElo(caps, plan.rlhf, algoLevel, techs) };
 
   // Для того же объёма вычислений: 6·N·D = 120·N² при D = 20·N (надбавка RLHF остаётся за рамками).
-  const baseFlop = flop / ((plan.rlhf ? 1 + RLHF_FLOP_EXTRA : 1) * contextFlopMult(plan.context));
+  const baseFlop = flop / ((plan.rlhf ? 1 + RLHF_FLOP_EXTRA : 1) * contextFlopMult(plan.context) * overhead);
   const n = Math.sqrt(baseFlop / (6 * CHIN_OPT_RATIO)) / 1e9;
   result.optimal = { paramsB: n, tokensB: CHIN_OPT_RATIO * n };
   return result;
@@ -415,7 +422,7 @@ export function startTraining(s: GameState, plan: TrainingPlan): Result {
     benchTargets: [...new Set(plan.benchTargets)],
   };
   spend(s, 'labelers', labelersCost(copy));
-  const flop = planFlop(copy);
+  const flop = planFlop(copy, trainOverhead(s.day));
   const failChance = FAIL_BASE + (s.bestFlop > 0 && flop > FAIL_JUMP_RATIO * s.bestFlop ? FAIL_BIG_JUMP : 0);
   const failAtFraction = chance(s, failChance) ? randRange(s, 0.2, 0.8) : null;
   s.trainings.push({
@@ -555,7 +562,7 @@ export function reviewCost(m: PlayerModel): number {
   return REVIEW_COST_BASE + REVIEW_COST_PER_B * m.plan.paramsB;
 }
 
-/** Срок проверки, дней: 30 + round(15 × min(1, размер / передний край)) - 30…45, без случайности. */
+/** Срок проверки, дней: 20 + round(10 × min(1, размер / передний край)) - 20…30, без случайности. */
 export function reviewDays(s: GameState, m: PlayerModel): number {
   return REVIEW_DAYS_MIN + Math.round(REVIEW_DAYS_EXTRA * Math.min(1, m.plan.paramsB / frontierParams(s.day)));
 }
