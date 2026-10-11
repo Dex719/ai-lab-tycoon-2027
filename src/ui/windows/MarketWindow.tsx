@@ -1,18 +1,26 @@
-// Вкладки «Рынок» (доли лабораторий, модели на рынке) и «Лаборатории» (таблица соперников: характер, настрой,
-// последний ход; под таблицей - последние ходы соперников).
+// Вкладки «Рынок» (доли лабораторий, сегменты спроса, модели на рынке) и «Лаборатории» (таблица соперников: характер,
+// настрой, последний ход; под таблицей - последние ходы соперников).
 
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import type { WindowProps } from '.';
 import { personalityOf } from '../../data/labPersonalities';
-import { HYPE_OWNERS } from '../../sim/constants';
+import { CHAT_MOMENT_DATE, HYPE_OWNERS, SEGMENT_DEF, SUBS_REF_PRICE } from '../../sim/constants';
 import { bestElo } from '../../sim/leaderboard';
-import { marketSnapshot, refPrice, type MarketEntry } from '../../sim/market';
+import {
+  marketSnapshot,
+  refPrice,
+  subsOpen,
+  type MarketEntry,
+  type MarketSnapshot,
+  type SegmentSnapshot,
+} from '../../sim/market';
 import { contextLabel } from '../../sim/research';
 import { findRivalDefIn, labStance, lastMove, moveName, rivalDayIn, type HistoryRow } from '../../sim/rivalry';
-import { dayToDate, formatDateShort } from '../../sim/time';
-import type { GameState, HypeOwner } from '../../sim/types';
+import { dateToDay, dayToDate, formatDateShort } from '../../sim/time';
+import { SEGMENT_IDS, type Channel, type GameState, type HypeOwner, type SegmentId, type Tier } from '../../sim/types';
 import { Alert } from '../components/common';
-import { fmtElo, fmtNum, fmtPrice, fmtShare } from '../format';
+import { TierBadge } from '../components/TierBadge';
+import { fmtElo, fmtNum, fmtPrice, fmtShare, ruPlural } from '../format';
 import {
   buildChartData,
   ChartPanel,
@@ -32,13 +40,190 @@ const SHARE_SERIES: SeriesDef[] = [{ id: 'player', label: 'Ваша доля', c
 
 const fmtAxisShare = (v: number): string => fmtShare(v, 1);
 
+/** Цвета сегментов: обычные - бирюзовый, корпоративные - индиго, разработчики - янтарный (text - для текста на белом, tint - заливка значка). */
+export const SEGMENT_ACCENT: Record<SegmentId, { fill: string; text: string; tint: string }> = {
+  consumers: { fill: '#1fa8a0', text: '#0e655f', tint: '#d6f1ee' },
+  enterprise: { fill: '#5b5bd6', text: '#3d3dae', tint: '#e4e4fa' },
+  developers: { fill: '#d99a00', text: '#8a5a00', tint: '#fbeccb' },
+};
+
+const CHANNEL_NAME: Record<Channel, string> = { api: 'API', subs: 'Подписка' };
+
+const CHANNEL_TITLE: Record<Channel, string> = {
+  api: 'Продажа через API: цена за 1 млн токенов',
+  subs: 'Продажа подпиской на чат: цена в месяц за пользователя',
+};
+
+/** Текст вместо карточки обычных пользователей, пока канал подписок закрыт. */
+export const SUBS_CLOSED = `Подписки появятся после выхода чат-ботов (${formatDateShort(dateToDay(CHAT_MOMENT_DATE))}).`;
+
+const NONE_TITLE = 'Часть спроса, которую не получила ни одна модель';
+
+/** Сколько лучших моделей показывает карточка сегмента. */
+export const SEGMENT_TOP_MODELS = 4;
+
+/** «5 пользователей», «1,2 млн пользователей». */
+export function usersLabel(n: number): string {
+  if (!Number.isFinite(n)) return '-';
+  if (n >= 1e4) return `${fmtNum(n)} пользователей`;
+  const k = Math.round(n);
+  return `${fmtNum(k)} ${ruPlural(k, 'пользователь', 'пользователя', 'пользователей')}`;
+}
+
+/** Спрос сегмента с единицей: «7 млн пользователей» или «1,2 млрд токенов в день». */
+export function demandLabel(channel: Channel, n: number): string {
+  return channel === 'subs' ? usersLabel(n) : `${fmtNum(n)} токенов в день`;
+}
+
+// Доли сегмента: берём записанные в s.market.segments (после ограничения мощностью); пока их нет (первый день игры) -
+// доли снимка до ограничения мощностью.
+interface ShareSource {
+  share: (e: MarketEntry) => number;
+  lab: (owner: HypeOwner) => number;
+  none: number;
+}
+
+function shareSource(s: GameState, seg: SegmentSnapshot): ShareSource {
+  const st = s.market.segments?.[seg.id];
+  if (st && st.total > 0 && Object.keys(st.shares).length > 0) {
+    return { share: (e) => finite(st.shares[e.key]), lab: (o) => finite(st.labShares[o]), none: finite(st.labShares.none) };
+  }
+  const lab = new Map<HypeOwner, number>();
+  for (const e of seg.entries) lab.set(e.owner, (lab.get(e.owner) ?? 0) + e.share);
+  return { share: (e) => e.share, lab: (o) => lab.get(o) ?? 0, none: seg.noneShare };
+}
+
+export interface SegmentRow {
+  key: string;
+  owner: HypeOwner;
+  name: string;
+  tier: Tier;
+  share: number;
+}
+
+export interface SegmentView {
+  id: SegmentId;
+  name: string;
+  channel: Channel;
+  /** «Что ценит» сегмент (SEGMENT_DEF.values). */
+  values: string;
+  /** false - канал сегмента ещё закрыт (подписки до чат-момента). */
+  open: boolean;
+  /** Спрос сегмента: пользователи (подписка) или токены в день (API). */
+  demand: number;
+  playerShare: number;
+  /** Ваша доля в единицах спроса: пользователи или токены в день. */
+  playerUnits: number;
+  /** Лаборатория с наибольшей долей в сегменте; null - никто ничего не получил. */
+  leader: { owner: HypeOwner; share: number } | null;
+  /** Лучшие модели по доле; если ваших среди них нет, в конец добавляется ваша лучшая. */
+  rows: SegmentRow[];
+  /** Доля «вне рынка»: спрос, не доставшийся ни одной модели. */
+  noneShare: number;
+}
+
+/** Три карточки сегментов: спрос из снимка рынка, доли из s.market.segments. */
+export function segmentViews(s: GameState, snap: MarketSnapshot): SegmentView[] {
+  return SEGMENT_IDS.map((id): SegmentView => {
+    const def = SEGMENT_DEF[id];
+    const seg = snap.segments[id];
+    const open = def.channel === 'api' || subsOpen(s.day);
+    const base = { id, name: def.name, channel: def.channel, values: def.values, open };
+    if (!open) return { ...base, demand: 0, playerShare: 0, playerUnits: 0, leader: null, rows: [], noneShare: 1 };
+
+    const src = shareSource(s, seg);
+    const all: SegmentRow[] = seg.entries
+      .map((e) => ({ key: e.key, owner: e.owner, name: e.name, tier: e.tier, share: src.share(e) }))
+      .sort((a, b) => b.share - a.share);
+    let rows = all.slice(0, SEGMENT_TOP_MODELS);
+    if (!rows.some((r) => r.owner === 'player')) {
+      const mine = all.find((r) => r.owner === 'player');
+      if (mine) rows = [...rows, mine];
+    }
+    let leader: SegmentView['leader'] = null;
+    for (const owner of HYPE_OWNERS) {
+      const share = src.lab(owner);
+      if (share > 0 && (leader === null || share > leader.share)) leader = { owner, share };
+    }
+    const playerShare = src.lab('player');
+    return { ...base, demand: seg.total, playerShare, playerUnits: playerShare * seg.total, leader, rows, noneShare: src.none };
+  });
+}
+
+export interface MarketRow {
+  key: string;
+  owner: HypeOwner;
+  name: string;
+  tier: Tier;
+  elo: number;
+  context: number;
+  /** Цена по API ($ за 1 млн токенов); null - модель не продаётся по API. */
+  apiPrice: number | null;
+  /** Цена подписки ($ в месяц); null - модели нет в подписке. */
+  subsPrice: number | null;
+  /** Доля в сегменте; null - модели нет в канале этого сегмента. */
+  seg: Record<SegmentId, number | null>;
+  /** Общая доля (взвешена по выручке сегментов). */
+  share: number;
+  /** Спрос по API, токенов в день, до ограничения мощностью; null - нет в API. */
+  apiTokens: number | null;
+  /** Спрос подписчиков, пользователей, до ограничения мощностью; null - нет в подписке. */
+  subsUsers: number | null;
+}
+
+/** Таблица «Модели на рынке»: одна строка на модель, собранная из записей трёх сегментов. */
+export function marketRows(s: GameState, snap: MarketSnapshot): MarketRow[] {
+  const byKey = new Map<string, MarketRow>();
+  const combined = new Map<string, number>();
+  for (const id of SEGMENT_IDS) {
+    const seg = snap.segments[id];
+    const src = shareSource(s, seg);
+    for (const e of seg.entries) {
+      let r = byKey.get(e.key);
+      if (!r) {
+        r = {
+          key: e.key,
+          owner: e.owner,
+          name: e.name,
+          tier: e.tier,
+          elo: e.elo,
+          context: e.context,
+          apiPrice: null,
+          subsPrice: null,
+          seg: { consumers: null, enterprise: null, developers: null },
+          share: 0,
+          apiTokens: null,
+          subsUsers: null,
+        };
+        byKey.set(e.key, r);
+      }
+      const share = src.share(e);
+      r.seg[id] = share;
+      combined.set(e.key, (combined.get(e.key) ?? 0) + seg.weight * share);
+      if (seg.channel === 'api') {
+        r.apiPrice = e.price;
+        r.apiTokens = (r.apiTokens ?? 0) + e.demand;
+      } else {
+        r.subsPrice = e.price;
+        r.subsUsers = (r.subsUsers ?? 0) + e.demand;
+      }
+    }
+  }
+  const recorded = Object.keys(s.market.shares).length > 0;
+  for (const r of byKey.values()) r.share = recorded ? finite(s.market.shares[r.key]) : (combined.get(r.key) ?? 0);
+  return [...byKey.values()].sort((a, b) => b.share - a.share || b.elo - a.elo || (a.key < b.key ? -1 : 1));
+}
+
 /** Горизонтальные полосы долей: от самой большой доли к самой маленькой. Спрос, не доставшийся никому, - отдельной строкой. */
-function ShareBars({ s, demand }: { s: GameState; demand: number }) {
+function ShareBars({ s, snap }: { s: GameState; snap: MarketSnapshot | null }) {
   const rows = HYPE_OWNERS.map((owner) => ({ owner, share: finite(s.market.labShares[owner]) })).sort(
     (a, b) => b.share - a.share,
   );
   const none = finite(s.market.labShares.none);
   const maxShare = Math.max(0.0001, ...rows.map((r) => r.share));
+  const api = snap ? snap.totalTokens : s.market.totalTokens;
+  const subs = snap ? snap.totalSubs : s.market.totalSubs;
+  const open = subsOpen(s.day);
 
   return (
     <div className="bars">
@@ -57,20 +242,32 @@ function ShareBars({ s, demand }: { s: GameState; demand: number }) {
           <span className="bar-val">{fmtShare(share)}</span>
         </div>
       ))}
-      <div className="bar-row none" title="Часть спроса, которую не получила ни одна модель">
-        <span className="bar-name">Никому</span>
+      <div className="bar-row none" title={NONE_TITLE}>
+        <span className="bar-name">Вне рынка</span>
         <span className="bar-track" />
         <span className="bar-val">{fmtShare(none)}</span>
       </div>
       <div className="bars-meta">
         <div className="r">
-          <span>Спрос на рынке</span>
-          <span>{fmtNum(demand)} токенов в день</span>
+          <span>Спрос по API</span>
+          <span>{fmtNum(api)} токенов в день</span>
         </div>
+        {open && (
+          <div className="r">
+            <span>Спрос на подписки</span>
+            <span>{usersLabel(subs)}</span>
+          </div>
+        )}
         <div className="r">
-          <span>Опорная цена</span>
+          <span>Опорная цена API</span>
           <span>{fmtPrice(refPrice(s.day))} за 1 млн токенов</span>
         </div>
+        {open && (
+          <div className="r">
+            <span>Опорная цена подписки</span>
+            <span>{fmtPrice(SUBS_REF_PRICE)} в месяц</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -79,40 +276,162 @@ function ShareBars({ s, demand }: { s: GameState; demand: number }) {
 /** Контекст модели: «128 тыс.», «1 млн»; если контекст неизвестен - «-». */
 const ctxLabel = (tokens: number): string => (tokens > 0 ? contextLabel(tokens) : '-');
 
-function MarketTable({ s, entries }: { s: GameState; entries: MarketEntry[] | null }) {
-  if (entries === null) return <div className="an-empty">Не удалось рассчитать список моделей.</div>;
-  if (entries.length === 0) return <div className="an-empty">На рынке нет моделей.</div>;
+// ---------- Сегменты ----------
+
+function SegmentCard({ s, v }: { s: GameState; v: SegmentView }) {
+  const accent = SEGMENT_ACCENT[v.id];
+  const style = { '--seg': accent.fill, '--seg-text': accent.text, '--seg-tint': accent.tint } as CSSProperties;
+  const top = Math.max(0.0001, ...v.rows.map((r) => r.share));
   return (
-    <table className="grid an-grid">
+    <div className={`seg-card ${v.id}`} style={style}>
+      <div className="seg-head">
+        <h3 className="seg-name">{v.name}</h3>
+        <span className="seg-chan" title={CHANNEL_TITLE[v.channel]}>
+          {CHANNEL_NAME[v.channel]}
+        </span>
+      </div>
+      <div className="seg-values">Ценит: {v.values}</div>
+      {!v.open ? (
+        <div className="seg-closed">{SUBS_CLOSED}</div>
+      ) : (
+        <>
+          <dl className="seg-kv">
+            <dt title={v.channel === 'subs' ? 'Платёжеспособные пользователи чата' : 'Токены API в день'}>Спрос</dt>
+            <dd>{demandLabel(v.channel, v.demand)}</dd>
+            <dt title="Доля вашего спроса в сегменте после ограничения мощностью">Ваша доля</dt>
+            <dd>
+              <b className="seg-mine">{fmtShare(v.playerShare)}</b>
+              {v.playerShare > 0 && <small>≈ {demandLabel(v.channel, v.playerUnits)}</small>}
+            </dd>
+            <dt>Лидер</dt>
+            <dd>
+              {v.leader ? (
+                <>
+                  <OwnerTag s={s} owner={v.leader.owner} /> <span className="seg-lead-val">{fmtShare(v.leader.share)}</span>
+                </>
+              ) : (
+                <span className="muted">-</span>
+              )}
+            </dd>
+          </dl>
+          {v.rows.length === 0 ? (
+            <div className="seg-empty">В сегменте нет моделей.</div>
+          ) : (
+            <div className="seg-list">
+              {v.rows.map((r) => (
+                <div key={r.key} className={`seg-m${r.owner === 'player' ? ' me' : ''}`}>
+                  <span className="seg-m-name" title={`${r.name}, ${ownerName(s, r.owner)}`}>
+                    <i className="own-dot" style={{ background: ownerColor(r.owner) }} />
+                    <span className="n">{r.name}</span>
+                    <span className="seg-m-lab">{ownerName(s, r.owner)}</span>
+                  </span>
+                  <span className="seg-m-val">{fmtShare(r.share)}</span>
+                  <span className="seg-m-bar">
+                    <span
+                      className="seg-m-fill"
+                      style={{ width: `${r.share > 0 ? Math.max(1, (r.share / top) * 100) : 0}%`, background: ownerColor(r.owner) }}
+                    />
+                  </span>
+                </div>
+              ))}
+              <div className="seg-none" title={NONE_TITLE}>
+                <span>Вне рынка</span>
+                <span>{fmtShare(v.noneShare)}</span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function Segments({ s, views }: { s: GameState; views: SegmentView[] | null }) {
+  if (views === null) return <div className="an-empty">Не удалось рассчитать сегменты.</div>;
+  return (
+    <div className="seg-grid">
+      {views.map((v) => (
+        <SegmentCard key={v.id} s={s} v={v} />
+      ))}
+    </div>
+  );
+}
+
+// ---------- Модели на рынке ----------
+
+const Dash = () => <span className="muted">-</span>;
+
+function MarketTable({ s, rows }: { s: GameState; rows: MarketRow[] | null }) {
+  if (rows === null) return <div className="an-empty">Не удалось рассчитать список моделей.</div>;
+  if (rows.length === 0) return <div className="an-empty">На рынке нет моделей.</div>;
+  return (
+    <table className="grid an-grid flat mk-grid">
       <thead>
-        <tr>
-          <th>Модель</th>
-          <th>Лаборатория</th>
-          <th className="num">Эло</th>
-          <th className="num" title="Длина контекста, токенов">
+        <tr className="mk-h1">
+          <th rowSpan={2} title="Название модели и лаборатория">
+            Модель
+          </th>
+          <th rowSpan={2}>Уровень</th>
+          <th rowSpan={2} className="num">
+            Эло
+          </th>
+          <th rowSpan={2} className="num" title="Длина контекста, токенов">
             Контекст
           </th>
-          <th className="num" title="У соперников - средняя цена: (3 × входные + выходные) / 4">
-            Средняя цена за 1 млн токенов
+          <th colSpan={2} className="gh" title="У соперников цена API - средняя: (3 × входные + выходные) / 4">
+            Цена
           </th>
-          <th className="num">Доля</th>
-          <th className="num" title="Спрос на модель до ограничения мощностью">
-            Токенов в день
+          <th colSpan={3} className="gh" title="Доля модели в спросе сегмента после ограничения мощностью">
+            Доля в сегменте
           </th>
+          <th rowSpan={2} className="num" title="По всем сегментам, с весом по выручке сегментов">
+            Общая доля
+          </th>
+          <th colSpan={2} className="gh" title="Спрос на модель до ограничения мощностью">
+            Спрос
+          </th>
+        </tr>
+        <tr>
+          <th className="num" title="Доллары за 1 млн токенов">
+            API
+          </th>
+          <th className="num" title="Доллары в месяц за пользователя">
+            Подписка
+          </th>
+          {SEGMENT_IDS.map((id) => (
+            <th key={id} className="num mk-seg" style={{ color: SEGMENT_ACCENT[id].text }}>
+              {SEGMENT_DEF[id].name}
+            </th>
+          ))}
+          <th className="num">Токенов в день</th>
+          <th className="num">Пользователей</th>
         </tr>
       </thead>
       <tbody>
-        {entries.map((e) => (
-          <tr key={e.key} className={e.owner === 'player' ? 'player' : undefined}>
-            <td>{e.name}</td>
+        {rows.map((r) => (
+          <tr key={r.key} className={r.owner === 'player' ? 'player' : undefined}>
             <td>
-              <OwnerTag s={s} owner={e.owner} />
+              <div>{r.name}</div>
+              <div className="mk-lab">
+                <i className="own-dot" style={{ background: ownerColor(r.owner) }} />
+                {ownerName(s, r.owner)}
+              </div>
             </td>
-            <td className="num">{fmtElo(e.elo)}</td>
-            <td className="num">{ctxLabel(e.context)}</td>
-            <td className="num">{fmtPrice(e.price)}</td>
-            <td className="num">{fmtShare(e.share)}</td>
-            <td className="num">{fmtNum(e.tokens)}</td>
+            <td>
+              <TierBadge tier={r.tier} />
+            </td>
+            <td className="num">{fmtElo(r.elo)}</td>
+            <td className="num">{ctxLabel(r.context)}</td>
+            <td className="num">{r.apiPrice !== null ? fmtPrice(r.apiPrice) : <Dash />}</td>
+            <td className="num">{r.subsPrice !== null ? fmtPrice(r.subsPrice) : <Dash />}</td>
+            {SEGMENT_IDS.map((id) => (
+              <td key={id} className="num">
+                {r.seg[id] !== null ? fmtShare(r.seg[id] as number) : <Dash />}
+              </td>
+            ))}
+            <td className="num">{fmtShare(r.share)}</td>
+            <td className="num">{r.apiTokens !== null ? fmtNum(r.apiTokens) : <Dash />}</td>
+            <td className="num">{r.subsUsers !== null ? fmtNum(r.subsUsers) : <Dash />}</td>
           </tr>
         ))}
       </tbody>
@@ -126,16 +445,18 @@ export default function MarketTab({ s, open }: WindowProps) {
   const cur = dayToDate(s.day);
 
   const snap = safe(() => marketSnapshot(s));
-  // Пока таблица одна: модели сегмента разработчиков (канал API); доли по сегментам покажет следующий срез интерфейса.
-  const entries = snap ? snap.segments.developers.entries : null;
-  const hasPlayer = entries?.some((e) => e.owner === 'player') ?? false;
+  const views = snap ? safe(() => segmentViews(s, snap)) : null;
+  const rows = snap ? safe(() => marketRows(s, snap)) : null;
+  const hasPlayer = rows?.some((r) => r.owner === 'player') ?? false;
 
   return (
     <div className="an-page">
       <div className="an-two">
         <section>
-          <h2 className="an-h">Доли лабораторий</h2>
-          <ShareBars s={s} demand={snap ? snap.totalTokens : s.market.totalTokens} />
+          <h2 className="an-h" title="Общие доли: по всем сегментам, с весом по выручке сегментов">
+            Доли лабораторий
+          </h2>
+          <ShareBars s={s} snap={snap} />
         </section>
         <section>
           <h2 className="an-h">Ваша доля по месяцам</h2>
@@ -151,9 +472,14 @@ export default function MarketTab({ s, open }: WindowProps) {
       </div>
 
       <section>
+        <h2 className="an-h">Сегменты</h2>
+        <Segments s={s} views={views} />
+      </section>
+
+      <section>
         <h2 className="an-h">Модели на рынке</h2>
-        <MarketTable s={s} entries={entries} />
-        {entries !== null && !hasPlayer && (
+        <MarketTable s={s} rows={rows} />
+        {rows !== null && !hasPlayer && (
           <Alert tone="info" action={{ label: 'Открыть «Модели»', onClick: () => open('models') }}>
             Ваших моделей на рынке нет.
           </Alert>

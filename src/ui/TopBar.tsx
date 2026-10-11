@@ -101,7 +101,7 @@ export function TopBar({ s }: { s: GameState }) {
           <span className={s.cash < 0 ? 'tb-bad' : undefined}>{fmtMoney(s.cash)}</span>
           {hover && <MoneyPopup s={s} />}
         </div>
-        <div className="tb-item" title="Доходы минус расходы за прошлый месяц, без вложений инвесторов">
+        <div className="tb-item" title="Доходы (API, подписки, контракты) минус расходы за прошлый месяц, без вложений инвесторов">
           <IconArrowUpDown />
           <span className={rate >= 0 ? 'tb-good' : 'tb-bad'}>
             {rate >= 0 ? '' : '−'}
@@ -131,7 +131,7 @@ export function TopBar({ s }: { s: GameState }) {
       </div>
       <div className="topbar-right">
         <span>Доля рынка: {fmtShare(s.market.labShares.player ?? 0, 2)}</span>
-        <span title="Место лучшей модели среди моделей в продаже. Цель: 1-е место на 31.12.2024">«Арена»: {fmtRank(rank)}</span>
+        <span title="Место лучшей модели по Эло среди моделей, доступных по API. Цель: 1-е место на 31.12.2024">«Арена»: {fmtRank(rank)}</span>
       </div>
       {(store.pauseReason || negative) && speed === 0 && (
         <div className="pause-note">

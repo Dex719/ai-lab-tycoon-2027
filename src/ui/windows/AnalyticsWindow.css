@@ -24,8 +24,8 @@
 .an-grid th, .an-grid td { border-right: 1px solid #e3e5e8; }
 .an-grid th:last-child, .an-grid td:last-child { border-right: 0; }
 .an-grid.flat th { position: static; }
-.an-grid th.good { color: var(--good); }
-.an-grid th.bad { color: var(--bad); }
+.an-grid th.good { color: #1d6b36; }
+.an-grid th.bad { color: #b32f2f; }
 .an-grid th.sat, .an-grid td.sat { color: var(--text-dim); }
 .an-grid td.top { font-weight: 600; }
 .an-grid tr.grp th { text-align: center; border-bottom: 0; padding-bottom: 0; }
@@ -113,3 +113,20 @@
 .bars-meta { margin-top: 6px; padding: 8px 0 4px; border-top: 1px solid #36373c; color: #a9acb2; font-size: 13px; }
 .bars-meta .r { display: flex; justify-content: space-between; gap: 16px; line-height: 1.7; }
 .bars-meta .r span:last-child { font-variant-numeric: tabular-nums; color: #d6d8dc; }
+
+/* ---------- Семантические цвета ----------
+   Зелёный - доходы и плюс, красный - расходы и минус, оранжевый - предупреждения. Темнее оттенков темы,
+   чтобы текст на белом читался (контраст не ниже 4,5:1). */
+.an .good { color: #1d6b36; }
+.an .bad { color: #b32f2f; }
+.an .warn { color: #a85a00; }
+.an-grid td.inc { color: #1d6b36; }
+.an-grid td.exp { color: #b32f2f; }
+
+/* Широкая таблица: подписи колонок переносятся, чтобы она помещалась в окно. */
+.an-wrap { font-size: 13px; }
+.an-grid.an-wrap th, .an-grid.an-wrap td { padding: 5px 8px; }
+.an-grid.an-wrap thead th { white-space: normal; vertical-align: bottom; line-height: 1.25; }
+.an-note { display: block; font-size: 12px; font-weight: 400; line-height: 1.3; color: #5f636a; }
+.an-note.warn { color: #a85a00; font-weight: 600; }
+.an-note.info { color: #1f5fae; }

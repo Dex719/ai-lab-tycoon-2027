@@ -2,6 +2,8 @@
 // Цель подсветки - элемент с data-tutorial="<id>"; берётся первый найденный из списка targets.
 
 import { totalH100e } from '../sim/compute';
+import { CHAT_MOMENT_DATE } from '../sim/constants';
+import { dateToDay, formatDateShort } from '../sim/time';
 import type { GameState, Speed } from '../sim/types';
 import type { WindowId } from './windows';
 
@@ -17,6 +19,9 @@ export interface TutorialStep {
   /** Шаг закрывается сам, когда условие выполнено. Без условия - кнопкой «Далее». */
   done?: (s: GameState, ctx: TutorialCtx) => boolean;
 }
+
+/** Дата открытия подписок для текста шага «Выпуск модели»: «30.11.2022». */
+const CHAT_DATE_TEXT = formatDateShort(dateToDay(CHAT_MOMENT_DATE));
 
 export const TUTORIAL: TutorialStep[] = [
   {
@@ -41,8 +46,9 @@ export const TUTORIAL: TutorialStep[] = [
   {
     title: 'Распределение мощности',
     text:
-      'Мощность делится на четыре части: обучение, контракты, исследования и клиенты. ' +
-      'Двигайте ползунки и нажмите «Распределить». Пока моделей нет, большую часть отдайте исследованиям.',
+      'Мощность делится на пять частей: обучение, контракты, исследования, API и подписки. ' +
+      'Доли вводят ползунками или числами, в сумме должно быть 100 %. Нажмите «Распределить». ' +
+      'Пока моделей нет, большую часть отдайте исследованиям.',
     targets: ['alloc', 'icon-compute'],
   },
   {
@@ -62,8 +68,8 @@ export const TUTORIAL: TutorialStep[] = [
   {
     title: 'Первая модель',
     text:
-      'Когда «Механизм внимания» будет изучен, откройте «Новая модель». Задайте размер и объём данных и нажмите «Начать обучение». ' +
-      'Слева видны стоимость и срок.',
+      'Когда «Механизм внимания» будет изучен, откройте «Новая модель». Выберите уровень «Средняя», ' +
+      'при необходимости поправьте размер и данные и нажмите «Начать обучение». Слева видны стоимость и срок.',
     targets: ['train-start', 'icon-newModel'],
     done: (s) => s.trainings.length > 0 || s.models.length > 0,
   },
@@ -71,7 +77,7 @@ export const TUTORIAL: TutorialStep[] = [
     title: 'Выпуск модели',
     text:
       'Готовая модель появится в окне «Модели». Укажите цену за 1 млн токенов и нажмите «Выпустить». ' +
-      'Запросы клиентов обслуживает доля «Клиенты» в «Мощностях».',
+      'Запросы по API обслуживает доля «API» в «Мощностях», чат подписчиков - доля «Подписки» (с ' + CHAT_DATE_TEXT + ').',
     targets: ['release', 'icon-models'],
     done: (s) => s.models.some((m) => m.releasedDay !== null),
   },

@@ -3,6 +3,7 @@
 import { valuation } from '../sim/investors';
 import { leaderboard } from '../sim/leaderboard';
 import { DIFFICULTY } from '../sim/rivalry';
+import { subsOpen } from '../sim/market';
 import { playerBestArenaRank } from '../sim/tick';
 import { formatDate } from '../sim/time';
 import type { GameState } from '../sim/types';
@@ -42,6 +43,12 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
             <span>{best ? `${best.name}, Эло ${fmtElo(best.elo)}` : '-'}</span>
             <span>Месяцев на 1-м месте</span>
             <span>{fmtNum(months)}</span>
+            {subsOpen(s.day) && (
+              <>
+                <span title="Пользователи подписки, обслуженные вчера">Подписчиков</span>
+                <span>{fmtNum(Math.round(Number.isFinite(s.market.playerSubs) ? s.market.playerSubs : 0))}</span>
+              </>
+            )}
             <span>Деньги</span>
             <span>{fmtMoney(s.cash)}</span>
             <span>Оценка компании</span>

@@ -3,7 +3,7 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { pool } from '../sim/compute';
 import { TRAIN_FLOP_PER_H100E_DAY } from '../sim/constants';
-import { playerSales } from '../sim/market';
+import { playerSales, subsOpen } from '../sim/market';
 import { rpPerDay, TECHS, techCost } from '../sim/research';
 import { CLIENTS } from '../data/clients';
 import { benchDef } from '../sim/benchmarks';
@@ -15,10 +15,12 @@ import type { GameState } from '../sim/types';
 import { ProgressBar } from './components/common';
 import { fmtMoney, fmtNum, fmtPrice, fmtShare } from './format';
 import { IconChevronLeft, IconChevronRight } from './icons';
-import { fmtRank } from './labels';
+import { fmtRank, reviewNote } from './labels';
 import type { WindowAlias, WindowId } from './windows';
 
 type Tab = 'projects' | 'models';
+
+const finite = (n: number | undefined): number => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
 
 function days(n: number): string {
   return Number.isFinite(n) ? `${fmtNum(Math.ceil(n))} дн.` : '-';
@@ -111,15 +113,25 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
   return items.length ? <>{items}</> : <div className="side-empty">Проектов нет.</div>;
 }
 
+// Цвета на тёмной панели: доходы - зелёный, подписки - бирюзовый, предупреждения - оранжевый.
+const SIDE_GOOD = 'var(--good-on-dark)';
+const SIDE_SUBS = '#4fd6cb';
+const SIDE_WARN = '#f2b84b';
+const SIDE_INFO = '#8ec5ff';
+
 function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
   const onSale = s.models.filter((m) => m.releasedDay !== null && (m.onApi || m.onSubs));
   if (!onSale.length) return <div className="side-empty">Моделей в продаже нет.</div>;
+  const subsAvailable = subsOpen(s.day);
   return (
     <>
       {onSale.map((m) => {
         // Доля в s.market уже после ограничения мощностью (market.ts servedShares), отдельно на served не умножаем.
         const share = s.market.shares[`player:${m.id}`] ?? 0;
         const sales = playerSales(s, m.id);
+        const onSubs = m.onSubs && subsAvailable;
+        const revenue = sales.apiRevenueDay + sales.subsRevenueDay;
+        const note = reviewNote(m);
         return (
           <div className="side-item" key={m.id} onClick={() => open('models')} style={{ cursor: 'pointer' }}>
             <div className="t">{m.name}</div>
@@ -127,22 +139,43 @@ function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) 
               <span>Доля рынка</span>
               <span className="v">{fmtShare(share, 1)}</span>
             </div>
-            <div className="r">
-              <span>Токенов в день</span>
-              <span className="v">{fmtNum(sales.apiTokens)}</span>
-            </div>
-            <div className="r">
-              <span>Подписчиков</span>
-              <span className="v">{fmtNum(Math.round(sales.subsUsers))}</span>
-            </div>
-            <div className="r">
+            {m.onApi && (
+              <div className="r">
+                <span>Токенов в день</span>
+                <span className="v">{fmtNum(sales.apiTokens)}</span>
+              </div>
+            )}
+            {onSubs && (
+              <div className="r">
+                <span>Подписчиков</span>
+                <span className="v" style={{ color: SIDE_SUBS }}>
+                  {fmtNum(Math.round(sales.subsUsers))}
+                </span>
+              </div>
+            )}
+            <div className="r" title={`API ${fmtMoney(sales.apiRevenueDay)}, подписки ${fmtMoney(sales.subsRevenueDay)}`}>
               <span>Выручка в день</span>
-              <span className="v">{fmtMoney(sales.apiRevenueDay + sales.subsRevenueDay)}</span>
+              <span className="v" style={revenue > 0 ? { color: SIDE_GOOD } : undefined}>
+                {fmtMoney(revenue)}
+              </span>
             </div>
-            <div className="r">
-              <span>Цена за 1 млн</span>
-              <span className="v">{fmtPrice(m.price)}</span>
-            </div>
+            {m.onApi && (
+              <div className="r">
+                <span>Цена за 1 млн</span>
+                <span className="v">{fmtPrice(m.price)}</span>
+              </div>
+            )}
+            {onSubs && (
+              <div className="r">
+                <span>Цена подписки</span>
+                <span className="v">{fmtPrice(m.subsPrice)} в месяц</span>
+              </div>
+            )}
+            {note && (
+              <div className="r" style={{ color: note.tone === 'warn' ? SIDE_WARN : SIDE_INFO, fontWeight: 600 }}>
+                <span>{note.text}</span>
+              </div>
+            )}
           </div>
         );
       })}
@@ -159,17 +192,26 @@ function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) =>
     rank = null;
   }
   const months = Number.isFinite(s.monthsFirst) ? s.monthsFirst : 0;
+  const showSubs = subsOpen(s.day) || s.market.playerSubs > 0;
   return (
     <div
       className="side-item"
       style={{ padding: '0 12px 8px', border: 'none', cursor: 'pointer' }}
-      title="Цель: 1-е место среди моделей в продаже на 31.12.2024"
+      title="Цель: 1-е место по Эло среди моделей, доступных по API, на 31.12.2024"
       onClick={() => open('analytics')}
     >
       <div className="r">
         <span>В продаже: {rank !== null ? fmtRank(rank) : 'нет моделей'}</span>
         <span className="v">На 1-м: {fmtNum(months)} мес.</span>
       </div>
+      {showSubs && (
+        <div className="r" title="Пользователи подписки, обслуженные вчера">
+          <span>Подписчиков</span>
+          <span className="v" style={{ color: SIDE_SUBS }}>
+            {fmtNum(Math.round(finite(s.market.playerSubs)))}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

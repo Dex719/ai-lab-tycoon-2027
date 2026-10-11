@@ -12,3 +12,52 @@
 .lab-moves-row .l { white-space: nowrap; }
 .lab-moves-row .m { color: var(--text-dim); white-space: nowrap; }
 .lab-moves-row .t { min-width: 0; }
+
+/* ---------- Сегменты: три карточки, цвет сегмента - верхняя полоса и значок канала ---------- */
+.seg-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@container (max-width: 860px) {
+  .seg-grid { grid-template-columns: minmax(0, 1fr); }
+}
+.seg-card {
+  display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px 14px;
+  background: #fff; border: 1px solid var(--line-soft); border-top: 4px solid var(--seg); border-radius: 4px;
+}
+.seg-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.seg-name { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.3; color: #1f2023; }
+.seg-chan {
+  flex: none; padding: 1px 9px; border-radius: 10px; font-size: 12px; font-weight: 600; line-height: 18px;
+  background: var(--seg-tint); color: var(--seg-text);
+}
+.seg-values { font-size: 13px; line-height: 1.35; color: #4a4d54; }
+.seg-closed { padding: 10px 0 4px; font-size: 14px; line-height: 1.4; color: #4a4d54; }
+.seg-empty { padding: 4px 0; font-size: 13px; color: #5f636a; }
+.seg-kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 0; font-size: 14px; }
+.seg-kv dt { color: #5f636a; }
+.seg-kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; color: #1f2023; overflow-wrap: anywhere; }
+.seg-kv dd small { display: block; font-size: 12px; color: #5f636a; }
+.seg-kv dd .own { justify-content: flex-end; }
+.seg-mine { font-size: 18px; font-weight: 600; color: #1f5fae; }
+.seg-lead-val { font-weight: 600; }
+
+/* Лучшие модели сегмента: название, лаборатория, доля; под ними полоса цвета лаборатории. */
+.seg-list { display: flex; flex-direction: column; gap: 7px; padding-top: 10px; border-top: 1px solid #e3e5e8; }
+.seg-m { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 8px; align-items: baseline; font-size: 13px; }
+.seg-m-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.seg-m-name .own-dot { align-self: center; }
+.seg-m-name .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1f2023; }
+.seg-m-lab { flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #5f636a; }
+.seg-m-val { text-align: right; font-variant-numeric: tabular-nums; color: #1f2023; }
+.seg-m.me .n, .seg-m.me .seg-m-val { font-weight: 600; }
+.seg-m-bar { grid-column: 1 / -1; height: 6px; background: #e6e8ec; border-radius: 1px; overflow: hidden; }
+.seg-m-fill { display: block; height: 100%; border-radius: 1px; }
+.seg-none { display: flex; justify-content: space-between; gap: 8px; padding-top: 6px; border-top: 1px dashed #d4d7dc; font-size: 13px; color: #5f636a; font-variant-numeric: tabular-nums; }
+
+/* ---------- Таблица «Модели на рынке» ---------- */
+.mk-grid { font-size: 13px; }
+.an-grid.mk-grid th, .an-grid.mk-grid td { padding: 5px 8px; }
+.an-grid.mk-grid thead th { white-space: normal; vertical-align: bottom; line-height: 1.25; }
+.an-grid.mk-grid thead th.num { white-space: normal; }
+.mk-grid .mk-h1 th.gh { text-align: center; border-bottom: 1px solid var(--line); padding-bottom: 3px; }
+.mk-grid .mk-h1 th { border-bottom: 1px solid #e3e5e8; }
+.mk-grid th.mk-seg { font-weight: 600; }
+.mk-lab { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 400; color: #5f636a; }
