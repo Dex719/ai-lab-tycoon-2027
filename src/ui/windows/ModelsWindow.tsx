@@ -44,7 +44,7 @@ import { Cards } from '../components/Cards';
 import { Alert, ConfirmDialog, ErrorText, ProgressBar } from '../components/common';
 import { TierBadge } from '../components/TierBadge';
 import { fmtDays, fmtElo, fmtH100e, fmtMoney, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare, fmtTokens } from '../format';
-import { IconModels } from '../icons';
+import { IconChevronLeft, IconModels } from '../icons';
 import { fmtRank } from '../labels';
 import { actions, store } from '../store';
 import './ModelsWindow.css';
@@ -911,6 +911,7 @@ function ModelCard({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowP
 
 export default function ModelsWindow({ s, open }: WindowProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState(false); // телефон: карточка модели открыта на весь экран
 
   if (s.models.length === 0 && s.trainings.length === 0) {
     return (
@@ -930,8 +931,21 @@ export default function ModelsWindow({ s, open }: WindowProps) {
   const current = picked ? picked.id : shownRun ? RUN_PREFIX + shownRun.id : '';
 
   return (
-    <div className="mw">
-      <ModelList models={models} trainings={s.trainings} selectedId={current} onSelect={setSelectedId} open={open} />
+    <div className={`mw${detail ? ' show-detail' : ''}`}>
+      <ModelList
+        models={models}
+        trainings={s.trainings}
+        selectedId={current}
+        onSelect={(id) => {
+          setSelectedId(id);
+          setDetail(true);
+        }}
+        open={open}
+      />
+      <button type="button" className="btn m-back" onClick={() => setDetail(false)}>
+        <IconChevronLeft size={14} />
+        К списку
+      </button>
       {picked ? <ModelCard key={picked.id} s={s} m={picked} open={open} /> : shownRun && <TrainingCard key={shownRun.id} s={s} t={shownRun} open={open} />}
     </div>
   );

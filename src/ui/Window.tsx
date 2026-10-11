@@ -45,6 +45,8 @@ interface Props {
   active: boolean;
   accent?: string; // цвет верхней полосы заголовка
   flush?: boolean; // тело без отступов (окно само раскладывает панели)
+  fullscreen?: boolean; // телефон: окно на весь стол, без перетаскивания и изменения размера
+  hidden?: boolean; // телефон: окно открыто, но показано другое
   onFocus: () => void;
   onClose: () => void;
   onMinimize: () => void;
@@ -52,11 +54,11 @@ interface Props {
   children: ReactNode;
 }
 
-export function Window({ title, geom, active, accent, flush, onFocus, onClose, onMinimize, onMove, children }: Props) {
+export function Window({ title, geom, active, accent, flush, fullscreen, hidden, onFocus, onClose, onMinimize, onMove, children }: Props) {
   const drag = useRef<{ dx: number; dy: number } | null>(null);
 
   function startDrag(e: React.PointerEvent) {
-    if (e.button !== 0 || (e.target as HTMLElement).closest('button')) return;
+    if (fullscreen || e.button !== 0 || (e.target as HTMLElement).closest('button')) return;
     drag.current = { dx: e.clientX - geom.x, dy: e.clientY - geom.y };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
@@ -71,7 +73,7 @@ export function Window({ title, geom, active, accent, flush, onFocus, onClose, o
   const resize = useRef<{ sx: number; sy: number; w: number; h: number } | null>(null);
   function startResize(e: React.PointerEvent) {
     // Без stopPropagation: нажатие доходит до окна и выводит его на передний план.
-    if (e.button !== 0) return;
+    if (fullscreen || e.button !== 0) return;
     resize.current = { sx: e.clientX, sy: e.clientY, w: geom.w, h: geom.h };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
@@ -83,14 +85,25 @@ export function Window({ title, geom, active, accent, flush, onFocus, onClose, o
 
   return (
     <div
-      className={`window${active ? ' active' : ''}`}
-      style={{ left: geom.x, top: geom.y, width: geom.w, height: geom.h, zIndex: geom.z, ...(accent ? { ['--wa' as string]: accent } : {}) }}
+      className={`window${active ? ' active' : ''}${fullscreen ? ' fs' : ''}${hidden ? ' fs-off' : ''}`}
+      style={{
+        ...(fullscreen ? {} : { left: geom.x, top: geom.y, width: geom.w, height: geom.h }),
+        zIndex: geom.z,
+        ...(accent ? { ['--wa' as string]: accent } : {}),
+      }}
       onPointerDown={onFocus}
       data-window={title}
     >
       <div className="titlebar" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag}>
+        {fullscreen && (
+          <button className="wbtn back" onClick={onMinimize} title="Назад на стол" aria-label="Назад на стол">
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M9 2L4 7l5 5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+            </svg>
+          </button>
+        )}
         <span className="t">{title}</span>
-        <button className="wbtn" onClick={onMinimize} title="Свернуть" aria-label="Свернуть">
+        <button className="wbtn min" onClick={onMinimize} title="Свернуть" aria-label="Свернуть">
           <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
             <path d="M2 9h8" stroke="currentColor" strokeWidth="1.6" />
           </svg>
@@ -102,12 +115,14 @@ export function Window({ title, geom, active, accent, flush, onFocus, onClose, o
         </button>
       </div>
       <div className={`window-body${flush ? ' flush' : ''}`}>{children}</div>
-      <div
-        className="resize"
-        onPointerDown={startResize}
-        onPointerMove={moveResize}
-        onPointerUp={() => (resize.current = null)}
-      />
+      {!fullscreen && (
+        <div
+          className="resize"
+          onPointerDown={startResize}
+          onPointerMove={moveResize}
+          onPointerUp={() => (resize.current = null)}
+        />
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { advanceDay } from './sim/tick';
 import { App } from './ui/App';
 import { actions, store } from './ui/store';
 import './ui/theme.css';
+import './ui/responsive.css';
 
 // Отладка и проверка агентом во встроенном браузере (NFR-4).
 if (import.meta.env.DEV) {

@@ -1,0 +1,276 @@
+/* Адаптивная раскладка. Телефон: ширина меньше 768 px; планшет: 768-1100 px; от 1100 px вид не меняется.
+   Подключается после theme.css и стилей окон, поэтому правила здесь переопределяют их. */
+
+html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
+.icons { display: contents; }
+.side-scrim, .side-grab, .tb-side, .tutor-dock, .m-back { display: none; }
+
+/* ---------- Касание: крупные кнопки и бегунки (телефон и планшет с пальцем) ---------- */
+@media (max-width: 767px), (pointer: coarse) {
+  .btn { min-height: 40px; }
+  .btn.small { min-height: 40px; height: 40px; padding: 0 12px; }
+  input[type='text'], input[type='number'], select { min-height: 40px; height: 40px; font-size: 16px; }
+  input[type='checkbox'], input[type='radio'] { width: 22px !important; height: 22px !important; }
+  .range { height: 40px; }
+  .range::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; }
+  .range::-webkit-slider-thumb { width: 28px; height: 28px; margin-top: -11px; }
+  .range::-moz-range-thumb { width: 28px; height: 28px; }
+  .range::-moz-range-track, .range::-moz-range-progress { height: 6px; }
+  .tab { min-height: 40px; }
+  .titlebar .wbtn { width: 44px; height: 36px; }
+  .speed button { width: 38px; height: 40px; }
+  .task-win, .task-start { min-height: 40px; }
+  .toast .ta button { min-height: 40px; min-width: 40px; padding: 0 6px; }
+  .choice-go { height: 40px; }
+  .side-tabs button { min-height: 40px; padding: 0 12px; }
+  .tutor .foot .skip { min-height: 40px; }
+  .tip { z-index: 2000; }
+  .cw-qty-range { --capx: calc(14px + (100% - 28px) * var(--cap, 1)); }
+  .cw-qty-range.has-cap { margin-bottom: 26px; }
+  .cw-qty-range.has-cap::after { top: 13px; }
+  .cw-cap-label { top: 38px; }
+}
+
+/* Таблица прокручивается по горизонтали внутри своего места, а не двигает всё окно */
+@media (max-width: 1099px) {
+  table.grid { display: block; max-width: 100%; overflow-x: auto; }
+  .an-scroll table.grid { display: table; }
+}
+
+/* ---------- Планшет: окна не шире экрана ---------- */
+@media (min-width: 768px) and (max-width: 1099px) {
+  .window { max-width: calc(100% - 8px); }
+  .topbar { grid-template-columns: auto 1fr auto; column-gap: 12px; padding: 0 10px; }
+  .topbar-center { gap: 14px; justify-content: center; }
+  .tb-item { font-size: 14px; gap: 6px; }
+  .topbar-right { gap: 10px; font-size: 13px; white-space: nowrap; }
+  .topbar-right > * { white-space: nowrap; }
+}
+@media (min-width: 768px) and (max-width: 1049px) {
+  .topbar-right { display: none; }
+}
+
+/* ---------- Телефон ---------- */
+@media (max-width: 767px) {
+  body { font-size: 15px; }
+
+  /* Главное меню */
+  .menu-title { margin-top: 8vh; font-size: clamp(30px, 10vw, 44px); text-align: center; padding: 0 12px; }
+  .menu-items { margin-top: 10vh; gap: 8px; }
+  .menu-item { font-size: 24px; min-height: 48px; padding: 6px 20px; }
+
+  /* Верхняя панель в две строки: лаборатория, деньги, изменение; дата, скорость, сводка */
+  .topbar {
+    height: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center;
+    column-gap: 10px; row-gap: 0; padding: 2px 8px;
+  }
+  .topbar-left { grid-column: 1; grid-row: 1; font-size: 13px; overflow: hidden; }
+  .topbar-left b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar-left span:not(.tb-bad) { display: none; }
+  .topbar-center { display: contents; }
+  .topbar-right { display: none; }
+  .tb-item { font-size: 14px; gap: 6px; }
+  .tb-money { grid-column: 2; grid-row: 1; justify-self: end; min-height: 32px; }
+  .tb-rate { grid-column: 3; grid-row: 1; justify-self: end; font-size: 11px; }
+  .tb-date { grid-column: 1; grid-row: 2; min-height: 40px; font-size: 13px; }
+  .tb-date svg { display: none; }
+  .speed { grid-column: 2; grid-row: 2; justify-self: end; gap: 0; }
+  .tb-side {
+    display: block; grid-column: 3; grid-row: 2; min-height: 36px; padding: 0 8px; border: 1px solid #4a4b50; border-radius: 3px;
+    background: none; color: var(--bar-text); font-size: 13px; cursor: pointer;
+  }
+  .tb-side.on { background: var(--c-blue); border-color: var(--c-blue); }
+  .money-pop { position: fixed; left: 8px; right: 8px; top: 44px; min-width: 0; transform: none; }
+  .pause-note { top: 100%; margin-top: 6px; max-width: calc(100vw - 16px); white-space: normal; text-align: center; }
+
+  /* Рабочий стол: значки сеткой */
+  .desk-logo { opacity: 0.1; }
+  .desk-logo svg { width: 120px; height: 120px; }
+  .icons {
+    position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: min-content; gap: 6px 4px; align-content: start; padding: 12px 8px; overflow-y: auto;
+  }
+  .icon-col { display: contents; position: static; }
+  .icon-col.left, .icon-col.right { position: static; display: contents; }
+  .desk-icon, .desk-icon-wrap { width: 100%; min-width: 0; }
+  .desk-icon { padding: 8px 2px 6px; min-height: 96px; }
+  .desk-icon .icon-label { font-size: 13px; overflow-wrap: anywhere; }
+  .desk-icon .count { right: calc(50% - 40px); }
+
+  /* Окно на весь стол */
+  .window.fs {
+    position: absolute; inset: 0; width: auto; height: auto; min-width: 0; min-height: 0; max-width: none; border-radius: 0; box-shadow: none;
+  }
+  .window.fs-off { display: none; }
+  .window.fs .titlebar { height: 44px; border-radius: 0; font-size: 16px; cursor: default; gap: 4px; padding: 0 4px 0 2px; }
+  .window.fs .titlebar .wbtn { width: 44px; height: 40px; }
+  .window.fs .titlebar .wbtn.min { display: none; }
+  .window.fs .titlebar .t { padding-left: 4px; }
+  .window-body { padding: 10px; }
+  .window-body.flush { padding: 0; }
+  .tabs { gap: 14px; margin: -10px -10px 10px; padding: 0 10px; overflow-x: auto; }
+  .tab { font-size: 16px; white-space: nowrap; }
+
+  /* Панель задач */
+  .taskbar { height: 48px; gap: 4px; padding: 0 6px; overflow-x: auto; }
+  .taskbar > * { flex: none; }
+  .task-start { width: 40px; height: 40px; }
+  .task-win { height: 40px; max-width: 150px; padding: 0 8px 0 4px; }
+  .task-clock { display: none; }
+  .start-menu { bottom: 52px; width: min(280px, calc(100vw - 12px)); }
+  .start-menu button { min-height: 44px; }
+
+  /* Боковая панель: нижний лист по кнопке «Сводка» */
+  .side-scrim { display: block; position: absolute; inset: 0; z-index: 790; background: rgba(0, 0, 0, 0.35); }
+  .side.sheet {
+    left: 0; right: 0; top: auto; bottom: 0; z-index: 800; pointer-events: auto; max-height: 70%; display: flex; flex-direction: column;
+    background: var(--side); border-radius: 10px 10px 0 0; box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.5);
+  }
+  .side.sheet .side-grab {
+    display: grid; place-items: center; flex: none; width: 100%; height: 28px; background: none; border: none; cursor: pointer;
+  }
+  .side.sheet .side-grab span { width: 40px; height: 4px; border-radius: 2px; background: #6b6e74; }
+  .side.sheet .side-body { width: 100%; min-height: 0; flex: 1; overflow-y: auto; border-radius: 0; }
+  .side.sheet .side-head { border-top: none; padding-top: 0; }
+  .side.sheet .side-item { padding: 12px; }
+
+  /* Обучение: полоса над панелью задач, разворачивается по кнопке */
+  .tutor-dock { display: block; position: absolute; left: 0; right: 0; bottom: 0; z-index: 780; }
+  .tutor-dock .tutor { margin: 0 6px; border-radius: 6px 6px 0 0; box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.4); max-height: 55vh; overflow-y: auto; }
+  .tutor-dock .tutor .titlebar { height: 28px; font-size: 13px; }
+  .tutor-dock:not(.open) .tutor .body p, .tutor-dock:not(.open) .tutor .foot { display: none; }
+  .tutor-dock .tutor .body { padding: 6px 12px 4px; }
+  .tutor-dock .tutor h3 { margin-bottom: 4px; font-size: 15px; }
+  .tutor-toggle {
+    display: block; width: calc(100% - 12px); margin: 0 6px; min-height: 40px; background: var(--win-body); color: var(--accent-dark);
+    border: none; border-top: 1px solid var(--line); font-weight: 600; cursor: pointer;
+  }
+
+  /* Диалоги, письмо с выбором, уведомления */
+  .modal-backdrop { align-items: flex-end; }
+  .dialog, .dialog.wide, .choice-dialog {
+    width: 100vw; max-width: 100vw; max-height: 92dvh; border-radius: 10px 10px 0 0;
+  }
+  .dialog .body { padding: 14px 16px; }
+  .dialog .foot { padding: 10px 16px 14px; flex-wrap: wrap; }
+  .dialog .foot .btn { flex: 1 1 auto; }
+  .choice { padding: 12px; gap: 10px; }
+  .choice-go { padding: 0 12px; }
+  .choice-title { font-size: 18px; }
+  .choice-reply { flex: 1 1 100%; margin-right: 0; }
+  .slot { grid-template-columns: 40px 1fr; }
+  .slot > :last-child { grid-column: 1 / -1; }
+  .toasts { right: 8px; left: 8px; bottom: 56px; width: auto; }
+  .tip { max-width: calc(100vw - 16px); }
+
+  /* Общие сетки внутри окон */
+  .field { grid-template-columns: 1fr; }
+  .card { padding: 10px 12px; }
+  .section-title { font-size: 18px; }
+  .row { gap: 6px; }
+  table.grid { font-size: 13px; }
+  table.grid th, table.grid td { padding: 6px 8px; }
+  .list { max-width: 100%; }
+
+  /* ----- Окна: общее ----- */
+  .m-back { display: inline-flex; flex: none; align-self: flex-start; margin: 8px 10px 0; background: #fff; }
+
+  /* Исследования */
+  .rs-head { flex-wrap: wrap; gap: 2px 10px; padding: 4px 10px; min-height: 0; }
+  .rs-title { display: none; }
+  .rs-zoom { flex: 1 1 100%; }
+  .rs-zoom .btn.small { min-width: 40px; }
+  .rs-zoom .btn.small:last-child { margin-left: auto; }
+  .rs-state { flex: 1 1 100%; margin-left: 0; justify-content: space-between; }
+  .rs-legend { display: none; }
+  .rs-bar { height: auto; flex-wrap: wrap; gap: 0 14px; padding: 4px 10px; }
+  .rs-bar .btn { flex: 1 1 100%; margin-left: 0; }
+  .rs-alerts { padding: 6px 10px; }
+
+  /* Мощности: окно прокручивается целиком */
+  .cw { height: auto; min-height: 100%; }
+  .cw-info { padding: 10px 12px; }
+  .cw-info-head .btn { min-width: 0; }
+  .cw-info-grid { gap: 8px; }
+  .cw-info-grid .cw-kv { flex: 1 1 100%; }
+  .cw-info-grid .cw-kv + .cw-kv { padding-left: 0; border-left: none; }
+  .cw-scroll { flex: none; overflow: visible; padding: 10px; }
+  .cw-main { gap: 12px; }
+  .cw-rented { flex: 1 1 100%; }
+  .cw-panel { flex: 1 1 100%; }
+  .cw-cards { grid-template-columns: minmax(0, 1fr); }
+  .cw-gpu-head, .cw-gpu { grid-template-columns: minmax(0, 1fr) 64px 84px; gap: 6px; }
+  .cw-qty { grid-template-columns: minmax(0, 1fr) auto; }
+  .cw-qty > label { grid-column: 1 / -1; }
+  .cw-qty-range, .cw-qty-legend, .cw-qty-note { grid-column: 1 / -1; }
+  .cw-pct input { width: 64px; height: 40px; }
+  .cw-alloc-ctl { gap: 8px; }
+
+  /* Новая модель: колонки друг под другом, кнопка запуска прилипает к низу */
+  .nm { height: auto; min-height: 100%; }
+  .nm-run { padding: 10px 12px; }
+  .nm-main { flex: none; flex-direction: column; }
+  .nm-side { display: contents; }
+  .nm-side-head { order: 0; padding: 12px 12px 4px; background: var(--win-body); }
+  .nm-side-scroll { order: 1; overflow: visible; padding: 2px 12px 10px; background: var(--win-body); }
+  .nm-area { order: 2; overflow: visible; padding: 10px; }
+  .nm-side-foot {
+    order: 3; position: sticky; bottom: 0; z-index: 4; padding: 8px 12px 10px; background: var(--win-body);
+    border-top: 1px solid var(--line); box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.12);
+  }
+  .nm-start { height: 44px; }
+  .nm-block { padding: 10px 12px 14px; }
+  .nm-mix-row { grid-template-columns: 96px minmax(0, 1fr) 44px; }
+
+  /* Контракты, Модели, Почта: список, затем карточка на весь экран */
+  .ct { height: auto; min-height: 100%; }
+  .ct-tabs { padding: 0 10px; gap: 14px; }
+  .ct-body { flex: none; flex-direction: column; }
+  .ct-side { flex: none; width: auto; border-right: none; padding: 10px; }
+  .ct-list { flex: none; overflow: visible; }
+  .ct-main { flex: none; overflow: visible; padding: 10px; }
+  .ct:not(.show-detail) .ct-main, .ct:not(.show-detail) .m-back { display: none; }
+  .ct.show-detail .ct-side, .ct.show-detail .ct-steps { display: none; }
+  .ct-steps { padding: 8px 10px; }
+  .ct-head { flex-wrap: wrap; }
+  .ct-cols { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+
+  .mw { flex-direction: column; height: auto; min-height: 100%; }
+  .mw-side { width: auto; flex: none; border-right: none; }
+  .mw-list { flex: none; overflow: visible; }
+  .mw-main { flex: none; overflow: visible; padding: 12px 10px 20px; }
+  .mw:not(.show-detail) .mw-main, .mw:not(.show-detail) .m-back { display: none; }
+  .mw.show-detail .mw-side { display: none; }
+  .mw-tiers { grid-template-columns: minmax(0, 1fr); }
+  .mw-head { flex-wrap: wrap; }
+  .mw-price-input, .mw-edit input { width: 120px; }
+  .mw-edit { align-items: stretch; }
+
+  .mail { flex-direction: column; }
+  .mail-side { width: auto; flex: 1; min-height: 0; border-right: none; }
+  .mail:not(.show-detail) .mail-view, .mail:not(.show-detail) .m-back, .mail:not(.show-detail) .mail-view-empty { display: none; }
+  .mail.show-detail .mail-side { display: none; }
+  .mail-view { padding: 12px 12px 20px; }
+
+  /* Инвесторы: окно прокручивается целиком */
+  .inv { height: auto; min-height: 100%; }
+  .inv-top { padding: 12px; }
+  .inv-top-grid { gap: 8px 20px; }
+  .inv-stat + .inv-stat { padding-left: 0; border-left: none; }
+  .inv .inv-value { font-size: 34px; }
+  .inv-body { flex: none; overflow: visible; padding: 12px; }
+  .inv-bd-row { grid-template-columns: minmax(0, 1fr) auto; padding: 9px 10px; }
+  .inv-bd-row .calc { grid-column: 1 / -1; grid-row: 2; }
+  .inv-rounds { grid-template-columns: minmax(0, 1fr); }
+
+  /* Аналитика */
+  .an-body { padding: 10px; }
+  .stat-strip { flex-wrap: wrap; }
+  .stat { flex: 1 1 50%; padding: 8px 10px; }
+  .stat:nth-child(odd) { border-left: 0; }
+  .stat:nth-child(n + 3) { border-top: 1px solid var(--line-soft); }
+  .pl { flex-direction: column; align-items: stretch; }
+  .pl-legend { max-width: none; min-width: 0; border-left: none; border-top: 1px solid #3a3c42; }
+  .bar-row { grid-template-columns: 96px minmax(0, 1fr) 52px; gap: 8px; }
+  .elo-track { width: 72px; }
+}

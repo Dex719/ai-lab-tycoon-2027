@@ -293,6 +293,8 @@ export default function ResearchWindow({ s, open }: WindowProps) {
   const anchor = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
   const restored = useRef(false);
   const fitOnFirst = useRef(saved === null);
+  const touches = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ d: number; z: number } | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
   const [dragging, setDragging] = useState(false);
@@ -406,12 +408,30 @@ export default function ResearchWindow({ s, open }: WindowProps) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     const el = viewRef.current;
     if (!el) return;
+    // Два пальца: масштаб щипком. Одиночное перетаскивание при этом отменяется.
+    touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touches.current.size === 2) {
+      const [a, b] = [...touches.current.values()];
+      pinch.current = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, z: zoom };
+      drag.current = null;
+      setDragging(false);
+      suppressClick.current = true;
+      return;
+    }
+    if (touches.current.size > 2) return;
     drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop, moved: false };
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     const d = drag.current;
     const el = viewRef.current;
+    if (touches.current.has(e.pointerId)) touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch.current && el && touches.current.size >= 2) {
+      const [a, b] = [...touches.current.values()];
+      const r = el.getBoundingClientRect();
+      zoomTo((pinch.current.z * Math.hypot(a.x - b.x, a.y - b.y)) / pinch.current.d, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
+      return;
+    }
     if (!d || !el || d.id !== e.pointerId) return;
     const dx = e.clientX - d.x;
     const dy = e.clientY - d.y;
@@ -427,6 +447,17 @@ export default function ResearchWindow({ s, open }: WindowProps) {
   };
 
   const endDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
+    touches.current.delete(e.pointerId);
+    if (pinch.current) {
+      if (touches.current.size < 2) {
+        pinch.current = null;
+        window.setTimeout(() => {
+          suppressClick.current = false;
+        }, 0);
+      }
+      drag.current = null;
+      return;
+    }
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
     drag.current = null;

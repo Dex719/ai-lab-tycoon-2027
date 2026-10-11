@@ -8,6 +8,7 @@ import { ChoiceList, replyLine } from '../ChoiceModal';
 import { formatDate, formatDateShort } from '../../sim/time';
 import type { Mail } from '../../sim/types';
 import { fmtNum } from '../format';
+import { IconChevronLeft } from '../icons';
 import { actions, store } from '../store';
 import './MailWindow.css';
 
@@ -46,6 +47,7 @@ function awaitsDecision(m: Mail): boolean {
 export default function MailWindow({ s }: WindowProps) {
   const [filter, setFilter] = useState('all');
   const [picked, setPicked] = useState<string | null>(null);
+  const [detail, setDetail] = useState(false); // телефон: письмо открыто на весь экран
 
   // «Открыть» в уведомлении просит показать конкретное письмо: сбрасываем фильтр и выбираем его.
   const focusId = store.mailFocus;
@@ -56,6 +58,7 @@ export default function MailWindow({ s }: WindowProps) {
     if (!m) return;
     setFilter('all');
     setPicked(m.id);
+    setDetail(true);
     if (!m.read && !awaitsDecision(m)) store.dispatch(actions.markMailRead, m.id);
   }, [focusId, s]);
 
@@ -75,6 +78,7 @@ export default function MailWindow({ s }: WindowProps) {
 
   function pick(m: Mail) {
     setPicked(m.id);
+    setDetail(true);
     if (!m.read) store.dispatch(actions.markMailRead, m.id);
   }
 
@@ -85,7 +89,7 @@ export default function MailWindow({ s }: WindowProps) {
     markable > 0 ? undefined : unread === 0 ? 'Непрочитанных писем нет' : 'Остались только письма, которые ждут решения';
 
   return (
-    <div className="mail">
+    <div className={`mail${detail ? ' show-detail' : ''}`}>
       <aside className="mail-side">
         <div className="mail-head">
           <div className="mail-count">
@@ -135,6 +139,10 @@ export default function MailWindow({ s }: WindowProps) {
         </div>
       </aside>
 
+      <button type="button" className="btn m-back" onClick={() => setDetail(false)}>
+        <IconChevronLeft size={14} />
+        К списку
+      </button>
       {selected ? <MailView key={selected.id} mail={selected} /> : <div className="mail-view-empty">Письмо не выбрано</div>}
     </div>
   );

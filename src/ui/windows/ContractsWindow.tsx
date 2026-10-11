@@ -12,7 +12,7 @@ import type { Contract, GameState, PlayerModel, Tender } from '../../sim/types';
 import { Cards } from '../components/Cards';
 import { Alert, ConfirmDialog, ErrorText, ProgressBar } from '../components/common';
 import { endSentence, fmtH100e, fmtMoney, fmtNum, fmtPct, fmtShare } from '../format';
-import { IconAlert, IconCheck, IconCompute, IconContracts, IconModels } from '../icons';
+import { IconAlert, IconCheck, IconChevronLeft, IconCompute, IconContracts, IconModels } from '../icons';
 import { actions, store } from '../store';
 import './ContractsWindow.css';
 
@@ -679,6 +679,7 @@ export default function ContractsWindow({ s, open }: WindowProps) {
   const [tenderSel, setTenderSel] = useState<string | null>(null);
   const [contractSel, setContractSel] = useState<string | null>(null);
   const [picks, setPicks] = useState<Record<string, string>>({});
+  const [detail, setDetail] = useState(false); // телефон: карточка открыта на весь экран
 
   const released = s.models.filter((m) => m.releasedDay !== null);
   const tenders = s.tenders.filter((t) => filter === 'all' || t.type === filter);
@@ -719,10 +720,13 @@ export default function ContractsWindow({ s, open }: WindowProps) {
   }
 
   return (
-    <div className="ct">
+    <div className={`ct${detail ? ' show-detail' : ''}`}>
       <div className="ct-tabs" role="tablist">
         {tabs.map((t) => (
-          <button key={t.id} role="tab" aria-selected={t.id === view} className={`tab${t.id === view ? ' on' : ''}`} onClick={() => setView(t.id)}>
+          <button key={t.id} role="tab" aria-selected={t.id === view} className={`tab${t.id === view ? ' on' : ''}`} onClick={() => {
+              setView(t.id);
+              setDetail(false);
+            }}>
             {t.label}
           </button>
         ))}
@@ -751,12 +755,22 @@ export default function ContractsWindow({ s, open }: WindowProps) {
 
           <div className="ct-list">
             {showTenders
-              ? tenders.map((t) => <TenderItem key={t.id} t={t} on={tender?.id === t.id} onPick={() => setTenderSel(t.id)} />)
-              : contracts.map((c) => <ContractItem key={c.id} s={s} c={c} on={contract?.id === c.id} onPick={() => setContractSel(c.id)} />)}
+              ? tenders.map((t) => <TenderItem key={t.id} t={t} on={tender?.id === t.id} onPick={() => {
+                  setTenderSel(t.id);
+                  setDetail(true);
+                }} />)
+              : contracts.map((c) => <ContractItem key={c.id} s={s} c={c} on={contract?.id === c.id} onPick={() => {
+                  setContractSel(c.id);
+                  setDetail(true);
+                }} />)}
             {(showTenders ? tenders : contracts).length === 0 && <div className="ct-list-empty">{emptyText}</div>}
           </div>
         </aside>
 
+        <button type="button" className="btn m-back" onClick={() => setDetail(false)}>
+          <IconChevronLeft size={14} />
+          К списку
+        </button>
         <main className="ct-main">{main}</main>
       </div>
     </div>

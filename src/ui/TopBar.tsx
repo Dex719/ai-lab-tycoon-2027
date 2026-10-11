@@ -11,6 +11,7 @@ import { fmtMoney, fmtShare } from './format';
 import { IconAlert, IconArrowUpDown, IconBank, IconCalendar, IconFast, IconFaster, IconPause, IconPlay } from './icons';
 import { EXPENSE_KINDS, EXPENSE_LABELS, fmtRank, INCOME_KINDS, INCOME_LABELS } from './labels';
 import { store, useSpeed } from './store';
+import { isCoarsePointer } from './viewport';
 
 const SPEEDS: { speed: Speed; title: string; Icon: () => ReactElement }[] = [
   { speed: 0, title: 'Пауза (пробел)', Icon: () => <IconPause /> },
@@ -54,9 +55,10 @@ function MoneyPopup({ s }: { s: GameState }) {
   );
 }
 
-export function TopBar({ s }: { s: GameState }) {
+export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; phone: boolean; sheetOpen: boolean; onToggleSheet: () => void }) {
   const speed = useSpeed();
   const [hover, setHover] = useState(false);
+  const [pinned, setPinned] = useState(false); // касание: сводку денег держим открытой до следующего нажатия мимо
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -73,6 +75,15 @@ export function TopBar({ s }: { s: GameState }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  useEffect(() => {
+    if (!pinned) return;
+    const off = (e: PointerEvent) => {
+      if (!(e.target instanceof Element) || !e.target.closest('.tb-money')) setPinned(false);
+    };
+    document.addEventListener('pointerdown', off, true);
+    return () => document.removeEventListener('pointerdown', off, true);
+  }, [pinned]);
 
   const rate = monthlyRate(s);
   let rank: number | null = null;
@@ -96,19 +107,25 @@ export function TopBar({ s }: { s: GameState }) {
         )}
       </div>
       <div className="topbar-center">
-        <div className="tb-item" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} style={{ cursor: 'default' }}>
+        <div
+          className="tb-item tb-money"
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+          onClick={() => isCoarsePointer() && setPinned((v) => !v)}
+          style={{ cursor: 'default' }}
+        >
           <IconBank />
           <span className={s.cash < 0 ? 'tb-bad' : undefined}>{fmtMoney(s.cash)}</span>
-          {hover && <MoneyPopup s={s} />}
+          {(hover || pinned) && <MoneyPopup s={s} />}
         </div>
-        <div className="tb-item" title="Доходы (API, подписки, контракты) минус расходы за прошлый месяц, без вложений инвесторов">
+        <div className="tb-item tb-rate" title="Доходы (API, подписки, контракты) минус расходы за прошлый месяц, без вложений инвесторов">
           <IconArrowUpDown />
           <span className={rate >= 0 ? 'tb-good' : 'tb-bad'}>
             {rate >= 0 ? '' : '−'}
             {fmtMoney(Math.abs(rate))}/мес.
           </span>
         </div>
-        <div className="tb-item">
+        <div className="tb-item tb-date">
           <IconCalendar />
           <span>{formatDateShort(s.day)}</span>
         </div>
@@ -129,6 +146,16 @@ export function TopBar({ s }: { s: GameState }) {
           ))}
         </div>
       </div>
+      {phone && (
+        <button
+          className={`tb-side${sheetOpen ? ' on' : ''}`}
+          onClick={onToggleSheet}
+          aria-expanded={sheetOpen}
+          aria-label={sheetOpen ? 'Скрыть сводку' : 'Показать сводку'}
+        >
+          Сводка
+        </button>
+      )}
       <div className="topbar-right">
         <span>Доля рынка: {fmtShare(s.market.labShares.player ?? 0, 2)}</span>
         <span title="Место лучшей модели по Эло среди моделей, доступных по API. Цель: 1-е место на 31.12.2024">«Арена»: {fmtRank(rank)}</span>

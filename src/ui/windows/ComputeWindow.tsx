@@ -289,6 +289,7 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
           <input
             id="cw-qty-num"
             type="number"
+            inputMode="decimal"
             min={0}
             max={max}
             step={1}
@@ -396,7 +397,7 @@ function PercentInput(props: {
         min={0}
         max={100}
         step={1}
-        inputMode="numeric"
+        inputMode="decimal"
         value={text ?? String(props.value)}
         aria-label={`${props.label}, процент`}
         onChange={(e) => {

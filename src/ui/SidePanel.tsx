@@ -16,6 +16,7 @@ import { ProgressBar } from './components/common';
 import { fmtMoney, fmtNum, fmtPrice, fmtShare } from './format';
 import { IconChevronLeft, IconChevronRight } from './icons';
 import { fmtRank, reviewNote } from './labels';
+import type { Viewport } from './viewport';
 import type { WindowAlias, WindowId } from './windows';
 
 type Tab = 'projects' | 'models';
@@ -216,8 +217,22 @@ function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) =>
   );
 }
 
-export function SidePanel({ s, open, top }: { s: GameState; open: (id: WindowId | WindowAlias) => void; top?: ReactNode }) {
-  const [shownState, setShown] = useState(true);
+export function SidePanel({
+  s,
+  open,
+  top,
+  vp,
+  sheetOpen,
+  onSheetClose,
+}: {
+  s: GameState;
+  open: (id: WindowId | WindowAlias) => void;
+  top?: ReactNode;
+  vp: Viewport;
+  sheetOpen: boolean;
+  onSheetClose: () => void;
+}) {
+  const [shownState, setShown] = useState(vp === 'desktop'); // на планшете панель по умолчанию свёрнута
   const pinned = !!top; // пока идёт обучение, панель закреплена: подсказка помощника должна оставаться на виду
   const shown = shownState || pinned;
   const [tab, setTab] = useState<Tab>('projects');
@@ -225,6 +240,36 @@ export function SidePanel({ s, open, top }: { s: GameState; open: (id: WindowId 
     openChoices(s).filter((m) => m.deferred).length + s.trainings.length + (s.research.current ? 1 : 0) + s.contracts.length;
   const onSale = s.models.filter((m) => m.releasedDay !== null && (m.onApi || m.onSubs)).length;
   const tabLabel = shown ? 'Скрыть панель' : 'Показать панель';
+  const content = (
+    <>
+      {top}
+      <div className="side-head">Сводка</div>
+      <Goal s={s} open={open} />
+      <div className="side-tabs">
+        <button className={tab === 'projects' ? 'on' : undefined} onClick={() => setTab('projects')}>
+          Проекты: {projects}
+        </button>
+        <button className={tab === 'models' ? 'on' : undefined} onClick={() => setTab('models')}>
+          Модели: {onSale}
+        </button>
+      </div>
+      <div className="side-list">{tab === 'projects' ? <Projects s={s} open={open} /> : <Models s={s} open={open} />}</div>
+    </>
+  );
+  if (vp === 'phone') {
+    if (!sheetOpen) return null;
+    return (
+      <>
+        <div className="side-scrim" onPointerDown={onSheetClose} />
+        <aside className="side sheet" aria-label="Сводка">
+          <button className="side-grab" onClick={onSheetClose} aria-label="Скрыть сводку">
+            <span />
+          </button>
+          <div className="side-body">{content}</div>
+        </aside>
+      </>
+    );
+  }
   return (
     <aside className={`side${top ? ' with-top' : ''}`} aria-label="Боковая панель">
       <button
@@ -236,22 +281,7 @@ export function SidePanel({ s, open, top }: { s: GameState; open: (id: WindowId 
       >
         {shown ? <IconChevronRight /> : <IconChevronLeft />}
       </button>
-      {shown && (
-        <div className="side-body">
-          {top}
-          <div className="side-head">Сводка</div>
-          <Goal s={s} open={open} />
-          <div className="side-tabs">
-            <button className={tab === 'projects' ? 'on' : undefined} onClick={() => setTab('projects')}>
-              Проекты: {projects}
-            </button>
-            <button className={tab === 'models' ? 'on' : undefined} onClick={() => setTab('models')}>
-              Модели: {onSale}
-            </button>
-          </div>
-          <div className="side-list">{tab === 'projects' ? <Projects s={s} open={open} /> : <Models s={s} open={open} />}</div>
-        </div>
-      )}
+      {shown && <div className="side-body">{content}</div>}
     </aside>
   );
 }

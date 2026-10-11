@@ -13,6 +13,7 @@ import { store, useSpeed } from './store';
 import { Toasts } from './Toasts';
 import { TopBar } from './TopBar';
 import { TutorialPanel } from './Tutorial';
+import { useViewport } from './viewport';
 import { clampPos, deskAreaOf, Window, type WinGeom } from './Window';
 import { LOCKED, resolveWindow, WINDOWS, type WindowAlias, type WindowId, type WindowProps } from './windows';
 
@@ -78,8 +79,9 @@ function useWindows(deskRef: React.RefObject<HTMLDivElement | null>) {
       if (!cur || (cur.z === top && !cur.min)) return ws;
       return ws.map((w) => (w.id === id ? { ...w, z: top + 1, min: false } : w));
     });
+  const minimizeAll = () => setWins((ws) => ws.map((w) => ({ ...w, min: true })));
   const move = (id: WindowId, g: Partial<WinGeom>) => setWins((ws) => ws.map((w) => (w.id === id ? { ...w, ...g } : w)));
-  return { wins, open, close, minimize, focus, move };
+  return { wins, open, close, minimize, minimizeAll, focus, move };
 }
 
 function useClock(): string {
@@ -107,7 +109,21 @@ type GameDialog = null | 'save' | 'load' | 'settings' | 'quit';
 
 export function Game({ s }: { s: GameState }) {
   const deskRef = useRef<HTMLDivElement>(null);
-  const { wins, open, close, minimize, focus, move } = useWindows(deskRef);
+  const { wins, open: openWin, close, minimize, minimizeAll, focus, move } = useWindows(deskRef);
+  const vp = useViewport();
+  const phone = vp === 'phone';
+  const [sheet, setSheet] = useState(false); // телефон: боковая панель как нижний лист
+  const [tutorOpen, setTutorOpen] = useState(false); // телефон: подсказка обучения развёрнута
+  const open = useCallback(
+    (id: WindowId | WindowAlias) => {
+      setSheet(false);
+      openWin(id);
+    },
+    [openWin],
+  );
+  useEffect(() => {
+    if (!phone) setSheet(false);
+  }, [phone]);
   const speed = useSpeed();
   const clock = useClock();
   const [startOpen, setStartOpen] = useState(false);
@@ -146,11 +162,12 @@ export function Game({ s }: { s: GameState }) {
   return (
     <>
     <div className="game" inert={blocked}>
-      <TopBar s={s} />
+      <TopBar s={s} phone={phone} sheetOpen={sheet} onToggleSheet={() => setSheet((v) => !v)} />
       <div className="desk" ref={deskRef} onPointerDown={() => setStartOpen(false)}>
         <div className="desk-logo">
           <IconLogo size={180} />
         </div>
+        <div className="icons">
         <div className="icon-col left">
           {WINDOWS.filter((d) => d.side === 'left').map((d) => (
             <DeskIcon key={d.id} def={d} count={iconCount(d.id)} selected={openIds.has(d.id)} onOpen={() => open(d.id)} />
@@ -169,6 +186,7 @@ export function Game({ s }: { s: GameState }) {
             <DeskIcon key={d.id} def={d} count={iconCount(d.id)} selected={openIds.has(d.id)} onOpen={() => open(d.id)} />
           ))}
         </div>
+        </div>
         {visible.map((w) => {
           const def = WINDOWS.find((d) => d.id === w.id)!;
           return (
@@ -178,20 +196,33 @@ export function Game({ s }: { s: GameState }) {
               geom={w}
               active={w.z === topZ}
               flush
+              fullscreen={phone}
+              hidden={phone && w.z !== topZ}
               accent={WIN_ACCENT[w.id]}
               onFocus={() => focus(w.id)}
               onClose={() => close(w.id)}
-              onMinimize={() => minimize(w.id)}
+              onMinimize={() => (phone ? minimizeAll() : minimize(w.id))}
               onMove={(g) => move(w.id, g)}
             >
               <WindowBody C={def.Component} s={s} open={open} version={store.version} />
             </Window>
           );
         })}
+        {phone && s.tutorial.active && !s.outcome && (
+          <div className={`tutor-dock${tutorOpen ? ' open' : ''}`}>
+            <TutorialPanel s={s} open={openIds} speed={speed} />
+            <button className="tutor-toggle" onClick={() => setTutorOpen((v) => !v)} aria-expanded={tutorOpen}>
+              {tutorOpen ? 'Свернуть подсказку' : 'Показать подсказку'}
+            </button>
+          </div>
+        )}
         <SidePanel
           s={s}
           open={open}
-          top={s.tutorial.active && !s.outcome ? <TutorialPanel s={s} open={openIds} speed={speed} /> : undefined}
+          vp={vp}
+          sheetOpen={sheet}
+          onSheetClose={() => setSheet(false)}
+          top={!phone && s.tutorial.active && !s.outcome ? <TutorialPanel s={s} open={openIds} speed={speed} /> : undefined}
         />
       </div>
       <footer className="taskbar">
@@ -224,7 +255,7 @@ export function Game({ s }: { s: GameState }) {
               key={w.id}
               className={`task-win${active ? ' active' : ''}${w.min ? ' min' : ''}`}
               title={def.title}
-              onClick={() => (active ? minimize(w.id) : focus(w.id))}
+              onClick={() => (active ? (phone ? minimizeAll() : minimize(w.id)) : focus(w.id))}
             >
               <def.icon size={22} />
               <span>{def.title}</span>
