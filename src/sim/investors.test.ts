@@ -153,7 +153,7 @@ describe('valuation: место на Арене', () => {
       const v = valuation(s);
       expect(v.bestRank).toBe(rank);
       expect(v.rankFactor).toBe(factor);
-      expect(v.techPart).toBeCloseTo(factor * 8e9, 0);
+      expect(v.techPart).toBeCloseTo(factor * 3e9, 0);
     }
   });
 
@@ -176,7 +176,7 @@ describe('valuation: место на Арене', () => {
     }
     expect(valuation(early).techPart).toBeCloseTo(50e6, 0);
     expect(valuation(late).techPart).toBeCloseTo(lerpByDate(MANIA, late.day, true), 0);
-    expect(valuation(late).techPart).toBeGreaterThan(20e9);
+    expect(valuation(late).techPart).toBeGreaterThan(8e9);
   });
 
   it('берётся лучшее место среди моделей на рынке', () => {
@@ -374,13 +374,13 @@ describe('valuation: опорные числа', () => {
       return valuation(s).techPart;
     };
     expect(techAt('2017-01-01')).toBeCloseTo(50e6, 0);
-    expect(techAt('2022-01-01')).toBeCloseTo(1e9, 0);
-    expect(techAt('2023-01-01')).toBeCloseTo(8e9, 0);
-    expect(techAt('2024-01-01')).toBeCloseTo(20e9, 0);
-    // Середина 2022 года: лог-среднее √(1 млрд × 8 млрд) ≈ 2,8 млрд, а линейное было бы 4,5 млрд.
+    expect(techAt('2022-01-01')).toBeCloseTo(0.6e9, 0);
+    expect(techAt('2023-01-01')).toBeCloseTo(3e9, 0);
+    expect(techAt('2024-01-01')).toBeCloseTo(8e9, 0);
+    // Середина 2022 года: лог-среднее √(0,6 млрд × 3 млрд) ≈ 1,34 млрд, а линейное было бы 1,8 млрд.
     const mid = techAt('2022-07-02');
-    expect(mid).toBeGreaterThan(2.5e9);
-    expect(mid).toBeLessThan(3.2e9);
+    expect(mid).toBeGreaterThan(1.2e9);
+    expect(mid).toBeLessThan(1.5e9);
   });
 
   it('нет моделей вообще, 2024 год: технологий нет, оценка — пол', () => {

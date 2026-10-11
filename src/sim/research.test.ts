@@ -3,7 +3,7 @@ import { GPUS } from '../data/gpus';
 import { setAllocation, setRent } from './compute';
 import { ALGO_BASE_COST, ALGO_COST_GROWTH, RP_BASE, RP_K, TECH_COST } from './constants';
 import { addModifier, FOREVER } from './events';
-import { canResearch, progressDay, researchBlockReason, rpPerDay, setResearch, TECHS, techCost } from './research';
+import { canResearch, earlyPenalty, progressDay, researchBlockReason, rpPerDay, setResearch, TECHS, techCost } from './research';
 import { createInitialState } from './state';
 import { dateToDay } from './time';
 import type { GameState, GpuId, TechId } from './types';
@@ -49,9 +49,18 @@ describe('каталог технологий', () => {
   });
 });
 
+// Дата после всех исторических дат (в т.ч. 15-го уровня алгоритмов): штрафа за опережение нет.
+const LATE = dateToDay('2027-06-01');
+
+function lateState(): GameState {
+  const s = createInitialState('Тест', 1);
+  s.day = LATE;
+  return s;
+}
+
 describe('techCost', () => {
   it('базовые цены из констант', () => {
-    const s = createInitialState('Тест', 1);
+    const s = lateState();
     expect(techCost(s, 'attention')).toBe(4000);
     expect(techCost(s, 'scaling')).toBe(15_000);
     expect(techCost(s, 'rlhf')).toBe(30_000);
@@ -59,7 +68,7 @@ describe('techCost', () => {
   });
 
   it('algo: 5000 × 1,6^уровень', () => {
-    const s = createInitialState('Тест', 1);
+    const s = lateState();
     expect(techCost(s, 'algo')).toBe(5000);
     s.research.algoLevel = 1;
     expect(techCost(s, 'algo')).toBeCloseTo(8000, 6);
@@ -70,7 +79,7 @@ describe('techCost', () => {
   });
 
   it('модификатор researchCost с target меняет цену только этой технологии', () => {
-    const s = createInitialState('Тест', 1);
+    const s = lateState();
     addModifier(s, { id: 'paper', kind: 'researchCost', target: 'attention', mult: 0.4, untilDay: FOREVER });
     expect(techCost(s, 'attention')).toBeCloseTo(1600, 9);
     expect(techCost(s, 'scaling')).toBe(15_000);
@@ -78,10 +87,30 @@ describe('techCost', () => {
   });
 
   it('общий модификатор researchCost действует на все технологии', () => {
-    const s = createInitialState('Тест', 1);
+    const s = lateState();
     addModifier(s, { id: 'boom', kind: 'researchCost', mult: 2, untilDay: FOREVER });
     expect(techCost(s, 'scaling')).toBe(30_000);
     expect(techCost(s, 'algo')).toBe(10_000);
+  });
+
+  it('раньше исторической даты дороже: × (1 + 2,5 × лет опережения)', () => {
+    const s = createInitialState('Тест', 1);
+    s.day = dateToDay('2021-01-27'); // RLHF — за год до InstructGTP (27.01.2022)
+    expect(earlyPenalty(s, 'rlhf')).toBeCloseTo(1 + 2.5 * (365 / 365), 6);
+    expect(techCost(s, 'rlhf')).toBeCloseTo(30_000 * 3.5, 6);
+    s.day = dateToDay('2022-01-27');
+    expect(techCost(s, 'rlhf')).toBe(30_000);
+    s.day = dateToDay('2023-01-01');
+    expect(techCost(s, 'rlhf')).toBe(30_000); // позже — без скидки
+  });
+
+  it('алгоритмы: k-й уровень «исторически» через k × 243 дня от 01.01.2017', () => {
+    const s = createInitialState('Тест', 1);
+    s.research.algoLevel = 4;
+    s.day = 4 * 243;
+    expect(earlyPenalty(s, 'algo')).toBe(1);
+    s.day = 4 * 243 - 365;
+    expect(earlyPenalty(s, 'algo')).toBeCloseTo(3.5, 6);
   });
 });
 
@@ -292,7 +321,7 @@ describe('progressDay', () => {
   });
 
   it('скидка на «Механизм внимания» учитывается сразу', () => {
-    const s = createInitialState('Тест', 1);
+    const s = lateState();
     setResearch(s, 'attention');
     s.research.points.attention = 2000;
     progressDay(s);
@@ -372,7 +401,7 @@ describe('progressDay', () => {
 
 describe('алгоритмические улучшения повторяются', () => {
   it('уровень растёт, очки обнуляются, исследование продолжается, цена дорожает', () => {
-    const s = createInitialState('Тест', 1);
+    const s = lateState();
     setResearch(s, 'algo');
 
     const costs: number[] = [];
@@ -459,7 +488,7 @@ describe('опорный сценарий: внимание успеть до 12
     expect(researchMail(s)).toHaveLength(1);
   });
 
-  it('готово ровно через ceil(цена / очки в день) дней и с запасом до статьи Gogle', () => {
+  it('готово до статьи Gogle с запасом больше месяца (цена падает с приближением 12.06.2017)', () => {
     const s = labWithExperiments(ANCHOR_P100);
     setResearch(s, 'attention');
     const rp = rpPerDay(s);
@@ -468,9 +497,10 @@ describe('опорный сценарий: внимание успеть до 12
       researchDay(s);
       days++;
     }
-    expect(days).toBe(Math.ceil(4000 / rp));
-    // Письмо «Вы первые» пойдёт 12.06.2017 (день 162): запас — не меньше двух месяцев.
-    expect(dateToDay('2017-06-12') - days).toBeGreaterThanOrEqual(60);
+    // В первый день цена выше 4000 (опережение почти на полгода), к 12.06.2017 падает до 4000.
+    expect(days).toBeGreaterThan(Math.ceil(4000 / rp));
+    // Письмо «Вы первые» пойдёт 12.06.2017 (день 162): запас — не меньше месяца.
+    expect(dateToDay('2017-06-12') - days).toBeGreaterThanOrEqual(30);
     expect(researchMail(s)[0].day).toBe(days - 1);
   });
 

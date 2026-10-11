@@ -295,14 +295,14 @@ describe('опорные точки: способности и баллы', () =
     }
   });
 
-  it('«как GTP-3»: 175 млрд параметров, 300 млрд токенов → MMLO 40–48 %, HumanEvol < 5 %, Elo 930–1000', () => {
+  it('«как GTP-3»: 175 млрд параметров, 300 млрд токенов → MMLO 40–48 %, HumanEvol < 5 %, Elo 760–840 (как GTP-3 в каталоге)', () => {
     const caps = capsFromPlan(plan({ paramsB: 175, tokensB: 300 }), 0, 'transformer');
     expect(score('mmlu', caps)).toBeGreaterThanOrEqual(40);
     expect(score('mmlu', caps)).toBeLessThanOrEqual(48);
     expect(score('humaneval', caps)).toBeLessThan(5);
     const elo = arenaElo(caps, false, 0);
-    expect(elo).toBeGreaterThanOrEqual(930);
-    expect(elo).toBeLessThanOrEqual(1000);
+    expect(elo).toBeGreaterThanOrEqual(760);
+    expect(elo).toBeLessThanOrEqual(840);
   });
 
   it('«как GTP-3.5»: base ≈ 60, RLHF, algo 2 → Elo 1080–1140', () => {

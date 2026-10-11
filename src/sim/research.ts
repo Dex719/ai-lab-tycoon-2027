@@ -1,8 +1,21 @@
 // Исследования (FR-3).
 
-import { ALGO_BASE_COST, ALGO_COST_GROWTH, ALGO_MULT, RP_BASE, RP_K, TECH_COST, TECH_REQUIRES } from './constants';
+import {
+  ALGO_BASE_COST,
+  ALGO_COST_GROWTH,
+  ALGO_HISTORY_START,
+  ALGO_LEVEL_DAYS,
+  ALGO_MULT,
+  EARLY_PENALTY_PER_YEAR,
+  RP_BASE,
+  RP_K,
+  TECH_COST,
+  TECH_HISTORY_DATE,
+  TECH_REQUIRES,
+} from './constants';
 import { pool } from './compute';
 import { addMail, modValue } from './events';
+import { dateToDay } from './time';
 import type { GameState, Result, TechId } from './types';
 import { TECH_IDS } from './types';
 
@@ -52,10 +65,30 @@ function fmtMult(x: number): string {
   return x.toFixed(2).replace('.', ',');
 }
 
-/** Цена в очках: TECH_COST × модификатор researchCost(target = tech); algo — ALGO_BASE_COST × ALGO_COST_GROWTH^algoLevel. */
+/** День, когда технология (для algo — следующий уровень) появилась в истории. */
+export function techHistoryDay(s: GameState, tech: TechId): number {
+  if (tech === 'algo') return dateToDay(ALGO_HISTORY_START) + s.research.algoLevel * ALGO_LEVEL_DAYS;
+  return dateToDay(TECH_HISTORY_DATE[tech]);
+}
+
+/** Насколько лет игрок опережает историю с этой технологией (0 — не опережает). */
+export function yearsEarly(s: GameState, tech: TechId): number {
+  return Math.max(0, (techHistoryDay(s, tech) - s.day) / 365);
+}
+
+/** Множитель цены за опережение истории: 1 + EARLY_PENALTY_PER_YEAR × лет. */
+export function earlyPenalty(s: GameState, tech: TechId): number {
+  return 1 + EARLY_PENALTY_PER_YEAR * yearsEarly(s, tech);
+}
+
+/**
+ * Цена в очках: TECH_COST × модификатор researchCost(target = tech); algo — ALGO_BASE_COST × ALGO_COST_GROWTH^algoLevel.
+ * Всё × earlyPenalty: раньше исторической даты исследовать дороже. Цена пересчитывается каждый день,
+ * поэтому с приближением исторической даты она падает.
+ */
 export function techCost(s: GameState, tech: TechId): number {
   const base = tech === 'algo' ? ALGO_BASE_COST * ALGO_COST_GROWTH ** s.research.algoLevel : TECH_COST[tech];
-  return base * modValue(s, 'researchCost', tech).mult;
+  return base * modValue(s, 'researchCost', tech).mult * earlyPenalty(s, tech);
 }
 
 /** Почему сейчас нельзя исследовать (null — можно). Текст готов для показа игроку. */
