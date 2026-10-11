@@ -169,6 +169,7 @@ export interface Mail {
   eventId?: string; // для писем с выбором
   choices?: MailChoice[];
   chosen?: number; // индекс сделанного выбора
+  important?: boolean; // важное письмо: интерфейс ставит игру на паузу, когда оно приходит
 }
 
 export type ModifierKind = 'rentPrice' | 'rentCap' | 'demand' | 'researchCost' | 'labBrand';

@@ -10,6 +10,7 @@ export interface NewMail {
   kind: Mail['kind'];
   eventId?: string;
   choices?: MailChoice[];
+  important?: boolean;
 }
 
 export function addMail(s: GameState, m: NewMail): Mail {

@@ -15,6 +15,8 @@ export class GameStore {
   speed: Speed = 0;
   lastSpeed: Exclude<Speed, 0> = 1;
   version = 0;
+  /** Текст ошибки последнего автосохранения (например, переполнено хранилище браузера) или null. */
+  autosaveError: string | null = null;
   private listeners = new Set<Listener>();
   private timer: ReturnType<typeof setInterval> | null = null;
 
@@ -93,7 +95,10 @@ export class GameStore {
     if (!s) return;
     if (s.flags.autosaveDue) {
       s.flags.autosaveDue = false;
-      saveTo(AUTOSAVE_KEY, s);
+      // Законченную игру не сохраняем поверх последнего живого автосохранения.
+      if (!s.outcome) {
+        this.autosaveError = saveTo(AUTOSAVE_KEY, s) ? null : 'Автосохранение не удалось: хранилище браузера недоступно или переполнено. Выгрузите игру в файл.';
+      }
     }
     if (s.outcome) this.setSpeed(0);
     this.bump();
