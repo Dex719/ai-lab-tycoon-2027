@@ -1,7 +1,7 @@
 // Экран партии (как в Processor Tycoon): верхняя панель, рабочий стол с иконками и окнами, боковая панель, панель задач.
 
 import { memo, useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
-import { pendingChoice, unreadCount } from '../sim/events';
+import { openChoices, pendingChoice, unreadCount } from '../sim/events';
 import type { GameState } from '../sim/types';
 import { ChoiceModal } from './ChoiceModal';
 import { EndDialog } from './EndDialog';
@@ -103,7 +103,8 @@ export function Game({ s }: { s: GameState }) {
   const visible = wins.filter((w) => !w.min);
   const topZ = visible.reduce((m, w) => Math.max(m, w.z), 0);
   const openIds = new Set(wins.filter((w) => !w.min).map((w) => w.id));
-  const unread = unreadCount(s);
+  // Отложенные решения прочитаны, но ещё ждут ответа: их тоже считаем на значке «Почты».
+  const unread = unreadCount(s) + openChoices(s).filter((m) => m.read).length;
   const openTenders = s.tenders.filter((t) => !t.application).length;
   const showEnd = !!s.outcome && watched !== s;
   // Пока открыт выбор в письме, итог или диалог, остальной интерфейс закрыт для кликов и клавиатуры.

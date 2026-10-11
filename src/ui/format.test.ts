@@ -13,7 +13,7 @@ describe('fmtMoney', () => {
     expect(norm(fmtMoney(1_234_567))).toBe('$1,2 млн');
     expect(norm(fmtMoney(3_400_000_000))).toBe('$3,4 млрд');
     expect(norm(fmtMoney(-12_000))).toBe('−$12 тыс.');
-    expect(fmtMoney(NaN)).toBe('—');
+    expect(fmtMoney(NaN)).toBe('-');
   });
 
   it('у границы единицы сначала округляем, потом выбираем единицу (не «1 000 тыс.»)', () => {
@@ -82,6 +82,6 @@ describe('fmtMult', () => {
     expect(norm(fmtMult(1.25))).toBe('1,25');
     expect(norm(fmtMult(14.55))).toBe('14,6');
     expect(norm(fmtMult(120.4))).toBe('120');
-    expect(fmtMult(NaN)).toBe('—');
+    expect(fmtMult(NaN)).toBe('-');
   });
 });

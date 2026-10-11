@@ -64,6 +64,9 @@ vi.mock('./events', () => ({
     s.mail.push(mail);
     return mail;
   },
+  // Мок triggerEvent писем не создаёт, поэтому ждать ответа не на что.
+  awaitingEvent: (s: GameState, eventId: string) => s.mail.some((m) => m.eventId === eventId && m.choices && m.chosen === undefined),
+  dropChoices: () => {},
   triggerEvent,
 }));
 
@@ -295,7 +298,7 @@ describe('опорные точки: способности и баллы', () =
     }
   });
 
-  it('«как GTP-3»: 175 млрд параметров, 300 млрд токенов → MMLO 40–48 %, HumanEvol < 5 %, Elo 760–840 (как GTP-3 в каталоге)', () => {
+  it('«как GTP-3»: 175 млрд параметров, 300 млрд токенов → MMLO 40-48 %, HumanEvol < 5 %, Elo 760-840 (как GTP-3 в каталоге)', () => {
     const caps = capsFromPlan(plan({ paramsB: 175, tokensB: 300 }), 0, 'transformer');
     expect(score('mmlu', caps)).toBeGreaterThanOrEqual(40);
     expect(score('mmlu', caps)).toBeLessThanOrEqual(48);
@@ -305,14 +308,14 @@ describe('опорные точки: способности и баллы', () =
     expect(elo).toBeLessThanOrEqual(840);
   });
 
-  it('«как GTP-3.5»: base ≈ 60, RLHF, algo 2 → Elo 1080–1140', () => {
+  it('«как GTP-3.5»: base ≈ 60, RLHF, algo 2 → Elo 1080-1140', () => {
     const caps = capsFromPlan(planForBase(60, 2, { rlhf: true }), 2, 'transformer');
     const elo = arenaElo(caps, true, 2);
     expect(elo).toBeGreaterThanOrEqual(1080);
     expect(elo).toBeLessThanOrEqual(1140);
   });
 
-  it('«как GTP-4»: base ≈ 77, RLHF, algo 4 → MMLO 83–89, HumanEvol 60–72, GSM8C 88–95, Elo 1160–1220', () => {
+  it('«как GTP-4»: base ≈ 77, RLHF, algo 4 → MMLO 83-89, HumanEvol 60-72, GSM8C 88-95, Elo 1160-1220', () => {
     const caps = capsFromPlan(planForBase(77, 4, { rlhf: true }), 4, 'transformer');
     expect(score('mmlu', caps)).toBeGreaterThanOrEqual(83);
     expect(score('mmlu', caps)).toBeLessThanOrEqual(89);
@@ -325,7 +328,7 @@ describe('опорные точки: способности и баллы', () =
     expect(elo).toBeLessThanOrEqual(1220);
   });
 
-  it('фронтир 2024: base ≈ 85, RLHF, algo 8 → MMLO 88–94, GPQE 55–70, SWE-banch 30–55', () => {
+  it('фронтир 2024: base ≈ 85, RLHF, algo 8 → MMLO 88-94, GPQE 55-70, SWE-banch 30-55', () => {
     const caps = capsFromPlan(planForBase(85, 8, { rlhf: true }), 8, 'transformer');
     expect(score('mmlu', caps)).toBeGreaterThanOrEqual(88);
     expect(score('mmlu', caps)).toBeLessThanOrEqual(94);
@@ -445,14 +448,14 @@ describe('validatePlan', () => {
     expect(validatePlan(s, plan({ benchShare: 0.1, benchTargets: ['mmlu', 'gsm8k', 'gpqa', 'swebench'] }))).toMatch(/не больше 3/);
   });
 
-  it('цели — только вышедшие бенчмарки', () => {
+  it('цели - только вышедшие бенчмарки', () => {
     const s = lateState();
     s.benchmarks.gpqa.introduced = false;
     expect(validatePlan(s, plan({ benchShare: 0.1, benchTargets: ['gpqa'] }))).toMatch(/не вышел/);
     expect(validatePlan(s, plan({ benchShare: 0.1, benchTargets: ['mmlu'] }))).toBeNull();
   });
 
-  it('RLHF — только после исследования', () => {
+  it('RLHF - только после исследования', () => {
     const s = lateState();
     expect(validatePlan(s, plan({ rlhf: true }))).toMatch(/RLHF/);
     s.research.done = ['attention', 'rlhf'];
@@ -561,7 +564,7 @@ describe('estimate', () => {
     expect(est.error).toMatch(/разметчик/);
   });
 
-  it('до «Механизма внимания» архитектура — LSTM', () => {
+  it('до «Механизма внимания» архитектура - LSTM', () => {
     const s = lateState();
     s.research.done = [];
     expect(estimate(s, plan()).arch).toBe('lstm');
@@ -579,7 +582,7 @@ describe('estimate', () => {
     const caps = capsFromPlan(p, 0, 'transformer', 0);
     expect(f.caps.language).toBeCloseTo(caps.language, 9);
     expect(Object.keys(f.scores).sort()).toEqual(['glue', 'gsm8k', 'humaneval', 'mmlu', 'squad']);
-    // прогноз — показанные баллы, то есть с подгонкой
+    // прогноз - показанные баллы, то есть с подгонкой
     expect(f.scores.mmlu).toBeCloseTo(benchScore('mmlu', caps.language, OVERFIT_K * 0.2), 9);
     expect(f.scores.glue).toBeCloseTo(benchScore('glue', caps.language), 9);
     expect(f.elo).toBeCloseTo(arenaElo(caps, false, 0), 9);
@@ -680,7 +683,7 @@ describe('startTraining / cancelTraining', () => {
     expect(r.ok).toBe(false);
   });
 
-  it('cancelTraining снимает проект; без проекта — ошибка', () => {
+  it('cancelTraining снимает проект; без проекта - ошибка', () => {
     const s = lateState();
     expect(cancelTraining(s).ok).toBe(false);
     startTraining(s, plan());
@@ -721,7 +724,7 @@ describe('startTraining / cancelTraining', () => {
       expect(failRate((s) => (s.bestFlop = planFlop(p) / 9), p)).toBeLessThan(FAIL_BASE + 0.015);
     });
 
-    it('точка срыва лежит в диапазоне 20–80 %', () => {
+    it('точка срыва лежит в диапазоне 20-80 %', () => {
       let seen = 0;
       for (let seed = 1; seed <= trials; seed++) {
         const s = lateState(seed);
@@ -825,7 +828,7 @@ describe('progressDay', () => {
     expect(s.nextModelNum).toBe(3);
   });
 
-  it('до «Внимания» модель — LSTM и заметно слабее', () => {
+  it('до «Внимания» модель - LSTM и заметно слабее', () => {
     const lstm = lateState();
     lstm.research.done = [];
     lstm.compute.rented.h100 = 1e7;
@@ -1060,7 +1063,7 @@ describe('monthlyExposure', () => {
 // ---------- Дополнительные проверки (ревью TSK-005) ----------
 
 describe('validatePlan: границы и странные значения', () => {
-  it('название ровно в 40 символов проходит, в 41 — нет', () => {
+  it('название ровно в 40 символов проходит, в 41 - нет', () => {
     const s = lateState();
     expect(validatePlan(s, plan({ name: 'а'.repeat(40) }))).toBeNull();
     expect(validatePlan(s, plan({ name: 'а'.repeat(41) }))).toMatch(/40/);
@@ -1154,7 +1157,7 @@ describe('estimate: крайние случаи', () => {
 });
 
 describe('startTraining: расход случайных чисел', () => {
-  it('без срыва тратит одно число, со срывом — два; точка срыва берётся из второго', () => {
+  it('без срыва тратит одно число, со срывом - два; точка срыва берётся из второго', () => {
     let calm = 0;
     let broken = 0;
     for (let seed = 1; seed <= 2000 && (calm < 5 || broken < 5); seed++) {
@@ -1176,7 +1179,7 @@ describe('startTraining: расход случайных чисел', () => {
     expect(broken).toBeGreaterThanOrEqual(5);
   });
 
-  it('порог скачка: при росте меньше 10× шанс обычный, больше — повышенный', () => {
+  it('порог скачка: при росте меньше 10× шанс обычный, больше - повышенный', () => {
     // Берём зерно, у которого первое случайное число между 4 % и 12 %: срыв только при скачке.
     let seed = 1;
     for (; seed < 5000; seed++) {
@@ -1288,6 +1291,18 @@ describe('срыв: полный цикл', () => {
     expect(s.training).toBeNull();
   });
 
+  it('пока на письмо о срыве нет ответа (даже отложенное), проект стоит', () => {
+    const s = runningWithFail(0.3);
+    progressDay(s);
+    const stuck = s.training!.flopDone;
+    s.mail.push({ id: 'mf', day: s.day, title: 'Срыв', body: '', kind: 'training', read: true, eventId: 'training-fail', choices: [{ label: 'a', hint: 'b' }], deferred: true });
+    progressDay(s);
+    expect(s.training!.flopDone).toBe(stuck);
+    s.mail[s.mail.length - 1].chosen = 0;
+    progressDay(s);
+    expect(s.training === null || s.training.flopDone > stuck).toBe(true);
+  });
+
   it('проект без срыва может закончиться за один день при огромной мощности', () => {
     const s = lateState();
     startTraining(s, plan());
@@ -1315,7 +1330,7 @@ describe('письмо о готовой модели', () => {
     return { s, body: mail.body, title: mail.title };
   }
 
-  it('без подгонки и срыва — только баллы, Эло и подсказка выпустить', () => {
+  it('без подгонки и срыва - только баллы, Эло и подсказка выпустить', () => {
     const { s, body, title } = finished();
     expect(title).toBe('Модель «Альфа» готова');
     expect(body).not.toContain('подгонк');
@@ -1332,7 +1347,7 @@ describe('письмо о готовой модели', () => {
     expect(body).toContain('завышены подгонкой');
   });
 
-  it('насыщенные бенчмарки в письме пропускаются, а если насыщены все — показываются все', () => {
+  it('насыщенные бенчмарки в письме пропускаются, а если насыщены все - показываются все', () => {
     const some = finished({}, (s) => {
       s.benchmarks.squad.saturated = true;
     });
@@ -1418,7 +1433,7 @@ describe('monthlyExposure: письмо и пределы', () => {
     expect(s.reputation).toBe(0);
     const body = s.mail[s.mail.length - 1].body;
     expect(body).toContain('Репутация лаборатории упала на 5');
-    expect(body).toContain('шумиха — на 50 %');
+    expect(body).toContain('шумиха - на 50 %');
   });
 
   it('модели без подгонки в этот же месяц не страдают', () => {

@@ -8,8 +8,9 @@ import { GPUS } from '../../data/gpus';
 import { availableGpus, isGpuAvailable, pool, rentCapFor, rentPerDay, rentPerGpuDay, totalH100e } from '../../sim/compute';
 import { inferenceNeed, marketSnapshot } from '../../sim/market';
 import { dateToDay, formatDateShort } from '../../sim/time';
-import type { Allocation, GameState, GpuDef, GpuId } from '../../sim/types';
-import { Dialog, ErrorText, ProgressBar } from '../components/common';
+import type { GameState, GpuDef, GpuId } from '../../sim/types';
+import { ALLOC_ROWS, percentsOf, samePercents, toAllocation, withPercent, type Percents } from '../alloc';
+import { Dialog, ErrorText, Range } from '../components/common';
 import { fmtMoney, fmtNum, fmtPct } from '../format';
 import { actions, store } from '../store';
 import './ComputeWindow.css';
@@ -17,12 +18,12 @@ import './ComputeWindow.css';
 /** Аренда списывается каждый день; в интерфейсе стоимость показана за 30 дней. */
 const DAYS_IN_MONTH = 30;
 
-// Мощность одной карты — доли H100e (0,021), у всей аренды — десятки и тысячи: знаков нужно по-разному.
+// Мощность одной карты - доли H100e (0,021), у всей аренды - десятки и тысячи: знаков нужно по-разному.
 const H_FORMATS = [0, 1, 2, 3].map((d) => new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: d }));
 
 /** H100e: «0,021», «2,03», «45,6», «1 234», «12 тыс.» */
 function fmtH(n: number): string {
-  if (!Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return '-';
   if (n >= 1e4) return fmtNum(n);
   const digits = n < 1 ? 3 : n < 10 ? 2 : n < 1000 ? 1 : 0;
   return H_FORMATS[digits].format(n);
@@ -50,7 +51,7 @@ function Summary({ s, onRent }: { s: GameState; onRent: () => void }) {
   const caps = availableGpus(s).map((g) => rentCapFor(s, g.id));
   const capMin = caps.length ? Math.min(...caps) : 0;
   const capMax = caps.length ? Math.max(...caps) : 0;
-  const capText = capMin === capMax ? fmtNum(capMin) : `${fmtNum(capMin)}–${fmtNum(capMax)}`;
+  const capText = capMin === capMax ? fmtNum(capMin) : `${fmtNum(capMin)}-${fmtNum(capMax)}`;
 
   return (
     <header className="cw-info">
@@ -71,7 +72,7 @@ function Summary({ s, onRent }: { s: GameState; onRent: () => void }) {
           <dd>{fmtH(pool(s, 'training'))} H100e</dd>
           <dt>Контракты</dt>
           <dd>{fmtH(pool(s, 'contracts'))} H100e</dd>
-          <dt>Эксперименты</dt>
+          <dt>Исследования</dt>
           <dd>{fmtH(pool(s, 'experiments'))} H100e</dd>
           <dt>Клиенты</dt>
           <dd>{fmtH(pool(s, 'inference'))} H100e</dd>
@@ -112,10 +113,9 @@ function RentedCard({ s, g, onEdit }: { s: GameState; g: GpuDef; onEdit: () => v
         <dd>{fmtH(count * g.h100e)} H100e</dd>
         <dt>В месяц</dt>
         <dd>{fmtMoney(monthlyCost(s, g.id, count))}</dd>
-        <dt>Лимит</dt>
+        <dt title="Больше карт этого типа в этом году арендовать нельзя">Лимит в этом году</dt>
         <dd className={count >= cap ? 'warn' : undefined}>{fmtNum(cap)}</dd>
       </dl>
-      <ProgressBar value={cap > 0 ? count / cap : 0} title={`${fmtNum(count)} из ${fmtNum(cap)}`} />
       <div className="cw-card-actions">
         <button className="btn small" onClick={onEdit}>
           Изменить
@@ -213,7 +213,7 @@ function RentDialog({ s, initialId, onClose }: { s: GameState; initialId: GpuId;
                   {avail && x.id === cheapest && <span className="cw-gpu-tag">Выгоднее всего</span>}
                 </span>
                 <span className="n">{fmtH(x.h100e)}</span>
-                <span className="n">{avail ? fmtMoney(rentPerGpuDay(s, x.id) / x.h100e) : '—'}</span>
+                <span className="n">{avail ? fmtMoney(rentPerGpuDay(s, x.id) / x.h100e) : '-'}</span>
               </button>
             );
           })}
@@ -221,15 +221,7 @@ function RentDialog({ s, initialId, onClose }: { s: GameState; initialId: GpuId;
 
         <div className="cw-qty">
           <label htmlFor="cw-qty-num">Количество</label>
-          <input
-            type="range"
-            min={0}
-            max={max}
-            step={1}
-            value={count ?? 0}
-            onChange={(e) => setCount(e.target.value)}
-            aria-label="Количество карт"
-          />
+          <Range value={count ?? 0} min={0} max={max} label="Количество карт" onChange={(v) => setCount(String(v))} />
           <input
             id="cw-qty-num"
             type="number"
@@ -249,9 +241,9 @@ function RentDialog({ s, initialId, onClose }: { s: GameState; initialId: GpuId;
         <div className="card cw-sum">
           <dl className="cw-kv">
             <dt>Мощность</dt>
-            <dd>{count === null ? '—' : `${fmtH(count * g.h100e)} H100e`}</dd>
+            <dd>{count === null ? '-' : `${fmtH(count * g.h100e)} H100e`}</dd>
             <dt>Стоимость</dt>
-            <dd>{count === null ? '—' : `${fmtMoney(monthlyCost(s, g.id, count))} в месяц`}</dd>
+            <dd>{count === null ? '-' : `${fmtMoney(monthlyCost(s, g.id, count))} в месяц`}</dd>
             <dt>Сейчас в аренде</dt>
             <dd>{fmtNum(rented)} шт.</dd>
           </dl>
@@ -264,51 +256,6 @@ function RentDialog({ s, initialId, onClose }: { s: GameState; initialId: GpuId;
 
 // ---------- Распределение мощности ----------
 
-type AllocKey = keyof Allocation;
-
-const ALLOC_ROWS: { key: AllocKey; label: string; hint: string }[] = [
-  { key: 'training', label: 'Обучение', hint: 'Скорость обучения модели.' },
-  { key: 'contracts', label: 'Контракты', hint: 'Работа по выигранным контрактам.' },
-  { key: 'experiments', label: 'Эксперименты', hint: 'Очки исследований.' },
-  { key: 'inference', label: 'Клиенты', hint: 'Обслуживание запросов к моделям на API. При нехватке мощности часть спроса теряется.' },
-];
-
-/** Разложить total на целые части пропорционально весам (метод наибольших остатков); все веса нулевые — поровну. */
-function distribute(weights: number[], total: number): number[] {
-  const sum = weights.reduce((a, b) => a + b, 0);
-  const w = sum > 0 ? weights : weights.map(() => 1);
-  const wsum = sum > 0 ? sum : weights.length;
-  const exact = w.map((x) => (x / wsum) * total);
-  const out = exact.map(Math.floor);
-  let rest = total - out.reduce((a, b) => a + b, 0);
-  const order = exact.map((e, i) => ({ i, frac: e - Math.floor(e) })).sort((a, b) => b.frac - a.frac);
-  for (let k = 0; rest > 0 && k < order.length; k++, rest--) out[order[k].i]++;
-  return out;
-}
-
-/** Текущие доли в целых процентах, сумма ровно 100. */
-function percentsOf(alloc: Allocation): Record<AllocKey, number> {
-  const p = distribute(ALLOC_ROWS.map((r) => alloc[r.key]), 100);
-  const out = {} as Record<AllocKey, number>;
-  ALLOC_ROWS.forEach((r, i) => (out[r.key] = p[i]));
-  return out;
-}
-
-/** Поставить долю key в value % и пропорционально пересчитать остальные три. */
-function withShare(alloc: Allocation, key: AllocKey, value: number): Allocation {
-  const cur = percentsOf(alloc);
-  const others = ALLOC_ROWS.map((r) => r.key).filter((k) => k !== key);
-  const next = distribute(others.map((k) => cur[k]), 100 - value);
-  const out = { ...cur, [key]: value } as Record<AllocKey, number>;
-  others.forEach((k, i) => (out[k] = next[i]));
-  return {
-    training: out.training / 100,
-    contracts: out.contracts / 100,
-    experiments: out.experiments / 100,
-    inference: out.inference / 100,
-  };
-}
-
 /** Мощность, которая нужна клиентам; если расчёт рынка недоступен, null. */
 function safeInferenceNeed(s: GameState): number | null {
   try {
@@ -319,53 +266,77 @@ function safeInferenceNeed(s: GameState): number | null {
   }
 }
 
-function ClientNeed({ s }: { s: GameState }) {
+function ClientNeed({ s, have }: { s: GameState; have: number }) {
   const need = safeInferenceNeed(s);
-  if (need === null) return null;
-  const have = pool(s, 'inference');
-  const short = need > 0 && need > have * (1 + 1e-9) + 1e-9;
+  if (need === null || need <= 0) return null;
+  const short = need > have * (1 + 1e-9) + 1e-9;
   return (
-    <div className="cw-need">
-      <span className={short ? 'bad' : 'muted'}>Нужно клиентам: {fmtH(need)} H100e</span>
-      {need > 0 && (short ? <span className="bad">Не хватает {fmtH(need - have)} H100e</span> : <span className="good">Хватает</span>)}
+    <div className={`cw-need${short ? ' bad' : ''}`}>
+      Нужно клиентам: {fmtH(need)} H100e{short ? `, не хватает ${fmtH(need - have)}` : ''}
     </div>
   );
 }
 
 function AllocPanel({ s }: { s: GameState }) {
+  const [draft, setDraft] = useState<Percents | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const percents = percentsOf(s.compute.alloc);
+  const current = percentsOf(s.compute.alloc);
+  const shown = draft ?? current;
+  const changed = draft !== null && !samePercents(draft, current);
+  const total = totalH100e(s);
 
-  const change = (key: AllocKey, value: number) => {
-    const r = store.dispatch(actions.setAllocation, withShare(s.compute.alloc, key, value));
+  const apply = () => {
+    if (!draft) return;
+    const r = store.dispatch(actions.setAllocation, toAllocation(draft));
     setError(r.ok ? null : r.error);
+    if (r.ok) setDraft(null);
   };
 
   return (
     <section className="cw-panel" data-tutorial="alloc">
       <h2 className="cw-h">Распределение мощности</h2>
-      {totalH100e(s) <= 0 && <p className="cw-panel-note">Мощность появится после аренды карт.</p>}
+      <div className="cw-allocbar" aria-hidden="true">
+        {ALLOC_ROWS.map((r) => (
+          <div key={r.key} style={{ width: `${shown[r.key]}%`, background: r.color }} />
+        ))}
+      </div>
+      {total <= 0 && <p className="cw-panel-note">Мощность появится после аренды карт.</p>}
       {ALLOC_ROWS.map((r) => (
         <div key={r.key} className="cw-alloc-row" title={r.hint}>
           <div className="cw-alloc-top">
+            <span className="cw-dot" style={{ background: r.color }} />
             <span className="cw-alloc-name">{r.label}</span>
-            <span className="cw-alloc-pct">{fmtPct(percents[r.key], 0)}</span>
-            <span className="cw-alloc-val">{fmtH(pool(s, r.key))} H100e</span>
+            <span className="cw-alloc-val">{fmtH((total * shown[r.key]) / 100)} H100e</span>
+            <span className={`cw-alloc-pct${draft && shown[r.key] !== current[r.key] ? ' changed' : ''}`}>{fmtPct(shown[r.key], 0)}</span>
           </div>
-          <input
-            type="range"
+          <Range
+            value={shown[r.key]}
             min={0}
             max={100}
-            step={1}
-            value={percents[r.key]}
-            onChange={(e) => change(r.key, Number(e.target.value))}
-            aria-label={r.label}
-            aria-valuetext={fmtPct(percents[r.key], 0)}
+            color={r.color}
+            label={r.label}
+            valueText={fmtPct(shown[r.key], 0)}
+            onChange={(v) => {
+              setError(null);
+              setDraft(withPercent(shown, r.key, v));
+            }}
           />
-          {r.key === 'inference' && <ClientNeed s={s} />}
+          {r.key === 'inference' && <ClientNeed s={s} have={(total * shown.inference) / 100} />}
         </div>
       ))}
       <ErrorText error={error} />
+      <div className="cw-alloc-foot">
+        {changed ? (
+          <button className="btn" onClick={() => setDraft(null)}>
+            Сбросить
+          </button>
+        ) : (
+          <span className="cw-alloc-hint">Двигайте ползунки</span>
+        )}
+        <button className="btn primary" disabled={!changed} onClick={apply}>
+          Распределить
+        </button>
+      </div>
     </section>
   );
 }

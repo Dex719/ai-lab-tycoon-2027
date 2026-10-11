@@ -35,7 +35,7 @@ function playWithAutosave(seed: number): { s: GameState; lastAuto: string | null
 }
 
 describe('автосохранение (flags.autosaveDue)', () => {
-  it('просится в начале каждого месяца, а в обычный день — нет', () => {
+  it('просится в начале каждого месяца, а в обычный день - нет', () => {
     const s = newGame('Тест', 1);
     s.day = D('2017-01-30');
     advanceDay(s);
@@ -76,7 +76,7 @@ describe('автосохранение (flags.autosaveDue)', () => {
     expect(s.flags.autosaveDue).toBeFalsy();
   });
 
-  it('за всю партию: последнее автосохранение — живая игра на 1 декабря 2024, а не конец', () => {
+  it('за всю партию: последнее автосохранение - живая игра на 1 декабря 2024, а не конец', () => {
     const { s, lastAuto, autosaves } = playWithAutosave(1);
     expect(s.outcome === 'victory' || s.outcome === 'finished').toBe(true);
     expect(autosaves).toBeGreaterThan(90); // по одному на месяц с февраля 2017 по декабрь 2024

@@ -1,5 +1,5 @@
-// Все числа баланса среза. Формулы — в design.md, раздел «Формулы и баланс».
-// Точки кривых: [дата 'YYYY-MM-DD', значение]; между точками — lerpByDate (линейно или в логарифме).
+// Все числа баланса среза. Формулы - в design.md, раздел «Формулы и баланс».
+// Точки кривых: [дата 'YYYY-MM-DD', значение]; между точками - lerpByDate (линейно или в логарифме).
 
 import type { Allocation, DomainId, HypeOwner, TechId } from './types';
 
@@ -41,7 +41,7 @@ export const TECH_HISTORY_DATE: Record<Exclude<TechId, 'algo'>, string> = {
   rlhf: '2022-01-27',
 };
 export const ALGO_HISTORY_START = '2017-01-01'; // уровень k «исторически» достигается через k × ALGO_LEVEL_DAYS дней
-export const ALGO_LEVEL_DAYS = 243; // ≈ 1,5 уровня в год: 12-й уровень — к концу 2024 года
+export const ALGO_LEVEL_DAYS = 243; // ≈ 1,5 уровня в год: 12-й уровень - к концу 2024 года
 export const EARLY_PENALTY_PER_YEAR = 2.5;
 
 // Обучение
@@ -64,11 +64,15 @@ export const FAIL_JUMP_RATIO = 10;
 export const FAIL_CONTINUE_PENALTY = 3;
 export const FAIL_ROLLBACK = 0.25;
 
+// Письма с выбором: сколько дней можно отложить ответ, потом выбирается вариант по умолчанию
+export const CHOICE_DAYS = 30;
+export const FAIL_CHOICE_DAYS = 14; // срыв обучения: проект стоит, пока нет ответа
+
 // Арена
-export const ELO_BASE = 553; // базовые модели без RLHF — плохие собеседники: «как GTP-3» ≈ 800, как в каталоге
+export const ELO_BASE = 553; // базовые модели без RLHF - плохие собеседники: «как GTP-3» ≈ 800, как в каталоге
 export const ELO_PER_CAP = 5;
-export const ELO_RLHF_BASE = 210; // RLHF — главный скачок качества на Арене (у моделей с RLHF Эло прежнее: 553 + 210 = 693 + 70)
-export const ELO_RLHF_PER_ALGO = 13; // было 12: «разумный» бот — около 3-го места, №1 — для сильной игры
+export const ELO_RLHF_BASE = 210; // RLHF - главный скачок качества на Арене (у моделей с RLHF Эло прежнее: 553 + 210 = 693 + 70)
+export const ELO_RLHF_PER_ALGO = 13; // было 12: «разумный» бот - около 3-го места, №1 - для сильной игры
 export const ARENA_WEIGHTS: Record<DomainId, number> = { language: 0.5, code: 0.25, reasoning: 0.25 };
 export const ARENA_OPEN_DATE = '2023-05-03';
 

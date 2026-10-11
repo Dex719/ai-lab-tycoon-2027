@@ -26,7 +26,7 @@ import TrainingWindow from './TrainingWindow';
 
 export type WindowId = 'research' | 'compute' | 'newModel' | 'contracts' | 'investors' | 'models' | 'mail' | 'analytics';
 
-/** Старые имена окон (до редизайна) — чтобы ссылки open('training') и т. п. продолжали работать. */
+/** Старые имена окон (до редизайна) - чтобы ссылки open('training') и т. п. продолжали работать. */
 export type WindowAlias = 'training' | 'market' | 'finance' | 'ratings';
 const ALIASES: Record<WindowAlias, WindowId> = { training: 'newModel', market: 'analytics', finance: 'analytics', ratings: 'analytics' };
 

@@ -241,7 +241,7 @@ export function IconSafety({ size, disabled, className }: IconProps) {
 
 /**
  * Логотип игры: нейросеть в кольце. Цвет берётся из currentColor:
- * на рабочем столе — бледно-серый, на панели задач — белый.
+ * на рабочем столе - бледно-серый, на панели задач - белый.
  */
 export function IconLogo({ size, disabled, className }: IconProps) {
   const input = [25, 39];

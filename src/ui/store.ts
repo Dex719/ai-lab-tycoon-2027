@@ -84,7 +84,7 @@ export class GameStore {
     this.speed = speed;
     if (speed !== 0) {
       this.lastSpeed = speed;
-      this.pauseReason = null; // игрок продолжил игру — причина паузы больше не нужна
+      this.pauseReason = null; // игрок продолжил игру - причина паузы больше не нужна
     }
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
@@ -135,7 +135,7 @@ export class GameStore {
 
   /** Причина, по которой после шага надо поставить паузу, или null. */
   private alertReason(s: GameState, mark: AdvanceMark): string | null {
-    // Письма лежат по порядку номеров: новые — в хвосте списка.
+    // Письма лежат по порядку номеров: новые - в хвосте списка.
     const fresh: string[] = [];
     for (let i = s.mail.length - 1; i >= 0; i--) {
       const m = s.mail[i];

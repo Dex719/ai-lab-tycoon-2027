@@ -1,4 +1,4 @@
-// Игровое время: день — целое число дней от 01.01.2017 (день 0), календарь UTC.
+// Игровое время: день - целое число дней от 01.01.2017 (день 0), календарь UTC.
 
 import { END_DATE, START_DATE } from './constants';
 
@@ -52,13 +52,13 @@ export function formatDateShort(day: number): string {
 export const START_DAY = dateToDay(START_DATE);
 export const END_DAY = dateToDay(END_DATE);
 
-// Дни точек кривой разбираются один раз на массив (кривые — константы, вызываются много раз за тик).
+// Дни точек кривой разбираются один раз на массив (кривые - константы, вызываются много раз за тик).
 const curveDays = new WeakMap<object, number[]>();
 
 /**
- * Значение кривой на дату. points — [['YYYY-MM-DD', value], ...] по возрастанию дат.
- * log = true — интерполяция в логарифме (для величин, растущих на порядки).
- * До первой точки — первое значение, после последней — последнее.
+ * Значение кривой на дату. points - [['YYYY-MM-DD', value], ...] по возрастанию дат.
+ * log = true - интерполяция в логарифме (для величин, растущих на порядки).
+ * До первой точки - первое значение, после последней - последнее.
  */
 export function lerpByDate(points: readonly (readonly [string, number])[], day: number, log = false): number {
   if (points.length === 0) return 0;
@@ -79,7 +79,7 @@ export function lerpByDate(points: readonly (readonly [string, number])[], day: 
   return a + (b - a) * t;
 }
 
-/** Значение по году из таблицы {год: значение}; годы вне таблицы — ближайший край. */
+/** Значение по году из таблицы {год: значение}; годы вне таблицы - ближайший край. */
 export function byYear(table: Record<number, number>, year: number): number {
   const years = Object.keys(table).map(Number).sort((a, b) => a - b);
   if (year <= years[0]) return table[years[0]];

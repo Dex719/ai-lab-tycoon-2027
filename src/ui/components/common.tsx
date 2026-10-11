@@ -1,6 +1,6 @@
 // Общие мелкие компоненты для окон.
 
-import { useCallback, useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 
 export function Tabs<T extends string>(props: { tabs: { id: T; label: ReactNode }[]; value: T; onChange: (id: T) => void }) {
   return (
@@ -14,7 +14,7 @@ export function Tabs<T extends string>(props: { tabs: { id: T; label: ReactNode 
   );
 }
 
-/** Полоса прогресса; value — 0..1. */
+/** Полоса прогресса; value - 0..1. */
 export function ProgressBar({ value, title }: { value: number; title?: string }) {
   const pct = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0)) * 100;
   return (
@@ -24,7 +24,40 @@ export function ProgressBar({ value, title }: { value: number; title?: string })
   );
 }
 
-/** Пара «подпись — значение» в карточке. */
+/** Ползунок в общем стиле игры: заполненная часть дорожки окрашена цветом color. */
+export function Range(props: {
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onChange: (v: number) => void;
+  label: string;
+  valueText?: string;
+  color?: string;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const { value, min, max } = props;
+  const p = max > min ? ((Math.min(max, Math.max(min, value)) - min) / (max - min)) * 100 : 0;
+  const style = { '--p': `${p}%`, ...(props.color ? { '--c': props.color } : {}) } as CSSProperties;
+  return (
+    <input
+      type="range"
+      className={`range${props.className ? ` ${props.className}` : ''}`}
+      style={style}
+      min={min}
+      max={max}
+      step={props.step ?? 1}
+      value={value}
+      disabled={props.disabled}
+      aria-label={props.label}
+      aria-valuetext={props.valueText}
+      onChange={(e) => props.onChange(Number(e.target.value))}
+    />
+  );
+}
+
+/** Пара «подпись - значение» в карточке. */
 export function Stat({ label, value, hint }: { label: ReactNode; value: ReactNode; hint?: ReactNode }) {
   return (
     <div className="card" style={{ minWidth: 120 }}>
@@ -50,7 +83,7 @@ const FOCUSABLE = 'button:not(:disabled), input:not(:disabled), select:not(:disa
 
 /**
  * Фокус для модального окна. Фокус уходит на само окно (а не на кнопку: случайный Enter не должен
- * выбирать вариант), Tab и Shift+Tab ходят по кнопкам внутри окна по кругу. resetKey — когда он
+ * выбирать вариант), Tab и Shift+Tab ходят по кнопкам внутри окна по кругу. resetKey - когда он
  * меняется (пришло другое письмо), фокус возвращается на окно.
  */
 export function useModalFocus<T extends HTMLElement>(resetKey?: string) {

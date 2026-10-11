@@ -19,7 +19,7 @@ export const RIVAL_CAP_ELO_ZERO = 374;
 export const RIVAL_CAP_ELO_PER_POINT = 11.7;
 const LAB_NAME = new Map<LabId, string>(LABS.map((l) => [l.id, l.name]));
 
-// День выхода по дате: строки дат повторяются, а разбор даты — не бесплатный.
+// День выхода по дате: строки дат повторяются, а разбор даты - не бесплатный.
 const DAY_BY_DATE = new Map<string, number>();
 
 /** Модель каталога или undefined (в сохранении мог остаться id, которого уже нет в каталоге). */
@@ -73,8 +73,8 @@ function computeCaps(def: RivalModelDef): Record<DomainId, number> {
 }
 
 /**
- * Способности по доменам: среднее capFromScore по реальным баллам домена; домен без баллов — среднее
- * остальных доменов; модель без баллов — (arenaElo − 374) / 11,7 во всех доменах. Кешируется по id.
+ * Способности по доменам: среднее capFromScore по реальным баллам домена; домен без баллов - среднее
+ * остальных доменов; модель без баллов - (arenaElo − 374) / 11,7 во всех доменах. Кешируется по id.
  */
 export function rivalCaps(def: RivalModelDef): Record<DomainId, number> {
   const hit = capsCache.get(def.id);
@@ -91,7 +91,7 @@ export function rivalScore(def: RivalModelDef, bid: BenchmarkId): { value: numbe
   return { value: benchScore(bid, rivalCaps(def)[benchDef(bid).domain]), estimated: true };
 }
 
-/** Смешанная цена (3·in + out)/4; если в каталоге пусто — defaultPricePer1M лаборатории на год дня day. */
+/** Смешанная цена (3·in + out)/4; если в каталоге пусто - defaultPricePer1M лаборатории на год дня day. */
 export function rivalPrice(def: RivalModelDef, day: number): number {
   const { priceIn, priceOut } = def;
   if (priceIn !== null && priceOut !== null) return (3 * priceIn + priceOut) / 4;
@@ -144,10 +144,10 @@ function releaseBody(s: GameState, def: RivalModelDef): string {
   specs.push(...headlineScores(s, def));
   if (specs.length > 0) sentences.push(`${specs.join(', ')}.`);
 
-  sentences.push(`Эло на «Арене» — ${def.arenaEstimated ? '≈' : ''}${Math.round(def.arenaElo)}.`);
+  sentences.push(`Эло на «Арене» - ${def.arenaEstimated ? '≈' : ''}${Math.round(def.arenaElo)}.`);
 
   const access: string[] = [];
-  if (def.api) access.push(`цена API — ${fmtPrice(rivalPrice(def, s.day))} за 1М токенов`);
+  if (def.api) access.push(`цена API - ${fmtPrice(rivalPrice(def, s.day))} за 1М токенов`);
   if (def.openWeights) access.push('веса открыты');
   if (access.length > 0) {
     const text = access.join(', ');
@@ -157,9 +157,9 @@ function releaseBody(s: GameState, def: RivalModelDef): string {
 }
 
 /**
- * Ежедневно: модели каталога с датой ≤ сегодня, которых нет в s.rivalsReleased, — выпустить:
+ * Ежедневно: модели каталога с датой ≤ сегодня, которых нет в s.rivalsReleased, - выпустить:
  * добавить id, прибавить шумиху лаборатории (leaderboard.releaseHypeBonus), письмо kind 'rival'
- * с названием, лабораторией и 1–2 главными баллами по вышедшим бенчмаркам.
+ * с названием, лабораторией и 1-2 главными баллами по вышедшим бенчмаркам.
  * Модели, вышедшие до старта игры (день < 0), появляются молча: без письма и шумихи.
  */
 export function releaseDue(s: GameState): void {
@@ -184,8 +184,8 @@ export function releaseDue(s: GameState): void {
 
 /**
  * Модели соперников на рынке: выпущены, (api || openWeights), не старше MARKET_MAX_AGE_DAYS,
- * по MARKET_MODELS_PER_LAB новейших на лабораторию (при равной дате — с большим Эло).
- * Порядок: по лабораториям, внутри — от новых к старым.
+ * по MARKET_MODELS_PER_LAB новейших на лабораторию (при равной дате - с большим Эло).
+ * Порядок: по лабораториям, внутри - от новых к старым.
  */
 export function marketRivals(s: GameState): RivalModelDef[] {
   const perLab = new Map<LabId, RivalModelDef[]>();

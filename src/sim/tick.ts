@@ -1,9 +1,9 @@
-// Один игровой день (порядок — design.md, «Порядок тика»).
+// Один игровой день (порядок - design.md, «Порядок тика»).
 
 import { HYPE_MONTHLY_DECAY, HYPE_OWNERS } from './constants';
 import { generateMonthly, progressDay as contractsDay } from './contracts';
 import { introduceDue } from './benchmarks';
-import { fireDue, pendingChoice, pruneModifiers } from './events';
+import { expireChoices, fireDue, pendingChoice, pruneModifiers } from './events';
 import { beginDay, closeMonth, dayStep as financeDay } from './finance';
 import { arenaRank, updateSaturation } from './leaderboard';
 import { dayStep as marketDay } from './market';
@@ -17,7 +17,7 @@ export function blockedByChoice(s: GameState): boolean {
   return pendingChoice(s) !== null;
 }
 
-/** Лучшее место модели игрока на Арене (null — нет выпущенных моделей). */
+/** Лучшее место модели игрока на Арене (null - нет выпущенных моделей). */
 export function playerBestArenaRank(s: GameState): number | null {
   let best: number | null = null;
   for (const m of s.models) {
@@ -38,6 +38,7 @@ export function advanceDay(s: GameState): void {
   introduceDue(s);
   const releasedBefore = s.rivalsReleased.length;
   releaseDue(s);
+  expireChoices(s);
   fireDue(s);
 
   researchDay(s);

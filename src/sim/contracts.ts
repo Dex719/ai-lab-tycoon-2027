@@ -71,9 +71,9 @@ function addReputation(s: GameState, delta: number): void {
 }
 
 /**
- * Бенчмарк для нового тендера: случайный активный (для RLHF — только языковой).
- * Если активных нет — самый новый из вышедших (для RLHF — самый новый языковой).
- * null — подходящих вышедших бенчмарков нет вовсе.
+ * Бенчмарк для нового тендера: случайный активный (для RLHF - только языковой).
+ * Если активных нет - самый новый из вышедших (для RLHF - самый новый языковой).
+ * null - подходящих вышедших бенчмарков нет вовсе.
  */
 function pickBenchmark(s: GameState, rlhf: boolean): BenchmarkId | null {
   const fits = (id: BenchmarkId) => !rlhf || benchDef(id).domain === 'language';
@@ -166,7 +166,7 @@ export function applyTender(s: GameState, tenderId: string, modelId: string): Re
 }
 
 /**
- * Контракт закрыт: штраф, падение репутации, письмо. Заголовок — «<событие>: <клиент>».
+ * Контракт закрыт: штраф, падение репутации, письмо. Заголовок - «<событие>: <клиент>».
  * Важное (игра встаёт на паузу), если провал случился не по воле игрока.
  */
 function failContract(s: GameState, c: Contract, title: string, reason: string, important = true): void {
@@ -218,7 +218,7 @@ export function cancelContract(s: GameState, contractId: string): Result {
   return { ok: true };
 }
 
-/** Заявка решена: победа даёт контракт, поражение — только письмо. */
+/** Заявка решена: победа даёт контракт, поражение - только письмо. */
 function resolveApplication(s: GameState, t: Tender): void {
   const a = t.application;
   if (!a) return;
@@ -257,8 +257,8 @@ function resolveApplication(s: GameState, t: Tender): void {
     title: `Тендер выигран: ${client}`,
     important: noCompute,
     body:
-      `Исполнитель — модель «${model.name}». ` +
-      `Срок — ${t.durationDays} дн., оплата после сдачи — ${endSentence(fmtMoney(t.payment))} ` +
+      `Исполнитель - модель «${model.name}». ` +
+      `Срок - ${t.durationDays} дн., оплата после сдачи - ${endSentence(fmtMoney(t.payment))} ` +
       (noCompute
         ? 'Доля «Контракты» равна 0 %: работа не начнётся, пока мощность не выделена в окне «Мощности».'
         : 'Мощность берётся из доли «Контракты».') +
@@ -267,7 +267,7 @@ function resolveApplication(s: GameState, t: Tender): void {
 }
 
 /**
- * Ежедневно: убрать просроченные тендеры без заявки; решить заявки (победа → контракт, для RLHF — разметчики;
+ * Ежедневно: убрать просроченные тендеры без заявки; решить заявки (победа → контракт, для RLHF - разметчики;
  * поражение → письмо); работа контрактов за счёт pool(contracts) поровну; завершение → проверка честного балла,
  * оплата или штраф; просрочка → штраф.
  */

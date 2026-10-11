@@ -37,7 +37,7 @@ interface Problem {
   missing: boolean;
 }
 
-/** Проверка значения v по пути path: null — всё в порядке. Для отсутствующего поля v === undefined. */
+/** Проверка значения v по пути path: null - всё в порядке. Для отсутствующего поля v === undefined. */
 type Check = (v: unknown, path: string) => Problem | null;
 
 const bad = (path: string): Problem => ({ path, missing: false });
@@ -89,14 +89,14 @@ function shape(fields: Record<string, Check>): Check {
       const path = join(p, key);
       const value = v[key];
       const r = check(value, path);
-      // Не подошло значение, которого нет вовсе, — значит, поля нет.
+      // Не подошло значение, которого нет вовсе, - значит, поля нет.
       if (r) return value === undefined ? { path, missing: true } : r;
     }
     return null;
   };
 }
 
-/** То же, что shape, но TypeScript требует перечислить каждое поле типа T: добавили поле в тип, не добавили сюда — ошибка сборки. */
+/** То же, что shape, но TypeScript требует перечислить каждое поле типа T: добавили поле в тип, не добавили сюда - ошибка сборки. */
 function shapeOf<T>(fields: { [K in keyof T]-?: Check }): Check {
   return shape(fields as Record<string, Check>);
 }
@@ -219,6 +219,10 @@ const mail = shapeOf<Mail>({
   choices: optional(arrayOf(mailChoice)),
   chosen: optional(int),
   important: optional(bool),
+  replyByDay: optional(num),
+  defaultChoice: optional(int),
+  deferred: optional(bool),
+  autoChosen: optional(bool),
 });
 
 const modifier = shapeOf<Modifier>({
@@ -245,7 +249,7 @@ const monthRecord = shapeOf<MonthRecord>({
   tokensPerDay: num,
 });
 
-/** Каждое поле GameState обязано быть здесь: добавили поле в тип, не добавили проверку — tsc не даст собрать. */
+/** Каждое поле GameState обязано быть здесь: добавили поле в тип, не добавили проверку - tsc не даст собрать. */
 const STATE: Record<keyof GameState, Check> = {
   version: literal(1),
   seed: num,

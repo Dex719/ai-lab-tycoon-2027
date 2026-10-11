@@ -7,9 +7,9 @@ import type { BenchmarkDef, BenchmarkId, DomainId, GameState } from './types';
 
 /** Названия областей для писем и интерфейса. */
 export const DOMAIN_NAMES: Record<DomainId, string> = {
-  language: 'Язык',
+  language: 'Тексты',
   code: 'Код',
-  reasoning: 'Рассуждения',
+  reasoning: 'Математика и наука',
 };
 
 // Запас от краёв, чтобы обратная формула не уходила в бесконечность.
@@ -35,7 +35,7 @@ export function benchScore(id: BenchmarkId, cap: number, overfit = 0): number {
   return 100 * (d.guess + (1 - d.guess) * sigmoid((cap + overfit - d.difficulty) / d.spread));
 }
 
-/** Обратная формула: способность по баллу; балл обрезается в (g, 100) с запасом, итог — в [Dif − 40, Dif + 40]. */
+/** Обратная формула: способность по баллу; балл обрезается в (g, 100) с запасом, итог - в [Dif − 40, Dif + 40]. */
 export function capFromScore(id: BenchmarkId, score: number): number {
   const d = benchDef(id);
   const p = Math.min(1 - SCORE_EPS, Math.max(SCORE_EPS, (score / 100 - d.guess) / (1 - d.guess)));
@@ -64,7 +64,7 @@ export function introduceDue(s: GameState): void {
       title: `Новый бенчмарк: ${def.name}`,
       body:
         `${def.description} Область: ${DOMAIN_NAMES[def.domain].toLowerCase()}. ` +
-        'Баллы моделей — в окне «Аналитика», на вкладке «Бенчмарки».',
+        'Баллы моделей - в окне «Аналитика», на вкладке «Бенчмарки».',
     });
   }
 }

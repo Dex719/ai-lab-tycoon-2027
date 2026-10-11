@@ -1,6 +1,6 @@
-// Сгенерировано scripts/build-rival-catalog.mjs из research/catalog — не править руками
-// Каталог реальных моделей семи лабораторий 2018–2024: названия изменены на 1–2 буквы, номера версий 1:1.
-// Эло — исторический снимок начала 2025 года или оценка (arenaEstimated); баллы — только опубликованные.
+// Сгенерировано scripts/build-rival-catalog.mjs из research/catalog - не править руками
+// Каталог реальных моделей семи лабораторий 2018-2024: названия изменены на 1-2 буквы, номера версий 1:1.
+// Эло - исторический снимок начала 2025 года или оценка (arenaEstimated); баллы - только опубликованные.
 
 import type { RivalModelDef } from '../sim/types';
 
@@ -21,7 +21,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'gtp-2', lab: 'openbrain', gameName: 'GTP-2', realName: 'GPT-2 (1.5B)', released: '2019-02-14',
     api: false, openWeights: true, chat: false, paramsB: 1.5, priceIn: null, priceOut: null,
     scores: { mmlu: 32.4 }, arenaElo: 650, arenaEstimated: true, contaminated: false,
-    notes: 'Полные веса опубликованы не сразу из-за риска злоупотреблений. Эло — оценка.',
+    notes: 'Полные веса опубликованы не сразу из-за риска злоупотреблений. Эло - оценка.',
   },
   {
     id: 't5x', lab: 'gogle', gameName: 'T5x', realName: 'T5 (T5-11B)', released: '2019-10-23',
@@ -33,25 +33,25 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'meeno', lab: 'gogle', gameName: 'Meeno', realName: 'Meena', released: '2020-01-28',
     api: false, openWeights: false, chat: false, paramsB: 2.6, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 760, arenaEstimated: true, contaminated: false,
-    notes: 'Исследовательский чат-бот: анонсирован и не выпущен. Эло — оценка.',
+    notes: 'Исследовательский чат-бот: анонсирован и не выпущен. Эло - оценка.',
   },
   {
     id: 'gtp-3', lab: 'openbrain', gameName: 'GTP-3 Davanci', realName: 'GPT-3 175B (davinci)', released: '2020-06-11',
     api: true, openWeights: false, chat: false, paramsB: 175, priceIn: 60, priceOut: 60,
     scores: { mmlu: 43.9, humaneval: 0 }, arenaElo: 800, arenaEstimated: true, contaminated: false,
-    notes: 'Закрытая бета API с июня 2020, $60 за 1М токенов. Эло — оценка.',
+    notes: 'Закрытая бета API с июня 2020, $60 за 1М токенов. Эло - оценка.',
   },
   {
     id: 'lamba', lab: 'gogle', gameName: 'LaMBA', realName: 'LaMDA (137B)', released: '2021-05-18',
     api: false, openWeights: false, chat: false, paramsB: 137, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 900, arenaEstimated: true, contaminated: false,
-    notes: 'Диалоговая модель без API и весов, только закрытые испытания. Эло — оценка.',
+    notes: 'Диалоговая модель без API и весов, только закрытые испытания. Эло - оценка.',
   },
   {
     id: 'gml-10b', lab: 'zhipo', gameName: 'GML-10B', realName: 'GLM-10B (GLM-XXLarge)', released: '2021-06-22',
     api: false, openWeights: true, chat: false, paramsB: 10, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 750, arenaEstimated: true, contaminated: false,
-    notes: 'Базовая модель, 10 млрд параметров; дата — загрузка весов 22 июня 2021. Эло — оценка.',
+    notes: 'Базовая модель, 10 млрд параметров; дата - загрузка весов 22 июня 2021. Эло - оценка.',
   },
   {
     id: 'kodex', lab: 'openbrain', gameName: 'Kodex', realName: 'Codex (12B)', released: '2021-08-10',
@@ -81,13 +81,13 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'paln', lab: 'gogle', gameName: 'PaLN', realName: 'PaLM (540B)', released: '2022-04-04',
     api: false, openWeights: false, chat: false, paramsB: 540, priceIn: null, priceOut: null,
     scores: { mmlu: 69.3, humaneval: 26.2, gsm8k: 56.5 }, arenaElo: 900, arenaEstimated: true, contaminated: false,
-    notes: 'Анонсирована и не выпущена; позже API работал на PaLN 2. Эло — оценка.',
+    notes: 'Анонсирована и не выпущена; позже API работал на PaLN 2. Эло - оценка.',
   },
   {
     id: 'gml-130b', lab: 'zhipo', gameName: 'GML-130B', realName: 'GLM-130B', released: '2022-08-04',
     api: false, openWeights: true, chat: false, paramsB: 130, priceIn: null, priceOut: null,
     scores: { mmlu: 44.8 }, arenaElo: 830, arenaEstimated: true, contaminated: false,
-    notes: 'Двуязычная модель на 130 млрд параметров, веса по заявке. Эло — оценка.',
+    notes: 'Двуязычная модель на 130 млрд параметров, веса по заявке. Эло - оценка.',
   },
   {
     id: 'kodegeex', lab: 'zhipo', gameName: 'KodeGeeX', realName: 'CodeGeeX', released: '2022-09-19',
@@ -105,7 +105,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'chatgtp', lab: 'openbrain', gameName: 'ChatGTP (GTP-3.5)', realName: 'ChatGPT (GPT-3.5)', released: '2022-11-30',
     api: false, openWeights: false, chat: true, paramsB: null, priceIn: null, priceOut: null,
     scores: { mmlu: 70, humaneval: 48.1, gsm8k: 57.1, gpqa: 28.1 }, arenaElo: 1090, arenaEstimated: true, contaminated: false,
-    notes: 'Бесплатный чат, дообученный на отзывах людей; отдельного API не было. Баллы GTP-3.5, Эло — оценка.',
+    notes: 'Бесплатный чат, дообученный на отзывах людей; отдельного API не было. Баллы GTP-3.5, Эло - оценка.',
   },
   {
     id: 'gtp-3-5-turbu', lab: 'openbrain', gameName: 'GTP-3.5 Turbu', realName: 'gpt-3.5-turbo (0301)', released: '2023-03-01',
@@ -117,13 +117,13 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'gtp-4', lab: 'openbrain', gameName: 'GTP-4', realName: 'GPT-4 (gpt-4-0314)', released: '2023-03-14',
     api: true, openWeights: false, chat: true, paramsB: 1800, priceIn: 30, priceOut: 60,
     scores: { mmlu: 86.4, humaneval: 67, gsm8k: 92, gpqa: 35.7 }, arenaElo: 1186, arenaEstimated: false, contaminated: true,
-    notes: 'Тесты частично пересекались с обучающими данными. Размер — по утечкам, не официальный.',
+    notes: 'Тесты частично пересекались с обучающими данными. Размер - по утечкам, не официальный.',
   },
   {
     id: 'clade-1', lab: 'antropik', gameName: 'Clade 1', realName: 'Claude 1 (Claude v1.3)', released: '2023-03-14',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 11.02, priceOut: 32.68,
     scores: { mmlu: 77, humaneval: 56, gsm8k: 85.2 }, arenaElo: 1146, arenaEstimated: true, contaminated: false,
-    notes: 'Закрытая бета и API для бизнеса; цена из прайса июля 2023. Эло — оценка по 2024 году.',
+    notes: 'Закрытая бета и API для бизнеса; цена из прайса июля 2023. Эло - оценка по 2024 году.',
   },
   {
     id: 'clade-instant-1', lab: 'antropik', gameName: 'Clade Instant 1', realName: 'Claude Instant 1.x (launched as claude-instant-v1)', released: '2023-03-14',
@@ -141,7 +141,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'berd', lab: 'gogle', gameName: 'Berd', realName: 'Bard (original LaMDA-based)', released: '2023-03-21',
     api: false, openWeights: false, chat: true, paramsB: null, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 960, arenaEstimated: true, contaminated: false,
-    notes: 'Бесплатный чат на лёгкой LaMBA; позже перешёл на PaLN 2 и Gemeni. Эло — оценка.',
+    notes: 'Бесплатный чат на лёгкой LaMBA; позже перешёл на PaLN 2 и Gemeni. Эло - оценка.',
   },
   {
     id: 'paln-2', lab: 'gogle', gameName: 'PaLN 2', realName: 'PaLM 2 (PaLM 2-L)', released: '2023-05-10',
@@ -159,25 +159,25 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'clade-2', lab: 'antropik', gameName: 'Clade 2', realName: 'Claude 2', released: '2023-07-11',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 11.02, priceOut: 32.68,
     scores: { mmlu: 78.5, humaneval: 71.2, gsm8k: 88 }, arenaElo: 1125, arenaEstimated: true, contaminated: false,
-    notes: 'Открытая бета в браузере, контекст 100 тыс. токенов. Эло — оценка по старой таблице.',
+    notes: 'Открытая бета в браузере, контекст 100 тыс. токенов. Эло - оценка по старой таблице.',
   },
   {
     id: 'qwin-7b', lab: 'alibabo', gameName: 'Qwin-7B', realName: 'Qwen-7B', released: '2023-08-03',
     api: false, openWeights: true, chat: true, paramsB: 7.7, priceIn: null, priceOut: null,
     scores: { mmlu: 58.2, humaneval: 37.2, gsm8k: 54.1 }, arenaElo: 990, arenaEstimated: true, contaminated: false,
-    notes: 'Первая открытая модель лаборатории; баллы обновлённой версии, цены API нет. Эло — оценка.',
+    notes: 'Первая открытая модель лаборатории; баллы обновлённой версии, цены API нет. Эло - оценка.',
   },
   {
     id: 'qwin-14b', lab: 'alibabo', gameName: 'Qwin-14B', realName: 'Qwen-14B', released: '2023-09-25',
     api: false, openWeights: true, chat: true, paramsB: 14.2, priceIn: null, priceOut: null,
     scores: { mmlu: 66.3, humaneval: 43.9, gsm8k: 59.3 }, arenaElo: 1035.3, arenaEstimated: false, contaminated: false,
-    notes: 'Открытые веса; MMLO — базовой версии, остальное — чат-версии.',
+    notes: 'Открытые веса; MMLO - базовой версии, остальное - чат-версии.',
   },
   {
     id: 'kimo-chat', lab: 'moonshoot', gameName: 'Kimo Chat', realName: 'Kimi Chat', released: '2023-10-09',
     api: false, openWeights: false, chat: true, paramsB: null, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 1110, arenaEstimated: true, contaminated: false,
-    notes: 'Первый ассистент лаборатории: контекст 200 тыс. иероглифов, закрытая бета. Эло — оценка.',
+    notes: 'Первый ассистент лаборатории: контекст 200 тыс. иероглифов, закрытая бета. Эло - оценка.',
   },
   {
     id: 'chatgml3-6b', lab: 'zhipo', gameName: 'ChatGML3-6B', realName: 'ChatGLM3-6B', released: '2023-10-27',
@@ -189,7 +189,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'deepseak-coder-33b', lab: 'deepcent', gameName: 'DeepSeak Coder 33B', realName: 'DeepSeek Coder 33B', released: '2023-11-02',
     api: false, openWeights: true, chat: true, paramsB: 33, priceIn: null, priceOut: null,
     scores: { humaneval: 79.3 }, arenaElo: 1060, arenaEstimated: true, contaminated: false,
-    notes: 'Модель для кода; HumanEvol — у инструкционной версии. Эло — оценка.',
+    notes: 'Модель для кода; HumanEvol - у инструкционной версии. Эло - оценка.',
   },
   {
     id: 'gtp-4-turbu', lab: 'openbrain', gameName: 'GTP-4 Turbu', realName: 'GPT-4 Turbo (gpt-4-1106-preview)', released: '2023-11-06',
@@ -201,13 +201,13 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'clade-2-1', lab: 'antropik', gameName: 'Clade 2.1', realName: 'Claude 2.1', released: '2023-11-21',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 8, priceOut: 24,
     scores: {}, arenaElo: 1115, arenaEstimated: true, contaminated: false,
-    notes: 'Первый контекст 200 тыс. токенов; баллы не публиковали. Эло — оценка.',
+    notes: 'Первый контекст 200 тыс. токенов; баллы не публиковали. Эло - оценка.',
   },
   {
     id: 'deepseak-llm-67b', lab: 'deepcent', gameName: 'DeepSeak LLM 67B', realName: 'DeepSeek LLM 67B', released: '2023-11-29',
     api: false, openWeights: true, chat: true, paramsB: 67, priceIn: null, priceOut: null,
     scores: { mmlu: 71.3, humaneval: 73.8, gsm8k: 84.1 }, arenaElo: 1076.7, arenaEstimated: false, contaminated: false,
-    notes: 'Открытые веса; MMLO — базовой версии, HumanEvol и GSM8C — чат-версии.',
+    notes: 'Открытые веса; MMLO - базовой версии, HumanEvol и GSM8C - чат-версии.',
   },
   {
     id: 'qwin-72b', lab: 'alibabo', gameName: 'Qwin-72B', realName: 'Qwen-72B', released: '2023-11-30',
@@ -243,19 +243,19 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'moonshoot-v1', lab: 'moonshoot', gameName: 'moonshoot-v1', realName: 'moonshot-v1 (8k/32k/128k API)', released: '2024-02-06',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 8.33, priceOut: 8.33,
     scores: {}, arenaElo: 1150, arenaEstimated: true, contaminated: false,
-    notes: 'API для разработчиков с контекстом 8k, 32k и 128k; старшая модель — $8,3 за 1М токенов.',
+    notes: 'API для разработчиков с контекстом 8k, 32k и 128k; старшая модель - $8,3 за 1М токенов.',
   },
   {
     id: 'gemeni-1-0-ultro', lab: 'gogle', gameName: 'Gemeni 1.0 Ultro', realName: 'Gemini 1.0 Ultra', released: '2024-02-08',
     api: false, openWeights: false, chat: true, paramsB: null, priceIn: null, priceOut: null,
     scores: { mmlu: 83.7, humaneval: 74.4, gsm8k: 88.9, gpqa: 35.7 }, arenaElo: 1190, arenaEstimated: true, contaminated: false,
-    notes: 'Только в платной подписке; цены за токены нет. Эло — оценка.',
+    notes: 'Только в платной подписке; цены за токены нет. Эло - оценка.',
   },
   {
     id: 'gemeni-1-5-pro', lab: 'gogle', gameName: 'Gemeni 1.5 Pro', realName: 'Gemini 1.5 Pro', released: '2024-02-15',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 3.5, priceOut: 10.5,
     scores: { mmlu: 81.9, humaneval: 71.9, gsm8k: 91.7, gpqa: 41.5 }, arenaElo: 1260, arenaEstimated: false, contaminated: false,
-    notes: 'Контекст 1 млн токенов; 15 февраля — закрытый предпросмотр. Баллы февральской версии.',
+    notes: 'Контекст 1 млн токенов; 15 февраля - закрытый предпросмотр. Баллы февральской версии.',
   },
   {
     id: 'clade-3-opos', lab: 'antropik', gameName: 'Clade 3 Opos', realName: 'Claude 3 Opus', released: '2024-03-04',
@@ -279,7 +279,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'kimo-chat-2m', lab: 'moonshoot', gameName: 'Kimo Chat 2M', realName: 'Kimi Chat 2M-character long context', released: '2024-03-18',
     api: false, openWeights: false, chat: true, paramsB: null, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 1150, arenaEstimated: true, contaminated: false,
-    notes: 'Контекст до 2 млн иероглифов; закрытая бета, без API и баллов. Эло — оценка.',
+    notes: 'Контекст до 2 млн иероглифов; закрытая бета, без API и баллов. Эло - оценка.',
   },
   {
     id: 'deepseak-v2', lab: 'deepcent', gameName: 'DeepSeak-V2', realName: 'DeepSeek-V2', released: '2024-05-06',
@@ -303,13 +303,13 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'gml-4-0520', lab: 'zhipo', gameName: 'GML-4 (0520)', realName: 'GLM-4 (0520)', released: '2024-05-20',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 13.83, priceOut: 13.83,
     scores: { mmlu: 83.3, humaneval: 78.5, gsm8k: 93.3, gpqa: 39.9 }, arenaElo: 1189, arenaEstimated: false, contaminated: false,
-    notes: 'Майское обновление GML-4, цена прежняя — около $13,8 за 1М токенов.',
+    notes: 'Майское обновление GML-4, цена прежняя - около $13,8 за 1М токенов.',
   },
   {
     id: 'gml-4-9b', lab: 'zhipo', gameName: 'GML-4-9B', realName: 'GLM-4-9B (Chat)', released: '2024-06-05',
     api: false, openWeights: true, chat: true, paramsB: 9.4, priceIn: null, priceOut: null,
     scores: { mmlu: 72.4, humaneval: 71.8, gsm8k: 79.6, gpqa: 28.8 }, arenaElo: 1135, arenaEstimated: true, contaminated: false,
-    notes: 'Открытая версия на 9,4 млрд параметров; баллы чат-версии. Эло — оценка.',
+    notes: 'Открытая версия на 9,4 млрд параметров; баллы чат-версии. Эло - оценка.',
   },
   {
     id: 'gml-4-aer', lab: 'zhipo', gameName: 'GML-4-Aer', realName: 'GLM-4-Air (0605)', released: '2024-06-05',
@@ -321,7 +321,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'qwin2-72b', lab: 'alibabo', gameName: 'Qwin2-72B', realName: 'Qwen2-72B', released: '2024-06-07',
     api: false, openWeights: true, chat: true, paramsB: 72.7, priceIn: null, priceOut: null,
     scores: { mmlu: 84.2, humaneval: 86, gsm8k: 91.1, gpqa: 42.4 }, arenaElo: 1187.2, arenaEstimated: false, contaminated: false,
-    notes: '7 трлн токенов, контекст 128 тыс.; MMLO базовой версии, остальное — инструкционной.',
+    notes: '7 трлн токенов, контекст 128 тыс.; MMLO базовой версии, остальное - инструкционной.',
   },
   {
     id: 'deepseak-coder-v2', lab: 'deepcent', gameName: 'DeepSeak-Coder-V2', realName: 'DeepSeek-Coder-V2', released: '2024-06-17',
@@ -339,7 +339,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'gemmo-2-27b', lab: 'gogle', gameName: 'Gemmo 2 27B', realName: 'Gemma 2 27B', released: '2024-06-27',
     api: false, openWeights: true, chat: true, paramsB: 27.2, priceIn: null, priceOut: null,
     scores: { mmlu: 75.2, humaneval: 51.8, gsm8k: 74 }, arenaElo: 1220, arenaEstimated: false, contaminated: false,
-    notes: 'Открытые веса, цену ставят сторонние хостинги. Баллы базовой версии, Эло — чат-версии.',
+    notes: 'Открытые веса, цену ставят сторонние хостинги. Баллы базовой версии, Эло - чат-версии.',
   },
   {
     id: 'gtp-4o-mino', lab: 'openbrain', gameName: 'GTP-4o Mino', realName: 'GPT-4o mini', released: '2024-07-18',
@@ -375,7 +375,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'qwin2-5-72b', lab: 'alibabo', gameName: 'Qwin2.5-72B', realName: 'Qwen2.5-72B', released: '2024-09-19',
     api: false, openWeights: true, chat: true, paramsB: 72.7, priceIn: null, priceOut: null,
     scores: { mmlu: 86.1, humaneval: 86.6, gsm8k: 95.8, gpqa: 49 }, arenaElo: 1257.9, arenaEstimated: false, contaminated: false,
-    notes: '18 трлн токенов; MMLO базовой версии, остальное — инструкционной.',
+    notes: '18 трлн токенов; MMLO базовой версии, остальное - инструкционной.',
   },
   {
     id: 'clade-3-5-sonet-new', lab: 'antropik', gameName: 'Clade 3.5 Sonet (new)', realName: 'Claude 3.5 Sonnet (new, Oct 2024, claude-3-5-sonnet-20241022)', released: '2024-10-22',
@@ -393,19 +393,19 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'qwin2-5-coder-32b', lab: 'alibabo', gameName: 'Qwin2.5-Coder-32B', realName: 'Qwen2.5-Coder-32B', released: '2024-11-12',
     api: false, openWeights: true, chat: true, paramsB: 32.5, priceIn: null, priceOut: null,
     scores: { mmlu: 79.1, humaneval: 92.7, gsm8k: 93 }, arenaElo: 1217, arenaEstimated: false, contaminated: false,
-    notes: 'Модель для кода на основе Qwin2.5 32B; баллы кода — инструкционной версии.',
+    notes: 'Модель для кода на основе Qwin2.5 32B; баллы кода - инструкционной версии.',
   },
   {
     id: 'kimo-k0-maths', lab: 'moonshoot', gameName: 'Kimo k0-maths', realName: 'Kimi k0-math', released: '2024-11-16',
     api: false, openWeights: false, chat: true, paramsB: null, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 1170, arenaEstimated: true, contaminated: false,
-    notes: 'Рассуждающая модель для математики; без API и независимых проверок. Эло — оценка.',
+    notes: 'Рассуждающая модель для математики; без API и независимых проверок. Эло - оценка.',
   },
   {
     id: 'deepseak-r1-lito-previow', lab: 'deepcent', gameName: 'DeepSeak-R1-Lito-Previow', realName: 'DeepSeek-R1-Lite-Preview', released: '2024-11-20',
     api: false, openWeights: false, chat: true, paramsB: null, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 1240, arenaEstimated: true, contaminated: false,
-    notes: 'Первая рассуждающая модель лаборатории: только в чате на сайте, без API и весов. Эло — предположение.',
+    notes: 'Первая рассуждающая модель лаборатории: только в чате на сайте, без API и весов. Эло - предположение.',
   },
   {
     id: 'qwk-32b-previow', lab: 'alibabo', gameName: 'QwK-32B-Previow', realName: 'QwQ-32B-Preview', released: '2024-11-28',
@@ -435,13 +435,13 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'kimo-k1', lab: 'moonshoot', gameName: 'Kimo k1', realName: 'Kimi k1 (vision thinking)', released: '2024-12-16',
     api: false, openWeights: false, chat: true, paramsB: null, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 1180, arenaEstimated: true, contaminated: false,
-    notes: 'Рассуждающая модель с картинками, только в приложении. Баллов нет, Эло — оценка.',
+    notes: 'Рассуждающая модель с картинками, только в приложении. Баллов нет, Эло - оценка.',
   },
   {
     id: 'gemeni-2-0-flesh-thinking', lab: 'gogle', gameName: 'Gemeni 2.0 Flesh Thinking', realName: 'Gemini 2.0 Flash Thinking (Experimental, gemini-2.0-flash-thinking-exp-1219)', released: '2024-12-19',
     api: false, openWeights: false, chat: true, paramsB: null, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 1380, arenaEstimated: true, contaminated: false,
-    notes: 'Первая модель лаборатории с рассуждением: бесплатный предпросмотр, платного API нет. Баллов нет, Эло — оценка.',
+    notes: 'Первая модель лаборатории с рассуждением: бесплатный предпросмотр, платного API нет. Баллов нет, Эло - оценка.',
   },
   {
     id: 'deepseak-v3', lab: 'deepcent', gameName: 'DeepSeak-V3', realName: 'DeepSeek-V3', released: '2024-12-26',
@@ -453,6 +453,6 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'gml-zeru-preview', lab: 'zhipo', gameName: 'GML-Zeru-Preview', realName: 'GLM-Zero-Preview', released: '2024-12-31',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 1190, arenaEstimated: true, contaminated: false,
-    notes: 'Первая рассуждающая модель лаборатории; бесплатна, числовых баллов нет. Эло — оценка.',
+    notes: 'Первая рассуждающая модель лаборатории; бесплатна, числовых баллов нет. Эло - оценка.',
   },
 ];

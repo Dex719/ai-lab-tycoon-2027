@@ -16,7 +16,7 @@ export interface DeskArea {
   h: number;
 }
 
-/** Размер рабочего стола, которому принадлежит элемент (запасной вариант — окно браузера без верхней панели). */
+/** Размер рабочего стола, которому принадлежит элемент (запасной вариант - окно браузера без верхней панели). */
 export function deskAreaOf(el: Element | null): DeskArea {
   const d = el?.closest('.desktop');
   return d ? { w: d.clientWidth, h: d.clientHeight } : { w: window.innerWidth, h: window.innerHeight - 40 };

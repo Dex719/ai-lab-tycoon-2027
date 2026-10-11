@@ -11,7 +11,7 @@ import type { BenchmarkId, GameState, RivalModelDef } from './types';
 
 // ---------- Помощники ----------
 
-/** Состояние на указанную дату: каждый день как в тике — бенчмарки, затем выходы моделей. */
+/** Состояние на указанную дату: каждый день как в тике - бенчмарки, затем выходы моделей. */
 function stateAt(date: string, hook?: (s: GameState, day: number) => void): GameState {
   const s = createInitialState('Тест', 1);
   const last = dateToDay(date);
@@ -53,7 +53,7 @@ describe('каталог моделей соперников', () => {
     expect(new Set(RIVAL_MODELS.map((m) => m.gameName)).size).toBe(RIVAL_MODELS.length);
   });
 
-  it('даты в пределах 2016-06-01…2024-12-31 и идут по возрастанию, при равенстве — по лаборатории', () => {
+  it('даты в пределах 2016-06-01…2024-12-31 и идут по возрастанию, при равенстве - по лаборатории', () => {
     let prev: RivalModelDef | null = null;
     for (const m of RIVAL_MODELS) {
       expect(m.released >= '2016-06-01' && m.released <= '2024-12-31', m.id).toBe(true);
@@ -150,7 +150,7 @@ describe('rivalDef', () => {
 describe('rivalCaps', () => {
   const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
 
-  it('домен — среднее capFromScore по реальным баллам домена', () => {
+  it('домен - среднее capFromScore по реальным баллам домена', () => {
     // BORT: два языковых балла (SQuAT, GLUU), кода и рассуждений нет.
     const bort = byId('bort');
     const lang = mean([capFromScore('squad', 91.8), capFromScore('glue', 80.5)]);
@@ -162,13 +162,13 @@ describe('rivalCaps', () => {
   });
 
   it('домен без баллов берёт среднее тех доменов, где баллы есть', () => {
-    // GTP-3: язык — MMLO, код — HumanEvol (реальный ноль), рассуждений нет.
+    // GTP-3: язык - MMLO, код - HumanEvol (реальный ноль), рассуждений нет.
     const caps = rivalCaps(byId('gtp-3'));
     expect(caps.language).toBeCloseTo(capFromScore('mmlu', 43.9), 9);
     expect(caps.code).toBeCloseTo(capFromScore('humaneval', 0), 9);
     expect(caps.reasoning).toBeCloseTo((caps.language + caps.code) / 2, 9);
 
-    // GTP-4: баллы во всех трёх доменах, рассуждения — среднее GSM8C и GPQE.
+    // GTP-4: баллы во всех трёх доменах, рассуждения - среднее GSM8C и GPQE.
     const g4 = rivalCaps(byId('gtp-4'));
     expect(g4.reasoning).toBeCloseTo(mean([capFromScore('gsm8k', 92), capFromScore('gpqa', 35.7)]), 9);
     expect(g4.code).toBeCloseTo(capFromScore('humaneval', 67), 9);
@@ -208,7 +208,7 @@ describe('rivalScore', () => {
       }
     }
     expect(seen).toBeGreaterThan(150);
-    // Реальный ноль — тоже реальный балл, а не пропуск.
+    // Реальный ноль - тоже реальный балл, а не пропуск.
     expect(rivalScore(byId('gtp-3'), 'humaneval')).toEqual({ value: 0, estimated: false });
   });
 
@@ -252,19 +252,19 @@ describe('rivalScore', () => {
 });
 
 describe('rivalPrice', () => {
-  it('входная и выходная цены известны — (3·in + out) / 4', () => {
+  it('входная и выходная цены известны - (3·in + out) / 4', () => {
     expect(rivalPrice(byId('gtp-4'), dateToDay('2023-06-01'))).toBeCloseTo((3 * 30 + 60) / 4, 9);
     expect(rivalPrice(byId('gtp-3'), 0)).toBe(60);
     expect(rivalPrice(byId('deepseak-v3'), dateToDay('2024-12-30'))).toBeCloseTo((3 * 0.14 + 0.28) / 4, 9);
   });
 
-  it('известна только одна цена — берём её', () => {
+  it('известна только одна цена - берём её', () => {
     const def = byId('gtp-4');
     expect(rivalPrice({ ...def, priceIn: 7, priceOut: null }, 0)).toBe(7);
     expect(rivalPrice({ ...def, priceIn: null, priceOut: 9 }, 0)).toBe(9);
   });
 
-  it('цен нет — цена лаборатории по умолчанию на год дня', () => {
+  it('цен нет - цена лаборатории по умолчанию на год дня', () => {
     const gemma = byId('gemmo-2-27b');
     expect(gemma.priceIn).toBeNull();
     expect(gemma.priceOut).toBeNull();
@@ -321,7 +321,7 @@ describe('releaseDue', () => {
 
   it('первая модель получает бонус: места №1 по активным бенчмаркам и по Арене', () => {
     const s = stateAt('2018-06-11');
-    // 11.06.2018 активны SQuAT и GLUU; GTP-1 единственная — №1 везде.
+    // 11.06.2018 активны SQuAT и GLUU; GTP-1 единственная - №1 везде.
     expect(s.hype.openbrain).toBe(HYPE_RANK_BONUS[0] * 2 + HYPE_ARENA_TOP_BONUS);
     for (const lab of LAB_IDS) if (lab !== 'openbrain') expect(s.hype[lab]).toBe(0);
     expect(s.hype.player).toBe(0);
@@ -356,9 +356,9 @@ describe('releaseDue', () => {
     expect(gtp4.body).toContain('HumanEvol 67,0 %');
     expect(gtp4.body).toContain('GSM8C 92,0 %');
     expect(gtp4.body).not.toContain('GPQE'); // GPQE выйдет только в ноябре 2023
-    expect(gtp4.body).toContain('Эло на «Арене» — 1186.');
+    expect(gtp4.body).toContain('Эло на «Арене» - 1186.');
     expect(gtp4.body).not.toContain('≈1186');
-    expect(gtp4.body).toContain('Цена API — $37,5 за 1М токенов.');
+    expect(gtp4.body).toContain('Цена API - $37,5 за 1М токенов.');
     expect(gtp4.body).not.toContain('веса открыты');
   });
 
@@ -366,15 +366,15 @@ describe('releaseDue', () => {
     const s = stateAt('2023-03-14');
     const glm = s.mail.find((m) => m.title === 'Zhipo выпустила ChatGML-6B')!;
     expect(glm.body).toContain('6,2 млрд параметров');
-    expect(glm.body).toContain('Эло на «Арене» — 888.');
+    expect(glm.body).toContain('Эло на «Арене» - 888.');
     expect(glm.body).toContain('Веса открыты.');
     expect(glm.body).not.toContain('Цена API');
 
     const gtp3 = stateAt('2020-06-11').mail.find((m) => m.title === 'OpenBrain выпустила GTP-3 Davanci')!;
     expect(gtp3.body).toContain('175 млрд параметров');
     expect(gtp3.body).toContain('≈800');
-    expect(gtp3.body).toContain('Цена API — $60 за 1М токенов.');
-    // MMLO и HumanEvol на 11.06.2020 ещё не вышли — баллов в письме нет.
+    expect(gtp3.body).toContain('Цена API - $60 за 1М токенов.');
+    // MMLO и HumanEvol на 11.06.2020 ещё не вышли - баллов в письме нет.
     expect(gtp3.body).not.toContain('MMLO');
     expect(gtp3.body).not.toContain('%');
 
@@ -411,7 +411,7 @@ describe('releaseDue: модели до старта игры', () => {
     vi.resetModules();
   });
 
-  it('вышедшие до дня 0 появляются молча — без письма и шумихи', async () => {
+  it('вышедшие до дня 0 появляются молча - без письма и шумихи', async () => {
     const base = RIVAL_MODELS.find((m) => m.id === 'gtp-3')!;
     const old: RivalModelDef = {
       ...base, id: 'old-1', lab: 'gogle', gameName: 'Old-1', realName: 'Olt-1', released: '2016-12-01',
@@ -474,7 +474,7 @@ describe('marketRivals', () => {
     expect(deep).toEqual(['deepseak-v3', 'deepseak-v2-5', 'deepseak-coder-v2']);
   });
 
-  it('при равной дате побеждает модель с большим Эло, остальное — по давности', () => {
+  it('при равной дате побеждает модель с большим Эло, остальное - по давности', () => {
     const s = stateAt('2024-03-04');
     const ant = marketRivals(s).filter((d) => d.lab === 'antropik').map((d) => d.id);
     expect(ant).toEqual(['clade-3-opos', 'clade-3-sonet', 'clade-2-1']);
@@ -483,7 +483,7 @@ describe('marketRivals', () => {
   it('не берёт модели без API и без открытых весов', () => {
     const s = stateAt('2023-03-31');
     const ids = marketRivals(s).map((d) => d.id);
-    expect(s.rivalsReleased).toContain('chatgtp'); // ChatGTP — только чат, не API
+    expect(s.rivalsReleased).toContain('chatgtp'); // ChatGTP - только чат, не API
     expect(ids).not.toContain('chatgtp');
     expect(s.rivalsReleased).toContain('berd');
     expect(ids).not.toContain('berd');
@@ -493,7 +493,7 @@ describe('marketRivals', () => {
     expect(ids).toContain('gtp-4');
   });
 
-  it('граница возраста: ровно три года ещё на рынке, на день больше — уже нет', () => {
+  it('граница возраста: ровно три года ещё на рынке, на день больше - уже нет', () => {
     const gtp3 = byId('gtp-3');
     const born = dateToDay(gtp3.released);
     const s = createInitialState('Тест', 1);

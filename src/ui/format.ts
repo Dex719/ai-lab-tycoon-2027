@@ -18,7 +18,7 @@ function dec(n: number, digits: number): string {
 
 /** $950, $12 тыс., $1,2 млн, $3,4 млрд, $1,1 трлн */
 export function fmtMoney(n: number): string {
-  if (!Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return '-';
   const sign = n < 0 ? '−' : '';
   const a = Math.abs(n);
   if (a < 999.5) return `${sign}$${dec(a, 0)}`;
@@ -30,13 +30,13 @@ export function fmtMoney(n: number): string {
 
 /** Цена за 1М токенов: $0,25, $2,5, $60 */
 export function fmtPrice(n: number): string {
-  if (!Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return '-';
   return `$${dec(n, n < 1 ? 3 : n < 10 ? 2 : 0)}`;
 }
 
 /** value в процентах (43.9 → «43,9 %») */
 export function fmtPct(value: number, digits = 1): string {
-  if (!Number.isFinite(value)) return '—';
+  if (!Number.isFinite(value)) return '-';
   return `${dec(value, digits)} %`;
 }
 
@@ -45,9 +45,9 @@ export function fmtShare(fraction: number, digits = 1): string {
   return fmtPct(fraction * 100, digits);
 }
 
-/** 1 234 567 → «1,2 млн»; маленькие — целиком с пробелами */
+/** 1 234 567 → «1,2 млн»; маленькие - целиком с пробелами */
 export function fmtNum(n: number): string {
-  if (!Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return '-';
   const sign = n < 0 ? '−' : '';
   const a = Math.abs(n);
   if (a < 1e4) return sign + dec(a, a < 10 ? 2 : 0);
@@ -59,7 +59,7 @@ export function fmtNum(n: number): string {
 
 /** Множитель без потери точности: 1,25 → «1,25», 14,55 → «14,6», 120 → «120». */
 export function fmtMult(n: number): string {
-  if (!Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return '-';
   const a = Math.abs(n);
   return dec(n, a < 10 ? 2 : a < 100 ? 1 : 0);
 }
@@ -72,12 +72,20 @@ export function fmtSci(n: number): string {
   let e = Math.floor(Math.log10(n));
   let m = n / 10 ** e;
   if (Number(m.toFixed(1)) >= 10) {
-    // 9,96·10²⁵ округляется до 10,0 — переносим в следующий порядок
+    // 9,96·10²⁵ округляется до 10,0 - переносим в следующий порядок
     m /= 10;
     e += 1;
   }
   const exp = String(e).split('').map((c) => SUP[c] ?? c).join('');
   return `${dec(m, 1)}·10${exp}`;
+}
+
+/** Объём вычислений в днях работы одной карты H100: «0,06», «12», «580 тыс.» */
+export function fmtCardDays(days: number): string {
+  if (!Number.isFinite(days) || days <= 0) return '0';
+  if (days < 0.01) return '< 0,01';
+  if (days < 10) return dec(days, 2);
+  return fmtNum(days);
 }
 
 /** Параметры в млрд: 0.117 → «117 млн», 175 → «175 млрд», 1500 → «1,5 трлн» */
@@ -87,7 +95,7 @@ export function fmtParams(paramsB: number): string {
   return `${dec(paramsB / 1000, 1)} трлн`;
 }
 
-/** Токены в млрд — как параметры. */
+/** Токены в млрд - как параметры. */
 export const fmtTokens = fmtParams;
 
 /** Точка в конце предложения, если значение (например, «$57 тыс.») уже закончилось точкой. */
@@ -96,5 +104,5 @@ export function endSentence(text: string): string {
 }
 
 export function fmtElo(elo: number): string {
-  return Number.isFinite(elo) ? String(Math.round(elo)) : '—';
+  return Number.isFinite(elo) ? String(Math.round(elo)) : '-';
 }

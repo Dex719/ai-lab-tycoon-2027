@@ -49,7 +49,7 @@ export const TECHS: TechInfo[] = [
   },
 ];
 
-/** Одна строка о том, что изменилось, — для письма о завершении. */
+/** Одна строка о том, что изменилось, - для письма о завершении. */
 const EFFECT_LINE: Record<Exclude<TechId, 'algo'>, string> = {
   attention: 'Доступна архитектура «Трансформер». Обучение эффективнее, чем на LSTM, примерно в 7 раз.',
   scaling: 'В окне «Новая модель» отображаются прогноз баллов до запуска и оптимальный размер модели.',
@@ -65,13 +65,13 @@ function fmtMult(x: number): string {
   return x.toFixed(2).replace('.', ',');
 }
 
-/** День, когда технология (для algo — следующий уровень) появилась в истории. */
+/** День, когда технология (для algo - следующий уровень) появилась в истории. */
 export function techHistoryDay(s: GameState, tech: TechId): number {
   if (tech === 'algo') return dateToDay(ALGO_HISTORY_START) + s.research.algoLevel * ALGO_LEVEL_DAYS;
   return dateToDay(TECH_HISTORY_DATE[tech]);
 }
 
-/** Насколько лет игрок опережает историю с этой технологией (0 — не опережает). */
+/** Насколько лет игрок опережает историю с этой технологией (0 - не опережает). */
 export function yearsEarly(s: GameState, tech: TechId): number {
   return Math.max(0, (techHistoryDay(s, tech) - s.day) / 365);
 }
@@ -82,7 +82,7 @@ export function earlyPenalty(s: GameState, tech: TechId): number {
 }
 
 /**
- * Цена в очках: TECH_COST × модификатор researchCost(target = tech); algo — ALGO_BASE_COST × ALGO_COST_GROWTH^algoLevel.
+ * Цена в очках: TECH_COST × модификатор researchCost(target = tech); algo - ALGO_BASE_COST × ALGO_COST_GROWTH^algoLevel.
  * Всё × earlyPenalty: раньше исторической даты исследовать дороже. Цена пересчитывается каждый день,
  * поэтому с приближением исторической даты она падает.
  */
@@ -91,7 +91,7 @@ export function techCost(s: GameState, tech: TechId): number {
   return base * modValue(s, 'researchCost', tech).mult * earlyPenalty(s, tech);
 }
 
-/** Почему сейчас нельзя исследовать (null — можно). Текст готов для показа игроку. */
+/** Почему сейчас нельзя исследовать (null - можно). Текст готов для показа игроку. */
 export function researchBlockReason(s: GameState, tech: TechId): string | null {
   if (!TECH_IDS.includes(tech)) return 'Нет такого исследования';
   if (tech !== 'algo' && s.research.done.includes(tech)) return 'Это исследование уже завершено';
@@ -112,7 +112,7 @@ export function rpPerDay(s: GameState): number {
   return RP_BASE + RP_K * Math.sqrt(power > 0 ? power : 0);
 }
 
-/** Действие: выбрать текущее исследование (null — остановить). Очки по технологиям сохраняются. */
+/** Действие: выбрать текущее исследование (null - остановить). Очки по технологиям сохраняются. */
 export function setResearch(s: GameState, tech: TechId | null): Result {
   if (tech === null) {
     s.research.current = null;
@@ -125,7 +125,7 @@ export function setResearch(s: GameState, tech: TechId | null): Result {
 }
 
 /**
- * Ежедневно: прибавить rpPerDay к points[current]. По достижении цены — изучено, письмо (kind 'research').
+ * Ежедневно: прибавить rpPerDay к points[current]. По достижении цены - изучено, письмо (kind 'research').
  * algo: algoLevel += 1, points.algo = 0, current остаётся 'algo'. Остальные: в done, current = null.
  */
 export function progressDay(s: GameState): void {

@@ -106,7 +106,7 @@ export interface TrainingRun {
   flopTotal: number;
   flopDone: number;
   startedDay: number;
-  failAtFraction: number | null; // где случится срыв (0..1), null — без срыва
+  failAtFraction: number | null; // где случится срыв (0..1), null - без срыва
   failPenalty: number; // 0 или 3 после выбора «Продолжить»
 }
 
@@ -170,6 +170,10 @@ export interface Mail {
   choices?: MailChoice[];
   chosen?: number; // индекс сделанного выбора
   important?: boolean; // важное письмо: интерфейс ставит игру на паузу, когда оно приходит
+  replyByDay?: number; // письмо с выбором: последний день для ответа
+  defaultChoice?: number; // вариант, который выберется сам, если не ответить до replyByDay
+  deferred?: boolean; // игрок отложил решение: игра идёт, письмо ждёт ответа в «Почте»
+  autoChosen?: boolean; // вариант выбран сам, потому что срок ответа истёк
 }
 
 export type ModifierKind = 'rentPrice' | 'rentCap' | 'demand' | 'researchCost' | 'labBrand';
@@ -177,10 +181,10 @@ export type ModifierKind = 'rentPrice' | 'rentCap' | 'demand' | 'researchCost' |
 export interface Modifier {
   id: string;
   kind: ModifierKind;
-  target?: string; // GpuId / TechId / LabId — если модификатор не глобальный
+  target?: string; // GpuId / TechId / LabId - если модификатор не глобальный
   mult?: number;
   add?: number;
-  untilDay: number; // включительно; Number.MAX_SAFE_INTEGER — навсегда
+  untilDay: number; // включительно; Number.MAX_SAFE_INTEGER - навсегда
 }
 
 export type IncomeKind = 'api' | 'contracts' | 'investors';

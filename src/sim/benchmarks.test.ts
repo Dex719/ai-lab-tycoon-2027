@@ -145,7 +145,7 @@ describe('introduceDue', () => {
     const s = newState(dateToDay('2024-12-31'));
     introduceDue(s);
     expect(s.mail).toHaveLength(BENCHMARKS.length);
-    const domainRu = { language: 'Язык', code: 'Код', reasoning: 'Рассуждения' };
+    const domainRu = { language: 'Тексты', code: 'Код', reasoning: 'Математика и наука' };
     for (const def of BENCHMARKS) {
       const mail = s.mail.find((m) => m.title === `Новый бенчмарк: ${def.name}`);
       expect(mail).toBeDefined();

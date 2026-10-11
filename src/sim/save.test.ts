@@ -250,6 +250,7 @@ describe('письма с выбором в сохранении', () => {
       choices: [
         { label: 'Первое', hint: 'а' },
         { label: 'Второе', hint: 'б' },
+        { label: 'Третье', hint: 'в' },
       ],
       ...over,
     });
@@ -265,7 +266,7 @@ describe('письма с выбором в сохранении', () => {
     expectRejected(withChoiceMail({ eventId: undefined }), 'choices');
   });
 
-  it('число вариантов не совпало с событием — отклоняется', () => {
+  it('число вариантов не совпало с событием - отклоняется', () => {
     expectRejected(withChoiceMail({ choices: [{ label: 'Один', hint: 'а' }] }), 'choices');
   });
 
@@ -294,7 +295,7 @@ function collect(value: unknown, path: (string | number)[], norm: string, seen: 
 
 /** Поля, которых может не быть (необязательные в типах), и словари, в которых ключи приходят и уходят. */
 // founderName и tutorial появились позже: в старых сохранениях их нет, загрузка подставляет значения по умолчанию.
-const OPTIONAL_FIELDS = new Set(['eventId', 'choices', 'chosen', 'important', 'target', 'mult', 'add', 'founderName', 'tutorial']);
+const OPTIONAL_FIELDS = new Set(['eventId', 'choices', 'chosen', 'important', 'target', 'mult', 'add', 'founderName', 'tutorial', 'replyByDay', 'defaultChoice', 'deferred', 'autoChosen']);
 const DICTS = new Set(['flags', 'market.shares', 'models[].overfit']);
 
 describe('проверка покрывает каждое поле живого состояния', () => {
@@ -322,7 +323,7 @@ describe('проверка покрывает каждое поле живого
     expect(survivors).toEqual([]);
   });
 
-  it('любое обязательное поле нужно: без него сохранение отклоняется, без необязательного — нет', () => {
+  it('любое обязательное поле нужно: без него сохранение отклоняется, без необязательного - нет', () => {
     const survivors: string[] = [];
     const rejectedOptional: string[] = [];
     for (const node of nodes.values()) {

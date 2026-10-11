@@ -1,5 +1,5 @@
-// Бенчмарки среза. Названия отличаются от реальных на 1–2 буквы.
-// difficulty/spread подогнаны под опоры из design.md («Бенчмарки»); даты — по research/catalog/meta.json.
+// Бенчмарки среза. Названия отличаются от реальных на 1-2 буквы.
+// difficulty/spread подогнаны под опоры из design.md («Бенчмарки»); даты - по research/catalog/meta.json.
 
 import type { BenchmarkDef } from '../sim/types';
 

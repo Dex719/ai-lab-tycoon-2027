@@ -28,7 +28,7 @@ function fmtMoney(x: number): string {
   return `$${Math.round(x)}`;
 }
 
-/** Множитель технологий по месту на Арене: 1 → 1, 2–3 → 0,5, 4–10 → 0,2, ниже → 0,05; моделей на рынке нет → 0. */
+/** Множитель технологий по месту на Арене: 1 → 1, 2-3 → 0,5, 4-10 → 0,2, ниже → 0,05; моделей на рынке нет → 0. */
 function rankFactorFor(rank: number | null): number {
   if (rank === null) return 0;
   if (rank <= 1) return 1;
@@ -60,17 +60,17 @@ export function valuation(s: GameState): Valuation {
   return { total, annualRevenue, revenuePart, techPart, rankFactor, bestRank, hypeMult, repMult };
 }
 
-/** Причина, почему раунд недоступен (кулдаун — «через N дней»), или null. */
+/** Причина, почему раунд недоступен (кулдаун - «через N дней»), или null. */
 export function canRaise(s: GameState): string | null {
   if (s.lastRoundDay === null) return null;
   const left = s.lastRoundDay + ROUND_COOLDOWN_DAYS - s.day;
-  if (left > 0) return `Следующий раунд — через ${left} дн.`;
+  if (left > 0) return `Следующий раунд - через ${left} дн.`;
   return null;
 }
 
 /** Действие: продать долю fraction ∈ ROUND_FRACTIONS. Деньги earn('investors'), доля ×(1 − f), письмо. */
 export function raiseRound(s: GameState, fraction: number): Result {
-  // Допуск на ошибку дробей: 0,1 + 0,2 — это почти 0,3. Дальше считаем по точному значению из списка.
+  // Допуск на ошибку дробей: 0,1 + 0,2 - это почти 0,3. Дальше считаем по точному значению из списка.
   const f = ROUND_FRACTIONS.find((x) => Math.abs(x - fraction) < 1e-9);
   if (f === undefined) {
     const pct = ROUND_FRACTIONS.map((x) => Math.round(x * 100));
@@ -90,7 +90,7 @@ export function raiseRound(s: GameState, fraction: number): Result {
     title: `Раунд инвестиций закрыт: ${fmtMoney(money)}`,
     body:
       `При оценке лаборатории в ${fmtMoney(value)} инвесторы вложили ${fmtMoney(money)} ` +
-      `за ${Math.round(f * 100)} % компании. Доля основателя — ${share} %. ` +
+      `за ${Math.round(f * 100)} % компании. Доля основателя - ${share} %. ` +
       `Следующий раунд возможен через ${ROUND_COOLDOWN_DAYS} дн.`,
   });
   return { ok: true };

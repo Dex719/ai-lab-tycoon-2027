@@ -21,7 +21,7 @@ import type { BenchmarkId, GameState, ModelRef, PlayerModel } from './types';
 
 // ---------- Помощники ----------
 
-/** Состояние на дату: бенчмарки, чья дата наступила, помечены вышедшими; соперники — как перечислены. */
+/** Состояние на дату: бенчмарки, чья дата наступила, помечены вышедшими; соперники - как перечислены. */
 function makeState(date: string, released: string[] = []): GameState {
   const s = createInitialState('Тест', 1);
   s.day = dateToDay(date);
@@ -82,18 +82,18 @@ describe('leaderboard: строки', () => {
     expect(rows[1].releasedDay).toBe(dateToDay('2023-03-14'));
   });
 
-  it('пустая игра — пустая таблица; неизвестные id каталога пропускаются', () => {
+  it('пустая игра - пустая таблица; неизвестные id каталога пропускаются', () => {
     const s = makeState('2020-01-01');
     expect(leaderboard(s)).toEqual([]);
     s.rivalsReleased = ['нет-такой', 'gtp-2'];
     expect(leaderboard(s).map((r) => r.name)).toEqual(['GTP-2']);
   });
 
-  it('баллы — только по вышедшим бенчмаркам; настоящие без пометки, пропуски с оценкой', () => {
+  it('баллы - только по вышедшим бенчмаркам; настоящие без пометки, пропуски с оценкой', () => {
     const s = makeState('2023-03-20', ['gtp-3', 'gtp-4']);
     const rows = leaderboard(s);
     const gtp4 = rows.find((r) => r.name === 'GTP-4')!;
-    // На 20.03.2023 вышли пять бенчмарков; SWE-banch и GPQE — позже.
+    // На 20.03.2023 вышли пять бенчмарков; SWE-banch и GPQE - позже.
     expect(Object.keys(gtp4.scores).sort()).toEqual(['glue', 'gsm8k', 'humaneval', 'mmlu', 'squad']);
     expect(gtp4.scores.mmlu).toEqual({ value: 86.4, estimated: false });
     expect(gtp4.scores.humaneval).toEqual({ value: 67, estimated: false });
@@ -107,7 +107,7 @@ describe('leaderboard: строки', () => {
     expect(gtp4.scores.squad).toEqual(rivalScore(def, 'squad'));
     expect(gtp4.scores.squad!.value).toBeCloseTo(benchScore('squad', rivalCaps(def).language), 9);
 
-    // Реальный ноль GTP-3 на HumanEvol — настоящий балл.
+    // Реальный ноль GTP-3 на HumanEvol - настоящий балл.
     const gtp3 = rows.find((r) => r.name === 'GTP-3 Davanci')!;
     expect(gtp3.scores.humaneval).toEqual({ value: 0, estimated: false });
   });
@@ -125,7 +125,7 @@ describe('leaderboard: строки', () => {
     for (const [id, row] of rows) expect(row.onMarket, id).toBe(onMarket.has(id));
   });
 
-  it('модель игрока: показанный балл с подгонкой, после разоблачения — честный', () => {
+  it('модель игрока: показанный балл с подгонкой, после разоблачения - честный', () => {
     const s = makeState('2023-03-20');
     const m = withCaps('p1', 55, 1050, s.day - 10, { overfit: { mmlu: 25 } });
     s.models = [m];
@@ -179,7 +179,7 @@ describe('benchRank', () => {
     expect(benchRank(s, rival('chatgtp'), 'mmlu')).toBe(2);
     expect(benchRank(s, rival('gtp-3'), 'mmlu')).toBe(3);
 
-    s.models = [withCaps('p1', 62, 1000, s.day)]; // MMLO ≈ 62,5 — между GTP-3 и ChatGTP
+    s.models = [withCaps('p1', 62, 1000, s.day)]; // MMLO ≈ 62,5 - между GTP-3 и ChatGTP
     expect(modelScore(s.models[0], 'mmlu', false)).toBeGreaterThan(43.9);
     expect(modelScore(s.models[0], 'mmlu', false)).toBeLessThan(70);
     expect(benchRank(s, mine('p1'), 'mmlu')).toBe(3);
@@ -255,7 +255,7 @@ describe('arenaRank', () => {
     s.models = [withCaps('p1', 60, 1150, dateToDay('2024-02-06'))];
     expect(arenaRank(s, rival('moonshoot-v1'))).toBe(1);
     expect(arenaRank(s, mine('p1'))).toBe(2);
-    // А вышедшая раньше — всегда выше.
+    // А вышедшая раньше - всегда выше.
     s.models[0].releasedDay = dateToDay('2024-02-05');
     expect(arenaRank(s, mine('p1'))).toBe(1);
   });
@@ -276,7 +276,7 @@ describe('marketArenaRank', () => {
     expect(marketArenaRank(s, mine('p1'))).toBe(2);
     expect(marketArenaRank(s, rival('clade-3-opos'))).toBe(3);
     expect(marketArenaRank(s, mine('p2'))).toBeNull();
-    // На общей Арене p2 — первая, на рынке её нет.
+    // На общей Арене p2 - первая, на рынке её нет.
     expect(arenaRank(s, mine('p2'))).toBe(1);
   });
 
@@ -303,7 +303,7 @@ describe('releaseHypeBonus', () => {
     return s;
   }
 
-  it('места 1 / 2 / 3 по активным бенчмаркам дают 12 / 6 / 3, четвёртое — ничего; №1 Арены +10', () => {
+  it('места 1 / 2 / 3 по активным бенчмаркам дают 12 / 6 / 3, четвёртое - ничего; №1 Арены +10', () => {
     const s = podium();
     const n = BENCHMARK_IDS.length;
     expect(benchRank(s, mine('p1'), 'mmlu')).toBe(1);
@@ -322,7 +322,7 @@ describe('releaseHypeBonus', () => {
     const n = BENCHMARK_IDS.length - 2;
     expect(releaseHypeBonus(s, mine('p1'))).toBe(HYPE_RANK_BONUS[0] * n + HYPE_ARENA_TOP_BONUS);
     expect(releaseHypeBonus(s, mine('p2'))).toBe(HYPE_RANK_BONUS[1] * n);
-    // Все насыщены — остаётся только Арена.
+    // Все насыщены - остаётся только Арена.
     for (const id of BENCHMARK_IDS) s.benchmarks[id].saturated = true;
     expect(releaseHypeBonus(s, mine('p1'))).toBe(HYPE_ARENA_TOP_BONUS);
     expect(releaseHypeBonus(s, mine('p2'))).toBe(0);
@@ -352,10 +352,10 @@ describe('releaseHypeBonus', () => {
   });
 
   it('работает и для моделей соперников', () => {
-    // Единственная выпущенная модель — №1 везде: SQuAT и GLUU активны.
+    // Единственная выпущенная модель - №1 везде: SQuAT и GLUU активны.
     const s = makeState('2018-06-11', ['gtp-1']);
     expect(releaseHypeBonus(s, rival('gtp-1'))).toBe(HYPE_RANK_BONUS[0] * 2 + HYPE_ARENA_TOP_BONUS);
-    // GTP-3 в 2020 году: первых мест нет, но Арена пока за ней? Эло ≈800 против ≈650 у T5x — да.
+    // GTP-3 в 2020 году: первых мест нет, но Арена пока за ней? Эло ≈800 против ≈650 у T5x - да.
     const s2 = makeState('2020-06-11', ['gtp-1', 'bort', 'gtp-2', 't5x', 'meeno', 'gtp-3']);
     expect(arenaRank(s2, rival('gtp-3'))).toBe(1);
     expect(releaseHypeBonus(s2, rival('gtp-3'))).toBeGreaterThanOrEqual(HYPE_ARENA_TOP_BONUS);
@@ -365,7 +365,7 @@ describe('releaseHypeBonus', () => {
 // ---------- Лучшее Эло ----------
 
 describe('bestElo', () => {
-  it('лучшее Эло среди выпущенных моделей владельца; нет моделей — 0', () => {
+  it('лучшее Эло среди выпущенных моделей владельца; нет моделей - 0', () => {
     const s = makeState('2023-06-01', ['gtp-3', 'gtp-4', 'chatgtp', 'clade-1', 'bort']);
     expect(bestElo(s, 'openbrain')).toBe(1186);
     expect(bestElo(s, 'antropik')).toBeCloseTo(1146, 9);

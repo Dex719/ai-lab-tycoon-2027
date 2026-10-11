@@ -106,7 +106,7 @@ interface ContractInfo {
   left: number; // дней до срока
   share: number; // H100e в день на этот контракт
   remaining: number; // H100e-дней работы
-  eta: number | null; // дней до конца работы; null — работа не идёт
+  eta: number | null; // дней до конца работы; null - работа не идёт
   progress: number; // 0..1
   stalled: boolean; // мощность на контракты не выделена
   late: boolean; // работа не успевает до срока
@@ -212,7 +212,7 @@ function tenderText(t: Tender): string {
   const who = t.type === 'rlhf' ? 'Нужна модель, обученная с RLHF, с баллом' : 'Нужна модель с баллом';
   return (
     `${who} не ниже ${fmtPct(t.requirement, 0)} на ${benchDef(t.benchmark).name}. ` +
-    `Объём работы — ${fmtNum(t.work)} H100e-дн., срок — ${days(t.durationDays)}`
+    `Объём работы - ${fmtNum(t.work)} H100e-дн., срок - ${days(t.durationDays)}`
   );
 }
 
@@ -255,11 +255,11 @@ function TenderCard(props: {
 
   let picker: ReactNode;
   if (app) {
-    picker = <div className="ct-picked">{appModel ? appModel.name : '—'}</div>;
+    picker = <div className="ct-picked">{appModel ? appModel.name : '-'}</div>;
   } else if (!model) {
     picker = (
       <div className="ct-nomodel">
-        <span>Нет выпущенных моделей</span>
+        <span>Нет выпущенных моделей. Заявку подают выпущенной моделью.</span>
         <button className="btn small" onClick={() => open('models')}>
           Открыть «Модели»
         </button>
@@ -293,7 +293,7 @@ function TenderCard(props: {
             <span className="ct-cmp-l" title="По этому баллу принимают заявку">
               Балл на {bench.name}
             </span>
-            <span className={`num${toneOf(shown === null ? null : shown >= t.requirement)}`}>{shown === null ? '—' : fmtPct(shown)}</span>
+            <span className={`num${toneOf(shown === null ? null : shown >= t.requirement)}`}>{shown === null ? '-' : fmtPct(shown)}</span>
             <span className="num">от {fmtPct(t.requirement, 0)}</span>
 
             {gap && (
@@ -309,7 +309,7 @@ function TenderCard(props: {
             {rlhf && (
               <>
                 <span className="ct-cmp-l">RLHF</span>
-                <span className={`num${toneOf(model ? model.rlhf : null)}`}>{model ? (model.rlhf ? 'Есть' : 'Нет') : '—'}</span>
+                <span className={`num${toneOf(model ? model.rlhf : null)}`}>{model ? (model.rlhf ? 'Есть' : 'Нет') : '-'}</span>
                 <span className="num">Нужен</span>
               </>
             )}
@@ -320,7 +320,7 @@ function TenderCard(props: {
           <h3 className="ct-h">Условия</h3>
           <div className="kv">
             <span title="Зависит от репутации и запаса балла над требованием">Шанс победы</span>
-            <span>{chance === null ? '—' : fmtShare(chance, 0)}</span>
+            <span>{chance === null ? '-' : fmtShare(chance, 0)}</span>
             <span>Оплата</span>
             <span>{fmtMoney(t.payment)}</span>
             <span title="Списывается при отказе, просрочке и провале при сдаче">Штраф</span>
@@ -347,7 +347,7 @@ function TenderCard(props: {
         <div className="ct-alerts">
           <div className="ct-alert bad">
             <IconAlert size={16} />
-            <span>Честный балл модели — {fmtPct(honest)}: при сдаче контракт провалится.</span>
+            <span>Честный балл модели - {fmtPct(honest)}: при сдаче контракт провалится.</span>
           </div>
         </div>
       )}
@@ -360,7 +360,7 @@ function TenderCard(props: {
           </span>
         ) : (
           <>
-            <span className="ct-why">{reason ?? `Решение через ${days(TENDER_APPLY_DAYS)}`}</span>
+            {model && <span className="ct-why">{reason ?? `Решение через ${days(TENDER_APPLY_DAYS)}`}</span>}
             <button
               className="btn primary"
               data-tutorial="apply"
@@ -395,7 +395,7 @@ function TenderCard(props: {
           >
             <div className="col">
               <div>
-                Честный балл модели «{model.name}» — {fmtPct(honest)}, требование — {fmtPct(t.requirement, 0)}. При победе в тендере
+                Честный балл модели «{model.name}» - {fmtPct(honest)}, требование - {fmtPct(t.requirement, 0)}. При победе в тендере
                 контракт будет провален при сдаче.
               </div>
               <div className="kv">
@@ -422,8 +422,8 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
   const bench = benchDef(t.benchmark);
   const info = contractInfo(s, c);
   const text =
-    (info.model ? `Исполнитель — модель «${info.model.name}». ` : '') +
-    `Требование — балл не ниже ${fmtPct(t.requirement, 0)} на ${bench.name}.`;
+    (info.model ? `Исполнитель - модель «${info.model.name}». ` : '') +
+    `Требование - балл не ниже ${fmtPct(t.requirement, 0)} на ${bench.name}.`;
 
   function cancel() {
     setConfirming(false);
@@ -461,7 +461,7 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
             <span title="Доля «Контракты» из окна «Мощности», поровну между контрактами">Мощность на контракт</span>
             <span>{fmtNum(info.share)} H100e в день</span>
             <span title="При текущей мощности">Завершение через</span>
-            <span className={info.late ? 'bad' : ''}>{info.eta === null ? '—' : days(info.eta)}</span>
+            <span className={info.late ? 'bad' : ''}>{info.eta === null ? '-' : days(info.eta)}</span>
           </div>
         </section>
 
@@ -473,7 +473,7 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
               от {fmtPct(t.requirement, 0)} на {bench.name}
             </span>
             <span title="По этому баллу проверяют контракт при сдаче">Честный балл модели</span>
-            <span className={info.honest === null ? '' : info.weak ? 'bad' : 'good'}>{info.honest === null ? '—' : fmtPct(info.honest)}</span>
+            <span className={info.honest === null ? '' : info.weak ? 'bad' : 'good'}>{info.honest === null ? '-' : fmtPct(info.honest)}</span>
             <span>Оплата после сдачи</span>
             <span>{fmtMoney(t.payment)}</span>
             <span title="Списывается при отказе, просрочке и провале при сдаче">Штраф</span>
@@ -495,7 +495,7 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
             <div className="ct-alert bad">
               <IconAlert size={16} />
               <span className="grow">
-                Работа займёт ещё {days(info.eta)}, до срока осталось {days(info.left)} Контракт будет просрочен, штраф —{' '}
+                Работа займёт ещё {days(info.eta)}, до срока осталось {days(info.left)} Контракт будет просрочен, штраф -{' '}
                 {endSentence(fmtMoney(t.penalty))}
               </span>
               {openCompute}
@@ -504,7 +504,7 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
           {info.weak && info.honest !== null && (
             <div className="ct-alert bad">
               <IconAlert size={16} />
-              <span>Честный балл модели — {fmtPct(info.honest)}: при сдаче контракт провалится.</span>
+              <span>Честный балл модели - {fmtPct(info.honest)}: при сдаче контракт провалится.</span>
             </div>
           )}
         </div>

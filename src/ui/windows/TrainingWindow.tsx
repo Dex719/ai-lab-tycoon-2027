@@ -1,9 +1,11 @@
 // Окно «Новая модель» (FR-4, FR-7): слева сводка проекта, справа настройки размера, данных и дообучения.
 // Раскладка по образцу «Создание процессора» в Processor Tycoon.
 
-import { Fragment, useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { Fragment, useEffect, useState, type ReactNode } from 'react';
 import type { WindowProps } from '.';
-import { benchDef, benchScore, introducedBenchmarks } from '../../sim/benchmarks';
+import { BENCHMARKS } from '../../data/benchmarks';
+import { benchDef, benchScore, DOMAIN_NAMES, introducedBenchmarks } from '../../sim/benchmarks';
+import { awaitingEvent } from '../../sim/events';
 import { pool, rentPerDay, totalH100e } from '../../sim/compute';
 import {
   ARCH_MULT,
@@ -23,8 +25,8 @@ import { byYear, END_DAY, formatDateShort, yearOf } from '../../sim/time';
 import { archFor, chinchillaFactor, estimate, labelersCost } from '../../sim/training';
 import { DOMAINS } from '../../sim/types';
 import type { BenchmarkId, DomainId, GameState, TrainingPlan, TrainingRun } from '../../sim/types';
-import { ErrorText, ProgressBar } from '../components/common';
-import { endSentence, fmtElo, fmtMoney, fmtNum, fmtParams, fmtPct, fmtSci, fmtTokens } from '../format';
+import { ErrorText, ProgressBar, Range } from '../components/common';
+import { endSentence, fmtCardDays, fmtElo, fmtMoney, fmtNum, fmtParams, fmtPct, fmtTokens } from '../format';
 import { IconAlert } from '../icons';
 import { actions, store } from '../store';
 import './TrainingWindow.css';
@@ -32,7 +34,13 @@ import './TrainingWindow.css';
 type Est = ReturnType<typeof estimate>;
 type OpenFn = WindowProps['open'];
 
-const DOMAIN_RU: Record<DomainId, string> = { language: 'Язык', code: 'Код', reasoning: 'Рассуждения' };
+const DOMAIN_RU = DOMAIN_NAMES;
+/** Что входит в данные области: одна строка под названием. */
+const DOMAIN_WHAT: Record<DomainId, string> = {
+  language: 'Статьи, книги, сайты, диалоги',
+  code: 'Программы и задачи по программированию',
+  reasoning: 'Задачи с решениями: математика, физика, химия',
+};
 const DOMAIN_COLOR: Record<DomainId, string> = {
   language: 'var(--nm-language)',
   code: 'var(--nm-code)',
@@ -42,7 +50,7 @@ const DOMAIN_COLOR: Record<DomainId, string> = {
 const NAME_MAX = 40;
 const POS_MAX = 1000;
 const DAYS_IN_MONTH = 30.4;
-// Доля полезных вычислений (множитель Шиншиллы): от 80 % баланс считаем хорошим, ниже 40 % — плохим.
+// Доля полезных вычислений (множитель Шиншиллы): от 80 % баланс считаем хорошим, ниже 40 % - плохим.
 const EFF_GOOD = 0.8;
 const EFF_BAD = 0.4;
 
@@ -50,7 +58,7 @@ const EFF_BAD = 0.4;
 
 interface Draft {
   game: string; // партия, которой принадлежит черновик
-  name: string | null; // null — название по умолчанию «Модель N»
+  name: string | null; // null - название по умолчанию «Модель N»
   paramsB: number;
   tokensB: number;
   mix: Record<DomainId, number>; // целые проценты, сумма 100
@@ -148,26 +156,13 @@ interface SliderProps {
 }
 
 function Slider({ label, text, value, min, max, onChange, ends, color, title, ariaLabel }: SliderProps) {
-  const p = max > min ? ((value - min) / (max - min)) * 100 : 0;
-  const style: CSSProperties & Record<string, string> = { '--p': `${p}%` };
-  if (color) style['--c'] = color;
   return (
     <div className="nm-sl" title={title}>
       <div className="nm-sl-top">
         <span className="nm-sl-l">{label}</span>
         <span className="nm-sl-v num">{text}</span>
       </div>
-      <input
-        type="range"
-        className="nm-range"
-        style={style}
-        min={min}
-        max={max}
-        step={1}
-        value={value}
-        aria-label={ariaLabel}
-        onChange={(e) => onChange(Number(e.target.value))}
-      />
+      <Range value={value} min={min} max={max} onChange={onChange} color={color} label={ariaLabel} valueText={text} />
       {ends && (
         <div className="nm-sl-ends">
           <span>{ends[0]}</span>
@@ -228,6 +223,7 @@ function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
   const left = Math.max(0, t.flopTotal - t.flopDone);
   const eta = perDay > 0 ? Math.max(1, Math.ceil(left / perDay)) : null;
   const late = eta !== null && s.day + eta > END_DAY;
+  const waiting = awaitingEvent(s, 'training-fail');
   const targets = p.benchShare > 0 ? p.benchTargets.map((b) => benchDef(b).name).join(', ') : '';
   const summary = [
     archName(t.arch),
@@ -253,10 +249,15 @@ function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
         <div className="nm-run-s" title={summary}>{summary}</div>
       </div>
       <div className="nm-run-bar">
-        <ProgressBar value={frac} title={`${fmtSci(t.flopDone)} из ${fmtSci(t.flopTotal)} FLOP`} />
+        <ProgressBar
+          value={frac}
+          title={`${fmtCardDays(t.flopDone / TRAIN_FLOP_PER_H100E_DAY)} из ${fmtCardDays(t.flopTotal / TRAIN_FLOP_PER_H100E_DAY)} H100e-дн.`}
+        />
         <div className="nm-run-meta">
           <span className="num">{fmtPct(frac * 100)}</span>
-          {eta !== null ? (
+          {waiting ? (
+            <span className="warn">Проект стоит: ждёт решения в «Почте»</span>
+          ) : eta !== null ? (
             <>
               <span>Осталось {fmtNum(eta)} дн.</span>
               <span className={late ? 'warn' : 'muted'}>
@@ -315,7 +316,7 @@ function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; ope
             ≈ {fmtMoney(cost)} <small>({fmtMoney(rentDay * DAYS_IN_MONTH)}/мес.)</small>
           </>
         ) : (
-          '—'
+          '-'
         )}
       </Item>
       <Item label="Срок" sub={late ? 'Позже конца игры' : undefined} tone={late ? 'warn' : undefined}>
@@ -324,11 +325,11 @@ function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; ope
             {dayText.main} {dayText.approx && <small>{dayText.approx}</small>}
           </>
         ) : (
-          '—'
+          '-'
         )}
       </Item>
       <Item label="Дата готовности" tone={late ? 'warn' : undefined}>
-        {days !== null ? formatDateShort(s.day + days) : '—'}
+        {days !== null ? formatDateShort(s.day + days) : '-'}
       </Item>
       <Item
         label="Архитектура"
@@ -344,7 +345,12 @@ function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; ope
       >
         {archName(est.arch)}
       </Item>
-      <Item label="Вычисления">{fmtSci(est.flop)} FLOP</Item>
+      <Item
+        label="Объём вычислений"
+        title="Сколько дней одна карта H100 считала бы это обучение. Срок зависит от мощности на обучение."
+      >
+        {fmtCardDays(est.flop / TRAIN_FLOP_PER_H100E_DAY)} H100e-дн.
+      </Item>
       <Item
         label="Прогноз Эло на «Арене»"
         sub={
@@ -529,7 +535,7 @@ export default function TrainingWindow({ s, open }: WindowProps) {
                   max={POS_MAX}
                   onChange={(v) => patch({ paramsB: fromPos(v, PARAMS_B_MIN, PARAMS_B_MAX) })}
                   ends={[fmtParams(PARAMS_B_MIN), fmtParams(PARAMS_B_MAX)]}
-                  title="Больше параметров — больше вычислений на обучение и на каждый запрос клиента."
+                  title="Больше параметров - больше вычислений на обучение и на каждый запрос клиента."
                   ariaLabel="Параметры"
                 />
                 <Slider
@@ -568,11 +574,8 @@ export default function TrainingWindow({ s, open }: WindowProps) {
           </section>
 
           <section className="nm-block">
-            <h2
-              className="nm-h"
-              title="Доли в сумме дают 100 %: при движении одного ползунка остальные подстраиваются. На «Арене» язык весит вдвое больше, чем код или рассуждения."
-            >
-              Состав данных
+            <h2 className="nm-h" title="Доли в сумме дают 100 %: при движении одного ползунка остальные подстраиваются.">
+              На каких данных учить
             </h2>
             <div className="nm-mixbar" aria-hidden="true">
               {DOMAINS.map((k) => (
@@ -581,22 +584,26 @@ export default function TrainingWindow({ s, open }: WindowProps) {
             </div>
             <div className="nm-mix">
               {DOMAINS.map((k) => (
-                <Slider
-                  key={k}
-                  label={
-                    <>
-                      <span className="nm-dot" style={{ background: DOMAIN_COLOR[k] }} />
-                      {DOMAIN_RU[k]}
-                    </>
-                  }
-                  text={fmtPct(d.mix[k], 0)}
-                  value={d.mix[k]}
-                  min={0}
-                  max={100}
-                  color={DOMAIN_COLOR[k]}
-                  onChange={(v) => patch({ mix: rescaleMix(d.mix, k, v) })}
-                  ariaLabel={DOMAIN_RU[k]}
-                />
+                <div key={k} className="nm-mix-row">
+                  <span className="nm-mix-name">
+                    <span className="nm-dot" style={{ background: DOMAIN_COLOR[k] }} />
+                    {DOMAIN_RU[k]}
+                  </span>
+                  <Range
+                    value={d.mix[k]}
+                    min={0}
+                    max={100}
+                    color={DOMAIN_COLOR[k]}
+                    label={DOMAIN_RU[k]}
+                    valueText={fmtPct(d.mix[k], 0)}
+                    onChange={(v) => patch({ mix: rescaleMix(d.mix, k, v) })}
+                  />
+                  <span className="nm-mix-pct num">{fmtPct(d.mix[k], 0)}</span>
+                  <span className="nm-mix-what">
+                    {DOMAIN_WHAT[k]}. Баллы: {BENCHMARKS.filter((b) => b.domain === k).map((b) => b.name).join(', ')}
+                    {k === 'language' && '. Важнее всего для «Арены»'}
+                  </span>
+                </div>
               ))}
             </div>
           </section>
@@ -609,7 +616,7 @@ export default function TrainingWindow({ s, open }: WindowProps) {
                   className={`nm-check${rlhfDone ? '' : ' off'}`}
                   title={
                     rlhfDone
-                      ? `Повышает Эло на «Арене» и способности в языке. Вычислений нужно на ${fmtPct(RLHF_FLOP_EXTRA * 100, 0)} больше. Разметчикам платят при старте.`
+                      ? `Повышает Эло на «Арене» и баллы по текстам. Вычислений нужно на ${fmtPct(RLHF_FLOP_EXTRA * 100, 0)} больше. Разметчикам платят при старте.`
                       : 'Нужно исследование «Обучение на отзывах людей (RLHF)».'
                   }
                 >

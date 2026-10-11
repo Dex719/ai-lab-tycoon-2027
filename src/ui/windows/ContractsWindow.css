@@ -54,7 +54,10 @@
 .ct-h { margin: 0; font-size: 20px; font-weight: 300; color: #2a2c30; }
 .ct-col select { width: 100%; }
 .ct-picked { height: 32px; display: flex; align-items: center; padding: 0 8px; background: var(--win-body); border: 1px solid var(--line); border-radius: 2px; }
-.ct-nomodel { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 32px; color: var(--text-dim); }
+.ct-nomodel {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 10px 12px;
+  background: var(--win-body); border: 1px solid var(--line-soft); border-radius: 3px; color: #4a4d54;
+}
 
 /* Сравнение «Модель / Требование» */
 .ct-cmp { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: baseline; gap: 6px 18px; }

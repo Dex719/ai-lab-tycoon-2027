@@ -1,4 +1,4 @@
-// Опоры баланса (NFR-2, NFR-3): полный прогон 2017–2024 ботами.
+// Опоры баланса (NFR-2, NFR-3): полный прогон 2017-2024 ботами.
 
 import { describe, expect, it } from 'vitest';
 import { runBot } from './bots';
@@ -49,11 +49,11 @@ describe('баланс', () => {
     expect(ms).toBeLessThan(5000);
   });
 
-  it('бот «сильный» — только отчёт', () => {
+  it('бот «сильный» - только отчёт', () => {
     summary('strong', 7);
   });
 
-  it('бот «подгонщик» — только отчёт', () => {
+  it('бот «подгонщик» - только отчёт', () => {
     const { s } = summary('benchmaxx', 3);
     console.log('разоблачено моделей:', s.models.filter((m) => m.exposed).length);
   });

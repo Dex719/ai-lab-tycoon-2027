@@ -18,10 +18,10 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
   const title = s.outcome === 'victory' ? 'Победа' : s.outcome === 'bankrupt' ? 'Банкротство' : 'Конец 2024 года';
   const lead =
     s.outcome === 'victory'
-      ? `Модель лаборатории «${s.labName}» — первая на «Арене» 31 декабря 2024 года.`
+      ? `Модель лаборатории «${s.labName}» - первая на «Арене» 31 декабря 2024 года.`
       : s.outcome === 'bankrupt'
         ? `Лаборатория «${s.labName}» закрылась ${formatDate(s.day)}: деньги были в минусе 60 дней подряд.`
-        : `Партия закончилась 31 декабря 2024 года. Место на «Арене»: ${rank ?? '—'}.`;
+        : `Партия закончилась 31 декабря 2024 года. Место на «Арене»: ${rank ?? '-'}.`;
   return (
     <div className="modal-backdrop">
       <div ref={ref} tabIndex={-1} className="dialog" role="dialog" aria-modal="true" aria-label={title} onKeyDown={onKeyDown}>
@@ -32,9 +32,9 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
           <p style={{ marginTop: 0 }}>{lead}</p>
           <div className="kv">
             <span>Место на «Арене»</span>
-            <span>{rank ?? '—'}</span>
+            <span>{rank ?? '-'}</span>
             <span>Лучшая модель</span>
-            <span>{best ? `${best.name}, Эло ${fmtElo(best.elo)}` : '—'}</span>
+            <span>{best ? `${best.name}, Эло ${fmtElo(best.elo)}` : '-'}</span>
             <span>Деньги</span>
             <span>{fmtMoney(s.cash)}</span>
             <span>Оценка компании</span>

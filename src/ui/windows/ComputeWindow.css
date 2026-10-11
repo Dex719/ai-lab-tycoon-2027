@@ -77,7 +77,6 @@
   border-radius: 4px;
 }
 .cw-card-name { font-size: 17px; line-height: 1.2; }
-.cw-card .progress { height: 6px; }
 .cw-card-actions { display: flex; gap: 8px; }
 .cw-card-actions .btn { flex: 1; }
 .cw-empty {
@@ -99,15 +98,24 @@
 }
 .cw-panel > .cw-h { margin-bottom: 4px; }
 .cw-panel-note { margin: 0 0 2px; font-size: 13px; color: var(--text-dim); }
-.cw-alloc-row { padding: 8px 0 6px; border-top: 1px solid var(--line-soft); }
-.cw-alloc-row:first-of-type { border-top: none; }
-.cw-alloc-top { display: flex; align-items: baseline; gap: 8px; }
+.cw-allocbar { display: flex; height: 10px; margin: 8px 0 6px; overflow: hidden; background: #e3e5e9; border-radius: 2px; }
+.cw-allocbar > div { transition: width 120ms ease-out; }
+.cw-alloc-row { padding: 8px 0 4px; border-top: 1px solid var(--line-soft); }
+.cw-allocbar + .cw-alloc-row, .cw-panel-note + .cw-alloc-row { border-top: none; }
+.cw-alloc-top { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.cw-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; }
 .cw-alloc-name { flex: 1; }
-.cw-alloc-pct { min-width: 52px; text-align: right; font-weight: 600; }
-.cw-alloc-val { min-width: 96px; text-align: right; color: var(--text-dim); white-space: nowrap; }
-.cw-alloc-row input[type='range'] { display: block; width: 100%; margin: 4px 0 0; }
-.cw-need { display: flex; justify-content: space-between; gap: 10px; margin-top: 2px; font-size: 13px; }
+.cw-alloc-val { color: var(--text-dim); white-space: nowrap; font-size: 13px; }
+.cw-alloc-pct { min-width: 44px; text-align: right; font-weight: 600; }
+.cw-alloc-pct.changed { color: var(--accent); }
+.cw-need { margin-top: 2px; font-size: 13px; color: var(--text-dim); }
+.cw-need.bad { color: var(--bad); }
 .cw-panel .error { margin: 4px 0; }
+.cw-alloc-foot {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+}
+.cw-alloc-hint { margin-right: auto; font-size: 13px; color: var(--text-dim); }
 
 /* ---------- Диалог аренды ---------- */
 /* Диалог выводится в document.body, поэтому цифры включаем здесь, а не в .cw. */
@@ -145,7 +153,6 @@
 
 .cw-qty { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; }
 .cw-qty > label { color: var(--text-dim); }
-.cw-qty input[type='range'] { width: 100%; margin: 0; }
 .cw-qty-note { grid-column: 2 / -1; font-size: 13px; color: var(--text-dim); }
 .cw-qty-note.bad { color: var(--bad); }
 .card.cw-sum { background: #fff; }

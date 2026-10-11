@@ -1,5 +1,5 @@
 // Исторические и механические события среза (FR-11). TSK-009.
-// Эффекты — функции над состоянием; в сохранение попадают только id события и номер выбора.
+// Эффекты - функции над состоянием; в сохранение попадают только id события и номер выбора.
 // Варианты выбора в письме заданы заранее, поэтому событие с ветками сделано парой:
 // из двух событий срабатывает ровно одно (условия не пересекаются, плюс проверка «другое не срабатывало»).
 
@@ -9,6 +9,7 @@ import {
   ATTENTION_PAPER_DISCOUNT,
   CHAT_MOMENT_BRAND,
   EXPORT_CONTROL_BRAND,
+  FAIL_CHOICE_DAYS,
   FAIL_CONTINUE_PENALTY,
   FAIL_ROLLBACK,
 } from '../sim/constants';
@@ -38,6 +39,10 @@ export interface EventDef {
   mail: (s: GameState) => { title: string; body: string; kind: Mail['kind'] };
   onFire?: (s: GameState) => void;
   choices?: EventChoiceDef[];
+  /** Сколько дней можно отложить ответ (по умолчанию CHOICE_DAYS). */
+  choiceDays?: number;
+  /** Вариант, который выберется сам по истечении срока (по умолчанию последний). */
+  defaultChoice?: number;
 }
 
 // ---------- Даты и числа событий ----------
@@ -167,7 +172,7 @@ export const EVENTS: EventDef[] = [
       kind: 'event',
       title: 'Механизм внимания изучен до публикации Gogle',
       body:
-        'Gogle публикует статью «Внимание — всё, что нужно». Лаборатория уже завершила такое же исследование. ' +
+        'Gogle публикует статью «Внимание - всё, что нужно». Лаборатория уже завершила такое же исследование. ' +
         'Результаты можно опубликовать первыми или оставить метод в секрете.',
     }),
     choices: [
@@ -198,7 +203,7 @@ export const EVENTS: EventDef[] = [
     },
     mail: () => ({
       kind: 'news',
-      title: 'Gogle опубликовала статью «Внимание — всё, что нужно»',
+      title: 'Gogle опубликовала статью «Внимание - всё, что нужно»',
       body:
         'Исследователи Gogle описали архитектуру без рекуррентных сетей: она обучается быстрее и даёт более высокое качество. ' +
         'Идея доступна всем лабораториям. ' +
@@ -243,6 +248,11 @@ export const EVENTS: EventDef[] = [
           addHype(s, 'player', 10);
           addReputation(s, -3);
         },
+      },
+      {
+        label: 'Не комментировать',
+        hint: 'без изменений',
+        apply: () => {},
       },
     ],
   },
@@ -313,7 +323,7 @@ export const EVENTS: EventDef[] = [
       kind: 'event',
       title: 'ChatGTP: OpenBrain открыла чат-бота для всех',
       body:
-        'OpenBrain открыла ChatGTP — чат-бота для свободного диалога. ' +
+        'OpenBrain открыла ChatGTP - чат-бота для свободного диалога. ' +
         'За пять дней им воспользовался миллион человек. ' +
         'Бренд OpenBrain укрепился, клиенты ожидают чат-ботов и от других лабораторий.',
     }),
@@ -419,7 +429,7 @@ export const EVENTS: EventDef[] = [
       kind: 'news',
       title: 'OpenBrain выпустила q1-Previow',
       body:
-        'q1-Previow — модель, которая перед ответом долго рассуждает. ' +
+        'q1-Previow - модель, которая перед ответом долго рассуждает. ' +
         'На GPQE и GSM8C (математика) она опережает всех соперников.',
     }),
   },
@@ -432,7 +442,7 @@ export const EVENTS: EventDef[] = [
       kind: 'news',
       title: 'OpenBrain показала q3',
       body:
-        'q3 — новая модель OpenBrain с рассуждением. ' +
+        'q3 - новая модель OpenBrain с рассуждением. ' +
         'На тесте ARK-AGI, который считался недоступным для нейросетей, она показала рекордный результат. ' +
         'Модель пока закрыта.',
     }),
@@ -442,6 +452,7 @@ export const EVENTS: EventDef[] = [
   {
     id: 'training-fail',
     repeatable: true,
+    choiceDays: FAIL_CHOICE_DAYS,
     when: { check: () => false },
     mail: (s) => {
       const name = s.training?.plan.name;

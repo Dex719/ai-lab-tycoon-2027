@@ -117,7 +117,7 @@ describe('кривые спроса, цены и качества', () => {
   });
 
   it('спрос растёт в логарифме между точками', () => {
-    // 2019-01-01 = день 730, середина между началом 2017 и началом 2019 — день 365
+    // 2019-01-01 = день 730, середина между началом 2017 и началом 2019 - день 365
     const mid = demandTokens(makeState(365));
     expect(mid / Math.sqrt(5e7 * 2e8)).toBeCloseTo(1, 6);
   });
@@ -166,8 +166,8 @@ describe('кривые спроса, цены и качества', () => {
     }
   });
 
-  it('между точками цена идёт в логарифме, качество — по прямой', () => {
-    // цена: 01.01.2020 — 60, 01.01.2022 — 20
+  it('между точками цена идёт в логарифме, качество - по прямой', () => {
+    // цена: 01.01.2020 - 60, 01.01.2022 - 20
     const p0 = dateToDay('2020-01-01');
     const p1 = dateToDay('2022-01-01');
     const pDay = Math.round((p0 + p1) / 2);
@@ -175,7 +175,7 @@ describe('кривые спроса, цены и качества', () => {
     expect(refPrice(pDay) / (60 * (20 / 60) ** pt)).toBeCloseTo(1, 9);
     expect(refPrice(pDay)).toBeLessThan(40); // по прямой было бы около 40
 
-    // качество: 01.01.2020 — 950, 01.01.2023 — 1050
+    // качество: 01.01.2020 - 950, 01.01.2023 - 1050
     const q0 = dateToDay('2020-01-01');
     const q1 = dateToDay('2023-01-01');
     const qDay = Math.round((q0 + q1) / 2);
@@ -314,7 +314,7 @@ describe('marketSnapshot', () => {
     expect(e.price).toBeCloseTo(15, 9);
   });
 
-  it('цена выше — доля ниже', () => {
+  it('цена выше - доля ниже', () => {
     const shareAt = (price: number): number => {
       const s = makeState();
       s.models.push(player({ price }));
@@ -328,7 +328,7 @@ describe('marketSnapshot', () => {
     expect(mid).toBeGreaterThan(dear);
   });
 
-  it('Эло выше — доля выше', () => {
+  it('Эло выше - доля выше', () => {
     const shareAt = (elo: number): number => {
       const s = makeState();
       s.models.push(player({ arenaElo: elo }));
@@ -404,7 +404,7 @@ describe('marketSnapshot', () => {
     expect(snap.entries[0].owner).toBe('player');
   });
 
-  it('формула: U = (Q−1000)/100 + бренд − 1,2·ln(цена/P_ref), доля — softmax', () => {
+  it('формула: U = (Q−1000)/100 + бренд − 1,2·ln(цена/P_ref), доля - softmax', () => {
     // 1 января 2024: P_ref = 3 $/1М, Q_ref = 1150, значит U_0 = 1,5
     const s = makeState(dateToDay('2024-01-01'));
     s.reputation = 50; // бренд игрока 0
@@ -504,11 +504,11 @@ describe('inferenceNeed', () => {
     const t2 = snap.entries.find((x) => x.key === 'player:p2')!.tokens;
     const expected = (t1 * 2 * 7e9 + t2 * 2 * 175e9) / (989e12 * 0.15 * 86400);
     expect(inferenceNeed(s, snap)).toBeCloseTo(expected, 6);
-    // больше модель при тех же токенах — больше мощности
+    // больше модель при тех же токенах - больше мощности
     expect(inferenceNeed(s, snap)).toBeGreaterThan((t1 * 2 * 7e9 + t2 * 2 * 7e9) / (989e12 * 0.15 * 86400));
   });
 
-  it('модели соперников не требуют мощности игрока; пустой рынок — ноль', () => {
+  it('модели соперников не требуют мощности игрока; пустой рынок - ноль', () => {
     const s = makeState();
     rivalState.list = [rival()];
     expect(inferenceNeed(s, marketSnapshot(s))).toBe(0);
@@ -563,7 +563,7 @@ describe('dayStep', () => {
     expect(half.market.lostFraction).toBeCloseTo(0.5, 9);
     expect(half.market.playerTokens / full.market.playerTokens).toBeCloseTo(0.5, 9);
     expect(half.hype.player).toBeCloseTo(40 - 0.3 * 0.5, 9);
-    // доли — это спрос, они от мощности не зависят
+    // доли - это спрос, они от мощности не зависят
     expect(half.market.shares['player:p1']).toBeCloseTo(full.market.shares['player:p1'], 12);
   });
 
@@ -611,7 +611,7 @@ describe('dayStep', () => {
     expect(s.hype.player).toBeCloseTo(49.7, 9);
   });
 
-  it('нет моделей игрока на рынке — нет потерь и штрафа к шумихе', () => {
+  it('нет моделей игрока на рынке - нет потерь и штрафа к шумихе', () => {
     const s = makeState();
     rivalState.list = [rival()];
     s.hype.player = 30;
@@ -637,7 +637,7 @@ describe('dayStep', () => {
     expect(m.labShares.player).toBeCloseTo(m.shares['player:p1'], 12);
     expect(m.labShares.openbrain).toBeCloseTo(m.shares['rival:r1'], 12);
     expect(m.labShares.gogle).toBeCloseTo(m.shares['rival:r2'], 12);
-    // лаборатории без моделей на рынке — ноль, но ключ есть
+    // лаборатории без моделей на рынке - ноль, но ключ есть
     for (const o of HYPE_OWNERS) expect(m.labShares[o]).toBeGreaterThanOrEqual(0);
     expect(m.labShares.zhipo).toBe(0);
     expect(m.labShares.deepcent).toBe(0);
@@ -686,7 +686,7 @@ describe('dayStep', () => {
     expect(s.market.shares).toEqual(first.shares);
     expect(s.market.labShares).toEqual(first.labShares);
 
-    // модель сняли с API, а соперник пропал с рынка — в записи их больше нет
+    // модель сняли с API, а соперник пропал с рынка - в записи их больше нет
     s.models[0].onApi = false;
     rivalState.list = [rival({ id: 'r2', lab: 'gogle', gameName: 'Гем-1' })];
     dayStep(s);

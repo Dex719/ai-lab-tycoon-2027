@@ -89,31 +89,14 @@
 .nm-sl-v { font-size: 16px; }
 .nm-sl-ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-dim); }
 .nm-dot { width: 9px; height: 9px; border-radius: 50%; }
-.nm-range {
-  --c: var(--accent); --p: 0%;
-  -webkit-appearance: none; appearance: none; display: block; width: 100%; height: 20px; margin: 0;
-  background: transparent; cursor: pointer;
-}
-.nm-range::-webkit-slider-runnable-track {
-  height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--c) var(--p), #c4c7cd var(--p));
-}
-.nm-range::-moz-range-track { height: 4px; border-radius: 2px; background: #c4c7cd; }
-.nm-range::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--c); }
-.nm-range::-webkit-slider-thumb {
-  -webkit-appearance: none; box-sizing: border-box; width: 16px; height: 16px; margin-top: -6px; border-radius: 50%;
-  background: #fff; border: 1px solid #9aa0a8; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
-}
-.nm-range::-moz-range-thumb {
-  box-sizing: border-box; width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 1px solid #9aa0a8;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
-}
-.nm-range:focus-visible { outline: none; }
-.nm-range:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
-.nm-range:focus-visible::-moz-range-thumb { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* Состав данных */
 .nm-mixbar { display: flex; height: 10px; margin: 2px 0 12px; overflow: hidden; background: #e3e5e9; border-radius: 2px; }
-.nm-mix { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 24px; }
+.nm-mix { display: flex; flex-direction: column; gap: 10px; }
+.nm-mix-row { display: grid; grid-template-columns: 170px minmax(0, 1fr) 48px; align-items: center; gap: 2px 14px; }
+.nm-mix-name { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #1f2023; }
+.nm-mix-pct { font-size: 15px; font-weight: 600; text-align: right; }
+.nm-mix-what { grid-column: 1 / -1; padding-left: 17px; font-size: 12.5px; color: var(--text-dim); }
 
 /* Дообучение */
 .nm-ft { display: grid; grid-template-columns: minmax(180px, 0.8fr) minmax(0, 1.6fr); gap: 16px 28px; }
@@ -133,7 +116,8 @@
   .nm-run { grid-template-columns: minmax(0, 1fr); }
   .nm-run-act { justify-content: flex-start; }
   .nm-side { width: 240px; }
-  .nm-size, .nm-mix, .nm-ft { grid-template-columns: minmax(0, 1fr); }
+  .nm-size, .nm-ft { grid-template-columns: minmax(0, 1fr); }
+  .nm-mix-row { grid-template-columns: 140px minmax(0, 1fr) 44px; }
   .nm-chip { max-width: 188px; }
   .nm-ft > div + div { padding-left: 0; padding-top: 14px; border-left: none; border-top: 1px solid var(--line-soft); }
 }

@@ -32,7 +32,7 @@ describe('dayStep: деньги кончились', () => {
     expect(s.finance.negativeDays).toBe(5);
   });
 
-  it('выход в плюс сбрасывает счётчик, новый минус — новое письмо', () => {
+  it('выход в плюс сбрасывает счётчик, новый минус - новое письмо', () => {
     const s = broke();
     dayStep(s);
     s.cash = 1e9;
@@ -50,7 +50,7 @@ describe('dayStep: деньги кончились', () => {
     expect(s.mail).toHaveLength(0);
   });
 
-  it(`${BANKRUPT_DAYS}-й день подряд в минусе — банкротство`, () => {
+  it(`${BANKRUPT_DAYS}-й день подряд в минусе - банкротство`, () => {
     const s = broke();
     s.cash = -1e9;
     for (let i = 1; i < BANKRUPT_DAYS; i++) {

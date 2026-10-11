@@ -23,7 +23,7 @@ const TIP_SATURATED = 'Бенчмарк насыщен: не влияет на �
 
 const rowKey = (r: BoardRow) => `${r.ref.kind}:${r.ref.id}`;
 
-/** Подсказка к значку предупреждения: у вашей модели — раскрытая подгонка, у соперника — сообщения об утечке. */
+/** Подсказка к значку предупреждения: у вашей модели - раскрытая подгонка, у соперника - сообщения об утечке. */
 function flagTitle(r: BoardRow): string {
   return r.owner === 'player' ? 'Подгонка под бенчмарки раскрыта' : 'Были сообщения об утечке бенчмарка';
 }
@@ -179,7 +179,7 @@ export function BenchmarksTab({ s }: WindowProps) {
                   if (!sc) {
                     return (
                       <td key={b.id} className={`${cls} muted`}>
-                        —
+                        -
                       </td>
                     );
                   }
@@ -236,7 +236,7 @@ export function ArenaTab({ s }: WindowProps) {
   const rows = safe(() => leaderboard(s));
   const arenaOpen = s.day >= dateToDay(ARENA_OPEN_DATE);
 
-  // Места: больше Эло — выше; при равенстве выше модель, вышедшая раньше (порядок как в sim/leaderboard).
+  // Места: больше Эло - выше; при равенстве выше модель, вышедшая раньше (порядок как в sim/leaderboard).
   const ranked = (rows ?? [])
     .slice()
     .reverse()
@@ -302,15 +302,15 @@ export function ArenaTab({ s }: WindowProps) {
       <StatStrip
         items={[
           {
-            value: mine ? `№${fmtNum(mine.rank)}` : '—',
+            value: mine ? `№${fmtNum(mine.rank)}` : '-',
             label: mine ? `Ваше лучшее место из ${fmtNum(ranked.length)}` : 'Выпущенных моделей нет',
           },
           {
-            value: mine ? fmtElo(mine.row.elo) : '—',
+            value: mine ? fmtElo(mine.row.elo) : '-',
             label: mine ? `Эло: ${mine.row.name}` : 'Эло вашей лучшей модели',
           },
           {
-            value: leader ? fmtElo(leader.row.elo) : '—',
+            value: leader ? fmtElo(leader.row.elo) : '-',
             label: leader ? `Лидер: ${leader.row.name} (${ownerName(s, leader.row.owner)})` : 'Лидер рейтинга',
           },
           { value: '№1', label: `Цель на ${formatDateShort(END_DAY)}` },

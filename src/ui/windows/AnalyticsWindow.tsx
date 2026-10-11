@@ -69,7 +69,7 @@ function YourModelsTab({ s, open }: WindowProps) {
   const cur = dayToDate(s.day);
   const live = { api: s.finance.month.income.api, contracts: s.finance.month.income.contracts };
 
-  // Сначала модели в продаже, внутри группы — новые сверху.
+  // Сначала модели в продаже, внутри группы - новые сверху.
   const released = s.models
     .filter((m) => m.releasedDay !== null)
     .sort((a, b) => Number(b.onApi) - Number(a.onApi) || (b.releasedDay ?? 0) - (a.releasedDay ?? 0));
@@ -141,11 +141,11 @@ function ModelsTable({ models, byKey }: { models: PlayerModel[]; byKey: Map<stri
             <tr key={m.id}>
               <td>{m.name}</td>
               <td>{m.onApi ? <span className="good">В продаже</span> : <span className="muted">Снята с продажи</span>}</td>
-              <td>{m.releasedDay !== null ? formatDateShort(m.releasedDay) : '—'}</td>
+              <td>{m.releasedDay !== null ? formatDateShort(m.releasedDay) : '-'}</td>
               <td className="num">{fmtElo(m.arenaElo)}</td>
               <td className="num">{fmtPrice(m.price)}</td>
-              <td className="num">{e ? fmtShare(e.share) : '—'}</td>
-              <td className="num">{e ? fmtNum(e.tokens) : '—'}</td>
+              <td className="num">{e ? fmtShare(e.share) : '-'}</td>
+              <td className="num">{e ? fmtNum(e.tokens) : '-'}</td>
             </tr>
           );
         })}

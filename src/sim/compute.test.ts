@@ -54,7 +54,7 @@ describe('каталог GPU и доступность', () => {
     expect(isGpuAvailable(s, 'v100')).toBe(true);
   });
 
-  it('каждый GPU доступен ровно с даты выхода (граница — день выхода)', () => {
+  it('каждый GPU доступен ровно с даты выхода (граница - день выхода)', () => {
     const releases: [GpuId, string][] = GPUS.map((g): [GpuId, string] => [g.id, g.availableFrom]);
     for (const [id, iso] of releases) {
       const s = stateAt(iso);
@@ -66,7 +66,7 @@ describe('каталог GPU и доступность', () => {
     }
   });
 
-  it('в первый день есть только P100, к концу 2024 — все пять', () => {
+  it('в первый день есть только P100, к концу 2024 - все пять', () => {
     expect(availableGpus(createInitialState('Тест', 1)).map((g) => g.id)).toEqual(['p100']);
     expect(availableGpus(stateAt('2020-11-02')).map((g) => g.id)).toEqual(['p100', 'v100', 'a100']);
     expect(availableGpus(stateAt('2024-12-31')).map((g) => g.id)).toEqual(['p100', 'v100', 'a100', 'h100', 'h200']);
@@ -80,7 +80,7 @@ describe('цена аренды', () => {
     expect(rentPerGpuDay(stateAt('2023-06-01'), 'h100')).toBeCloseTo(dayRentOf('h100', 2023), 9);
   });
 
-  it('если года в таблице нет — берёт ближайший известный', () => {
+  it('если года в таблице нет - берёт ближайший известный', () => {
     // у A100 таблица начинается с 2020: в 2018 берём цену 2020
     expect(rentPerGpuDay(stateAt('2018-05-01'), 'a100')).toBeCloseTo(dayRentOf('a100', 2020), 9);
     // у H200 только 2024: в 2026 берём цену 2024
@@ -92,7 +92,7 @@ describe('цена аренды', () => {
     expect(rentPerGpuDay(stateAt('2018-01-01'), 'p100')).toBeCloseTo(dayRentOf('p100', 2018), 9);
   });
 
-  it('год в «дырке» таблицы — берётся предыдущий известный, до таблицы — первый', () => {
+  it('год в «дырке» таблицы - берётся предыдущий известный, до таблицы - первый', () => {
     const def = gpuDef('p100');
     const saved = def.rentPerGpuHour;
     def.rentPerGpuHour = { 2018: 1, 2021: 2 };
@@ -107,7 +107,7 @@ describe('цена аренды', () => {
     }
   });
 
-  it('модификатор цены не меняет лимит, а модификатор лимита — цену', () => {
+  it('модификатор цены не меняет лимит, а модификатор лимита - цену', () => {
     const s = stateAt('2021-05-01');
     const price = rentPerGpuDay(s, 'a100');
     const cap = rentCapFor(s, 'a100');
@@ -118,7 +118,7 @@ describe('цена аренды', () => {
     expect(rentCapFor(s, 'a100')).toBe(cap / 2);
   });
 
-  it('общий модификатор rentPrice действует на все типы, целевой — только на свой', () => {
+  it('общий модификатор rentPrice действует на все типы, целевой - только на свой', () => {
     const s = stateAt('2021-05-01');
     const p100 = rentPerGpuDay(s, 'p100');
     const a100 = rentPerGpuDay(s, 'a100');
@@ -162,7 +162,7 @@ describe('цена аренды', () => {
 });
 
 describe('лимит аренды', () => {
-  it('2017 — 512 на тип и удваивается каждый год, 2024 — 65 536', () => {
+  it('2017 - 512 на тип и удваивается каждый год, 2024 - 65 536', () => {
     expect(rentCapFor(stateAt('2017-01-01'), 'p100')).toBe(512);
     expect(rentCapFor(stateAt('2017-12-31'), 'p100')).toBe(512);
     expect(rentCapFor(stateAt('2018-01-01'), 'p100')).toBe(1024);
@@ -205,7 +205,7 @@ describe('мощность и доли', () => {
 });
 
 describe('cheapestH100eDay', () => {
-  it('в первый день единственный вариант — P100', () => {
+  it('в первый день единственный вариант - P100', () => {
     const s = createInitialState('Тест', 1);
     expect(cheapestH100eDay(s)).toBeCloseTo(dayRentOf('p100', 2017) / gpuData('p100').h100e, 6);
   });
@@ -273,7 +273,7 @@ describe('normalizeAlloc', () => {
     expect(normalizeAlloc(once)).toEqual(once);
   });
 
-  it('сумма переполнена (огромные числа) — стартовые доли, без NaN и нулей', () => {
+  it('сумма переполнена (огромные числа) - стартовые доли, без NaN и нулей', () => {
     const a = normalizeAlloc({ training: 1e308, contracts: 1e308, experiments: 1e308, inference: 0 });
     expect(a).toEqual(DEFAULT_ALLOC);
   });
@@ -345,7 +345,7 @@ describe('setRent', () => {
     expect(Object.is(s.compute.rented.p100, 0)).toBe(true);
   });
 
-  it('неизвестный тип GPU — ошибка, состояние не меняется', () => {
+  it('неизвестный тип GPU - ошибка, состояние не меняется', () => {
     const s = createInitialState('Тест', 1);
     const before = JSON.stringify(s);
     const r = setRent(s, 'x999' as GpuId, 5);
@@ -371,9 +371,9 @@ describe('setRent', () => {
 
   it('текст ошибки лимита: имя GPU и лимит цифрами без пробелов', () => {
     const s = createInitialState('Тест', 1);
-    expect(setRent(s, 'p100', 513)).toEqual({ ok: false, error: 'Лимит аренды Fermi P100 в этом году — 512 шт.' });
+    expect(setRent(s, 'p100', 513)).toEqual({ ok: false, error: 'Лимит аренды Fermi P100 в этом году - 512 шт.' });
     s.day = dateToDay('2024-12-31');
-    expect(setRent(s, 'h100', 65_537)).toEqual({ ok: false, error: 'Лимит аренды Fermi H100 в этом году — 65536 шт.' });
+    expect(setRent(s, 'h100', 65_537)).toEqual({ ok: false, error: 'Лимит аренды Fermi H100 в этом году - 65536 шт.' });
     expect(setRent(s, 'h100', 65_536)).toEqual({ ok: true });
   });
 
@@ -391,13 +391,13 @@ describe('setRent', () => {
     expect(setRent(s, 'h200', 1_000_000)).toEqual({ ok: false, error: 'Этот GPU ещё не вышел' });
   });
 
-  it('недоступный тип — ошибка «Этот GPU ещё не вышел», состояние не меняется', () => {
+  it('недоступный тип - ошибка «Этот GPU ещё не вышел», состояние не меняется', () => {
     const s = createInitialState('Тест', 1);
     expect(setRent(s, 'h100', 5)).toEqual({ ok: false, error: 'Этот GPU ещё не вышел' });
     expect(s.compute.rented.h100).toBe(0);
   });
 
-  it('выше лимита — ошибка с числом лимита; ровно лимит — можно', () => {
+  it('выше лимита - ошибка с числом лимита; ровно лимит - можно', () => {
     const s = createInitialState('Тест', 1);
     const r = setRent(s, 'p100', 513);
     expect(r.ok).toBe(false);

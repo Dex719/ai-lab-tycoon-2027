@@ -95,13 +95,13 @@ describe('techCost', () => {
 
   it('раньше исторической даты дороже: × (1 + 2,5 × лет опережения)', () => {
     const s = createInitialState('Тест', 1);
-    s.day = dateToDay('2021-01-27'); // RLHF — за год до InstructGTP (27.01.2022)
+    s.day = dateToDay('2021-01-27'); // RLHF - за год до InstructGTP (27.01.2022)
     expect(earlyPenalty(s, 'rlhf')).toBeCloseTo(1 + 2.5 * (365 / 365), 6);
     expect(techCost(s, 'rlhf')).toBeCloseTo(30_000 * 3.5, 6);
     s.day = dateToDay('2022-01-27');
     expect(techCost(s, 'rlhf')).toBe(30_000);
     s.day = dateToDay('2023-01-01');
-    expect(techCost(s, 'rlhf')).toBe(30_000); // позже — без скидки
+    expect(techCost(s, 'rlhf')).toBe(30_000); // позже - без скидки
   });
 
   it('алгоритмы: k-й уровень «исторически» через k × 243 дня от 01.01.2017', () => {
@@ -115,7 +115,7 @@ describe('techCost', () => {
 });
 
 describe('rpPerDay', () => {
-  it('без мощности — только базовая работа команды', () => {
+  it('без мощности - только базовая работа команды', () => {
     expect(rpPerDay(createInitialState('Тест', 1))).toBe(RP_BASE);
   });
 
@@ -130,7 +130,7 @@ describe('rpPerDay', () => {
     expect(rpPerDay(s)).toBe(RP_BASE);
   });
 
-  it('отдача убывает: в 4 раза больше мощности — лишь вдвое больше сверх базы', () => {
+  it('отдача убывает: в 4 раза больше мощности - лишь вдвое больше сверх базы', () => {
     const a = rpPerDay(labWithExperiments(100)) - RP_BASE;
     const b = rpPerDay(labWithExperiments(400)) - RP_BASE;
     expect(b / a).toBeCloseTo(2, 9);
@@ -196,7 +196,7 @@ describe('требования и выбор исследования', () => {
     expect(s.research.current).toBe('attention');
   });
 
-  it('неизвестное исследование — отказ, а не падение', () => {
+  it('неизвестное исследование - отказ, а не падение', () => {
     const s = createInitialState('Тест', 1);
     expect(setResearch(s, 'bogus' as TechId)).toEqual({ ok: false, error: 'Нет такого исследования' });
     expect(canResearch(s, 'bogus' as TechId)).toBe(false);
@@ -205,7 +205,7 @@ describe('требования и выбор исследования', () => {
     expect(s.research.current).toBeNull();
   });
 
-  it('цепочка на настоящем ходу: изучили внимание — тут же открылись масштабирование и RLHF', () => {
+  it('цепочка на настоящем ходу: изучили внимание - тут же открылись масштабирование и RLHF', () => {
     const s = createInitialState('Тест', 1);
     setResearch(s, 'attention');
     s.research.points.attention = techCost(s, 'attention');
@@ -248,7 +248,7 @@ describe('требования и выбор исследования', () => {
     expect(s.research.current).toBeNull();
     expect(s.research.points.attention).toBe(saved);
 
-    researchDay(s); // ничего не выбрано — очки не растут
+    researchDay(s); // ничего не выбрано - очки не растут
     expect(s.research.points.attention).toBe(saved);
 
     setResearch(s, 'attention');
@@ -350,7 +350,7 @@ describe('progressDay', () => {
     expect(researchMail(s)).toHaveLength(0);
   });
 
-  it('граница цены: не хватает чуть-чуть — не готово, хватает ровно — готово', () => {
+  it('граница цены: не хватает чуть-чуть - не готово, хватает ровно - готово', () => {
     const s = createInitialState('Тест', 1);
     const rp = rpPerDay(s);
     setResearch(s, 'attention');
@@ -438,7 +438,7 @@ describe('алгоритмические улучшения повторяютс
     expect(canResearch(s, 'algo')).toBe(true);
   });
 
-  it('очки algo не переносятся в следующий уровень (по JSDoc — сброс в 0)', () => {
+  it('очки algo не переносятся в следующий уровень (по JSDoc - сброс в 0)', () => {
     const s = createInitialState('Тест', 1);
     setResearch(s, 'algo');
     s.research.points.algo = 1e9;
@@ -472,7 +472,7 @@ describe('алгоритмические улучшения повторяютс
 });
 
 describe('опорный сценарий: внимание успеть до 12.06.2017', () => {
-  it('≈ 2 H100e на эксперименты с 01.01.2017 — внимание готово до 12.06.2017', () => {
+  it('≈ 2 H100e на эксперименты с 01.01.2017 - внимание готово до 12.06.2017', () => {
     const s = createInitialState('Тест', 1);
     expect(setRent(s, 'p100', ANCHOR_P100)).toEqual({ ok: true });
     expect(setAllocation(s, { training: 0, contracts: 0, experiments: 1, inference: 0 })).toEqual({ ok: true });
@@ -483,7 +483,7 @@ describe('опорный сценарий: внимание успеть до 12
 
     expect(s.research.done).toContain('attention');
     expect(s.day).toBeLessThan(deadline);
-    // sanity: не мгновенно — 4000 очков при ≈45 в день это около трёх месяцев
+    // sanity: не мгновенно - 4000 очков при ≈45 в день это около трёх месяцев
     expect(s.day).toBeGreaterThan(60);
     expect(researchMail(s)).toHaveLength(1);
   });
@@ -499,7 +499,7 @@ describe('опорный сценарий: внимание успеть до 12
     }
     // В первый день цена выше 4000 (опережение почти на полгода), к 12.06.2017 падает до 4000.
     expect(days).toBeGreaterThan(Math.ceil(4000 / rp));
-    // Письмо «Вы первые» пойдёт 12.06.2017 (день 162): запас — не меньше месяца.
+    // Письмо «Вы первые» пойдёт 12.06.2017 (день 162): запас - не меньше месяца.
     expect(dateToDay('2017-06-12') - days).toBeGreaterThanOrEqual(30);
     expect(researchMail(s)[0].day).toBe(days - 1);
   });

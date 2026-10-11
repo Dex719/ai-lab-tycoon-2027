@@ -1,4 +1,4 @@
-// Ячейки сохранений в браузере: 5 ручных и автосохранение. В ячейке — краткие сведения для списка и само состояние.
+// Ячейки сохранений в браузере: 5 ручных и автосохранение. В ячейке - краткие сведения для списка и само состояние.
 
 import { deserialize, serialize } from '../sim/save';
 import { playerBestArenaRank } from '../sim/tick';
@@ -19,7 +19,7 @@ export interface SlotMeta {
 
 export interface SlotInfo {
   id: SlotId;
-  meta: SlotMeta | null; // null — ячейка пуста
+  meta: SlotMeta | null; // null - ячейка пуста
   broken: boolean; // в ячейке что-то есть, но прочитать не удалось
 }
 
@@ -67,7 +67,7 @@ function readRaw(id: SlotId): { stored: Stored | null; broken: boolean } {
       if (r.ok) return { stored: { v: 1, meta: { ...metaOf(r.state), savedAt: 0 }, state: r.state }, broken: false };
     }
   } catch {
-    // ниже — «повреждено»
+    // ниже - «повреждено»
   }
   return { stored: null, broken: true };
 }

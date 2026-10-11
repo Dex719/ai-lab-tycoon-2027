@@ -88,13 +88,9 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
             {founder.length}/{FOUNDER_MAX}
           </span>
         </label>
-        <div className="field">
-          <span>Дата начала</span>
-          <select value="2017" disabled aria-label="Дата начала">
-            <option value="2017">1 января 2017</option>
-          </select>
-        </div>
         <div className="kv">
+          <span>Дата начала</span>
+          <span>01.01.2017</span>
           <span>Стартовый капитал</span>
           <span className="good">{fmtMoney(START_CASH)}</span>
           <span>Конец партии</span>
@@ -145,7 +141,7 @@ function SlotRow({ slot, children }: { slot: SlotInfo; children: React.ReactNode
   );
 }
 
-/** Ячейки сохранений. mode='load' — загрузка (из меню и из игры), mode='save' — сохранение из игры. */
+/** Ячейки сохранений. mode='load' - загрузка (из меню и из игры), mode='save' - сохранение из игры. */
 export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose: () => void }) {
   const [slots, setSlots] = useState(listSlots);
   const [confirm, setConfirm] = useState<SlotId | null>(null);
@@ -257,7 +253,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           <input type="checkbox" checked={settings.pauseOnHidden} onChange={() => toggle('pauseOnHidden')} />
           <span>Пауза, когда вкладка браузера скрыта</span>
         </label>
-        <div className="small muted">Управление: пробел — пауза. Кнопки скорости — на верхней панели.</div>
+        <div className="small muted">Управление: пробел - пауза. Кнопки скорости - на верхней панели.</div>
       </div>
     </Dialog>
   );

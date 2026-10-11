@@ -54,7 +54,7 @@ function entryName(e: Entry): string {
   return e.rival ? e.rival.gameName : (e.model as PlayerModel).name;
 }
 
-/** Показанный балл: у соперника реальный или оценка, у игрока — с подгонкой (честный, если разоблачён). */
+/** Показанный балл: у соперника реальный или оценка, у игрока - с подгонкой (честный, если разоблачён). */
 function shownScore(e: Entry, bid: BenchmarkId): { value: number; estimated: boolean } {
   if (e.rival) return rivalScore(e.rival, bid);
   return { value: modelScore(e.model as PlayerModel, bid, false), estimated: false };
@@ -64,12 +64,12 @@ function sameRef(a: ModelRef, b: ModelRef): boolean {
   return a.kind === b.kind && a.id === b.id;
 }
 
-/** a обходит b при равных значениях: вышла раньше, а в один день — раньше по порядку. */
+/** a обходит b при равных значениях: вышла раньше, а в один день - раньше по порядку. */
 function earlier(a: Entry, b: Entry): boolean {
   return a.releasedDay < b.releasedDay || (a.releasedDay === b.releasedDay && a.order < b.order);
 }
 
-/** Место (с 1) модели ref среди list по value, по убыванию; null — модели нет в списке. */
+/** Место (с 1) модели ref среди list по value, по убыванию; null - модели нет в списке. */
 function rankIn(list: Entry[], ref: ModelRef, value: (e: Entry) => number): number | null {
   const target = list.find((e) => sameRef(e.ref, ref));
   if (!target) return null;
@@ -132,7 +132,7 @@ export function leaderboard(s: GameState): BoardRow[] {
   });
 }
 
-/** Место (1 = лучший) по показанному баллу среди выпущенных моделей; null — бенчмарк не вышел или модели нет. */
+/** Место (1 = лучший) по показанному баллу среди выпущенных моделей; null - бенчмарк не вышел или модели нет. */
 export function benchRank(s: GameState, ref: ModelRef, bid: BenchmarkId): number | null {
   if (!s.benchmarks[bid]?.introduced) return null;
   return rankIn(entries(s), ref, (e) => shownScore(e, bid).value);
@@ -178,7 +178,7 @@ export function bestElo(s: GameState, owner: HypeOwner): number {
 
 // Оценочные баллы соперников (≈) насыщения не вызывают: «почти максимум» должен быть опубликованным результатом,
 // а не нашей догадкой по Эло (иначе GPQE и SWE-banch «насытились» бы моделью, у которой нет ни одного балла).
-// true — считать и оценки, как «показанные» баллы таблицы.
+// true - считать и оценки, как «показанные» баллы таблицы.
 const SATURATION_COUNTS_ESTIMATES = false;
 
 function fmtPct(x: number): string {
@@ -186,8 +186,8 @@ function fmtPct(x: number): string {
 }
 
 /**
- * Балл для проверки насыщения: у соперника — опубликованный (оценки не в счёт, см. SATURATION_COUNTS_ESTIMATES),
- * у игрока — честный, без подгонки. Иначе подогнанная модель сама «насыщала» бы свой бенчмарк и уходила
+ * Балл для проверки насыщения: у соперника - опубликованный (оценки не в счёт, см. SATURATION_COUNTS_ESTIMATES),
+ * у игрока - честный, без подгонки. Иначе подогнанная модель сама «насыщала» бы свой бенчмарк и уходила
  * от разоблачения.
  */
 function saturationScore(e: Entry, bid: BenchmarkId): { value: number; estimated: boolean } {
@@ -196,7 +196,7 @@ function saturationScore(e: Entry, bid: BenchmarkId): { value: number; estimated
 }
 
 /**
- * Проверить насыщение активных бенчмарков по лучшему баллу (saturationScore); насыщенные — флаг и письмо
+ * Проверить насыщение активных бенчмарков по лучшему баллу (saturationScore); насыщенные - флаг и письмо
  * kind 'benchmark'. Повторно письмо не приходит.
  */
 export function updateSaturation(s: GameState): void {
@@ -222,7 +222,7 @@ export function updateSaturation(s: GameState): void {
       kind: 'benchmark',
       title: `Бенчмарк ${def.name} насыщен`,
       body:
-        `Лучший результат на ${def.name} — ${fmtPct(best)} (${entryName(leader)}). ` +
+        `Лучший результат на ${def.name} - ${fmtPct(best)} (${entryName(leader)}). ` +
         'Бенчмарк больше не различает сильные модели и не влияет на шумиху и тендеры. ' +
         'В таблице он отмечен серым.',
     });

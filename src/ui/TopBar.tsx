@@ -30,7 +30,7 @@ const EXPENSE: { k: ExpenseKind; label: string }[] = [
   { k: 'penalties', label: 'Штрафы' },
 ];
 
-/** Изменение денег в месяц: итог прошлого месяца без инвесторов, а в первый месяц — текущие расходы. */
+/** Изменение денег в месяц: итог прошлого месяца без инвесторов, а в первый месяц - текущие расходы. */
 function monthlyRate(s: GameState): number {
   const h = s.finance.history.at(-1);
   if (h) {
@@ -144,7 +144,7 @@ export function TopBar({ s }: { s: GameState }) {
       </div>
       <div className="topbar-right">
         <span>Доля рынка: {fmtShare(s.market.labShares.player ?? 0, 2)}</span>
-        <span>«Арена»: {rank !== null ? `${rank}-е место` : '—'}</span>
+        <span>«Арена»: {rank !== null ? `${rank}-е место` : '-'}</span>
       </div>
       {(store.pauseReason || negative) && speed === 0 && (
         <div className="pause-note">

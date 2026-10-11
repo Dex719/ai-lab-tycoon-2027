@@ -16,7 +16,7 @@ if (import.meta.env.DEV) {
     advance: (n: number) => store.advance(n),
     act: (name: keyof typeof actions, ...args: unknown[]) =>
       store.dispatch(actions[name] as (s: unknown, ...a: unknown[]) => never, ...args),
-    // Автоигра ботом на n дней (выбор в письмах — первый вариант): быстро дойти до поздней игры.
+    // Автоигра ботом на n дней (выбор в письмах - первый вариант): быстро дойти до поздней игры.
     autoplay: (days: number, kind: BotKind = 'reasonable') => {
       const s = store.state;
       if (!s) return 0;

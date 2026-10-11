@@ -118,7 +118,7 @@ function RoundCard(props: { fraction: number; v: Valuation | null; share: number
       </div>
       <div className="kv">
         <span>Сумма</span>
-        <span className="good">{money === null ? '—' : `+${fmtMoney(money)}`}</span>
+        <span className="good">{money === null ? '-' : `+${fmtMoney(money)}`}</span>
         <span>Доля после</span>
         <span>{fmtShare(share * (1 - fraction))}</span>
       </div>
@@ -191,7 +191,7 @@ export default function InvestorsWindow({ s }: WindowProps) {
     <div className="inv">
       <div className="inv-top">
         <div className="label">Оценка компании</div>
-        <div className="inv-value num">{v ? fmtMoney(v.total) : '—'}</div>
+        <div className="inv-value num">{v ? fmtMoney(v.total) : '-'}</div>
         <div className="inv-share">
           Ваша доля: <b className="num">{fmtShare(s.founderShare)}</b>
           {v && (

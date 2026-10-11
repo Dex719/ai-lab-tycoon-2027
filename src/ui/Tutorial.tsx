@@ -20,24 +20,36 @@ export function TutorialPanel({ s, open, speed }: { s: GameState; open: Readonly
   const step = TUTORIAL[index];
   const doneNow = active && !!step.done?.(s, { open, speed });
 
-  // Условие шага выполнено — переходим к следующему.
+  // Условие шага выполнено - переходим к следующему.
   useEffect(() => {
     if (!doneNow) return;
     if (index >= TUTORIAL.length - 1) store.dispatch(finish);
     else store.dispatch(setStep, index + 1);
   }, [doneNow, index]);
 
-  // Подсветка первой найденной цели.
+  // Подсветка первой найденной цели. Цель может появиться без перерисовки игры (диалог внутри окна),
+  // поэтому поиск повторяется по таймеру.
   useEffect(() => {
     if (!active) return;
     let el: Element | null = null;
-    for (const t of step.targets) {
-      el = document.querySelector(`[data-tutorial="${t}"]`);
-      if (el) break;
-    }
-    el?.classList.add('tutor-target');
-    return () => el?.classList.remove('tutor-target');
-  });
+    const update = () => {
+      let next: Element | null = null;
+      for (const t of step.targets) {
+        next = document.querySelector(`[data-tutorial="${t}"]`);
+        if (next) break;
+      }
+      if (next === el) return;
+      el?.classList.remove('tutor-target');
+      next?.classList.add('tutor-target');
+      el = next;
+    };
+    update();
+    const timer = setInterval(update, 400);
+    return () => {
+      clearInterval(timer);
+      el?.classList.remove('tutor-target');
+    };
+  }, [active, step]);
 
   if (!active) return null;
   const last = index === TUTORIAL.length - 1;

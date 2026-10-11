@@ -39,7 +39,7 @@ import {
   TOKENS_B_MIN,
   TRAIN_FLOP_PER_H100E_DAY,
 } from './constants';
-import { addMail, triggerEvent } from './events';
+import { addMail, awaitingEvent, dropChoices, triggerEvent } from './events';
 import { spend } from './finance';
 import { chance, randRange } from './rng';
 import { endSentence } from './text';
@@ -51,7 +51,7 @@ export type Arch = 'lstm' | 'transformer';
 
 export interface TrainingEstimate {
   flop: number;
-  days: number | null; // null — доля «Обучение» = 0
+  days: number | null; // null - доля «Обучение» = 0
   arch: Arch;
   labelers: number; // $ разметчикам при старте (RLHF)
   error: string | null; // текст ошибки validatePlan или null
@@ -104,12 +104,12 @@ export function planFlop(plan: TrainingPlan): number {
   return 6 * plan.paramsB * 1e9 * plan.tokensB * 1e9 * (plan.rlhf ? 1 + RLHF_FLOP_EXTRA : 1);
 }
 
-/** Трансформер доступен после «Механизма внимания», раньше — LSTM. */
+/** Трансформер доступен после «Механизма внимания», раньше - LSTM. */
 export function archFor(s: GameState): Arch {
   return s.research.done.includes('attention') ? 'transformer' : 'lstm';
 }
 
-/** chin = exp(−0,2 × ln²((D/N)/20)); лучшее соотношение данных и параметров — 20 токенов на параметр. */
+/** chin = exp(−0,2 × ln²((D/N)/20)); лучшее соотношение данных и параметров - 20 токенов на параметр. */
 export function chinchillaFactor(paramsB: number, tokensB: number): number {
   if (!(paramsB > 0) || !(tokensB > 0)) return 0;
   const l = Math.log(tokensB / paramsB / CHIN_OPT_RATIO);
@@ -166,7 +166,7 @@ export function arenaElo(caps: Record<DomainId, number>, rlhf: boolean, algoLeve
   return ELO_BASE + ELO_PER_CAP * capA + (rlhf ? ELO_RLHF_BASE + ELO_RLHF_PER_ALGO * algoLevel : 0);
 }
 
-/** Балл модели игрока: honest — без подгонки; иначе с подгонкой, если модель не разоблачена. */
+/** Балл модели игрока: honest - без подгонки; иначе с подгонкой, если модель не разоблачена. */
 export function modelScore(model: PlayerModel, bid: BenchmarkId, honest: boolean): number {
   const overfit = !honest && !model.exposed ? (model.overfit[bid] ?? 0) : 0;
   return benchScore(bid, model.caps[benchDef(bid).domain], overfit);
@@ -184,24 +184,24 @@ export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
   if (s.training) return 'Уже идёт другой проект обучения. Его нужно завершить или отменить.';
   const name = plan.name.trim();
   if (!name) return 'Название модели не указано.';
-  if (name.length > 40) return 'Название модели — не длиннее 40 символов.';
+  if (name.length > 40) return 'Название модели - не длиннее 40 символов.';
   if (!Number.isFinite(plan.paramsB) || plan.paramsB < PARAMS_B_MIN || plan.paramsB > PARAMS_B_MAX) {
-    return `Размер модели — от ${fmtNum(PARAMS_B_MIN)} до ${fmtInt(PARAMS_B_MAX)} млрд параметров.`;
+    return `Размер модели - от ${fmtNum(PARAMS_B_MIN)} до ${fmtInt(PARAMS_B_MAX)} млрд параметров.`;
   }
   const year = yearOf(s.day);
   const maxTokens = byYear(MAX_TOKENS_B, year);
   if (!Number.isFinite(plan.tokensB) || plan.tokensB < TOKENS_B_MIN) {
-    return `Объём данных — не меньше ${fmtNum(TOKENS_B_MIN)} млрд токенов.`;
+    return `Объём данных - не меньше ${fmtNum(TOKENS_B_MIN)} млрд токенов.`;
   }
   if (plan.tokensB > maxTokens) {
-    return `Максимальный объём данных в ${year} году — ${fmtInt(maxTokens)} млрд токенов.`;
+    return `Максимальный объём данных в ${year} году - ${fmtInt(maxTokens)} млрд токенов.`;
   }
   const mix = DOMAINS.map((d) => plan.mix[d]);
   if (mix.some((m) => !Number.isFinite(m) || m < 0) || Math.abs(mix.reduce((a, b) => a + b, 0) - 1) > 0.01) {
     return 'Сумма долей данных по областям должна быть 100 %.';
   }
   if (!Number.isFinite(plan.benchShare) || plan.benchShare < 0 || plan.benchShare > BENCH_SHARE_MAX) {
-    return `Доля данных под бенчмарки — от 0 до ${Math.round(BENCH_SHARE_MAX * 100)} %.`;
+    return `Доля данных под бенчмарки - от 0 до ${Math.round(BENCH_SHARE_MAX * 100)} %.`;
   }
   const targets = [...new Set(plan.benchTargets)];
   if (targets.length > MAX_BENCH_TARGETS) return `Целевых бенчмарков не больше ${MAX_BENCH_TARGETS}.`;
@@ -217,7 +217,7 @@ export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
   return null;
 }
 
-/** Оценка проекта для формы: объём вычислений, срок, разметчики; с «Законами масштабирования» — прогноз и подсказка. */
+/** Оценка проекта для формы: объём вычислений, срок, разметчики; с «Законами масштабирования» - прогноз и подсказка. */
 export function estimate(s: GameState, plan: TrainingPlan): TrainingEstimate {
   const flop = planFlop(plan);
   const arch = archFor(s);
@@ -291,6 +291,7 @@ export function startTraining(s: GameState, plan: TrainingPlan): Result {
 export function cancelTraining(s: GameState): Result {
   if (!s.training) return { ok: false, error: 'Сейчас ничего не обучается.' };
   s.training = null;
+  dropChoices(s, 'training-fail', 'Проект отменён, решение не требуется.');
   return { ok: true };
 }
 
@@ -302,7 +303,7 @@ export function applyFailChoice(s: GameState, choice: 'rollback' | 'continue'): 
   else t.failPenalty = FAIL_CONTINUE_PENALTY;
 }
 
-/** Строка с баллами новой модели по активным бенчмаркам (если все насыщены — по всем вышедшим). */
+/** Строка с баллами новой модели по активным бенчмаркам (если все насыщены - по всем вышедшим). */
 function keyScores(s: GameState, model: PlayerModel): string {
   const active = introducedBenchmarks(s).filter((b) => !s.benchmarks[b].saturated);
   const list = active.length > 0 ? active : introducedBenchmarks(s);
@@ -351,6 +352,8 @@ function finishTraining(s: GameState): void {
 export function progressDay(s: GameState): void {
   const t = s.training;
   if (!t) return;
+  // После срыва проект стоит, пока игрок не решит, что делать (письмо можно отложить).
+  if (awaitingEvent(s, 'training-fail')) return;
   t.flopDone += pool(s, 'training') * TRAIN_FLOP_PER_H100E_DAY;
 
   if (t.failAtFraction !== null && t.flopDone >= t.failAtFraction * t.flopTotal) {
@@ -410,7 +413,7 @@ export function monthlyExposure(s: GameState): void {
       important: true,
       body:
         `Независимые исследователи заново проверили «${m.name}» на свежих вопросах, которых не было в публичных тестах.${example} ` +
-        `Репутация лаборатории упала на ${fmtNum(Math.round(repBefore - s.reputation))}, шумиха — на ${hypeDropPct} %; ` +
+        `Репутация лаборатории упала на ${fmtNum(Math.round(repBefore - s.reputation))}, шумиха - на ${hypeDropPct} %; ` +
         'в таблице теперь честные баллы модели.',
     });
   }

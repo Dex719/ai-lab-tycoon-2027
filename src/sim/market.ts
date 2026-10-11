@@ -71,7 +71,7 @@ export function refQuality(day: number): number {
   return lerpByDate(REF_QUALITY, day, false);
 }
 
-/** Бренд: игрок — (rep − 50)/50 × PLAYER_BRAND_K; лаборатория — brand + модификатор labBrand(target = lab).add. */
+/** Бренд: игрок - (rep − 50)/50 × PLAYER_BRAND_K; лаборатория - brand + модификатор labBrand(target = lab).add. */
 export function labBrand(s: GameState, owner: HypeOwner): number {
   if (owner === 'player') {
     // Репутация 0..100; если другой модуль выйдет за границы, бренд всё равно остаётся в рамках ±PLAYER_BRAND_K.

@@ -27,7 +27,7 @@ const SHARE_SERIES: SeriesDef[] = [{ id: 'player', label: 'Ваша доля', c
 
 const fmtAxisShare = (v: number): string => fmtShare(v, 1);
 
-/** Горизонтальные полосы долей: от самой большой доли к самой маленькой. Спрос, не доставшийся никому, — отдельной строкой. */
+/** Горизонтальные полосы долей: от самой большой доли к самой маленькой. Спрос, не доставшийся никому, - отдельной строкой. */
 function ShareBars({ s, demand }: { s: GameState; demand: number }) {
   const rows = HYPE_OWNERS.map((owner) => ({ owner, share: finite(s.market.labShares[owner]) })).sort(
     (a, b) => b.share - a.share,
@@ -216,10 +216,10 @@ export function LabsTab({ s }: WindowProps) {
                 <OwnerTag s={s} owner={r.owner} />
               </td>
               <td className="num">{fmtNum(r.count)}</td>
-              <td className="num">{r.best > 0 ? fmtElo(r.best) : '—'}</td>
+              <td className="num">{r.best > 0 ? fmtElo(r.best) : '-'}</td>
               <td className="num">{fmtShare(r.share)}</td>
-              <td>{r.lastName ?? '—'}</td>
-              <td>{r.since !== null ? formatDateShort(r.since) : '—'}</td>
+              <td>{r.lastName ?? '-'}</td>
+              <td>{r.since !== null ? formatDateShort(r.since) : '-'}</td>
             </tr>
           ))}
         </tbody>

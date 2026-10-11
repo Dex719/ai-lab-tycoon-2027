@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import type { WindowProps } from '.';
 import { unreadCount } from '../../sim/events';
+import { ChoiceList, replyLine } from '../ChoiceModal';
 import { formatDate, formatDateShort } from '../../sim/time';
 import type { Mail } from '../../sim/types';
 import { fmtNum } from '../format';
@@ -105,7 +106,7 @@ export default function MailWindow({ s }: WindowProps) {
                 {m.title}
               </span>
               <span className="mail-row-date">{formatDateShort(m.day)}</span>
-              {awaitsDecision(m) && <span className="mail-row-note">Ожидает решения</span>}
+              {awaitsDecision(m) && <span className="mail-row-note">Нужно решение до {formatDateShort(m.replyByDay ?? m.day)}</span>}
             </button>
           ))}
           {hidden > 0 && (
@@ -130,6 +131,7 @@ export default function MailWindow({ s }: WindowProps) {
 function MailView({ mail }: { mail: Mail }) {
   const decided = mail.chosen !== undefined;
   const choice = decided ? mail.choices?.[mail.chosen as number] : undefined;
+  const reply = replyLine(mail);
   return (
     <article className="mail-view">
       <h2 className="mail-title">{mail.title}</h2>
@@ -142,11 +144,18 @@ function MailView({ mail }: { mail: Mail }) {
         <div className="mail-decision">
           {decided ? (
             <>
-              <div>Решение: {choice?.label ?? '—'}</div>
+              <div>
+                Решение: <b>{choice?.label ?? '-'}</b>
+              </div>
               {choice && <div className="mail-decision-hint">{choice.hint}</div>}
+              {mail.autoChosen && <div className="mail-decision-hint">Срок ответа истёк, вариант выбран по умолчанию.</div>}
             </>
           ) : (
-            <div className="warn">Ожидает решения</div>
+            <>
+              <h3 className="mail-decision-h">Нужно решение</h3>
+              <ChoiceList mail={mail} />
+              {reply && <div className="mail-decision-hint">{reply}</div>}
+            </>
           )}
         </div>
       )}

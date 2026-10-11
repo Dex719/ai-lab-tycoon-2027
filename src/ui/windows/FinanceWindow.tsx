@@ -44,7 +44,7 @@ const FLOW_SERIES: SeriesDef[] = [
 
 /** Сумма в ячейке таблицы: ноль показываем приглушённым тире. */
 function Money({ value }: { value: number }) {
-  return value > 0 ? <>{fmtMoney(value)}</> : <span className="muted">—</span>;
+  return value > 0 ? <>{fmtMoney(value)}</> : <span className="muted">-</span>;
 }
 
 function LedgerRow({ label, ledger, current }: { label: string; ledger: MonthLedger; current?: boolean }) {
@@ -76,7 +76,7 @@ export default function FinanceTab({ s }: WindowProps) {
 
   const cur = dayToDate(s.day);
   const live = { revenue: revenueOf(s.finance.month), expense: sumValues(s.finance.month.expense) };
-  // Первая строка — идущий месяц, дальше до 12 закрытых, новые сверху.
+  // Первая строка - идущий месяц, дальше до 12 закрытых, новые сверху.
   const closed = history.slice(-TABLE_MONTHS).reverse();
   const negDays = s.finance.negativeDays;
 

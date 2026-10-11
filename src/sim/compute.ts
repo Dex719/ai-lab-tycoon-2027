@@ -24,7 +24,7 @@ export function availableGpus(s: GameState): GpuDef[] {
   return GPUS.filter((g) => s.day >= dateToDay(g.availableFrom));
 }
 
-/** $ за GPU в день: rentPerGpuHour(год; если года нет — ближайший известный) × 24 × модификатор rentPrice (общий или target = id). */
+/** $ за GPU в день: rentPerGpuHour(год; если года нет - ближайший известный) × 24 × модификатор rentPrice (общий или target = id). */
 export function rentPerGpuDay(s: GameState, id: GpuId): number {
   const perHour = byYear(gpuDef(id).rentPerGpuHour, yearOf(s.day));
   return perHour * 24 * modValue(s, 'rentPrice', id).mult;
@@ -77,9 +77,9 @@ export function normalizeAlloc(a: Allocation): Allocation {
     clean[k] = Number.isFinite(v) && v > 0 ? v : 0;
     sum += clean[k];
   }
-  // Нули или переполнение суммы (бессмысленные числа) — стартовые доли.
+  // Нули или переполнение суммы (бессмысленные числа) - стартовые доли.
   if (!(sum > 0) || !Number.isFinite(sum)) return { ...DEFAULT_ALLOC };
-  // Доли уже в сумме дают 1 — не трогаем, чтобы не плодить мелкие ошибки округления.
+  // Доли уже в сумме дают 1 - не трогаем, чтобы не плодить мелкие ошибки округления.
   if (Math.abs(sum - 1) < 1e-9) return clean;
   for (const k of ALLOC_KEYS) clean[k] /= sum;
   return clean;
@@ -103,7 +103,7 @@ export function setRent(s: GameState, id: GpuId, count: number): Result {
     if (!isGpuAvailable(s, id)) return { ok: false, error: 'Этот GPU ещё не вышел' };
     const cap = rentCapFor(s, id);
     if (count > cap) {
-      return { ok: false, error: `Лимит аренды ${def.name} в этом году — ${cap} шт.` };
+      return { ok: false, error: `Лимит аренды ${def.name} в этом году - ${cap} шт.` };
     }
   }
   s.compute.rented[id] = count + 0; // «+ 0» превращает −0 в обычный 0

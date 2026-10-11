@@ -24,7 +24,7 @@
 
 /* Узел */
 .rs-node {
-  position: relative; display: block; width: 100%; height: 100%; padding: 6px 8px 0; text-align: left;
+  position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; padding: 8px 10px; text-align: left;
   background: #fff; color: var(--text); border: 2px solid transparent; border-radius: 3px; cursor: pointer; font: inherit;
   transition: border-color 100ms ease-out;
 }
@@ -35,7 +35,7 @@
 .rs-node.blocked { background: #b3b6bc; color: #34373c; cursor: default; }
 
 .rs-name { display: block; height: 18px; font-size: 14px; font-weight: 500; line-height: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rs-main { display: flex; gap: 10px; margin-top: 4px; }
+.rs-main { display: flex; gap: 10px; margin-top: 6px; }
 
 .rs-thumb {
   flex: none; width: 52px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -53,7 +53,7 @@
 .rs-node .rs-kv > .rs-done { grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; color: var(--good-on-dark); font-weight: 600; text-align: left; }
 .rs-node.done .rs-kv > .rs-done { color: var(--good-on-dark); }
 
-.rs-prog { position: absolute; left: 8px; right: 8px; bottom: 7px; height: 6px; background: #d9dce1; border-radius: 2px; overflow: hidden; }
+.rs-prog { display: block; height: 4px; margin-top: auto; background: #d9dce1; border-radius: 2px; overflow: hidden; }
 .rs-prog > span { display: block; height: 100%; background: var(--accent); }
 .rs-node.done .rs-prog { background: #2f3134; }
 .rs-node.done .rs-prog > span { background: #3d9b5b; }
@@ -76,3 +76,24 @@
 .rs-note { color: var(--bad); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rs-warn { color: var(--warn); white-space: nowrap; }
 .rs-bar .btn { margin-left: auto; flex: none; }
+
+/* ---------- Диалог исследования ---------- */
+.rs-d { display: flex; flex-direction: column; gap: 14px; font-variant-numeric: tabular-nums; }
+.rs-d-title { margin: 0; font-size: 20px; font-weight: 400; color: #1f2023; }
+.rs-d-desc { margin: 4px 0 0; color: #4a4d54; }
+.rs-d-kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0; }
+.rs-d-kv dt { color: var(--text-dim); }
+.rs-d-kv dd { margin: 0; text-align: right; }
+.rs-d-kv dd small { display: block; font-size: 12px; color: var(--warn); }
+.rs-d-power { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; background: #fff; border: 1px solid var(--line-soft); border-radius: 4px; }
+.rs-d-h { display: flex; justify-content: space-between; align-items: baseline; font-weight: 600; }
+.rs-d-h b { font-size: 16px; color: #7b5cd6; }
+.rs-d-ends { display: flex; justify-content: space-between; margin-top: -2px; font-size: 12px; color: var(--text-dim); }
+.rs-d-power .rs-d-kv { margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+.rs-d-empty { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-dim); }
+.rs-d-result { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.rs-d-result > div { display: flex; flex-direction: column; padding: 8px 12px; background: var(--win-title); border-radius: 3px; }
+.rs-d-result .l { font-size: 13px; color: #4a4d54; }
+.rs-d-result b { font-size: 22px; font-weight: 600; color: #1f2023; }
+.rs-d-note { font-size: 13px; color: var(--text-dim); }
+.dialog .foot .rs-d-left { margin-right: auto; }

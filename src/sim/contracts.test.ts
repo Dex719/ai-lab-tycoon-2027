@@ -150,15 +150,15 @@ describe('generateMonthly: количество', () => {
     return [...set].sort((a, b) => a - b);
   }
 
-  it('2017–2019: два тендера плюс 0–1', () => {
+  it('2017-2019: два тендера плюс 0-1', () => {
     for (const y of [2017, 2018, 2019]) expect(counts(y)).toEqual([2, 3]);
   });
 
-  it('2020–2022: три плюс 0–1', () => {
+  it('2020-2022: три плюс 0-1', () => {
     for (const y of [2020, 2021, 2022]) expect(counts(y)).toEqual([3, 4]);
   });
 
-  it('2023–2024: четыре плюс 0–1', () => {
+  it('2023-2024: четыре плюс 0-1', () => {
     for (const y of [2023, 2024]) expect(counts(y)).toEqual([4, 5]);
   });
 
@@ -171,7 +171,7 @@ describe('generateMonthly: количество', () => {
     expect(s.nextTenderNum).toBe(ids.length + 1);
   });
 
-  it('детерминирован: одно зерно — те же тендеры', () => {
+  it('детерминирован: одно зерно - те же тендеры', () => {
     const a = newState(42);
     const b = newState(42);
     a.day = b.day = dateToDay('2021-05-01');
@@ -281,7 +281,7 @@ describe('generateMonthly: бенчмарк и RLHF', () => {
     expect(s.tenders.every((t) => t.type === 'finetune')).toBe(true);
   });
 
-  it('после RLHF около 30 % тендеров — RLHF, только языковой бенчмарк, оплата ×1,6', () => {
+  it('после RLHF около 30 % тендеров - RLHF, только языковой бенчмарк, оплата ×1,6', () => {
     const s = rlhfState(11);
     for (let i = 0; i < 100; i++) generateMonthly(s);
     const rlhf = s.tenders.filter((t) => t.type === 'rlhf');
@@ -298,7 +298,7 @@ describe('generateMonthly: бенчмарк и RLHF', () => {
     expect(plain.some((t) => t.benchmark !== 'mmlu')).toBe(true);
   });
 
-  it('нет активных бенчмарков — берётся самый новый из вышедших', () => {
+  it('нет активных бенчмарков - берётся самый новый из вышедших', () => {
     m.activeBenchmarks.mockReturnValue([]);
     const s = newState(9);
     for (let i = 0; i < 10; i++) generateMonthly(s);
@@ -325,7 +325,7 @@ describe('generateMonthly: особые случаи', () => {
     expect(JSON.stringify(CLIENTS)).toBe(before);
   });
 
-  it('нет языковых бенчмарков — вместо RLHF выходит обычное дообучение, а не пропуск', () => {
+  it('нет языковых бенчмарков - вместо RLHF выходит обычное дообучение, а не пропуск', () => {
     m.activeBenchmarks.mockReturnValue([]);
     m.introducedBenchmarks.mockReturnValue(['humaneval', 'gsm8k']);
     const s = newState(17);
@@ -342,7 +342,7 @@ describe('generateMonthly: особые случаи', () => {
     }
   });
 
-  it('нет доступных GPU (цена бесконечна) — тендеров нет, бесконечных сумм тоже', () => {
+  it('нет доступных GPU (цена бесконечна) - тендеров нет, бесконечных сумм тоже', () => {
     m.cheapestH100eDay.mockReturnValue(Infinity);
     const s = newState();
     generateMonthly(s);
@@ -513,7 +513,7 @@ describe('applyTender', () => {
     expect(s.tenders[0].application).toBeNull();
   });
 
-  it('вторая заявка на тот же тендер — ошибка', () => {
+  it('вторая заявка на тот же тендер - ошибка', () => {
     const s = setup();
     expect(applyTender(s, 't1', 'p1').ok).toBe(true);
     const r = applyTender(s, 't1', 'p1');
@@ -682,7 +682,7 @@ describe('progressDay: завершение контракта', () => {
     expect(s.mail).toHaveLength(0);
   });
 
-  it('подгонка не спасает: показанный балл выше, честный ниже — штраф и −8', () => {
+  it('подгонка не спасает: показанный балл выше, честный ниже - штраф и −8', () => {
     shownScore = 80;
     honestScore = 40;
     const s = withContract(makeContract({}, { work: 100, requirement: 60, payment: 250_000, penalty: 75_000 }));
@@ -738,7 +738,7 @@ describe('progressDay: завершение контракта', () => {
 });
 
 describe('progressDay: срок', () => {
-  it('до срока контракт жив, в день срока без результата — штраф и −8', () => {
+  it('до срока контракт жив, в день срока без результата - штраф и −8', () => {
     const s = withContract(makeContract({ deadlineDay: 60 }, { work: 1000, penalty: 30_000 }));
     s.reputation = 40;
     poolValue = 1;
@@ -778,7 +778,7 @@ describe('cancelContract', () => {
     expect(lastMail(s).kind).toBe('contract');
   });
 
-  it('нет такого контракта — ошибка, ничего не меняется', () => {
+  it('нет такого контракта - ошибка, ничего не меняется', () => {
     const s = withContract();
     const cash = s.cash;
     expect(cancelContract(s, 'zzz')).toMatchObject({ ok: false });
@@ -879,7 +879,7 @@ describe('progressDay: решение по заявке, подробности'
     expect(c.tender).toEqual(original);
   });
 
-  it('победа: заголовок называет клиента, письмо — модель, срок и оплату', () => {
+  it('победа: заголовок называет клиента, письмо - модель, срок и оплату', () => {
     const s = applied({ durationDays: 90, payment: 100_000, clientId: 'bank-severny' });
     progressDay(s);
     expect(lastMail(s).title).toBe('Тендер выигран: Банк «Северный»');
@@ -903,7 +903,7 @@ describe('progressDay: решение по заявке, подробности'
     expect(s.finance.month.expense.penalties).toBe(0);
   });
 
-  it('модели уже нет — тендер проигран, контракта нет', () => {
+  it('модели уже нет - тендер проигран, контракта нет', () => {
     const s = applied({ application: { modelId: 'ghost', appliedDay: 5, resolveDay: 25, chance: 1 } });
     progressDay(s);
     expect(s.tenders).toHaveLength(0);
@@ -911,7 +911,7 @@ describe('progressDay: решение по заявке, подробности'
     expect(lastMail(s).title).toMatch(/проигран/);
   });
 
-  it('день решения пропущен (например, после загрузки сохранения) — решается в первый же ход', () => {
+  it('день решения пропущен (например, после загрузки сохранения) - решается в первый же ход', () => {
     const s = applied();
     s.day = 40;
     progressDay(s);
@@ -936,7 +936,7 @@ describe('progressDay: решение по заявке, подробности'
     expect(s.contracts).toHaveLength(1);
   });
 
-  it('одно зерно — один и тот же исход', () => {
+  it('одно зерно - один и тот же исход', () => {
     const run = (): string => {
       const s = applied({}, 0.5);
       s.rng = 777;
@@ -1030,7 +1030,7 @@ describe('cancelContract: детали', () => {
     expect(s.finance.month.expense.labelers).toBe(0);
   });
 
-  it('повторная отмена того же контракта — ошибка, штраф не удваивается', () => {
+  it('повторная отмена того же контракта - ошибка, штраф не удваивается', () => {
     const s = withContract(makeContract({}, { penalty: 40_000 }));
     expect(cancelContract(s, 'c1').ok).toBe(true);
     const cash = s.cash;
@@ -1049,7 +1049,7 @@ describe('cancelContract: детали', () => {
 });
 
 describe('письма контрактов: точка после суммы и важность', () => {
-  /** Заявка с гарантированным исходом, день решения — сегодня. */
+  /** Заявка с гарантированным исходом, день решения - сегодня. */
   function applied(over: Partial<Tender> = {}, chance = 1): GameState {
     const s = newState();
     s.day = 25;
@@ -1066,14 +1066,14 @@ describe('письма контрактов: точка после суммы и
     const s = applied({ payment: 350_000 });
     progressDay(s);
     const body = lastMail(s).body;
-    expect(body).toContain('оплата после сдачи — $350 тыс. Мощность');
+    expect(body).toContain('оплата после сдачи - $350 тыс. Мощность');
     expect(body).not.toMatch(doubleDot);
   });
 
   it('победа: после суммы в миллионах предложение всё равно заканчивается точкой', () => {
     const s = applied({ payment: 1_200_000 });
     progressDay(s);
-    expect(lastMail(s).body).toContain('оплата после сдачи — $1,2 млн. Мощность');
+    expect(lastMail(s).body).toContain('оплата после сдачи - $1,2 млн. Мощность');
   });
 
   it('победа в RLHF-тендере: разметчики заплачены, двойной точки нет ни в тысячах, ни в миллионах', () => {
@@ -1087,7 +1087,7 @@ describe('письма контрактов: точка после суммы и
     expect(lastMail(big).body.endsWith('Разметчикам заплачено $1,2 млн.')).toBe(true);
   });
 
-  it('«Тендер выигран» важное только без мощности на контракты, «Тендер проигран» — нет', () => {
+  it('«Тендер выигран» важное только без мощности на контракты, «Тендер проигран» - нет', () => {
     const won = applied();
     won.compute.alloc = { training: 0.5, contracts: 0, experiments: 0.5, inference: 0 };
     progressDay(won);
@@ -1125,7 +1125,7 @@ describe('письма контрактов: точка после суммы и
     expect(lastMail(failed).important).toBe(true);
   });
 
-  it('отказ от контракта — решение игрока: письмо не важное; сдача контракта тоже', () => {
+  it('отказ от контракта - решение игрока: письмо не важное; сдача контракта тоже', () => {
     const cancelled = withContract();
     cancelContract(cancelled, 'c1');
     expect(lastMail(cancelled).title).toMatch(/^Контракт расторгнут: /);

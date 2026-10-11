@@ -6,6 +6,8 @@ import { TRAIN_FLOP_PER_H100E_DAY } from '../sim/constants';
 import { rpPerDay, TECHS, techCost } from '../sim/research';
 import { CLIENTS } from '../data/clients';
 import { benchDef } from '../sim/benchmarks';
+import { awaitingEvent, openChoices } from '../sim/events';
+import { formatDateShort } from '../sim/time';
 import type { GameState } from '../sim/types';
 import { ProgressBar } from './components/common';
 import { fmtMoney, fmtNum, fmtPrice, fmtShare } from './format';
@@ -15,11 +17,23 @@ import type { WindowAlias, WindowId } from './windows';
 type Tab = 'projects' | 'models';
 
 function days(n: number): string {
-  return Number.isFinite(n) ? `${fmtNum(Math.ceil(n))} дн.` : '—';
+  return Number.isFinite(n) ? `${fmtNum(Math.ceil(n))} дн.` : '-';
 }
 
 function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
   const items: ReactElement[] = [];
+  // Отложенные решения сверху: у них есть срок.
+  for (const m of openChoices(s).filter((x) => x.deferred)) {
+    items.push(
+      <div className="side-item decision" key={m.id} onClick={() => open('mail')} style={{ cursor: 'pointer' }}>
+        <div className="t">Решение: {m.title}</div>
+        <div className="r">
+          <span>Ответить до</span>
+          <span className="v">{m.replyByDay !== undefined ? formatDateShort(m.replyByDay) : '-'}</span>
+        </div>
+      </div>,
+    );
+  }
   const t = s.training;
   if (t) {
     const speed = pool(s, 'training') * TRAIN_FLOP_PER_H100E_DAY;
@@ -32,7 +46,9 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
         </div>
         <div className="r">
           <span>Осталось</span>
-          <span className="v">{speed > 0 ? days((t.flopTotal - t.flopDone) / speed) : 'нет мощности'}</span>
+          <span className="v">
+            {awaitingEvent(s, 'training-fail') ? 'ждёт решения' : speed > 0 ? days((t.flopTotal - t.flopDone) / speed) : 'нет мощности'}
+          </span>
         </div>
         <ProgressBar value={t.flopDone / t.flopTotal} />
       </div>,
@@ -132,7 +148,8 @@ export function SidePanel({ s, open, top }: { s: GameState; open: (id: WindowId 
   const [shownState, setShown] = useState(true);
   const shown = shownState || !!top; // пока идёт обучение, панель не сворачивается
   const [tab, setTab] = useState<Tab>('projects');
-  const projects = (s.training ? 1 : 0) + (s.research.current ? 1 : 0) + s.contracts.length;
+  const projects =
+    openChoices(s).filter((m) => m.deferred).length + (s.training ? 1 : 0) + (s.research.current ? 1 : 0) + s.contracts.length;
   const onSale = s.models.filter((m) => m.releasedDay !== null && m.onApi).length;
   return (
     <aside className={`side${top ? ' with-top' : ''}`} aria-label="Боковая панель">

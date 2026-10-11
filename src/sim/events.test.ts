@@ -9,8 +9,21 @@ vi.mock('./leaderboard', () => ({ bestElo: vi.fn(() => 1000) }));
 import { EVENTS, money, pointsWord } from '../data/events';
 import { LABS } from '../data/labs';
 import { rentCapFor, rentPerGpuDay } from './compute';
-import { ARENA_OPEN_DATE, ATTENTION_PAPER_DISCOUNT, CHAT_MOMENT_BRAND, EXPORT_CONTROL_BRAND } from './constants';
-import { applyChoice, fireDue, FOREVER, modValue, pendingChoice, pruneModifiers, triggerEvent } from './events';
+import { ARENA_OPEN_DATE, ATTENTION_PAPER_DISCOUNT, CHAT_MOMENT_BRAND, CHOICE_DAYS, EXPORT_CONTROL_BRAND, FAIL_CHOICE_DAYS } from './constants';
+import {
+  applyChoice,
+  awaitingEvent,
+  deferChoice,
+  dropChoices,
+  expireChoices,
+  fireDue,
+  FOREVER,
+  modValue,
+  openChoices,
+  pendingChoice,
+  pruneModifiers,
+  triggerEvent,
+} from './events';
 import { bestElo } from './leaderboard';
 import { labBrand } from './market';
 import { techCost } from './research';
@@ -116,7 +129,7 @@ describe('данные событий', () => {
     }
   });
 
-  it('письмо с выбором всегда с типом event или training, новость без выбора — news', () => {
+  it('письмо с выбором всегда с типом event или training, новость без выбора - news', () => {
     const s = newState();
     for (const def of EVENTS) {
       const kind = def.mail(s).kind;
@@ -169,7 +182,7 @@ describe('данные событий', () => {
     );
   });
 
-  it('в письмах нет «undefined», «NaN» и «[object» — ни в пустом состоянии, ни с проектом и моделью', () => {
+  it('в письмах нет «undefined», «NaN» и «[object» - ни в пустом состоянии, ни с проектом и моделью', () => {
     const empty = newState();
     const busy = newState();
     busy.models.push(model());
@@ -192,7 +205,7 @@ describe('данные событий', () => {
     }
   });
 
-  it('в каждом письме 2–4 предложения', () => {
+  it('в каждом письме 2-4 предложения', () => {
     const s = newState();
     for (const def of EVENTS) {
       const sentences = def.mail(s).body.split(/(?<=[.!?…])\s+(?=[«А-ЯЁA-Z$])/);
@@ -201,7 +214,7 @@ describe('данные событий', () => {
     }
   });
 
-  it('письмо новости без eventId, письмо с выбором — с eventId события и подписями вариантов', () => {
+  it('письмо новости без eventId, письмо с выбором - с eventId события и подписями вариантов', () => {
     const s = newState();
     for (const def of EVENTS) {
       s.mail.length = 0;
@@ -272,7 +285,7 @@ describe('срабатывание по датам (fireDue)', () => {
     expect(s.firedEvents).toContain(id);
     expect(s.mail.length - mailsBefore).toBe(1);
 
-    // второй раз в тот же день и позже — тишина
+    // второй раз в тот же день и позже - тишина
     fireDue(s);
     s.day += 100;
     fireDue(s);
@@ -289,7 +302,7 @@ describe('срабатывание по датам (fireDue)', () => {
     expect(s.flags.arenaOpen).toBe(true);
   });
 
-  it('полный прогон 2017–2024: события приходят в свои дни, срыв обучения сам не приходит', () => {
+  it('полный прогон 2017-2024: события приходят в свои дни, срыв обучения сам не приходит', () => {
     const s = newState();
     const firedOn = runAllDays(s);
     expect(firedOn['attention-paper-public']).toBe(D('2017-06-12'));
@@ -308,7 +321,7 @@ describe('срабатывание по датам (fireDue)', () => {
 });
 
 describe('парные события: срабатывает ровно одно', () => {
-  it('внимание: исследование готово до даты — ветка «Механизм внимания изучен до публикации Gogle»', () => {
+  it('внимание: исследование готово до даты - ветка «Механизм внимания изучен до публикации Gogle»', () => {
     const s = newState();
     s.research.done.push('attention');
     s.day = D('2017-06-11');
@@ -323,7 +336,7 @@ describe('парные события: срабатывает ровно одн�
     expect(modValue(s, 'researchCost', 'attention').mult).toBe(1);
   });
 
-  it('внимание: не готово к дате — Gogle публикует первой, и поздняя готовность ничего не меняет', () => {
+  it('внимание: не готово к дате - Gogle публикует первой, и поздняя готовность ничего не меняет', () => {
     const s = newState();
     s.day = D('2017-06-12');
     fireDue(s);
@@ -350,7 +363,7 @@ describe('парные события: срабатывает ровно одн�
     expect(firedB['attention-paper-player']).toBeUndefined();
   });
 
-  it('ChatGTP: у игрока выпущен чат с RLHF и Эло не ниже OpenBrain — «Чат лаборатории не уступает моделям OpenBrain»', () => {
+  it('ChatGTP: у игрока выпущен чат с RLHF и Эло не ниже OpenBrain - «Чат лаборатории не уступает моделям OpenBrain»', () => {
     const s = newState();
     s.models.push(model({ arenaElo: 1100 }));
     vi.mocked(bestElo).mockReturnValue(1100); // равенство тоже считается
@@ -377,7 +390,7 @@ describe('парные события: срабатывает ровно одн�
     ['Эло ниже OpenBrain', { arenaElo: 1099 }],
     ['нет RLHF', { rlhf: false }],
     ['модель не выпущена', { releasedDay: null }],
-  ] as [string, Partial<PlayerModel>][])('ChatGTP: %s — «момент» у соперника', (_name, over) => {
+  ] as [string, Partial<PlayerModel>][])('ChatGTP: %s - «момент» у соперника', (_name, over) => {
     const s = newState();
     s.models.push(model(over));
     vi.mocked(bestElo).mockReturnValue(1100);
@@ -388,7 +401,7 @@ describe('парные события: срабатывает ровно одн�
     expect(s.flags.chatMomentPlayer).toBeUndefined();
   });
 
-  it('ChatGTP: без моделей игрока — ветка соперника, и таблицу Эло (leaderboard) даже не спрашивают', () => {
+  it('ChatGTP: без моделей игрока - ветка соперника, и таблицу Эло (leaderboard) даже не спрашивают', () => {
     const s = newState();
     s.day = D('2022-11-30');
     fireDue(s);
@@ -493,7 +506,7 @@ describe('парные события: срабатывает ровно одн�
 });
 
 describe('эффекты выбора', () => {
-  it('статья о внимании: опубликовать — репутация и шумиха', () => {
+  it('статья о внимании: опубликовать - репутация и шумиха', () => {
     const s = newState();
     choose(s, 'attention-paper-player', 0);
     expect(s.reputation).toBe(20 + 15);
@@ -501,7 +514,7 @@ describe('эффекты выбора', () => {
     expect(s.research.algoLevel).toBe(0);
   });
 
-  it('статья о внимании: держать в секрете — уровень алгоритмов', () => {
+  it('статья о внимании: держать в секрете - уровень алгоритмов', () => {
     const s = newState();
     choose(s, 'attention-paper-player', 1);
     expect(s.research.algoLevel).toBe(1);
@@ -536,7 +549,7 @@ describe('эффекты выбора', () => {
     expect(s.hype.player).toBe(10);
   });
 
-  it('API GTP-3: реклама — минус $300 тыс. накладными, шумиха +15', () => {
+  it('API GTP-3: реклама - минус $300 тыс. накладными, шумиха +15', () => {
     const s = newState();
     const cash = s.cash;
     choose(s, 'gpt3-api', 0);
@@ -546,7 +559,7 @@ describe('эффекты выбора', () => {
     expect(s.reputation).toBe(20);
   });
 
-  it('API GTP-3: не тратиться — репутация +3, деньги целы', () => {
+  it('API GTP-3: не тратиться - репутация +3, деньги целы', () => {
     const s = newState();
     const cash = s.cash;
     choose(s, 'gpt3-api', 1);
@@ -571,7 +584,7 @@ describe('эффекты выбора', () => {
   it('подсказки не врут: репутация, шумиха игрока, деньги и уровень алгоритмов меняются ровно как написано', () => {
     const checked: string[] = [];
     for (const def of EVENTS) {
-      // срыв обучения проверяется отдельно (мок training), дефицит GPU — через модификаторы
+      // срыв обучения проверяется отдельно (мок training), дефицит GPU - через модификаторы
       if (!def.choices || def.id === 'training-fail' || def.id === 'gpu-shortage') continue;
       def.choices.forEach((c, idx) => {
         const s = newState();
@@ -593,6 +606,7 @@ describe('эффекты выбора', () => {
       'attention-paper-player/1',
       'gpt2-withheld/0',
       'gpt2-withheld/1',
+      'gpt2-withheld/2',
       'gpt3-api/0',
       'gpt3-api/1',
       'chat-moment-rival/0',
@@ -617,7 +631,7 @@ describe('эффекты выбора', () => {
     expect(s.hype.player).toBe(15);
   });
 
-  it('ChatGTP у соперника: «Выпустить свой чат» без выпущенной RLHF-модели — ничего', () => {
+  it('ChatGTP у соперника: «Выпустить свой чат» без выпущенной RLHF-модели - ничего', () => {
     const s = newState();
     s.models.push(model({ releasedDay: null })); // обучена, но не выпущена
     s.models.push(model({ id: 'p2', rlhf: false }));
@@ -626,7 +640,7 @@ describe('эффекты выбора', () => {
     expect(s.reputation).toBe(20);
   });
 
-  it('ChatGTP у соперника: «Ждать» — без эффекта', () => {
+  it('ChatGTP у соперника: «Ждать» - без эффекта', () => {
     const s = newState();
     s.models.push(model());
     choose(s, 'chat-moment-rival', 1);
@@ -796,6 +810,7 @@ describe('поток pendingChoice / applyChoice', () => {
     expect(mail!.choices).toEqual([
       { label: 'Поддержать осторожность', hint: '+8 репутации' },
       { label: 'Назвать это рекламным ходом', hint: '+10 шумихи, −3 репутации' },
+      { label: 'Не комментировать', hint: 'без изменений' },
     ]);
     expect(mail!.chosen).toBeUndefined();
     expect(mail!.read).toBe(false);
@@ -867,7 +882,7 @@ describe('сохранение: в JSON попадают только id соб�
     expect(pendingChoice(s)?.chosen).toBeUndefined();
   });
 
-  it('FOREVER — целое безопасное число и переживает JSON без потерь', () => {
+  it('FOREVER - целое безопасное число и переживает JSON без потерь', () => {
     expect(JSON.parse(JSON.stringify({ x: FOREVER })).x).toBe(FOREVER);
     expect(Number.isSafeInteger(FOREVER)).toBe(true);
   });
@@ -894,7 +909,7 @@ describe('модификаторы читают настоящие потреб�
     }
   });
 
-  it('дефицит GPU: «Переплатить» — лимит прежний, цена ×1,6', () => {
+  it('дефицит GPU: «Переплатить» - лимит прежний, цена ×1,6', () => {
     const s = newState();
     s.day = D('2023-04-01');
     const price0 = rentPerGpuDay(s, 'h100');
@@ -904,7 +919,7 @@ describe('модификаторы читают настоящие потреб�
     expect(rentPerGpuDay(s, 'h100')).toBeCloseTo(price0 * 1.6, 8);
   });
 
-  it('статья Gogle: «Механизм внимания» дешевле на 60 %, остальные исследования — по прежней цене', () => {
+  it('статья Gogle: «Механизм внимания» дешевле на 60 %, остальные исследования - по прежней цене', () => {
     const s = newState();
     const before = { attention: techCost(s, 'attention'), scaling: techCost(s, 'scaling'), rlhf: techCost(s, 'rlhf'), algo: techCost(s, 'algo') };
     triggerEvent(s, 'attention-paper-public');
@@ -939,5 +954,76 @@ describe('модификаторы читают настоящие потреб�
       expect(labBrand(s, lab.id), lab.id).toBeCloseTo(before[lab.id] + (lab.chinese ? EXPORT_CONTROL_BRAND : 0), 10);
     }
     expect(labBrand(s, 'player')).toBe(player0);
+  });
+});
+
+describe('отложенный выбор', () => {
+  it('письмо с выбором получает срок ответа и вариант по умолчанию (последний)', () => {
+    const s = newState();
+    s.day = 100;
+    triggerEvent(s, 'gpt2-withheld');
+    const m = pendingChoice(s)!;
+    expect(m.replyByDay).toBe(100 + CHOICE_DAYS);
+    expect(m.defaultChoice).toBe(2);
+    expect(m.deferred).toBeUndefined();
+  });
+
+  it('у срыва обучения срок короче', () => {
+    const s = newState();
+    triggerEvent(s, 'training-fail');
+    expect(pendingChoice(s)!.replyByDay).toBe(s.day + FAIL_CHOICE_DAYS);
+  });
+
+  it('отложенное письмо не останавливает игру, но остаётся среди ждущих ответа', () => {
+    const s = newState();
+    triggerEvent(s, 'gpt2-withheld');
+    const m = pendingChoice(s)!;
+    expect(deferChoice(s, m.id)).toEqual({ ok: true });
+    expect(m.deferred).toBe(true);
+    expect(m.read).toBe(true);
+    expect(pendingChoice(s)).toBeNull();
+    expect(openChoices(s)).toEqual([m]);
+    expect(awaitingEvent(s, 'gpt2-withheld')).toBe(true);
+    // ответить можно и позже
+    expect(applyChoice(s, m.id, 0)).toEqual({ ok: true });
+    expect(openChoices(s)).toEqual([]);
+    expect(s.reputation).toBe(28);
+  });
+
+  it('отложить можно только неотвеченное письмо с выбором', () => {
+    const s = newState();
+    triggerEvent(s, 'gpt2-withheld');
+    const m = pendingChoice(s)!;
+    applyChoice(s, m.id, 0);
+    expect(deferChoice(s, m.id).ok).toBe(false);
+    expect(deferChoice(s, 'нет-такого').ok).toBe(false);
+  });
+
+  it('срок истёк: выбирается вариант по умолчанию, письмо снова непрочитанное', () => {
+    const s = newState();
+    triggerEvent(s, 'attention-paper-player');
+    const m = pendingChoice(s)!;
+    deferChoice(s, m.id);
+    const level = s.research.algoLevel;
+    s.day = m.replyByDay! - 1;
+    expireChoices(s);
+    expect(m.chosen).toBeUndefined();
+    s.day = m.replyByDay!;
+    expireChoices(s);
+    expect(m.chosen).toBe(1); // «Оставить в секрете»
+    expect(m.autoChosen).toBe(true);
+    expect(m.read).toBe(false);
+    expect(s.research.algoLevel).toBe(level + 1);
+  });
+
+  it('dropChoices снимает выбор: письмо больше не ждёт ответа', () => {
+    const s = newState();
+    triggerEvent(s, 'training-fail');
+    const m = pendingChoice(s)!;
+    deferChoice(s, m.id);
+    dropChoices(s, 'training-fail', 'Проект отменён.');
+    expect(m.choices).toBeUndefined();
+    expect(awaitingEvent(s, 'training-fail')).toBe(false);
+    expect(m.body.endsWith('Проект отменён.')).toBe(true);
   });
 });

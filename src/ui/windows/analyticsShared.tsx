@@ -15,7 +15,7 @@ export function ownerName(s: GameState, owner: HypeOwner): string {
   return LAB_BY_ID.get(owner)?.name ?? owner;
 }
 
-/** Цвет владельца: dark — для тёмной области графика, иначе для белой таблицы. */
+/** Цвет владельца: dark - для тёмной области графика, иначе для белой таблицы. */
 export function ownerColor(owner: HypeOwner, dark = false): string {
   if (owner === 'player') return dark ? PLAYER_COLOR : PLAYER_ON_LIGHT;
   return LAB_BY_ID.get(owner)?.color ?? PLAYER_COLOR;
@@ -215,7 +215,7 @@ function useWidth(ref: RefObject<HTMLElement | null>): number {
 
 /**
  * Тёмная область графика с осями на светлом фоне и тёмной легендой справа, как в Processor Tycoon.
- * В легенде — значения за идущий месяц (live) или за месяц под курсором.
+ * В легенде - значения за идущий месяц (live) или за месяц под курсором.
  */
 export function ChartPanel(props: {
   data: ChartData;

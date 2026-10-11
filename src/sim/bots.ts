@@ -125,7 +125,7 @@ function manageModels(s: GameState): void {
   for (const m of s.models) {
     if (m.releasedDay === null && m.arenaElo > best) releaseModel(s, m.id, Math.max(0.05, refPrice(s.day) * 0.8));
   }
-  // В продаже — две лучшие модели.
+  // В продаже - две лучшие модели.
   const sorted = s.models.filter((m) => m.releasedDay !== null).sort((a, b) => b.arenaElo - a.arenaElo);
   sorted.forEach((m, i) => setOnApi(s, m.id, i < 2));
 }
@@ -140,7 +140,7 @@ function manageTenders(s: GameState): void {
 
 function manageInvestors(s: GameState, p: BotProfile): void {
   if (canRaise(s) !== null) return;
-  // Раунд — когда денег меньше чем на год текущих расходов.
+  // Раунд - когда денег меньше чем на год текущих расходов.
   const last = s.finance.history.at(-1);
   const monthlyCost = (last?.expense.rent ?? 0) + (last?.expense.overhead ?? 100_000);
   if (s.cash < monthlyCost * 12) raiseRound(s, p.roundFraction);
@@ -165,7 +165,7 @@ export interface BotResult {
   days: number;
 }
 
-/** Прогнать всю игру ботом. Выбор в почте — первый вариант. */
+/** Прогнать всю игру ботом. Выбор в почте - первый вариант. */
 export function runBot(kind: BotKind, seed: number, maxDays = 4000): BotResult {
   const s = newGame('Бот', seed);
   let days = 0;

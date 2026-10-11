@@ -14,7 +14,7 @@ import { byYear, dateToDay, lerpByDate } from './time';
 
 // ---------- Заготовки ----------
 
-/** Места моделей игрока на Арене: id → место (нет в таблице — null). */
+/** Места моделей игрока на Арене: id → место (нет в таблице - null). */
 let ranks: Record<string, number | null> = {};
 
 beforeEach(() => {
@@ -59,7 +59,7 @@ function setDailyRevenue(s: GameState, perDay: number): void {
 // ---------- Оценка ----------
 
 describe('valuation: пол', () => {
-  it('без выручки и моделей — пол $10 млн, умноженный на шумиху и репутацию', () => {
+  it('без выручки и моделей - пол $10 млн, умноженный на шумиху и репутацию', () => {
     const s = newState();
     s.reputation = 20;
     s.hype.player = 0;
@@ -142,7 +142,7 @@ describe('valuation: место на Арене', () => {
     return valuation(s).total;
   }
 
-  it('коэффициент места: 1 → 1, 2–3 → 0,5, 4–10 → 0,2, ниже → 0,05', () => {
+  it('коэффициент места: 1 → 1, 2-3 → 0,5, 4-10 → 0,2, ниже → 0,05', () => {
     const table: [number, number][] = [
       [1, 1], [2, 0.5], [3, 0.5], [4, 0.2], [10, 0.2], [11, 0.05], [40, 0.05],
     ];
@@ -202,7 +202,7 @@ describe('valuation: место на Арене', () => {
     expect(asked).toEqual(['p3']);
   });
 
-  it('нет моделей на рынке — технологий нет, остаётся пол', () => {
+  it('нет моделей на рынке - технологий нет, остаётся пол', () => {
     const s = newState(day2023);
     s.models.push(makeModel('p1'));
     ranks.p1 = null;
@@ -262,11 +262,11 @@ describe('canRaise', () => {
   it('кулдаун 180 дней, сообщение с числом дней', () => {
     const s = newState(100);
     s.lastRoundDay = 100;
-    expect(canRaise(s)).toBe('Следующий раунд — через 180 дн.');
+    expect(canRaise(s)).toBe('Следующий раунд - через 180 дн.');
     s.day = 200;
-    expect(canRaise(s)).toBe('Следующий раунд — через 80 дн.');
+    expect(canRaise(s)).toBe('Следующий раунд - через 80 дн.');
     s.day = 279;
-    expect(canRaise(s)).toBe('Следующий раунд — через 1 дн.');
+    expect(canRaise(s)).toBe('Следующий раунд - через 1 дн.');
     s.day = 280;
     expect(canRaise(s)).toBeNull();
     s.day = 1000;
@@ -313,14 +313,14 @@ describe('raiseRound', () => {
     expect(s.finance.revenueDaily.reduce((a, b) => a + b, 0)).toBe(0);
   });
 
-  it('второй раунд раньше срока — ошибка с числом дней, ничего не меняется', () => {
+  it('второй раунд раньше срока - ошибка с числом дней, ничего не меняется', () => {
     const s = newState(50);
     expect(raiseRound(s, 0.1).ok).toBe(true);
     const cash = s.cash;
     const share = s.founderShare;
     s.day = 120;
     const r = raiseRound(s, 0.1);
-    expect(r).toEqual({ ok: false, error: 'Следующий раунд — через 110 дн.' });
+    expect(r).toEqual({ ok: false, error: 'Следующий раунд - через 110 дн.' });
     expect(s.cash).toBe(cash);
     expect(s.founderShare).toBe(share);
     expect(s.lastRoundDay).toBe(50);
@@ -383,7 +383,7 @@ describe('valuation: опорные числа', () => {
     expect(mid).toBeLessThan(1.5e9);
   });
 
-  it('нет моделей вообще, 2024 год: технологий нет, оценка — пол', () => {
+  it('нет моделей вообще, 2024 год: технологий нет, оценка - пол', () => {
     const s = newState(dateToDay('2024-06-01'));
     s.reputation = 50;
     const v = valuation(s);
@@ -479,7 +479,7 @@ describe('raiseRound: подробности', () => {
     expect(body).toContain('$12,8 млрд');
     expect(body).toContain('$1,3 млрд');
     expect(body).toContain('10 % компании');
-    expect(body).toContain('Доля основателя — 90 %');
+    expect(body).toContain('Доля основателя - 90 %');
     expect(body).toContain('через 180 дн.');
   });
 
@@ -488,10 +488,10 @@ describe('raiseRound: подробности', () => {
     raiseRound(s, 0.1);
     s.day += ROUND_COOLDOWN_DAYS;
     raiseRound(s, 0.2);
-    expect(s.mail[s.mail.length - 1].body).toContain('Доля основателя — 72 %');
+    expect(s.mail[s.mail.length - 1].body).toContain('Доля основателя - 72 %');
     s.day += ROUND_COOLDOWN_DAYS;
     raiseRound(s, 0.3);
-    expect(s.mail[s.mail.length - 1].body).toContain('Доля основателя — 50,4 %');
+    expect(s.mail[s.mail.length - 1].body).toContain('Доля основателя - 50,4 %');
   });
 
   it('деньги от раунда идут в статью «investors» и не попадают в выручку', () => {
