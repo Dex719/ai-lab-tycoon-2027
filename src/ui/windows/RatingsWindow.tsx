@@ -3,16 +3,16 @@
 import { useState, type ReactNode } from 'react';
 import type { WindowProps } from '.';
 import { BENCHMARKS } from '../../data/benchmarks';
-import { ARENA_OPEN_DATE } from '../../sim/constants';
-import { leaderboard, type BoardRow } from '../../sim/leaderboard';
+import { expectedLeaderElo, leaderboard, marketArenaRank, type BoardRow } from '../../sim/leaderboard';
 import { contextLabel } from '../../sim/research';
 import { findRivalDef } from '../../sim/rivals';
-import { dateToDay, END_DAY, formatDateShort } from '../../sim/time';
+import { playerBestArenaRank } from '../../sim/tick';
+import { END_DAY, formatDateShort } from '../../sim/time';
 import type { BenchmarkDef, BenchmarkId, GameState } from '../../sim/types';
 import { fmtElo, fmtNum, fmtPct } from '../format';
 import { IconAlert, IconLock } from '../icons';
 import { fmtRank } from '../labels';
-import { ownerColor, ownerName, OwnerTag, safe, StatStrip } from './analyticsShared';
+import { finite, ownerColor, ownerName, OwnerTag, safe, StatStrip } from './analyticsShared';
 
 type SortKey = 'name' | 'owner' | 'date' | 'context' | BenchmarkId;
 type SortDir = 'asc' | 'desc';
@@ -283,20 +283,55 @@ export function BenchmarksTab({ s }: WindowProps) {
 
 // ---------- Арена ----------
 
-export function ArenaTab({ s }: WindowProps) {
-  const rows = safe(() => leaderboard(s));
-  const arenaOpen = s.day >= dateToDay(ARENA_OPEN_DATE);
+const TIP_RANK = 'Место среди моделей в продаже: тех, что продаются через API';
+const TIP_NOT_SALE = 'Модель не продаётся через API: в зачёт цели не идёт';
+const TIP_GOAL = 'Победа: ваша модель первая по Эло среди моделей в продаже 31.12.2024';
+const TIP_EXPECTED = 'Лучший Эло среди моделей соперников, которые будут продаваться через API к концу 2024 года';
+const TIP_MONTHS = 'Закрытые месяцы, когда ваша лучшая модель была первой среди моделей в продаже';
 
-  // Места: больше Эло - выше; при равенстве выше модель, вышедшая раньше (порядок как в sim/leaderboard).
-  const ranked = (rows ?? [])
+/** Модель в продаже: ваша - выпущена и на API, соперника - выпущена с API и не только показана. Только такие идут в зачёт цели. */
+export function inSaleRow(r: BoardRow): boolean {
+  if (r.ref.kind === 'player') return r.onMarket;
+  const def = findRivalDef(r.ref.id);
+  return !!def && def.api && !def.announcedOnly;
+}
+
+export interface ArenaRow {
+  row: BoardRow;
+  inSale: boolean;
+  /** Место среди моделей в продаже (sim/leaderboard.marketArenaRank); null - модель не в продаже. */
+  rank: number | null;
+}
+
+/** Строки Арены: больше Эло - выше; при равенстве выше модель, вышедшая раньше (порядок как в sim/leaderboard). */
+export function arenaRows(s: GameState, rows: BoardRow[]): ArenaRow[] {
+  return rows
     .slice()
     .reverse()
     .sort((a, b) => b.elo - a.elo || a.releasedDay - b.releasedDay)
-    .map((row, i) => ({ row, rank: i + 1 }));
-  const mine = ranked.find((x) => x.row.owner === 'player') ?? null;
-  const leader = ranked[0] ?? null;
+    .map((row) => {
+      const inSale = inSaleRow(row);
+      return { row, inSale, rank: inSale ? marketArenaRank(s, row.ref) : null };
+    });
+}
 
-  const hi = leader ? leader.row.elo : 0;
+/** Эло ожидаемого лидера, округлённое до десятков; null - рассчитать не удалось. */
+export function expectedLeaderElo10(s: GameState): number | null {
+  const elo = safe(() => expectedLeaderElo(s));
+  return elo !== null && Number.isFinite(elo) ? Math.round(elo / 10) * 10 : null;
+}
+
+export function ArenaTab({ s }: WindowProps) {
+  const rows = safe(() => leaderboard(s));
+
+  const ranked = arenaRows(s, rows ?? []);
+  const onSale = ranked.filter((x) => x.inSale).length;
+  const mine = ranked.find((x) => x.row.owner === 'player') ?? null;
+  const myRank = safe(() => playerBestArenaRank(s));
+  const expected = expectedLeaderElo10(s);
+  const monthsFirst = finite(s.monthsFirst);
+
+  const hi = ranked.length > 0 ? ranked[0].row.elo : 0;
   const lo = ranked.length > 0 ? ranked[ranked.length - 1].row.elo : 0;
   const barWidth = (elo: number): number => (hi > lo ? 8 + (92 * (elo - lo)) / (hi - lo) : 100);
   const date = dateHeader(ranked.map((x) => x.row));
@@ -310,7 +345,9 @@ export function ArenaTab({ s }: WindowProps) {
         <table className="grid an-grid">
           <thead>
             <tr>
-              <th className="num">№</th>
+              <th className="num" title={TIP_RANK}>
+                №
+              </th>
               <th>Модель</th>
               <th>Лаборатория</th>
               <th title="Рейтинг Эло: чем выше, тем чаще пользователи выбирают ответы модели">Эло</th>
@@ -318,14 +355,22 @@ export function ArenaTab({ s }: WindowProps) {
               <th className="num" title={TIP_CONTEXT}>
                 Контекст
               </th>
-              <th>Рынок</th>
             </tr>
           </thead>
           <tbody>
-            {ranked.map(({ row: r, rank }) => (
+            {ranked.map(({ row: r, rank, inSale }) => (
               <tr key={rowKey(r)} className={r.owner === 'player' ? 'player' : undefined}>
-                <td className="num">{fmtNum(rank)}</td>
-                <td>{r.name}</td>
+                <td className={`num${rank === null ? ' muted' : ''}`}>{rank !== null ? fmtNum(rank) : '-'}</td>
+                <td>
+                  <Flag row={r} />
+                  {r.name}
+                  {!inSale && (
+                    <span className="est" title={TIP_NOT_SALE}>
+                      {' '}
+                      не в продаже
+                    </span>
+                  )}
+                </td>
                 <td>
                   <OwnerTag s={s} owner={r.owner} />
                 </td>
@@ -345,7 +390,6 @@ export function ArenaTab({ s }: WindowProps) {
                 </td>
                 <DateCell row={r} />
                 <td className="num">{ctxLabel(rowContext(s, r))}</td>
-                <td>{r.onMarket ? <span className="good">На рынке</span> : ''}</td>
               </tr>
             ))}
           </tbody>
@@ -358,23 +402,31 @@ export function ArenaTab({ s }: WindowProps) {
       <StatStrip
         items={[
           {
-            value: mine ? fmtRank(mine.rank) : '-',
-            label: mine ? `Ваша лучшая модель из ${fmtNum(ranked.length)}` : 'Выпущенных моделей нет',
+            value: myRank !== null ? fmtRank(myRank) : '-',
+            label: myRank !== null ? `Сейчас среди ${fmtNum(onSale)} моделей в продаже` : 'Ваших моделей в продаже нет',
+            title: TIP_RANK,
+          },
+          { value: fmtRank(1), label: `Цель: среди моделей в продаже на ${formatDateShort(END_DAY)}`, title: TIP_GOAL },
+          {
+            value: expected !== null ? `≈ ${fmtElo(expected)}` : '-',
+            label: 'Ожидаемый лидер к концу 2024, Эло',
+            title: TIP_EXPECTED,
           },
           {
             value: mine ? fmtElo(mine.row.elo) : '-',
-            label: mine ? `Эло: ${mine.row.name}` : 'Эло вашей лучшей модели',
+            label: mine ? `Ваша лучшая: ${mine.row.name}` : 'Ваша лучшая модель, Эло',
           },
-          {
-            value: leader ? fmtElo(leader.row.elo) : '-',
-            label: leader ? `Лидер: ${leader.row.name} (${ownerName(s, leader.row.owner)})` : 'Лидер рейтинга',
-          },
-          { value: fmtRank(1), label: `Цель на ${formatDateShort(END_DAY)}` },
+          { value: fmtNum(monthsFirst), label: 'Месяцев на 1-м месте', title: TIP_MONTHS },
         ]}
       />
       <div className="an-toolbar">
         <span className="muted">Моделей: {fmtNum(ranked.length)}</span>
-        {!arenaOpen && <span className="muted">Арена открывается {formatDateShort(dateToDay(ARENA_OPEN_DATE))}.</span>}
+        <span className="muted">В продаже: {fmtNum(onSale)}</span>
+        <span className="grow" />
+        <span className="an-key">
+          <span className="est">не в продаже</span>
+          <span className="an-key-s">нет API: не в зачёт цели</span>
+        </span>
       </div>
       {body}
     </div>

@@ -1,9 +1,11 @@
 // Таблица бенчмарков и Арена: строки, места, шумиха выпуска, насыщение (FR-5, FR-6). TSK-007.
 
+import { RIVAL_MODELS } from '../data/rivalModels';
 import { activeBenchmarks, benchDef, introducedBenchmarks } from './benchmarks';
 import { HYPE_ARENA_TOP_BONUS, HYPE_RANK_BONUS } from './constants';
 import { addMail } from './events';
 import { findRivalDef, marketRivals, rivalDay, rivalScore } from './rivals';
+import { END_DAY } from './time';
 import { modelScore } from './training';
 import type { BenchmarkId, GameState, HypeOwner, ModelRef, PlayerModel, RivalModelDef } from './types';
 
@@ -83,10 +85,18 @@ function rankIn(list: Entry[], ref: ModelRef, value: (e: Entry) => number): numb
   return rank;
 }
 
-/** Модели, которые сейчас на рынке: соперники из marketRivals и модели игрока на API. */
-function onMarketOnly(s: GameState, list: Entry[]): Entry[] {
-  const ids = new Set(marketRivals(s).map((d) => d.id));
-  return list.filter((e) => (e.rival ? ids.has(e.rival.id) : (e.model as PlayerModel).onApi));
+/** Модель соперника продаётся по API: в каталоге api, и её не только показали. */
+function rivalOnApi(def: RivalModelDef): boolean {
+  return def.api && !def.announcedOnly;
+}
+
+/**
+ * Модели, которые можно купить по API: выпущенные модели игрока с onApi и выпущенные модели соперников
+ * с api (не announcedOnly). Возраст и число моделей на лабораторию не ограничены: это место «среди всех,
+ * кого можно купить», а не среди витрины рынка (marketRivals).
+ */
+function onApiOnly(list: Entry[]): Entry[] {
+  return list.filter((e) => (e.rival ? rivalOnApi(e.rival) : (e.model as PlayerModel).onApi));
 }
 
 // ---------- Таблица ----------
@@ -143,9 +153,25 @@ export function arenaRank(s: GameState, ref: ModelRef): number | null {
   return rankIn(entries(s), ref, (e) => e.elo);
 }
 
-/** Место на Арене среди моделей, которые сейчас на рынке (для инвесторов). */
+/**
+ * Место на Арене среди моделей, доступных по API на день s.day (см. onApiOnly): по нему считаются
+ * победа в конце игры, месяцы на 1-м месте (monthsFirst) и оценка инвесторов. null - модели нет среди них.
+ */
 export function marketArenaRank(s: GameState, ref: ModelRef): number | null {
-  return rankIn(onMarketOnly(s, entries(s)), ref, (e) => e.elo);
+  return rankIn(onApiOnly(entries(s)), ref, (e) => e.elo);
+}
+
+/**
+ * Планка победы: наибольшее Эло среди моделей соперников с API (не announcedOnly), которые выйдут
+ * до конца игры включительно. Столько нужно обойти к 31.12.2024; от текущего состояния не зависит.
+ */
+export function expectedLeaderElo(_s: GameState): number {
+  let best = 0;
+  for (const def of RIVAL_MODELS) {
+    if (!rivalOnApi(def) || rivalDay(def) > END_DAY) continue;
+    if (def.arenaElo > best) best = def.arenaElo;
+  }
+  return best;
 }
 
 /** Бонус шумихи при выпуске модели: по активным бенчмаркам места 1/2/3 → HYPE_RANK_BONUS, №1 Арены → +HYPE_ARENA_TOP_BONUS. */

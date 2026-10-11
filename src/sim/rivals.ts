@@ -3,10 +3,10 @@
 import { LABS } from '../data/labs';
 import { RIVAL_MODELS } from '../data/rivalModels';
 import { benchDef, benchScore, capFromScore, introducedBenchmarks } from './benchmarks';
-import { MARKET_MAX_AGE_DAYS, MARKET_MODELS_PER_LAB } from './constants';
+import { MARKET_MAX_AGE_DAYS, MARKET_MODELS_PER_LAB, REF_PRICE } from './constants';
 import { addMail } from './events';
 import { releaseHypeBonus } from './leaderboard';
-import { byYear, dateToDay, START_DAY, yearOf } from './time';
+import { byYear, dateToDay, lerpByDate, START_DAY, yearOf } from './time';
 import { DOMAINS, LAB_IDS } from './types';
 import type { BenchmarkId, DomainId, GameState, LabId, RivalModelDef } from './types';
 
@@ -91,12 +91,37 @@ export function rivalScore(def: RivalModelDef, bid: BenchmarkId): { value: numbe
   return { value: benchScore(bid, rivalCaps(def)[benchDef(bid).domain]), estimated: true };
 }
 
-/** Смешанная цена (3·in + out)/4; если в каталоге пусто - defaultPricePer1M лаборатории на год дня day. */
-export function rivalPrice(def: RivalModelDef, day: number): number {
+/** Смешанная цена каталога (3·in + out)/4 на день выхода; null - цен в каталоге нет. */
+export function catalogPrice(def: RivalModelDef): number | null {
   const { priceIn, priceOut } = def;
   if (priceIn !== null && priceOut !== null) return (3 * priceIn + priceOut) / 4;
   if (priceIn !== null) return priceIn;
   if (priceOut !== null) return priceOut;
+  return null;
+}
+
+/** Опорная цена рынка $ за 1М токенов на день (та же кривая, что в market.refPrice; здесь - чтобы не замыкать импорты). */
+function marketRefPrice(day: number): number {
+  return lerpByDate(REF_PRICE, day, true);
+}
+
+/**
+ * Во сколько раз цена модели упала с дня выхода вместе с рынком: refPrice(day) / refPrice(день выхода), не выше 1
+ * (до выхода и в день выхода - каталожная цена).
+ */
+export function rivalPriceDecay(def: RivalModelDef, day: number): number {
+  const ratio = marketRefPrice(day) / marketRefPrice(rivalDay(def));
+  return Number.isFinite(ratio) ? Math.min(1, ratio) : 1;
+}
+
+/**
+ * Цена соперника $ за 1М токенов на день day. Из каталога - смешанная цена на день выхода, а дальше она падает
+ * вместе с рынком (× rivalPriceDecay): старые модели не продаются по ценам своего года.
+ * Без цен в каталоге - defaultPricePer1M лаборатории на год дня day (эта таблица тоже падает по годам).
+ */
+export function rivalPrice(def: RivalModelDef, day: number): number {
+  const catalog = catalogPrice(def);
+  if (catalog !== null) return catalog * rivalPriceDecay(def, day);
   const lab = LABS.find((l) => l.id === def.lab);
   return lab ? byYear(lab.defaultPricePer1M, yearOf(day)) : 0;
 }

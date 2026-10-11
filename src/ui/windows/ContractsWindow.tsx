@@ -1,7 +1,6 @@
-// Окно «Контракты» (FR-9): слева список тендеров или своих контрактов, справа карточка выбранного.
+// Окно «Контракты» (FR-9): вкладки «Тендеры» и «Мои контракты»; слева список, справа карточка выбранного.
 
 import { useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
 import { CLIENTS } from '../../data/clients';
 import { benchDef } from '../../sim/benchmarks';
@@ -10,7 +9,7 @@ import { REP_CONTRACT_FAIL, RLHF_TENDER_LABELERS, TENDER_APPLY_DAYS } from '../.
 import { applyChance, canApply } from '../../sim/contracts';
 import { modelScore } from '../../sim/training';
 import type { Contract, GameState, PlayerModel, Tender } from '../../sim/types';
-import { Alert, Dialog, ErrorText, ProgressBar } from '../components/common';
+import { Alert, ConfirmDialog, ErrorText, ProgressBar } from '../components/common';
 import { endSentence, fmtMoney, fmtNum, fmtPct, fmtShare } from '../format';
 import { IconAlert, IconCheck } from '../icons';
 import { actions, store } from '../store';
@@ -21,6 +20,7 @@ type TypeFilter = 'all' | Tender['type'];
 type OpenFn = WindowProps['open'];
 
 const REP_LOSS = `−${Math.abs(REP_CONTRACT_FAIL)}`;
+const AUTO_APPLY_HINT = 'В начале месяца на каждый новый тендер подаётся заявка лучшей подходящей моделью';
 
 // ---------- Общие помощники ----------
 
@@ -39,6 +39,16 @@ function typeLabel(t: Tender): string {
 
 function days(n: number): string {
   return `${fmtNum(n)} дн.`;
+}
+
+/** Объём работы: «20 H100e-дн.», «12,5 тыс. H100e-дн.» */
+function workDays(n: number): string {
+  return `${fmtNum(n)} H100e-дн.`;
+}
+
+/** Мощность: «0,33 H100e в день», «1,2 тыс. H100e в день» */
+function perDay(n: number): string {
+  return `${fmtNum(n)} H100e в день`;
 }
 
 /** Две буквы: первые буквы первых двух слов названия («Банк «Северный»» → «БС»). */
@@ -151,7 +161,7 @@ function TenderItem({ t, on, onPick }: { t: Tender; on: boolean; onPick: () => v
       <span className="ct-item-text">
         <span className="ct-item-name">{clientName(t.clientId)}</span>
         <span className="ct-item-sub">
-          {benchDef(t.benchmark).name} · от {fmtPct(t.requirement, 0)}
+          {benchDef(t.benchmark).name} · от {fmtPct(t.requirement, 0)} · {fmtMoney(t.payment)}
         </span>
       </span>
       {(t.type === 'rlhf' || t.application) && (
@@ -177,7 +187,7 @@ function ContractItem({ s, c, on, onPick }: { s: GameState; c: Contract; on: boo
       <span className="ct-item-text">
         <span className="ct-item-name">{clientName(c.tender.clientId)}</span>
         <span className="ct-item-sub">
-          {benchDef(c.tender.benchmark).name} · до срока {days(info.left)}
+          {fmtMoney(c.tender.payment)} · до срока {days(info.left)}
         </span>
         <ProgressBar value={info.progress} title={`Выполнено ${fmtPct(info.progress * 100, 0)}`} />
       </span>
@@ -210,10 +220,7 @@ function CardHead({ clientId, type, text }: { clientId: string; type: string; te
 
 function tenderText(t: Tender): string {
   const who = t.type === 'rlhf' ? 'Нужна модель, обученная с RLHF, с баллом' : 'Нужна модель с баллом';
-  return (
-    `${who} не ниже ${fmtPct(t.requirement, 0)} на ${benchDef(t.benchmark).name}. ` +
-    `Объём работы - ${fmtNum(t.work)} H100e-дн., срок - ${days(t.durationDays)}`
-  );
+  return `${who} не ниже ${fmtPct(t.requirement, 0)} на ${benchDef(t.benchmark).name}.`;
 }
 
 function TenderCard(props: {
@@ -245,6 +252,9 @@ function TenderCard(props: {
   const labelers = rlhf ? RLHF_TENDER_LABELERS * t.payment : 0;
   const profit = t.payment - labelers - t.work * cheapestH100eDay(s);
   const left = Math.max(0, t.expiresDay - s.day);
+  // Сколько мощности нужно каждый день, чтобы успеть к сроку, и сколько сейчас выделено на контракты.
+  const needed = t.work / Math.max(1, t.durationDays);
+  const contractsPool = pool(s, 'contracts');
 
   function submit() {
     setConfirming(false);
@@ -314,31 +324,39 @@ function TenderCard(props: {
               </>
             )}
           </div>
-        </section>
-
-        <section className="ct-col">
-          <h3 className="ct-h">Условия</h3>
           <div className="kv">
             <span title="Зависит от репутации и запаса балла над требованием">Шанс победы</span>
             <span>{chance === null ? '-' : fmtShare(chance, 0)}</span>
-            <span>Оплата</span>
-            <span>{fmtMoney(t.payment)}</span>
-            <span title="Списывается при отказе, просрочке и провале при сдаче">Штраф</span>
-            <span>{fmtMoney(t.penalty)}</span>
-            {rlhf && (
-              <>
-                <span title="Списываются при победе в тендере">Разметчики</span>
-                <span>{fmtMoney(labelers)}</span>
-              </>
-            )}
-            <span title={`Оплата минус ${rlhf ? 'разметчики и ' : ''}работа по цене самой дешёвой карты`}>Ожидаемая прибыль</span>
-            <span className={Number.isFinite(profit) ? (profit >= 0 ? 'good' : 'bad') : ''}>{fmtMoney(profit)}</span>
             {!app && (
               <>
                 <span title="Тендер без заявки исчезает">До закрытия тендера</span>
                 <span className={left <= 5 ? 'warn' : ''}>{days(left)}</span>
               </>
             )}
+          </div>
+        </section>
+
+        <section className="ct-col">
+          <h3 className="ct-h">Условия</h3>
+          <div className="kv">
+            <span>Оплата</span>
+            <span>{fmtMoney(t.payment)}</span>
+            {rlhf && (
+              <>
+                <span title="Списываются при победе в тендере">Разметчики</span>
+                <span>{fmtMoney(labelers)}</span>
+              </>
+            )}
+            <span title="Списывается при отказе, просрочке и провале при сдаче">Штраф</span>
+            <span>{fmtMoney(t.penalty)}</span>
+            <span title={`Оплата минус ${rlhf ? 'разметчики и ' : ''}работа по цене самой дешёвой карты`}>Ожидаемая прибыль</span>
+            <span className={Number.isFinite(profit) ? (profit >= 0 ? 'good' : 'bad') : ''}>{fmtMoney(profit)}</span>
+            <span>Объём работы</span>
+            <span>{workDays(t.work)}</span>
+            <span title="Отсчитывается со дня победы в тендере">Срок</span>
+            <span>{days(t.durationDays)}</span>
+            <span title={`Объём работы, делённый на срок. Сейчас на контракты выделено ${perDay(contractsPool)}`}>Нужно мощности</span>
+            <span className={needed > contractsPool ? 'warn' : ''}>{perDay(needed)}</span>
           </div>
         </section>
       </div>
@@ -368,39 +386,21 @@ function TenderCard(props: {
         <ErrorText error={err} />
       </div>
 
-      {confirming &&
-        model &&
-        honest !== null &&
-        createPortal(
-          <Dialog
-            title="Подтверждение заявки"
-            onClose={() => setConfirming(false)}
-            footer={
-              <>
-                <button className="btn" onClick={() => setConfirming(false)}>
-                  Отмена
-                </button>
-                <button className="btn primary" onClick={submit}>
-                  Подать заявку
-                </button>
-              </>
-            }
-          >
-            <div className="col">
-              <div>
-                Честный балл модели «{model.name}» - {fmtPct(honest)}, требование - {fmtPct(t.requirement, 0)}. При победе в тендере
-                контракт будет провален при сдаче.
-              </div>
-              <div className="kv">
-                <span>Штраф</span>
-                <span>{fmtMoney(t.penalty)}</span>
-                <span>Репутация</span>
-                <span>{REP_LOSS}</span>
-              </div>
-            </div>
-          </Dialog>,
-          document.body,
-        )}
+      {confirming && model && honest !== null && (
+        <ConfirmDialog title="Подтверждение заявки" confirmLabel="Подать заявку" onConfirm={submit} onClose={() => setConfirming(false)}>
+          <div>Честный балл модели «{model.name}» ниже требования: при победе в тендере контракт будет провален при сдаче.</div>
+          <div className="kv">
+            <span>Честный балл</span>
+            <span>{fmtPct(honest)}</span>
+            <span>Требование</span>
+            <span>от {fmtPct(t.requirement, 0)}</span>
+            <span>Штраф</span>
+            <span>{fmtMoney(t.penalty)}</span>
+            <span>Репутация</span>
+            <span>{REP_LOSS}</span>
+          </div>
+        </ConfirmDialog>
+      )}
     </div>
   );
 }
@@ -437,7 +437,7 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
             <div className="ct-bar-row">
               <span>Выполнено</span>
               <span className="v">
-                {fmtNum(c.workDone)} из {fmtNum(t.work)} H100e-дн. · {fmtPct(info.progress * 100, 0)}
+                {fmtNum(c.workDone)} из {workDays(t.work)} · {fmtPct(info.progress * 100, 0)}
               </span>
             </div>
             <ProgressBar value={info.progress} title={`Выполнено ${fmtPct(info.progress * 100, 0)}`} />
@@ -446,9 +446,9 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
             <span>До срока</span>
             <span className={info.late || info.stalled ? 'bad' : info.left <= 10 ? 'warn' : ''}>{days(info.left)}</span>
             <span>Осталось работы</span>
-            <span>{fmtNum(info.remaining)} H100e-дн.</span>
+            <span>{workDays(info.remaining)}</span>
             <span title="Доля «Контракты» из окна «Мощности», поровну между контрактами">Мощность на контракт</span>
-            <span>{fmtNum(info.share)} H100e в день</span>
+            <span>{perDay(info.share)}</span>
             <span title="При текущей мощности">Завершение через</span>
             <span className={info.late ? 'bad' : ''}>{info.eta === null ? '-' : days(info.eta)}</span>
           </div>
@@ -497,36 +497,21 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
         <ErrorText error={err} />
       </div>
 
-      {confirming &&
-        createPortal(
-          <Dialog
-            title="Отказ от контракта"
-            onClose={() => setConfirming(false)}
-            footer={
-              <>
-                <button className="btn" onClick={() => setConfirming(false)}>
-                  Отмена
-                </button>
-                <button className="btn danger" onClick={cancel}>
-                  Отказаться
-                </button>
-              </>
-            }
-          >
-            <div className="col">
-              <div>Контракт будет расторгнут сразу, штраф спишется со счёта.</div>
-              <div className="kv">
-                <span>Клиент</span>
-                <span>{clientName(t.clientId)}</span>
-                <span>Штраф</span>
-                <span>{fmtMoney(t.penalty)}</span>
-                <span>Репутация</span>
-                <span>{REP_LOSS}</span>
-              </div>
-            </div>
-          </Dialog>,
-          document.body,
-        )}
+      {confirming && (
+        <ConfirmDialog title="Отказ от контракта" confirmLabel="Отказаться" danger onConfirm={cancel} onClose={() => setConfirming(false)}>
+          <div>Контракт будет расторгнут сразу, штраф спишется со счёта.</div>
+          <div className="kv">
+            <span>Клиент</span>
+            <span>{clientName(t.clientId)}</span>
+            <span>Выполнено</span>
+            <span>{fmtPct(info.progress * 100, 0)}</span>
+            <span>Штраф</span>
+            <span>{fmtMoney(t.penalty)}</span>
+            <span>Репутация</span>
+            <span>{REP_LOSS}</span>
+          </div>
+        </ConfirmDialog>
+      )}
     </div>
   );
 }
@@ -551,18 +536,16 @@ export default function ContractsWindow({ s, open }: WindowProps) {
 
   const released = s.models.filter((m) => m.releasedDay !== null);
   const tenders = s.tenders.filter((t) => filter === 'all' || t.type === filter);
-  const contracts = s.contracts.filter((c) => filter === 'all' || c.tender.type === filter);
+  const contracts = s.contracts;
   const tender = tenders.find((t) => t.id === tenderSel) ?? tenders[0] ?? null;
   const contract = contracts.find((c) => c.id === contractSel) ?? contracts[0] ?? null;
 
   const showTenders = view === 'tenders';
-  const emptyText = showTenders
-    ? s.tenders.length === 0
-      ? 'Тендеров нет'
-      : 'Нет тендеров этого типа'
-    : s.contracts.length === 0
-      ? 'Активных контрактов нет'
-      : 'Нет контрактов этого типа';
+  const tabs: { id: View; label: string }[] = [
+    { id: 'tenders', label: `Тендеры: ${s.tenders.length}` },
+    { id: 'contracts', label: `Мои контракты: ${s.contracts.length}` },
+  ];
+  const emptyText = showTenders ? (s.tenders.length === 0 ? 'Тендеров нет' : 'Нет тендеров этого типа') : 'Активных контрактов нет';
 
   let main: ReactNode;
   if (showTenders) {
@@ -584,38 +567,50 @@ export default function ContractsWindow({ s, open }: WindowProps) {
   } else {
     main = contract ? (
       <ContractCard key={contract.id} s={s} c={contract} open={open} />
-    ) : s.contracts.length === 0 ? (
-      <Empty title="Активных контрактов нет" text="Контракт появляется после победы в тендере." />
     ) : (
-      <Empty title="Нет контрактов этого типа" />
+      <Empty title="Активных контрактов нет" text="Контракт появляется после победы в тендере." />
     );
   }
 
   return (
     <div className="ct">
-      <aside className="ct-side">
-        <label className="ct-filter">
-          <span className="label">Тип</span>
-          <select value={filter} onChange={(e) => setFilter(e.target.value as TypeFilter)}>
-            <option value="all">Все</option>
-            <option value="finetune">Дообучение</option>
-            <option value="rlhf">RLHF</option>
-          </select>
-        </label>
+      <div className="ct-tabs" role="tablist">
+        {tabs.map((t) => (
+          <button key={t.id} role="tab" aria-selected={t.id === view} className={`tab${t.id === view ? ' on' : ''}`} onClick={() => setView(t.id)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-        <div className="ct-list">
-          {showTenders
-            ? tenders.map((t) => <TenderItem key={t.id} t={t} on={tender?.id === t.id} onPick={() => setTenderSel(t.id)} />)
-            : contracts.map((c) => <ContractItem key={c.id} s={s} c={c} on={contract?.id === c.id} onPick={() => setContractSel(c.id)} />)}
-          {(showTenders ? tenders : contracts).length === 0 && <div className="ct-list-empty">{emptyText}</div>}
-        </div>
+      <div className="ct-body">
+        <aside className="ct-side">
+          {showTenders && (
+            <>
+              <label className="ct-auto" title={AUTO_APPLY_HINT}>
+                <input type="checkbox" checked={s.autoApply} onChange={(e) => store.dispatch(actions.setAutoApply, e.target.checked)} />
+                Подавать заявки автоматически
+              </label>
+              <label className="ct-filter">
+                <span className="label">Тип</span>
+                <select value={filter} onChange={(e) => setFilter(e.target.value as TypeFilter)}>
+                  <option value="all">Все</option>
+                  <option value="finetune">Дообучение</option>
+                  <option value="rlhf">RLHF</option>
+                </select>
+              </label>
+            </>
+          )}
 
-        <button className="btn wide" onClick={() => setView(showTenders ? 'contracts' : 'tenders')}>
-          {showTenders ? `Мои контракты: ${s.contracts.length}` : `Тендеры: ${s.tenders.length}`}
-        </button>
-      </aside>
+          <div className="ct-list">
+            {showTenders
+              ? tenders.map((t) => <TenderItem key={t.id} t={t} on={tender?.id === t.id} onPick={() => setTenderSel(t.id)} />)
+              : contracts.map((c) => <ContractItem key={c.id} s={s} c={c} on={contract?.id === c.id} onPick={() => setContractSel(c.id)} />)}
+            {(showTenders ? tenders : contracts).length === 0 && <div className="ct-list-empty">{emptyText}</div>}
+          </div>
+        </aside>
 
-      <main className="ct-main">{main}</main>
+        <main className="ct-main">{main}</main>
+      </div>
     </div>
   );
 }

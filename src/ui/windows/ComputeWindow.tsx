@@ -1,22 +1,38 @@
 // Окно «Мощности» (FR-2): сведения, арендованные карты, диалог аренды и распределение мощности.
 // Раскладка по образцу «Производство» и «Управление линиями» в Processor Tycoon.
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
 import { GPUS } from '../../data/gpus';
-import { availableGpus, isGpuAvailable, pool, rentCapFor, rentPerDay, rentPerGpuDay, totalH100e } from '../../sim/compute';
+import {
+  availableGpus,
+  isGpuAvailable,
+  pool,
+  rentCapFor,
+  rentCostPerDay,
+  rentMaxFor,
+  rentPerDay,
+  rentPerGpuDay,
+  totalH100e,
+} from '../../sim/compute';
+import { RENT_HARD_CAP_MULT, RENT_OVER_CAP_MULT } from '../../sim/constants';
 import { inferenceNeed, marketSnapshot } from '../../sim/market';
 import { dateToDay, formatDateShort } from '../../sim/time';
 import type { GameState, GpuDef, GpuId } from '../../sim/types';
 import { ALLOC_ROWS, percentsOf, samePercents, toAllocation, withPercent, type Percents } from '../alloc';
 import { Alert, Dialog, ErrorText, Range } from '../components/common';
-import { fmtMoney, fmtNum, fmtPct } from '../format';
+import { fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
 import { actions, store } from '../store';
 import './ComputeWindow.css';
 
 /** Аренда списывается каждый день; в интерфейсе стоимость показана за 30 дней. */
 const DAYS_IN_MONTH = 30;
+
+/** «×1,8» - надбавка к цене за карты сверх лимита. */
+const OVER_MULT_TEXT = `×${fmtMult(RENT_OVER_CAP_MULT)}`;
+/** Подсказка к лимиту: что будет сверх него и где жёсткий потолок. */
+const CAP_HINT = `Карты сверх лимита стоят дороже: ${OVER_MULT_TEXT}. Больше ×${fmtMult(RENT_HARD_CAP_MULT)} от лимита арендовать нельзя`;
 
 // Мощность одной карты - доли H100e (0,021), у всей аренды - десятки и тысячи: знаков нужно по-разному.
 const H_FORMATS = [0, 1, 2, 3].map((d) => new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: d }));
@@ -29,8 +45,14 @@ function fmtH(n: number): string {
   return H_FORMATS[digits].format(n);
 }
 
+/** Аренда count карт за 30 дней с надбавкой за карты сверх лимита (rentCostPerDay). */
 function monthlyCost(s: GameState, id: GpuId, count: number): number {
-  return count * rentPerGpuDay(s, id) * DAYS_IN_MONTH;
+  return rentCostPerDay(s, id, count) * DAYS_IN_MONTH;
+}
+
+/** Сколько из count карт - сверх лимита по обычной цене. */
+function overCap(count: number, cap: number): number {
+  return Math.max(0, count - cap);
 }
 
 /** Разница со знаком: «+$1,2 тыс. в месяц, +4,5 H100e» или «−$1,2 тыс. в месяц, −4,5 H100e». */
@@ -59,6 +81,7 @@ function Summary({ s, onRent }: { s: GameState; onRent: () => void }) {
   const capMin = caps.length ? Math.min(...caps) : 0;
   const capMax = caps.length ? Math.max(...caps) : 0;
   const capText = capMin === capMax ? fmtNum(capMin) : `${fmtNum(capMin)}-${fmtNum(capMax)}`;
+  const over = GPUS.reduce((sum, g) => sum + overCap(s.compute.rented[g.id], rentCapFor(s, g.id)), 0);
 
   return (
     <header className="cw-info">
@@ -69,10 +92,10 @@ function Summary({ s, onRent }: { s: GameState; onRent: () => void }) {
           <dd>{fmtH(totalH100e(s))} H100e</dd>
           <dt>Арендовано карт</dt>
           <dd>{fmtNum(cards)}</dd>
-          <dt title="Аренда за сутки × 30">Аренда в месяц</dt>
+          <dt title="Аренда за сутки × 30, с надбавкой за карты сверх лимита">Аренда в месяц</dt>
           <dd>{fmtMoney(rentPerDay(s) * DAYS_IN_MONTH)}</dd>
-          <dt title="Больше карт одного типа в этом году арендовать нельзя">Лимит на тип в этом году</dt>
-          <dd>{capText}</dd>
+          <dt title={CAP_HINT}>Лимит по обычной цене</dt>
+          <dd className={over > 0 ? 'warn' : undefined}>{capText}</dd>
         </dl>
         <dl className="cw-kv">
           <dt>Обучение</dt>
@@ -100,6 +123,7 @@ function Summary({ s, onRent }: { s: GameState; onRent: () => void }) {
 function RentedCard({ s, g, onEdit, onGiveBack }: { s: GameState; g: GpuDef; onEdit: () => void; onGiveBack: () => void }) {
   const count = s.compute.rented[g.id];
   const cap = rentCapFor(s, g.id);
+  const over = overCap(count, cap);
   const perDay = rentPerGpuDay(s, g.id);
 
   return (
@@ -113,10 +137,18 @@ function RentedCard({ s, g, onEdit, onGiveBack }: { s: GameState; g: GpuDef; onE
         <dd>{fmtNum(count)}</dd>
         <dt>Мощность</dt>
         <dd>{fmtH(count * g.h100e)} H100e</dd>
-        <dt>В месяц</dt>
+        <dt title="Аренда за сутки × 30, с надбавкой за карты сверх лимита">В месяц</dt>
         <dd>{fmtMoney(monthlyCost(s, g.id, count))}</dd>
-        <dt title="Больше карт этого типа в этом году арендовать нельзя">Лимит в этом году</dt>
-        <dd className={count >= cap ? 'warn' : undefined}>{fmtNum(cap)}</dd>
+        <dt title={CAP_HINT}>Лимит по обычной цене</dt>
+        <dd className={over > 0 ? 'warn' : undefined}>{fmtNum(cap)}</dd>
+        {over > 0 && (
+          <>
+            <dt title={`Эти карты стоят ${OVER_MULT_TEXT} от обычной цены`}>Сверх лимита</dt>
+            <dd className="warn">
+              {fmtNum(over)} шт. по цене {OVER_MULT_TEXT}
+            </dd>
+          </>
+        )}
       </dl>
       <div className="cw-card-actions">
         <button className="btn small" onClick={onEdit}>
@@ -146,11 +178,14 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
   const g = GPUS.find((x) => x.id === id) ?? GPUS[0];
   const rented = s.compute.rented[g.id];
   const cap = rentCapFor(s, g.id);
-  // Если лимит упал ниже уже арендованного, текущее число остаётся допустимым.
-  const max = Math.max(cap, rented);
+  // Если потолок упал ниже уже арендованного, текущее число остаётся допустимым.
+  const max = Math.max(rentMaxFor(s, g.id), rented);
   const parsed = text.trim() === '' ? NaN : Number(text);
   const count = Number.isInteger(parsed) && parsed >= 0 && parsed <= max ? parsed : null;
+  const over = count === null ? 0 : overCap(count, cap);
   const cheapest = cheapestGpuId(s);
+  // Где на ползунке кончается обычная цена (доля длины дорожки); при лимите не ниже потолка отметки нет.
+  const capFrac = cap < max ? cap / max : null;
 
   const pick = (next: GpuDef) => {
     setId(next.id);
@@ -174,6 +209,8 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
 
   const lowering = count !== null && count < rented;
   const submitLabel = lowering ? 'Вернуть' : 'Арендовать';
+  // Надбавка за карты сверх лимита в месяц: вся аренда минус аренда карт по обычной цене.
+  const overCost = count === null || over === 0 ? 0 : monthlyCost(s, g.id, count) - monthlyCost(s, g.id, cap);
 
   return (
     <Dialog
@@ -228,7 +265,13 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
 
         <div className="cw-qty">
           <label htmlFor="cw-qty-num">Количество</label>
-          <Range value={count ?? 0} min={0} max={max} label="Количество карт" onChange={(v) => setCount(String(v))} />
+          <div
+            className={`cw-qty-range${capFrac === null ? '' : ' has-cap'}`}
+            style={{ '--cap': capFrac ?? 1 } as CSSProperties}
+            title={capFrac === null ? undefined : `Лимит по обычной цене: ${fmtNum(cap)} шт.`}
+          >
+            <Range value={count ?? 0} min={0} max={max} label="Количество карт" onChange={(v) => setCount(String(v))} />
+          </div>
           <input
             id="cw-qty-num"
             type="number"
@@ -241,7 +284,18 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
             onKeyDown={(e) => e.key === 'Enter' && submit()}
           />
           <div className={`cw-qty-note${count === null ? ' bad' : ''}`}>
-            {count === null ? `Введите целое число от 0 до ${fmtNum(max)}` : `Лимит в этом году: ${fmtNum(cap)} шт.`}
+            {count === null ? (
+              `Введите целое число от 0 до ${fmtNum(max)}`
+            ) : (
+              <>
+                <span title={CAP_HINT}>Лимит по обычной цене: {fmtNum(cap)} шт.</span>
+                {over > 0 && (
+                  <span className="warn">
+                    Сверх лимита: {fmtNum(over)} шт. по цене {OVER_MULT_TEXT}
+                  </span>
+                )}
+              </>
+            )}
           </div>
         </div>
 
@@ -249,15 +303,21 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
           <dl className="cw-kv">
             <dt>Мощность</dt>
             <dd>{count === null ? '-' : `${fmtH(count * g.h100e)} H100e`}</dd>
-            <dt>Стоимость</dt>
+            <dt title="Аренда за сутки × 30, с надбавкой за карты сверх лимита">Стоимость</dt>
             <dd>{count === null ? '-' : `${fmtMoney(monthlyCost(s, g.id, count))} в месяц`}</dd>
+            {over > 0 && (
+              <>
+                <dt title={`Надбавка за ${fmtNum(over)} шт. сверх лимита: цена ${OVER_MULT_TEXT}`}>Из них надбавка</dt>
+                <dd className="warn">{fmtMoney(overCost)} в месяц</dd>
+              </>
+            )}
             <dt>Сейчас в аренде</dt>
             <dd>{fmtNum(rented)} шт.</dd>
             {count !== null && count !== rented && (
               <>
                 <dt title="Разница с текущей арендой этого типа карт">Изменение</dt>
                 <dd className={lowering ? 'good' : undefined}>
-                  {fmtChange(monthlyCost(s, g.id, count - rented), (count - rented) * g.h100e)}
+                  {fmtChange(monthlyCost(s, g.id, count) - monthlyCost(s, g.id, rented), (count - rented) * g.h100e)}
                 </dd>
               </>
             )}

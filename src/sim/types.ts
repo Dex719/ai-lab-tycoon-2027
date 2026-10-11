@@ -148,7 +148,8 @@ export interface Tender {
   penalty: number;
   appearedDay: number;
   expiresDay: number; // исчезает, если нет заявки
-  application: null | { modelId: string; appliedDay: number; resolveDay: number; chance: number };
+  /** auto - заявку подала сама лаборатория в начале месяца (включён автоподбор): о проигрыше письма не будет. */
+  application: null | { modelId: string; appliedDay: number; resolveDay: number; chance: number; auto?: boolean };
 }
 
 export interface Contract {
@@ -221,6 +222,8 @@ export interface GameState {
   reputation: number; // 0..100
   founderShare: number; // 0..1
   lastRoundDay: number | null;
+  /** Сколько закрытых месяцев лучшая модель игрока была №1 на «Арене» среди моделей, доступных по API. */
+  monthsFirst: number;
   hype: Record<HypeOwner, number>; // 0..100
   compute: { rented: Record<GpuId, number>; alloc: Allocation };
   research: { current: TechId | null; points: Record<TechId, number>; done: TechId[]; algoLevel: number; contextLevel: number };
@@ -233,6 +236,8 @@ export interface GameState {
   tenders: Tender[];
   contracts: Contract[];
   nextTenderNum: number;
+  /** Заявки на новые тендеры подаются сами в начале месяца лучшей подходящей моделью. */
+  autoApply: boolean;
   mail: Mail[];
   nextMailNum: number;
   firedEvents: string[];

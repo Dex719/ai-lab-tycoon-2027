@@ -27,7 +27,11 @@ function richState(): GameState {
     advanceDay(s);
     days++;
   }
-  // Чего бот к этому дню не успел, добавляем руками: контракт и модификаторы со всеми необязательными полями.
+  // Чего бот к этому дню не успел, добавляем руками: заявку (бот подаёт их по мощности, открытой может не быть),
+  // контракт и модификаторы со всеми необязательными полями.
+  if (!s.tenders.some((t) => t.application !== null)) {
+    s.tenders[0].application = { modelId: s.models[0].id, appliedDay: s.day, resolveDay: s.day + 20, chance: 0.5 };
+  }
   s.contracts.push({
     id: 'c-test',
     tender: structuredClone(s.tenders[0]),
@@ -354,8 +358,11 @@ function collect(value: unknown, path: (string | number)[], norm: string, seen: 
 }
 
 /** Поля, которых может не быть (необязательные в типах), и словари, в которых ключи приходят и уходят. */
-// founderName и tutorial появились позже: в старых сохранениях их нет, загрузка подставляет значения по умолчанию.
-const OPTIONAL_FIELDS = new Set(['eventId', 'choices', 'chosen', 'important', 'target', 'mult', 'add', 'founderName', 'tutorial', 'replyByDay', 'defaultChoice', 'deferred', 'autoChosen', 'context', 'contextLevel', 'earned']);
+// founderName, tutorial, monthsFirst и autoApply появились позже: в старых сохранениях их нет, загрузка подставляет значения по умолчанию.
+const OPTIONAL_FIELDS = new Set([
+  'eventId', 'choices', 'chosen', 'important', 'target', 'mult', 'add', 'founderName', 'tutorial', 'replyByDay', 'defaultChoice',
+  'deferred', 'autoChosen', 'context', 'contextLevel', 'earned', 'monthsFirst', 'autoApply',
+]);
 const DICTS = new Set(['flags', 'market.shares', 'models[].overfit']);
 
 describe('проверка покрывает каждое поле живого состояния', () => {

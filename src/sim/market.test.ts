@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { releaseModel, setModelPrice } from './actions';
-import { HYPE_OWNERS } from './constants';
+import { HYPE_K_AFTER_ARENA, HYPE_K_BEFORE_ARENA, HYPE_OWNERS } from './constants';
 import { addModifier, FOREVER } from './events';
 import {
   contextUtility,
@@ -183,19 +183,20 @@ describe('кривые спроса, цены и качества', () => {
     expect(refPrice(pDay) / (60 * (20 / 60) ** pt)).toBeCloseTo(1, 9);
     expect(refPrice(pDay)).toBeLessThan(40); // по прямой было бы около 40
 
-    // качество: 01.01.2020 - 950, 01.01.2023 - 1050
+    // качество: 01.01.2020 - 950, 29.11.2022 - 1010 (накануне ChatGTP)
     const q0 = dateToDay('2020-01-01');
-    const q1 = dateToDay('2023-01-01');
+    const q1 = dateToDay('2022-11-29');
     const qDay = Math.round((q0 + q1) / 2);
     const qt = (qDay - q0) / (q1 - q0);
-    expect(refQuality(qDay)).toBeCloseTo(950 + 100 * qt, 9);
+    expect(refQuality(qDay)).toBeCloseTo(950 + 60 * qt, 9);
   });
 
-  it('опорное качество: точки и рост', () => {
+  it('опорное качество: точки, скачок с выходом ChatGTP и рост', () => {
     const anchors: [string, number][] = [
       ['2017-01-01', 900],
       ['2020-01-01', 950],
-      ['2023-01-01', 1050],
+      ['2022-11-29', 1010],
+      ['2022-11-30', 1080],
       ['2024-01-01', 1150],
     ];
     for (const [date, value] of anchors) expect(refQuality(dateToDay(date))).toBeCloseTo(value, 6);
@@ -214,9 +215,9 @@ describe('бренд и воспринимаемое качество', () => {
     s.reputation = 50;
     expect(labBrand(s, 'player')).toBeCloseTo(0, 9);
     s.reputation = 100;
-    expect(labBrand(s, 'player')).toBeCloseTo(0.6, 9);
+    expect(labBrand(s, 'player')).toBeCloseTo(0.4, 9);
     s.reputation = 20;
-    expect(labBrand(s, 'player')).toBeCloseTo(-0.36, 9);
+    expect(labBrand(s, 'player')).toBeCloseTo(-0.24, 9);
   });
 
   it('бренд лаборатории: база из каталога плюс модификатор', () => {
@@ -235,12 +236,12 @@ describe('бренд и воспринимаемое качество', () => {
     expect(labBrand(s, 'deepcent')).toBeCloseTo(-0.7, 9);
   });
 
-  it('бренд игрока не выходит за ±0,6, даже если репутация вне 0..100', () => {
+  it('бренд игрока не выходит за ±0,4, даже если репутация вне 0..100', () => {
     const s = makeState();
     s.reputation = 150;
-    expect(labBrand(s, 'player')).toBeCloseTo(0.6, 9);
+    expect(labBrand(s, 'player')).toBeCloseTo(0.4, 9);
     s.reputation = -30;
-    expect(labBrand(s, 'player')).toBeCloseTo(-0.6, 9);
+    expect(labBrand(s, 'player')).toBeCloseTo(-0.4, 9);
   });
 
   it('истёкший модификатор бренда не действует', () => {
@@ -249,14 +250,16 @@ describe('бренд и воспринимаемое качество', () => {
     expect(labBrand(s, 'openbrain')).toBeCloseTo(0.5, 9);
   });
 
-  it('k шумихи: 3 до «Арены», 1,5 после', () => {
-    expect(hypeK(dateToDay('2023-05-02'))).toBe(3);
-    expect(hypeK(dateToDay('2023-05-03'))).toBe(1.5);
+  it('k шумихи: 1 до «Арены», 0,7 после', () => {
+    expect(HYPE_K_BEFORE_ARENA).toBe(1);
+    expect(HYPE_K_AFTER_ARENA).toBe(0.7);
+    expect(hypeK(dateToDay('2023-05-02'))).toBe(1);
+    expect(hypeK(dateToDay('2023-05-03'))).toBe(0.7);
     const s = makeState(BEFORE_ARENA);
     s.hype.player = 10;
-    expect(perceivedQuality(s, 'player', 1000)).toBeCloseTo(1030, 9);
+    expect(perceivedQuality(s, 'player', 1000)).toBeCloseTo(1010, 9);
     s.day = MID_2024;
-    expect(perceivedQuality(s, 'player', 1000)).toBeCloseTo(1015, 9);
+    expect(perceivedQuality(s, 'player', 1000)).toBeCloseTo(1007, 9);
   });
 });
 
@@ -359,15 +362,15 @@ describe('marketSnapshot', () => {
     const hot = run(60);
     expect(hot.share).toBeGreaterThan(cold.share);
     expect(cold.quality).toBeCloseTo(1150, 9);
-    expect(hot.quality).toBeCloseTo(1150 + 1.5 * 60, 9);
+    expect(hot.quality).toBeCloseTo(1150 + HYPE_K_AFTER_ARENA * 60, 9);
   });
 
-  it('до «Арены» шумиха весит вдвое сильнее', () => {
+  it('до «Арены» шумиха весит сильнее (HYPE_K_BEFORE_ARENA)', () => {
     const s = makeState(BEFORE_ARENA);
     s.hype.player = 20;
     s.models.push(player());
     const [e] = marketSnapshot(s).entries;
-    expect(e.quality).toBeCloseTo(1150 + 3 * 20, 9);
+    expect(e.quality).toBeCloseTo(1150 + HYPE_K_BEFORE_ARENA * 20, 9);
   });
 
   it('шумиха соперника отбирает долю у игрока', () => {
@@ -425,15 +428,16 @@ describe('marketSnapshot', () => {
     rivalState.list = [rival({ priceIn: 6, priceOut: 6, arenaElo: 1250, context: 128000 })]; // openbrain, бренд 0,5
     const snap = marketSnapshot(s);
 
+    // после «Арены» k шумихи = 0,7
     const uNone = (1150 - 1000) / 100;
-    const uPlayer = (1150 + 1.5 * 20 - 1000) / 100 + 0 - 1.2 * Math.log(3 / 3) + 0.25 * Math.log(8192 / ref);
-    const uRival = (1250 + 1.5 * 10 - 1000) / 100 + 0.5 - 1.2 * Math.log(6 / 3) + 0.25 * Math.log(128000 / ref);
+    const uPlayer = (1150 + 0.7 * 20 - 1000) / 100 + 0 - 1.2 * Math.log(3 / 3) + 0.25 * Math.log(8192 / ref);
+    const uRival = (1250 + 0.7 * 10 - 1000) / 100 + 0.5 - 1.2 * Math.log(6 / 3) + 0.25 * Math.log(128000 / ref);
     const sum = Math.exp(uNone) + Math.exp(uPlayer) + Math.exp(uRival);
 
     const p = snap.entries.find((e) => e.owner === 'player')!;
     const r = snap.entries.find((e) => e.owner === 'openbrain')!;
-    expect(p.quality).toBeCloseTo(1180, 9);
-    expect(r.quality).toBeCloseTo(1265, 9);
+    expect(p.quality).toBeCloseTo(1164, 9);
+    expect(r.quality).toBeCloseTo(1257, 9);
     expect(p.utility).toBeCloseTo(uPlayer, 9);
     expect(r.utility).toBeCloseTo(uRival, 9);
     expect(p.share).toBeCloseTo(Math.exp(uPlayer) / sum, 9);
@@ -452,11 +456,11 @@ describe('marketSnapshot', () => {
       s.models.push(player());
       return marketSnapshot(s).entries[0].utility;
     };
-    expect(utilityAt(100) - utilityAt(50)).toBeCloseTo(0.6, 9);
-    expect(utilityAt(50) - utilityAt(0)).toBeCloseTo(0.6, 9);
+    expect(utilityAt(100) - utilityAt(50)).toBeCloseTo(0.4, 9);
+    expect(utilityAt(50) - utilityAt(0)).toBeCloseTo(0.4, 9);
   });
 
-  it('шумиха весит вдвое сильнее до открытия «Арены» (по полезности)', () => {
+  it('шумиха весит сильнее до открытия «Арены» (по полезности): k = 1, после - 0,7', () => {
     const gain = (day: number): number => {
       const utility = (hype: number): number => {
         const s = makeState(day);
@@ -466,8 +470,8 @@ describe('marketSnapshot', () => {
       };
       return utility(30) - utility(0);
     };
-    expect(gain(dateToDay('2023-05-02'))).toBeCloseTo((3 * 30) / 100, 9);
-    expect(gain(dateToDay('2023-05-03'))).toBeCloseTo((1.5 * 30) / 100, 9);
+    expect(gain(dateToDay('2023-05-02'))).toBeCloseTo((1 * 30) / 100, 9);
+    expect(gain(dateToDay('2023-05-03'))).toBeCloseTo((0.7 * 30) / 100, 9);
   });
 
   it('модификатор бренда сдвигает долю лаборатории', () => {

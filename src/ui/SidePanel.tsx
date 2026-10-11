@@ -7,11 +7,13 @@ import { rpPerDay, TECHS, techCost } from '../sim/research';
 import { CLIENTS } from '../data/clients';
 import { benchDef } from '../sim/benchmarks';
 import { awaitingEvent, openChoices } from '../sim/events';
+import { playerBestArenaRank } from '../sim/tick';
 import { formatDateShort } from '../sim/time';
 import type { GameState } from '../sim/types';
 import { ProgressBar } from './components/common';
 import { fmtMoney, fmtNum, fmtPrice, fmtShare } from './format';
 import { IconChevronLeft, IconChevronRight } from './icons';
+import { fmtRank } from './labels';
 import type { WindowAlias, WindowId } from './windows';
 
 type Tab = 'projects' | 'models';
@@ -144,6 +146,30 @@ function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) 
   );
 }
 
+/** Строка цели: место среди моделей в продаже и сколько закрытых месяцев лаборатория была первой. */
+function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
+  let rank: number | null = null;
+  try {
+    rank = playerBestArenaRank(s);
+  } catch {
+    rank = null;
+  }
+  const months = Number.isFinite(s.monthsFirst) ? s.monthsFirst : 0;
+  return (
+    <div
+      className="side-item"
+      style={{ padding: '0 12px 8px', border: 'none', cursor: 'pointer' }}
+      title="Цель: 1-е место среди моделей в продаже на 31.12.2024"
+      onClick={() => open('analytics')}
+    >
+      <div className="r">
+        <span>В продаже: {rank !== null ? fmtRank(rank) : 'нет моделей'}</span>
+        <span className="v">На 1-м: {fmtNum(months)} мес.</span>
+      </div>
+    </div>
+  );
+}
+
 export function SidePanel({ s, open, top }: { s: GameState; open: (id: WindowId | WindowAlias) => void; top?: ReactNode }) {
   const [shownState, setShown] = useState(true);
   const pinned = !!top; // пока идёт обучение, панель закреплена: подсказка помощника должна оставаться на виду
@@ -168,6 +194,7 @@ export function SidePanel({ s, open, top }: { s: GameState; open: (id: WindowId 
         <div className="side-body">
           {top}
           <div className="side-head">Сводка</div>
+          <Goal s={s} open={open} />
           <div className="side-tabs">
             <button className={tab === 'projects' ? 'on' : undefined} onClick={() => setTab('projects')}>
               Проекты: {projects}

@@ -311,11 +311,12 @@ describe('опорные точки: способности и баллы', () =
     expect(elo).toBeLessThanOrEqual(840);
   });
 
-  it('«как GTP-3.5»: base ≈ 60, RLHF, algo 2 → Elo 1080-1140', () => {
+  // RLHF даёт 165 + 21 × уровень: ранний RLHF (низкий уровень алгоритмов) слабее, чем у ChatGTP с его ≈9-м уровнем.
+  it('«как GTP-3.5»: base ≈ 60, RLHF, algo 2 → Elo 1050-1120', () => {
     const caps = capsFromPlan(planForBase(60, 2, { rlhf: true }), 2, 'transformer');
     const elo = arenaElo(caps, true, 2);
-    expect(elo).toBeGreaterThanOrEqual(1080);
-    expect(elo).toBeLessThanOrEqual(1140);
+    expect(elo).toBeGreaterThanOrEqual(1050);
+    expect(elo).toBeLessThanOrEqual(1120);
   });
 
   it('«как GTP-4»: base ≈ 77, RLHF, algo 4 → MMLO 83-89, HumanEvol 60-72, GSM8C 88-95, Elo 1160-1220', () => {
@@ -351,8 +352,8 @@ describe('опорные точки: способности и баллы', () =
       expect(elo).toBeLessThan(1230);
       // «как GTP-3.5» остаётся в своём окне Elo при сдвиге базового уровня на ±1
       const g35 = arenaElo(capsFromPlan(planForBase(60 + d, 2, { rlhf: true }), 2, 'transformer'), true, 2);
-      expect(g35).toBeGreaterThanOrEqual(1080);
-      expect(g35).toBeLessThanOrEqual(1140);
+      expect(g35).toBeGreaterThanOrEqual(1050);
+      expect(g35).toBeLessThanOrEqual(1120);
     }
   });
 

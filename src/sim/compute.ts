@@ -1,7 +1,7 @@
 // Аренда GPU, мощность и её доли (FR-2).
 
 import { GPUS } from '../data/gpus';
-import { DEFAULT_ALLOC, RENT_CAP_2017 } from './constants';
+import { DEFAULT_ALLOC, RENT_CAP_2017, RENT_HARD_CAP_MULT, RENT_OVER_CAP_MULT } from './constants';
 import { modValue } from './events';
 import { byYear, dateToDay, yearOf } from './time';
 import type { Allocation, GameState, GpuDef, GpuId, Result } from './types';
@@ -30,20 +30,36 @@ export function rentPerGpuDay(s: GameState, id: GpuId): number {
   return perHour * 24 * modValue(s, 'rentPrice', id).mult;
 }
 
-/** Аренда всех арендованных GPU в день. */
+/**
+ * Аренда count карт типа id в день: до лимита (rentCapFor) по обычной цене, сверх лимита - по цене
+ * × RENT_OVER_CAP_MULT (мягкий лимит). Число карт выше rentMaxFor здесь не проверяется.
+ */
+export function rentCostPerDay(s: GameState, id: GpuId, count: number): number {
+  if (!(count > 0)) return 0;
+  const price = rentPerGpuDay(s, id);
+  const cap = rentCapFor(s, id);
+  return price * Math.min(count, cap) + price * RENT_OVER_CAP_MULT * Math.max(0, count - cap);
+}
+
+/** Аренда всех арендованных GPU в день (с надбавкой за карты сверх лимита). */
 export function rentPerDay(s: GameState): number {
   let sum = 0;
   for (const g of GPUS) {
     const count = s.compute.rented[g.id];
-    if (count > 0) sum += count * rentPerGpuDay(s, g.id);
+    if (count > 0) sum += rentCostPerDay(s, g.id, count);
   }
   return sum;
 }
 
-/** Лимит штук на тип: RENT_CAP_2017 × 2^(год − 2017) × модификатор rentCap, вниз до целого. */
+/** Лимит штук на тип по обычной цене: RENT_CAP_2017 × 2^(год − 2017) × модификатор rentCap, вниз до целого. */
 export function rentCapFor(s: GameState, id: GpuId): number {
   const base = RENT_CAP_2017 * 2 ** (yearOf(s.day) - 2017);
   return Math.max(0, Math.floor(base * modValue(s, 'rentCap', id).mult));
+}
+
+/** Потолок штук на тип: RENT_HARD_CAP_MULT × лимит; сверх лимита карты дороже (rentCostPerDay). */
+export function rentMaxFor(s: GameState, id: GpuId): number {
+  return rentCapFor(s, id) * RENT_HARD_CAP_MULT;
 }
 
 /** Σ count × h100e. */
@@ -91,19 +107,22 @@ export function setAllocation(s: GameState, a: Allocation): Result {
   return { ok: true };
 }
 
-/** Действие: поставить число арендованных GPU типа (целое 0..лимит, тип доступен; уменьшать можно всегда). */
+/**
+ * Действие: поставить число арендованных GPU типа (целое 0..потолок rentMaxFor, тип доступен; уменьшать можно всегда).
+ * Сверх лимита rentCapFor карты принимаются, но стоят дороже (rentCostPerDay).
+ */
 export function setRent(s: GameState, id: GpuId, count: number): Result {
   const def = GPUS.find((g) => g.id === id);
   if (!def) return { ok: false, error: 'Неизвестный тип карты' };
   if (!Number.isInteger(count) || count < 0) {
     return { ok: false, error: 'Число карт должно быть целым и не меньше нуля' };
   }
-  // Уменьшать (и оставлять как есть) можно всегда, даже если лимит упал.
+  // Уменьшать (и оставлять как есть) можно всегда, даже если потолок упал.
   if (count > s.compute.rented[id]) {
     if (!isGpuAvailable(s, id)) return { ok: false, error: 'Эта карта ещё не вышла' };
-    const cap = rentCapFor(s, id);
-    if (count > cap) {
-      return { ok: false, error: `Лимит аренды ${def.name} в этом году - ${cap} шт.` };
+    const max = rentMaxFor(s, id);
+    if (count > max) {
+      return { ok: false, error: `Потолок аренды ${def.name} в этом году - ${max} шт.` };
     }
   }
   s.compute.rented[id] = count + 0; // «+ 0» превращает −0 в обычный 0

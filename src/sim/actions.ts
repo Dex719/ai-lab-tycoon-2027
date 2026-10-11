@@ -2,7 +2,7 @@
 
 import { BENCHMARKS } from '../data/benchmarks';
 import { setAllocation, setRent } from './compute';
-import { applyTender, cancelContract } from './contracts';
+import { applyTender, cancelContract, setAutoApply } from './contracts';
 import { addMail, applyChoice, deferChoice, markRead } from './events';
 import { raiseRound } from './investors';
 import { releaseHypeBonus, updateSaturation } from './leaderboard';
@@ -114,6 +114,7 @@ export {
   deferChoice,
   raiseRound,
   setAllocation,
+  setAutoApply,
   setRent,
   setResearch,
   startTraining,

@@ -195,7 +195,7 @@ const tender = shapeOf<Tender>({
   appearedDay: num,
   expiresDay: num,
   application: nullable(
-    shapeOf<NonNullable<Tender['application']>>({ modelId: str, appliedDay: num, resolveDay: num, chance: num }),
+    shapeOf<NonNullable<Tender['application']>>({ modelId: str, appliedDay: num, resolveDay: num, chance: num, auto: optional(bool) }),
   ),
 });
 
@@ -264,6 +264,7 @@ const STATE: Record<keyof GameState, Check> = {
   reputation: num,
   founderShare: num,
   lastRoundDay: nullable(num),
+  monthsFirst: int,
   hype: record(HYPE_OWNERS, num),
   compute: shapeOf<GameState['compute']>({
     rented: record(GPU_IDS, nonNeg),
@@ -285,6 +286,7 @@ const STATE: Record<keyof GameState, Check> = {
   tenders: arrayOf(tender),
   contracts: arrayOf(contract),
   nextTenderNum: posInt,
+  autoApply: bool,
   mail: arrayOf(mail),
   nextMailNum: posInt,
   firedEvents: arrayOf(str),
@@ -372,6 +374,8 @@ export function deserialize(json: string): { ok: true; state: GameState } | { ok
   // Поля, добавленные после первой версии: старые сохранения получают значения по умолчанию.
   if (data.founderName === undefined) data.founderName = '';
   if (data.tutorial === undefined) data.tutorial = { step: 0, active: false };
+  if (data.monthsFirst === undefined) data.monthsFirst = 0; // месяцы на 1-м месте появились позже
+  if (data.autoApply === undefined) data.autoApply = false; // автоподбор заявок на тендеры появился позже
   migrateContext(data);
   migrateChoices(data);
   const problem = WHOLE_STATE(data, '') ?? pendingChoiceProblem(data.mail as Mail[]);

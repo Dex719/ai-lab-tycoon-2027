@@ -120,7 +120,7 @@ export function labBrand(s: GameState, owner: HypeOwner): number {
   return base + modValue(s, 'labBrand', owner).add;
 }
 
-/** Множитель шумихи в качестве: 3 до открытия «Арены», 1,5 после. */
+/** Множитель шумихи в качестве: HYPE_K_BEFORE_ARENA (1,5) до открытия «Арены», HYPE_K_AFTER_ARENA (1) после. */
 export function hypeK(day: number): number {
   return day >= ARENA_OPEN_DAY ? HYPE_K_AFTER_ARENA : HYPE_K_BEFORE_ARENA;
 }

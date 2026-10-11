@@ -7,6 +7,7 @@ import {
   arenaRank,
   benchRank,
   bestElo,
+  expectedLeaderElo,
   leaderboard,
   marketArenaRank,
   releaseHypeBonus,
@@ -282,11 +283,49 @@ describe('marketArenaRank', () => {
     expect(arenaRank(s, mine('p2'))).toBe(1);
   });
 
-  it('устаревшие модели соперников (старше трёх лет) с рынка уходят', () => {
+  it('считаются все модели с API независимо от возраста и числа на лабораторию (в отличие от витрины рынка)', () => {
     const s = makeState('2023-06-12', ['gtp-3', 'gtp-4']); // GTP-3 вышла 11.06.2020: прошло больше трёх лет
-    expect(marketArenaRank(s, rival('gtp-3'))).toBeNull();
+    expect(marketRivals(s).map((d) => d.id)).not.toContain('gtp-3'); // с витрины рынка ушла
+    expect(marketArenaRank(s, rival('gtp-3'))).toBe(2); // но купить по API её можно, поэтому место есть
     expect(marketArenaRank(s, rival('gtp-4'))).toBe(1);
-    expect(arenaRank(s, rival('gtp-3'))).toBe(2); // но на Арене остаётся
+    expect(arenaRank(s, rival('gtp-3'))).toBe(2);
+  });
+
+  it('без API не считаются: только открытые веса, только показанные, только чат', () => {
+    const s = makeState('2024-12-31', RIVAL_MODELS.map((m) => m.id));
+    expect(marketArenaRank(s, rival('bort'))).toBeNull(); // открытые веса, без API
+    expect(marketArenaRank(s, rival('meeno'))).toBeNull(); // только показали
+    expect(marketArenaRank(s, rival('chatgtp'))).toBeNull(); // только чат
+    expect(marketArenaRank(s, rival('gemeni-exp-1206'))).toBeNull(); // Эло 1374, но без API
+    // Самая сильная модель с API - первая.
+    expect(marketArenaRank(s, rival('gemeni-2-0-flesh'))).toBe(1);
+    const apiIds = RIVAL_MODELS.filter((m) => m.api && !m.announcedOnly).map((m) => m.id);
+    for (const id of apiIds) expect(marketArenaRank(s, rival(id)), id).not.toBeNull();
+    for (const m of RIVAL_MODELS) if (!m.api || m.announcedOnly) expect(marketArenaRank(s, rival(m.id)), m.id).toBeNull();
+  });
+
+  it('модель игрока на API, равная лучшей модели с API по Эло, но вышедшая позже, - вторая; сильнее - первая', () => {
+    const s = makeState('2024-12-31', RIVAL_MODELS.map((m) => m.id));
+    const top = expectedLeaderElo(s);
+    s.models = [withCaps('p1', 90, top, s.day)];
+    expect(marketArenaRank(s, mine('p1'))).toBe(2);
+    s.models[0].arenaElo = top + 1;
+    expect(marketArenaRank(s, mine('p1'))).toBe(1);
+    // Сильнее всех на Арене вообще, но модель, которую не купить, не мешает.
+    expect(arenaRank(s, mine('p1'))).toBeGreaterThan(1);
+  });
+});
+
+describe('expectedLeaderElo', () => {
+  it('наибольшее Эло среди моделей соперников с API, вышедших до конца игры; от состояния не зависит', () => {
+    const expected = Math.max(
+      ...RIVAL_MODELS.filter((m) => m.api && !m.announcedOnly && dateToDay(m.released) <= dateToDay('2024-12-31')).map((m) => m.arenaElo),
+    );
+    expect(expectedLeaderElo(makeState('2017-01-01'))).toBe(expected);
+    expect(expectedLeaderElo(makeState('2024-12-31', RIVAL_MODELS.map((m) => m.id)))).toBe(expected);
+    expect(expected).toBe(1356); // Gemeni 2.0 Flesh
+    // Модели без API в планку не входят, хотя на Арене они выше.
+    expect(Math.max(...RIVAL_MODELS.map((m) => m.arenaElo))).toBeGreaterThan(expected);
   });
 });
 

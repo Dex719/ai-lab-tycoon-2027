@@ -23,7 +23,6 @@
 .nm-run-bar .progress { height: 10px; }
 .nm-run-meta { display: flex; flex-wrap: wrap; gap: 2px 18px; margin-top: 4px; font-size: 13px; }
 .nm-run-act { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.nm-run-ask { font-size: 13px; color: var(--text-dim); max-width: 260px; }
 
 /* ---------- Левая колонка ---------- */
 .nm-main { flex: 1; min-height: 0; display: flex; }

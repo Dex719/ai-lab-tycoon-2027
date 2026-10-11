@@ -35,7 +35,18 @@ import {
   TENDER_PENALTY,
   WORK_BASE,
 } from './constants';
-import { applyChance, applyTender, canApply, cancelContract, generateMonthly, progressDay } from './contracts';
+import {
+  applyChance,
+  applyTender,
+  autoApplyTenders,
+  bestAutoModel,
+  canApply,
+  cancelContract,
+  generateMonthly,
+  progressDay,
+  setAutoApply,
+} from './contracts';
+import { deserialize, serialize } from './save';
 import { createInitialState } from './state';
 import { byYear, dateToDay, lerpByDate } from './time';
 
@@ -44,6 +55,7 @@ import { byYear, dateToDay, lerpByDate } from './time';
 const PRICE = 100; // $ за H100e-день в тестах
 let shownScore = 70; // что вернёт modelScore(…, honest = false)
 let honestScore = 70; // что вернёт modelScore(…, honest = true)
+let scoreOf: Record<string, { shown?: number; honest?: number }> = {}; // баллы отдельных моделей по id (важнее общих)
 let poolValue = 0; // что вернёт pool(s, 'contracts')
 
 const sigmoid = (x: number) => 1 / (1 + Math.exp(-x));
@@ -68,10 +80,12 @@ const ALL_ACTIVE: BenchmarkId[] = ['squad', 'glue', 'mmlu', 'humaneval', 'gsm8k'
 beforeEach(() => {
   shownScore = 70;
   honestScore = 70;
+  scoreOf = {};
   poolValue = 0;
-  m.modelScore.mockReset().mockImplementation((_model: PlayerModel, _bid: BenchmarkId, honest: boolean) =>
-    honest ? honestScore : shownScore,
-  );
+  m.modelScore.mockReset().mockImplementation((model: PlayerModel, _bid: BenchmarkId, honest: boolean) => {
+    const own = scoreOf[model.id];
+    return honest ? (own?.honest ?? honestScore) : (own?.shown ?? shownScore);
+  });
   m.benchScore.mockReset().mockImplementation(realBenchScore);
   m.benchDef.mockReset().mockImplementation((id: BenchmarkId) => BENCHMARKS.find((x) => x.id === id));
   m.activeBenchmarks.mockReset().mockReturnValue(['mmlu', 'humaneval', 'gsm8k']);
@@ -165,16 +179,16 @@ describe('generateMonthly: количество', () => {
     return [...set].sort((a, b) => a - b);
   }
 
-  it('2017-2019: два тендера плюс 0-1', () => {
-    for (const y of [2017, 2018, 2019]) expect(counts(y)).toEqual([2, 3]);
+  it('в любой год: один тендер плюс 0-1, то есть 1-2 в месяц', () => {
+    for (const y of [2017, 2019, 2020, 2022, 2023, 2024]) expect(counts(y)).toEqual([1, 2]);
   });
 
-  it('2020-2022: три плюс 0-1', () => {
-    for (const y of [2020, 2021, 2022]) expect(counts(y)).toEqual([3, 4]);
-  });
-
-  it('2023-2024: четыре плюс 0-1', () => {
-    for (const y of [2023, 2024]) expect(counts(y)).toEqual([4, 5]);
+  it('новый тендер не приносит письма', () => {
+    const s = newState(3);
+    s.day = dateToDay('2021-03-01');
+    generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThan(0);
+    expect(s.mail).toHaveLength(0);
   });
 
   it('нумерует тендеры подряд: t1, t2, …', () => {
@@ -213,9 +227,10 @@ describe('generateMonthly: поля тендера', () => {
     m.activeBenchmarks.mockReturnValue(['squad', 'glue']); // в 2017 году порог проходят только они
     const s = newState(7);
     s.day = dateToDay('2017-01-01');
-    for (let i = 0; i < 20; i++) generateMonthly(s);
-    expect(s.tenders.length).toBeGreaterThan(30);
+    for (let i = 0; i < 40; i++) generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThanOrEqual(40);
     const workBase = lerpByDate(WORK_BASE, s.day);
+    expect(workBase).toBe(100); // крупные тендеры: прежние 20 H100e-дней × 5
     for (const t of s.tenders) {
       expect(CLIENTS.map((c) => c.id)).toContain(t.clientId);
       expect(['squad', 'glue']).toContain(t.benchmark);
@@ -223,8 +238,8 @@ describe('generateMonthly: поля тендера', () => {
       expect(t.application).toBeNull();
       expect(t.appearedDay).toBe(s.day);
       expect(t.expiresDay).toBe(s.day + TENDER_EXPIRE_DAYS);
-      expect(t.durationDays).toBeGreaterThanOrEqual(45);
-      expect(t.durationDays).toBeLessThanOrEqual(150);
+      expect(t.durationDays).toBeGreaterThanOrEqual(60);
+      expect(t.durationDays).toBeLessThanOrEqual(180);
       expect(t.work).toBeGreaterThanOrEqual(workBase * 0.5);
       expect(t.work).toBeLessThan(workBase * 1.5);
       const payMult = baseMult(t);
@@ -282,8 +297,8 @@ describe('generateMonthly: требование', () => {
     m.benchScore.mockImplementation((_id: BenchmarkId, cap: number) => (cap === level ? 40 : 20));
     const s = newState();
     s.day = dateToDay('2020-03-01');
-    for (let i = 0; i < 5; i++) generateMonthly(s);
-    expect(s.tenders.length).toBeGreaterThan(10);
+    for (let i = 0; i < 15; i++) generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThanOrEqual(15);
     for (const t of s.tenders) expect(t.requirement).toBe(28);
   });
 
@@ -291,8 +306,8 @@ describe('generateMonthly: требование', () => {
     m.activeBenchmarks.mockReturnValue(['gpqa']);
     const s = newState(5);
     s.day = dateToDay('2024-06-01');
-    for (let i = 0; i < 10; i++) generateMonthly(s);
-    expect(s.tenders.length).toBeGreaterThan(30);
+    for (let i = 0; i < 30; i++) generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThanOrEqual(30);
     for (const t of s.tenders) {
       expect(t.benchmark).toBe('gpqa');
       expect(t.requirement).toBeGreaterThanOrEqual(28);
@@ -306,8 +321,8 @@ describe('generateMonthly: порог бенчмарка и оплата за с
     m.activeBenchmarks.mockReturnValue(['squad', 'mmlu', 'gsm8k']);
     const s = newState(3);
     s.day = dateToDay('2017-03-01');
-    for (let i = 0; i < 10; i++) generateMonthly(s);
-    expect(s.tenders.length).toBeGreaterThan(15);
+    for (let i = 0; i < 20; i++) generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThanOrEqual(20);
     expect(s.tenders.every((t) => t.benchmark === 'squad')).toBe(true);
     expect(realBenchScore('squad', 0)).toBeGreaterThanOrEqual(10);
     expect(realBenchScore('mmlu', 0)).toBeLessThan(35);
@@ -319,8 +334,8 @@ describe('generateMonthly: порог бенчмарка и оплата за с
     expect(realBenchScore('swebench', level)).toBeLessThan(10);
     const s = newState(5);
     s.day = dateToDay('2024-06-01');
-    for (let i = 0; i < 10; i++) generateMonthly(s);
-    expect(s.tenders.length).toBeGreaterThan(30);
+    for (let i = 0; i < 30; i++) generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThanOrEqual(30);
     expect(s.tenders.every((t) => t.benchmark === 'gpqa')).toBe(true);
   });
 
@@ -339,8 +354,8 @@ describe('generateMonthly: порог бенчмарка и оплата за с
     m.benchScore.mockReturnValue(60); // требование 60 при угадывании 25: ×1,35
     const s = newState(7);
     s.day = dateToDay('2021-03-01');
-    for (let i = 0; i < 10; i++) generateMonthly(s);
-    expect(s.tenders.length).toBeGreaterThan(20);
+    for (let i = 0; i < 20; i++) generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThanOrEqual(20);
     for (const t of s.tenders) {
       expect(t.requirement).toBe(60);
       const mult = t.payment / (t.work * PRICE);
@@ -355,7 +370,7 @@ describe('generateMonthly: порог бенчмарка и оплата за с
       m.activeBenchmarks.mockReturnValue([bench]);
       const s = newState(11);
       s.day = dateToDay('2018-06-01');
-      for (let i = 0; i < 20; i++) generateMonthly(s);
+      for (let i = 0; i < 40; i++) generateMonthly(s);
       return s.tenders.reduce((a, t) => a + t.payment / (t.work * PRICE), 0) / s.tenders.length;
     };
     expect(avgMult('squad')).toBeGreaterThan(avgMult('glue') * 1.1);
@@ -373,14 +388,14 @@ describe('generateMonthly: бенчмарк и RLHF', () => {
   it('без исследования RLHF таких тендеров нет', () => {
     const s = newState(5);
     s.day = dateToDay('2023-03-01');
-    for (let i = 0; i < 50; i++) generateMonthly(s);
-    expect(s.tenders.length).toBeGreaterThan(150);
+    for (let i = 0; i < 100; i++) generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThanOrEqual(100);
     expect(s.tenders.every((t) => t.type === 'finetune')).toBe(true);
   });
 
   it('после RLHF около 30 % тендеров - RLHF, только языковой бенчмарк, оплата ×1,6', () => {
     const s = rlhfState(11);
-    for (let i = 0; i < 100; i++) generateMonthly(s);
+    for (let i = 0; i < 200; i++) generateMonthly(s);
     const rlhf = s.tenders.filter((t) => t.type === 'rlhf');
     const share = rlhf.length / s.tenders.length;
     expect(share).toBeGreaterThan(0.2);
@@ -428,7 +443,7 @@ describe('generateMonthly: особые случаи', () => {
     const before = JSON.stringify(CLIENTS);
     const s = newState(21);
     s.day = dateToDay('2023-03-01');
-    for (let i = 0; i < 30; i++) generateMonthly(s);
+    for (let i = 0; i < 50; i++) generateMonthly(s);
     expect(new Set(s.tenders.map((t) => t.clientId)).size).toBeGreaterThan(8);
     expect(JSON.stringify(CLIENTS)).toBe(before);
   });
@@ -441,7 +456,7 @@ describe('generateMonthly: особые случаи', () => {
     s.day = dateToDay('2023-03-01');
     const months = 40;
     for (let i = 0; i < months; i++) generateMonthly(s);
-    expect(s.tenders.length).toBeGreaterThanOrEqual(months * 4); // 4 + 0…1 в месяц, ни один не потерян
+    expect(s.tenders.length).toBeGreaterThanOrEqual(months); // 1 + 0…1 в месяц, ни один не потерян
     expect(s.tenders.every((t) => t.type === 'finetune')).toBe(true);
     expect(s.tenders.every((t) => t.benchmark === 'gsm8k')).toBe(true); // самый новый из вышедших
     for (const t of s.tenders) {
@@ -1245,5 +1260,252 @@ describe('письма контрактов: точка после суммы и
     progressDay(done);
     expect(lastMail(done).title).toMatch(/^Контракт выполнен: /);
     expect(lastMail(done).important).toBeFalsy();
+  });
+});
+
+// ---------- Автоподбор заявок ----------
+
+describe('setAutoApply', () => {
+  it('включает и выключает флаг, по умолчанию выключен', () => {
+    const s = newState();
+    expect(s.autoApply).toBe(false);
+    expect(setAutoApply(s, true)).toEqual({ ok: true });
+    expect(s.autoApply).toBe(true);
+    expect(setAutoApply(s, false)).toEqual({ ok: true });
+    expect(s.autoApply).toBe(false);
+  });
+});
+
+describe('bestAutoModel', () => {
+  it('выбирает модель с самым высоким показанным баллом среди проходящих', () => {
+    const s = newState();
+    s.models.push(makeModel({ id: 'p1' }), makeModel({ id: 'p2', name: 'Модель-2' }), makeModel({ id: 'p3' }));
+    scoreOf = { p1: { shown: 70, honest: 70 }, p2: { shown: 85, honest: 85 }, p3: { shown: 80, honest: 80 } };
+    expect(bestAutoModel(s, makeTender({ requirement: 60 }))?.id).toBe('p2');
+  });
+
+  it('модель с подгонкой (показанный балл проходит, честный - нет) не берётся: контракт был бы провален', () => {
+    const s = newState();
+    s.models.push(makeModel({ id: 'p1' }), makeModel({ id: 'p2' }));
+    scoreOf = { p1: { shown: 65, honest: 65 }, p2: { shown: 95, honest: 40 } };
+    expect(bestAutoModel(s, makeTender({ requirement: 60 }))?.id).toBe('p1');
+    scoreOf = { p1: { shown: 95, honest: 40 } };
+    s.models.splice(1);
+    expect(bestAutoModel(s, makeTender({ requirement: 60 }))).toBeNull();
+  });
+
+  it('правила заявки те же: невыпущенная модель и модель без RLHF для RLHF-тендера не годятся', () => {
+    const s = newState();
+    s.models.push(makeModel({ id: 'p1', releasedDay: null }), makeModel({ id: 'p2', rlhf: false }));
+    shownScore = honestScore = 90;
+    expect(bestAutoModel(s, makeTender({ type: 'rlhf' }))).toBeNull();
+    expect(bestAutoModel(s, makeTender())?.id).toBe('p2');
+    s.models[1].rlhf = true;
+    expect(bestAutoModel(s, makeTender({ type: 'rlhf' }))?.id).toBe('p2');
+  });
+
+  it('нет моделей - null', () => {
+    expect(bestAutoModel(newState(), makeTender())).toBeNull();
+  });
+});
+
+describe('autoApplyTenders', () => {
+  function stateWithModel(): GameState {
+    const s = newState();
+    s.day = 100;
+    s.reputation = 20;
+    s.models.push(makeModel());
+    return s;
+  }
+
+  it('заявка с пометкой auto, шанс и день решения как у ручной заявки', () => {
+    shownScore = 66;
+    honestScore = 66;
+    const s = stateWithModel();
+    const t = makeTender({ requirement: 60, appearedDay: 100, expiresDay: 130 });
+    s.tenders.push(t);
+    autoApplyTenders(s, [t]);
+    expect(t.application).toMatchObject({ modelId: 'p1', appliedDay: 100, resolveDay: 100 + TENDER_APPLY_DAYS, auto: true });
+    expect(t.application!.chance).toBeCloseTo(0.42, 10);
+  });
+
+  it('одно письмо на все заявки: заголовок с числами, строка на тендер, число пропущенных', () => {
+    scoreOf = { p1: { shown: 66, honest: 66 } };
+    const s = stateWithModel();
+    const t1 = makeTender({ id: 't1', requirement: 60, clientId: 'bank-severny', payment: 100_000 });
+    const t2 = makeTender({ id: 't2', requirement: 60, payment: 1_200_000 });
+    const t3 = makeTender({ id: 't3', requirement: 90 }); // не по силам
+    s.tenders.push(t1, t2, t3);
+    autoApplyTenders(s, [t1, t2, t3]);
+    expect(t1.application?.auto).toBe(true);
+    expect(t2.application?.auto).toBe(true);
+    expect(t3.application).toBeNull();
+    expect(s.mail).toHaveLength(1);
+    const mail = lastMail(s);
+    expect(mail.kind).toBe('contract');
+    expect(mail.important).toBeFalsy();
+    expect(mail.title).toBe('Заявки поданы: 2 из 3');
+    const lines = mail.body.split('\n');
+    expect(lines).toHaveLength(4);
+    expect(lines[0]).toBe(`Новых тендеров: 3, заявок подано: 2. Решение - через ${TENDER_APPLY_DAYS} дн.`);
+    const bench = BENCHMARKS.find((b) => b.id === 'mmlu')!.name;
+    expect(lines[1]).toBe(`Банк «Северный»: ${bench}, требование 60 %, модель «Модель-1», оплата $100 тыс., шанс 42 %.`);
+    expect(lines[2]).toContain('оплата $1,2 млн, шанс 42 %.');
+    expect(lines[3]).toBe('Без подходящей модели: 1.');
+  });
+
+  it('все заявки поданы - строки о пропущенных нет', () => {
+    const s = stateWithModel();
+    const t = makeTender();
+    autoApplyTenders(s, [t]);
+    expect(lastMail(s).title).toBe('Заявки поданы: 1 из 1');
+    expect(lastMail(s).body).not.toContain('Без подходящей модели');
+  });
+
+  it('ни одной подходящей модели - ни заявок, ни письма', () => {
+    shownScore = honestScore = 10;
+    const s = stateWithModel();
+    const t = makeTender();
+    autoApplyTenders(s, [t]);
+    expect(t.application).toBeNull();
+    expect(s.mail).toHaveLength(0);
+  });
+
+  it('тендер с уже поданной заявкой пропускается', () => {
+    const s = stateWithModel();
+    const manual = makeTender({ id: 't1', application: { modelId: 'p1', appliedDay: 90, resolveDay: 110, chance: 0.5 } });
+    autoApplyTenders(s, [manual]);
+    expect(manual.application?.auto).toBeUndefined();
+    expect(s.mail).toHaveLength(0);
+  });
+
+  it('ручная заявка поля auto не имеет вовсе', () => {
+    const s = stateWithModel();
+    s.tenders.push(makeTender());
+    applyTender(s, 't1', 'p1');
+    expect('auto' in s.tenders[0].application!).toBe(false);
+  });
+});
+
+describe('generateMonthly: автоподбор', () => {
+  function month(autoApply: boolean, seed = 5): GameState {
+    m.activeBenchmarks.mockReturnValue(['mmlu']);
+    shownScore = honestScore = 100;
+    const s = newState(seed);
+    s.autoApply = autoApply;
+    s.day = dateToDay('2021-03-01');
+    s.models.push(makeModel());
+    return s;
+  }
+
+  it('выключен: заявок и писем нет', () => {
+    const s = month(false);
+    generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThan(0);
+    expect(s.tenders.every((t) => t.application === null)).toBe(true);
+    expect(s.mail).toHaveLength(0);
+  });
+
+  it('включён: заявка на каждый новый тендер и одно письмо за месяц', () => {
+    const s = month(true);
+    generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThan(0);
+    for (const t of s.tenders) {
+      expect(t.application?.auto).toBe(true);
+      expect(t.application?.modelId).toBe('p1');
+      expect(t.application?.appliedDay).toBe(s.day);
+    }
+    expect(s.mail).toHaveLength(1);
+    expect(lastMail(s).title).toBe(`Заявки поданы: ${s.tenders.length} из ${s.tenders.length}`);
+  });
+
+  it('автоподбор не трогает генератор случайных чисел: тендеры те же, что и без него', () => {
+    const a = month(false);
+    const b = month(true);
+    generateMonthly(a);
+    generateMonthly(b);
+    expect(b.tenders.map((t) => ({ ...t, application: null }))).toEqual(a.tenders);
+    expect(b.rng).toBe(a.rng);
+  });
+
+  it('старые тендеры без заявки в начале месяца не трогаются: только новые', () => {
+    const s = month(true);
+    const old = makeTender({ id: 'old', appearedDay: s.day - 20, expiresDay: s.day + 10 });
+    s.tenders.push(old);
+    generateMonthly(s);
+    expect(old.application).toBeNull();
+    expect(s.tenders.filter((t) => t.id !== 'old').every((t) => t.application !== null)).toBe(true);
+  });
+
+  it('нет выпущенной модели - тендеры есть, заявок и письма нет', () => {
+    const s = month(true);
+    s.models[0].releasedDay = null;
+    generateMonthly(s);
+    expect(s.tenders.length).toBeGreaterThan(0);
+    expect(s.tenders.every((t) => t.application === null)).toBe(true);
+    expect(s.mail).toHaveLength(0);
+  });
+});
+
+describe('progressDay: исход автозаявки', () => {
+  function applied(auto: boolean, chance: number): GameState {
+    const s = newState();
+    s.day = 25;
+    s.models.push(makeModel());
+    s.tenders.push(
+      makeTender({ expiresDay: 35, application: { modelId: 'p1', appliedDay: 5, resolveDay: 25, chance, ...(auto ? { auto: true } : {}) } }),
+    );
+    return s;
+  }
+
+  it('проигрыш автозаявки: тендер убран, письма нет', () => {
+    const s = applied(true, 0);
+    progressDay(s);
+    expect(s.tenders).toHaveLength(0);
+    expect(s.contracts).toHaveLength(0);
+    expect(s.mail).toHaveLength(0);
+  });
+
+  it('проигрыш ручной заявки: письмо, как раньше', () => {
+    const s = applied(false, 0);
+    progressDay(s);
+    expect(s.mail).toHaveLength(1);
+    expect(lastMail(s).title).toMatch(/^Тендер проигран: /);
+  });
+
+  it('победа автозаявки: контракт и письмо «Тендер выигран»', () => {
+    const s = applied(true, 1);
+    progressDay(s);
+    expect(s.contracts).toHaveLength(1);
+    expect(s.mail).toHaveLength(1);
+    expect(lastMail(s).title).toMatch(/^Тендер выигран: /);
+  });
+});
+
+describe('сохранение: автоподбор', () => {
+  it('старое сохранение без autoApply загружается с выключенным автоподбором', () => {
+    const o = JSON.parse(serialize(newState())) as Record<string, unknown>;
+    delete o.autoApply;
+    const r = deserialize(JSON.stringify(o));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.state.autoApply).toBe(false);
+  });
+
+  it('флаг и пометка auto у заявки переживают сохранение; испорченная пометка отклоняется', () => {
+    const s = newState();
+    s.autoApply = true;
+    s.models.push(makeModel());
+    const t = makeTender();
+    s.tenders.push(t);
+    autoApplyTenders(s, [t]);
+    const r = deserialize(serialize(s));
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.state.autoApply).toBe(true);
+      expect(r.state.tenders[0].application?.auto).toBe(true);
+    }
+    const o = JSON.parse(serialize(s)) as { tenders: { application: Record<string, unknown> }[] };
+    o.tenders[0].application.auto = 'да';
+    expect(deserialize(JSON.stringify(o)).ok).toBe(false);
   });
 });

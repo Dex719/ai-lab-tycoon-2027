@@ -1,18 +1,28 @@
-/* Окно «Инвесторы»: белая верхняя полоса с оценкой, ниже серое поле с разбором оценки и раундами. */
+/* Окно «Инвесторы»: белая верхняя полоса с оценкой и долей основателя, ниже серое поле с разбором оценки и раундами. */
 
 .inv { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 
-/* Верхняя полоса */
+/* Верхняя полоса: два больших числа (оценка и доля), полоса доли, предупреждение о совете директоров */
 .inv-top { flex: none; padding: 16px 22px 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.inv-top-grid { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 32px; }
+.inv-stat { min-width: 0; }
+.inv-stat + .inv-stat { padding-left: 32px; border-left: 1px solid var(--line); }
 .inv .inv-value {
   margin: 2px 0 4px; font-size: 44px; font-weight: 300; line-height: 1.1; letter-spacing: -0.01em;
   text-align: left; font-variant-numeric: tabular-nums;
 }
-.inv-share { color: var(--text-dim); }
-.inv-share b { color: var(--text); font-weight: 600; }
-.inv-bar { height: 6px; margin-top: 12px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.inv-sub { font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+/* Доля ниже порогов - число окрашено как предупреждение */
+.inv-own.warn .inv-value { color: var(--warn); }
+.inv-own.bad .inv-value { color: var(--bad); }
+
+.inv-bar { position: relative; height: 8px; margin-top: 12px; background: var(--line); border-radius: 2px; overflow: hidden; }
 .inv-bar > div { height: 100%; background: var(--accent); }
-.inv-bar-cap { margin-top: 5px; font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.inv-bar.warn > div { background: var(--warn); }
+.inv-bar.bad > div { background: var(--bad); }
+/* Отметки порогов 50 % и 25 % */
+.inv-bar-mark { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; opacity: 0.9; }
+.inv-top .alert { margin-top: 10px; }
 
 /* Серое поле с прокруткой */
 .inv-body { flex: 1; min-height: 0; overflow: auto; padding: 14px 22px 22px; }

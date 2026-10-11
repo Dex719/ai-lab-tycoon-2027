@@ -6,7 +6,7 @@ import { playerBestArenaRank } from '../sim/tick';
 import { formatDate } from '../sim/time';
 import type { GameState } from '../sim/types';
 import { useModalFocus } from './components/common';
-import { fmtElo, fmtMoney, fmtShare } from './format';
+import { fmtElo, fmtMoney, fmtNum, fmtShare } from './format';
 import { fmtRank } from './labels';
 import { store } from './store';
 
@@ -16,13 +16,14 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
   const rows = leaderboard(s).filter((r) => r.ref.kind === 'player');
   const best = rows.reduce<(typeof rows)[number] | null>((b, r) => (!b || r.elo > b.elo ? r : b), null);
   const v = valuation(s);
+  const months = Number.isFinite(s.monthsFirst) ? s.monthsFirst : 0;
   const title = s.outcome === 'victory' ? 'Победа' : s.outcome === 'bankrupt' ? 'Банкротство' : 'Конец 2024 года';
   const lead =
     s.outcome === 'victory'
-      ? `Модель лаборатории «${s.labName}» - первая на «Арене» 31 декабря 2024 года.`
+      ? `Модель лаборатории «${s.labName}» - первая среди моделей в продаже 31 декабря 2024 года.`
       : s.outcome === 'bankrupt'
         ? `Лаборатория «${s.labName}» закрылась ${formatDate(s.day)}: деньги были в минусе 60 дней подряд.`
-        : `Партия закончилась 31 декабря 2024 года. На «Арене»: ${fmtRank(rank)}.`;
+        : `Партия закончилась 31 декабря 2024 года. Среди моделей в продаже: ${fmtRank(rank)}.`;
   return (
     <div className="modal-backdrop">
       <div ref={ref} tabIndex={-1} className="dialog" role="dialog" aria-modal="true" aria-label={title} onKeyDown={onKeyDown}>
@@ -32,10 +33,12 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
         <div className="body">
           <p style={{ marginTop: 0 }}>{lead}</p>
           <div className="kv">
-            <span>«Арена»</span>
+            <span title="Место по Эло среди моделей, которые продаются через API">Место среди моделей в продаже</span>
             <span>{fmtRank(rank)}</span>
             <span>Лучшая модель</span>
             <span>{best ? `${best.name}, Эло ${fmtElo(best.elo)}` : '-'}</span>
+            <span>Месяцев на 1-м месте</span>
+            <span>{fmtNum(months)}</span>
             <span>Деньги</span>
             <span>{fmtMoney(s.cash)}</span>
             <span>Оценка компании</span>

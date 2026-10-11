@@ -7,15 +7,22 @@ import {
   ALGO_MULT,
   ARENA_OPEN_DATE,
   ATTENTION_PAPER_DISCOUNT,
+  BOARD_BUYBACK_PREMIUM,
+  BOARD_BUYBACK_SHARE,
+  BOARD_DEFEND_REP,
+  BOARD_PLAN_HYPE,
+  BOARD_PLAN_VALUATION_MULT,
   CHAT_MOMENT_BRAND,
   EXPORT_CONTROL_BRAND,
   FAIL_CHOICE_DAYS,
   FAIL_CONTINUE_PENALTY,
   FAIL_ROLLBACK,
+  FOUNDER_BOARD_SHARE,
 } from '../sim/constants';
 import { availableGpus, rentPerGpuDay } from '../sim/compute';
 import { addModifier, FOREVER } from '../sim/events';
 import { spend } from '../sim/finance';
+import { BOARD_PLAN_FLAG, buyBackShares, buybackCost } from '../sim/investors';
 import { bestElo } from '../sim/leaderboard';
 import { endSentence } from '../sim/text';
 import { dateToDay } from '../sim/time';
@@ -73,6 +80,11 @@ export function pointsWord(n: number): string {
 }
 
 const clamp100 = (x: number): number => Math.max(0, Math.min(100, x));
+
+/** «48,5» из 0,485: доля основателя с десятыми. */
+function fmtShare(share: number): string {
+  return String(Math.round(share * 1000) / 10).replace('.', ',');
+}
 
 function addHype(s: GameState, owner: HypeOwner, delta: number): void {
   s.hype[owner] = clamp100(s.hype[owner] + delta);
@@ -415,11 +427,52 @@ export const EVENTS: EventDef[] = [
       body:
         'Открыт сайт «Арена»: пользователь задаёт вопрос двум безымянным моделям и выбирает лучший ответ. ' +
         'Подогнать модель под такой тест почти невозможно, поэтому клиенты больше доверяют «Арене», чем таблицам бенчмарков. ' +
-        'Влияние шумихи на выбор клиентов уменьшается вдвое.',
+        'Влияние шумихи на выбор клиентов снижается.',
     }),
     onFire: (s) => {
       s.flags.arenaOpen = true;
     },
+  },
+
+  // 7а. Совет директоров: доля основателя упала ниже половины (один раз за игру).
+  {
+    id: 'board-control',
+    when: { check: (s) => s.founderShare < FOUNDER_BOARD_SHARE },
+    defaultChoice: 0, // принять план: шумиха растёт, а скидка к оценке мешает только следующему раунду
+    mail: (s) => ({
+      kind: 'event',
+      title: 'Совет директоров требует контроля',
+      body:
+        `Доля основателя - ${fmtShare(s.founderShare)} %: большинство в совете директоров теперь у инвесторов. ` +
+        'Совет требует принять свой план: громкие анонсы и быстрый рост, пусть и по сниженной оценке в следующем раунде. ' +
+        `Выкуп ${Math.round(BOARD_BUYBACK_SHARE * 100)} % компании у инвесторов сейчас стоит ${endSentence(money(buybackCost(s)))}`,
+    }),
+    choices: [
+      {
+        label: 'Принять план совета',
+        hint: `+${BOARD_PLAN_HYPE} шумихи, оценка в следующем раунде ×${String(BOARD_PLAN_VALUATION_MULT).replace('.', ',')}`,
+        apply: (s) => {
+          addHype(s, 'player', BOARD_PLAN_HYPE);
+          s.flags[BOARD_PLAN_FLAG] = true;
+        },
+      },
+      {
+        label: 'Отстоять свой план',
+        hint: `−${Math.abs(BOARD_DEFEND_REP)} репутации`,
+        apply: (s) => {
+          addReputation(s, BOARD_DEFEND_REP);
+        },
+      },
+      {
+        label: `Выкупить ${Math.round(BOARD_BUYBACK_SHARE * 100)} % компании`,
+        hint:
+          `деньги по оценке на день выкупа с надбавкой ${Math.round((BOARD_BUYBACK_PREMIUM - 1) * 100)} %, ` +
+          `доля основателя +${Math.round(BOARD_BUYBACK_SHARE * 100)} п.п.`,
+        apply: (s) => {
+          buyBackShares(s);
+        },
+      },
+    ],
   },
 
   // 8. Модели, которые «думают» (12.09.2024).

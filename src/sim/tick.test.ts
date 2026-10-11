@@ -1,16 +1,53 @@
 // Тесты дня игры: автосохранение, конец игры, письма за всю партию.
 
 import { describe, expect, it } from 'vitest';
+import { EVENTS } from '../data/events';
+import { RIVAL_MODELS } from '../data/rivalModels';
 import { newGame } from './actions';
 import { botAct, runBot } from './bots';
 import { BANKRUPT_DAYS } from './constants';
 import { applyChoice, pendingChoice } from './events';
-import { serialize } from './save';
-import { advanceDay } from './tick';
+import { expectedLeaderElo } from './leaderboard';
+import { deserialize, serialize } from './save';
+import { advanceDay, playerBestArenaRank } from './tick';
 import { dateToDay, END_DAY } from './time';
-import type { GameState } from './types';
+import type { GameState, PlayerModel } from './types';
 
 const D = dateToDay;
+
+/** Выпущенная модель игрока на API с заданным Эло. */
+function apiModel(id: string, arenaElo: number, releasedDay: number, over: Partial<PlayerModel> = {}): PlayerModel {
+  return {
+    id,
+    name: `Модель ${id}`,
+    plan: {
+      name: id, paramsB: 1, tokensB: 20, mix: { language: 0.5, code: 0.25, reasoning: 0.25 },
+      benchShare: 0, benchTargets: [], rlhf: true, context: 512,
+    },
+    arch: 'transformer',
+    algoLevel: 0,
+    trainedDay: releasedDay,
+    releasedDay,
+    caps: { language: 60, code: 60, reasoning: 60 },
+    overfit: {},
+    rlhf: true,
+    arenaElo,
+    price: 1,
+    onApi: true,
+    exposed: false,
+    earned: 0,
+    ...over,
+  };
+}
+
+/** Состояние на день с вышедшими на него моделями соперников (как после releaseDue); события считаются прошедшими. */
+function stateOn(day: number): GameState {
+  const s = newGame('Тест', 1);
+  s.day = day;
+  s.rivalsReleased = RIVAL_MODELS.filter((m) => D(m.released) <= day).map((m) => m.id);
+  s.firedEvents = EVENTS.map((e) => e.id); // иначе письма с выбором за прошлые годы остановили бы день
+  return s;
+}
 
 /** Играет ботом, пока не наступит конец игры. Как интерфейс, сразу «сохраняет» состояние, когда игра просит автосохранение. */
 function playWithAutosave(seed: number): { s: GameState; lastAuto: string | null; autosaves: number } {
@@ -83,6 +120,83 @@ describe('автосохранение (flags.autosaveDue)', () => {
     const saved = JSON.parse(lastAuto!) as GameState;
     expect(saved.outcome).toBeNull();
     expect(saved.day).toBe(D('2024-12-01'));
+  });
+});
+
+describe('победа: 1-е место среди моделей, доступных по API', () => {
+  it('в последний день модель на API сильнее планки expectedLeaderElo даёт победу', () => {
+    const s = stateOn(END_DAY);
+    s.models = [apiModel('p1', expectedLeaderElo(s) + 1, END_DAY - 10)];
+    expect(playerBestArenaRank(s)).toBe(1);
+    advanceDay(s);
+    expect(s.outcome).toBe('victory');
+  });
+
+  it('модель слабее планки - «finished», даже если она сильнее всех моделей без API', () => {
+    const s = stateOn(END_DAY);
+    s.models = [apiModel('p1', expectedLeaderElo(s) - 1, END_DAY - 10)];
+    expect(playerBestArenaRank(s)).toBe(2);
+    advanceDay(s);
+    expect(s.outcome).toBe('finished');
+  });
+
+  it('снятая с API или не выпущенная модель победы не даёт; без моделей место null', () => {
+    const off = stateOn(END_DAY);
+    off.models = [apiModel('p1', 9000, END_DAY - 10, { onApi: false })];
+    expect(playerBestArenaRank(off)).toBeNull();
+    advanceDay(off);
+    expect(off.outcome).toBe('finished');
+
+    const unreleased = stateOn(END_DAY);
+    unreleased.models = [apiModel('p1', 9000, END_DAY - 10, { releasedDay: null, onApi: false })];
+    expect(playerBestArenaRank(unreleased)).toBeNull();
+    advanceDay(unreleased);
+    expect(unreleased.outcome).toBe('finished');
+  });
+
+  it('берётся лучшее место среди моделей игрока на API', () => {
+    const s = stateOn(END_DAY);
+    s.models = [apiModel('p1', 1000, END_DAY - 10), apiModel('p2', 9000, END_DAY - 5), apiModel('p3', 1200, END_DAY - 3)];
+    expect(playerBestArenaRank(s)).toBe(1);
+    s.models[1].onApi = false;
+    expect(playerBestArenaRank(s)).toBeGreaterThan(1);
+  });
+});
+
+describe('monthsFirst: месяцы на 1-м месте', () => {
+  it('новая игра - 0; закрытие месяца на 1-м месте прибавляет 1, иначе не меняет', () => {
+    const s = stateOn(D('2023-06-29'));
+    expect(s.monthsFirst).toBe(0);
+    s.models = [apiModel('p1', 9000, D('2023-06-01'))];
+    advanceDay(s); // 29 июня
+    expect(s.monthsFirst).toBe(0);
+    advanceDay(s); // 30 июня: месяц закрыт
+    expect(s.day).toBe(D('2023-07-01'));
+    expect(s.monthsFirst).toBe(1);
+
+    s.models[0].arenaElo = 100; // теперь не первая
+    s.day = D('2023-07-31');
+    advanceDay(s);
+    expect(s.monthsFirst).toBe(1);
+
+    s.models[0].onApi = false;
+    s.day = D('2023-08-31');
+    advanceDay(s);
+    expect(s.monthsFirst).toBe(1);
+  });
+
+  it('старое сохранение без monthsFirst загружается с нулём', () => {
+    const s = newGame('Тест', 1);
+    s.monthsFirst = 5;
+    const data = JSON.parse(serialize(s)) as Record<string, unknown>;
+    delete data.monthsFirst;
+    const r = deserialize(JSON.stringify(data));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.state.monthsFirst).toBe(0);
+    // А с полем - как сохранили.
+    const kept = deserialize(serialize(s));
+    expect(kept.ok).toBe(true);
+    if (kept.ok) expect(kept.state.monthsFirst).toBe(5);
   });
 });
 

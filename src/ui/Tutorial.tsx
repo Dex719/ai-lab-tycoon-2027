@@ -54,9 +54,9 @@ export function TutorialPanel({ s, open, speed }: { s: GameState; open: Readonly
   if (!active) return null;
   const last = index === TUTORIAL.length - 1;
   return (
-    <div className="tutor" role="dialog" aria-label="Обучение">
+    <div className="tutor" role="dialog" aria-label="Обучение игре">
       <div className="titlebar">
-        <span className="t">Обучение</span>
+        <span className="t">Обучение игре</span>
       </div>
       <div className="body">
         <div className="step">

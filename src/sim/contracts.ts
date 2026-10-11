@@ -28,8 +28,8 @@ const RLHF_TENDER_SHARE = 0.3; // доля RLHF среди новых тенде
 const CAP_SPREAD = 15; // насколько требование может быть легче уровня года
 const BENCH_MIN_OVER_GUESS = 10; // бенчмарк берётся в тендер, если балл уровня года не ниже угадывания + 10 п.п.
 const REQ_MIN_OVER_GUESS = 3; // требование не ниже угадывания + 3 п.п.
-const DURATION_MIN = 45;
-const DURATION_MAX = 150;
+const DURATION_MIN = 60; // тендеры крупные (WORK_BASE ×5), поэтому срок длиннее прежних 45…150 дней
+const DURATION_MAX = 180;
 const PAY_MULT_MIN = 2;
 const PAY_MULT_MAX = 3.5;
 const WORK_MULT_MIN = 0.5;
@@ -107,9 +107,10 @@ function pickBenchmark(s: GameState, rlhf: boolean, level: number): BenchmarkId 
 }
 
 /**
- * Раз в месяц: TENDERS_PER_MONTH(год) + randInt(0, 1) новых тендеров по правилам design.md («Тендеры»).
+ * Раз в месяц: TENDERS_PER_MONTH(год) + randInt(0, 1) новых тендеров (1…2) по правилам design.md («Тендеры»).
  * Требование = max(угадывание + 3, балл при способности «уровень года − 0…15»);
  * оплата умножается на 1 + (требование − угадывание) / 100: сложнее бенчмарк - дороже тендер.
+ * Письма о новых тендерах нет; при включённом автоподборе (s.autoApply) заявки подаются сразу, одним письмом.
  */
 export function generateMonthly(s: GameState): void {
   const year = yearOf(s.day);
@@ -118,6 +119,7 @@ export function generateMonthly(s: GameState): void {
   const rlhfOpen = s.research.done.includes('rlhf');
   const unitPrice = cheapestH100eDay(s);
   if (!Number.isFinite(unitPrice) || unitPrice <= 0) return; // нет доступных GPU: оплату не посчитать
+  const created: Tender[] = [];
   for (let i = 0; i < count; i++) {
     let rlhf = rlhfOpen && chance(s, RLHF_TENDER_SHARE);
     const client = pick(s, CLIENTS);
@@ -135,7 +137,7 @@ export function generateMonthly(s: GameState): void {
     const durationDays = randInt(s, DURATION_MIN, DURATION_MAX);
     const payment =
       work * unitPrice * randRange(s, PAY_MULT_MIN, PAY_MULT_MAX) * (rlhf ? RLHF_TENDER_PAY_MULT : 1) * difficulty;
-    s.tenders.push({
+    const tender: Tender = {
       id: `t${s.nextTenderNum++}`,
       clientId: client.id,
       type: rlhf ? 'rlhf' : 'finetune',
@@ -148,8 +150,77 @@ export function generateMonthly(s: GameState): void {
       appearedDay: s.day,
       expiresDay: s.day + TENDER_EXPIRE_DAYS,
       application: null,
-    });
+    };
+    s.tenders.push(tender);
+    created.push(tender);
   }
+  if (s.autoApply) autoApplyTenders(s, created);
+}
+
+/** Действие: включить или выключить автоподбор - заявки на новые тендеры в начале месяца. */
+export function setAutoApply(s: GameState, on: boolean): Result {
+  s.autoApply = on;
+  return { ok: true };
+}
+
+/**
+ * Модель для автозаявки: выпущенная, проходит canApply и честный балл не ниже требования
+ * (лаборатория не берёт контракт, который провалит на сдаче); из таких - с самым высоким показанным баллом,
+ * то есть с лучшим шансом. null - подходящей модели нет.
+ */
+export function bestAutoModel(s: GameState, tender: Tender): PlayerModel | null {
+  let best: PlayerModel | null = null;
+  let bestShown = -Infinity;
+  for (const m of s.models) {
+    if (canApply(s, tender, m) !== null) continue;
+    if (modelScore(m, tender.benchmark, true) < tender.requirement) continue;
+    const shown = modelScore(m, tender.benchmark, false);
+    if (shown > bestShown) {
+      best = m;
+      bestShown = shown;
+    }
+  }
+  return best;
+}
+
+/**
+ * Автоподбор: подать заявки на tenders лучшей подходящей моделью (правила applyTender) и прислать
+ * одно письмо со сводкой. Без единой заявки письма нет. Заявка помечается auto: о проигрыше письма не будет.
+ */
+export function autoApplyTenders(s: GameState, tenders: Tender[]): void {
+  const lines: string[] = [];
+  for (const t of tenders) {
+    if (t.application !== null) continue;
+    const model = bestAutoModel(s, t);
+    if (!model) continue;
+    placeApplication(s, t, model, true);
+    const chance = Math.round(t.application!.chance * 100);
+    lines.push(
+      `${clientName(t.clientId)}: ${benchDef(t.benchmark).name}, требование ${t.requirement} %, ` +
+        `модель «${model.name}», оплата ${fmtMoney(t.payment)}, шанс ${chance} %.`,
+    );
+  }
+  if (lines.length === 0) return;
+  const skipped = tenders.length - lines.length;
+  addMail(s, {
+    kind: 'contract',
+    title: `Заявки поданы: ${lines.length} из ${tenders.length}`,
+    body:
+      `Новых тендеров: ${tenders.length}, заявок подано: ${lines.length}. Решение - через ${TENDER_APPLY_DAYS} дн.\n` +
+      lines.join('\n') +
+      (skipped > 0 ? `\nБез подходящей модели: ${skipped}.` : ''),
+  });
+}
+
+/** Записать заявку в тендер; auto - подана автоподбором. */
+function placeApplication(s: GameState, tender: Tender, model: PlayerModel, auto: boolean): void {
+  tender.application = {
+    modelId: model.id,
+    appliedDay: s.day,
+    resolveDay: s.day + TENDER_APPLY_DAYS,
+    chance: applyChance(s, tender, model),
+    ...(auto ? { auto: true } : {}), // у ручной заявки поля нет вовсе: сохранение короче
+  };
 }
 
 /** Причина, по которой модель не может подать заявку, или null. */
@@ -179,12 +250,7 @@ export function applyTender(s: GameState, tenderId: string, modelId: string): Re
   if (!model) return { ok: false, error: 'Нет такой модели' };
   const reason = canApply(s, tender, model);
   if (reason !== null) return { ok: false, error: reason };
-  tender.application = {
-    modelId: model.id,
-    appliedDay: s.day,
-    resolveDay: s.day + TENDER_APPLY_DAYS,
-    chance: applyChance(s, tender, model),
-  };
+  placeApplication(s, tender, model, false);
   return { ok: true };
 }
 
@@ -241,7 +307,7 @@ export function cancelContract(s: GameState, contractId: string): Result {
   return { ok: true };
 }
 
-/** Заявка решена: победа даёт контракт, поражение - только письмо. */
+/** Заявка решена: победа даёт контракт, поражение - только письмо (у автозаявки и письма нет). */
 function resolveApplication(s: GameState, t: Tender): void {
   const a = t.application;
   if (!a) return;
@@ -250,6 +316,7 @@ function resolveApplication(s: GameState, t: Tender): void {
   const won = chance(s, a.chance) && model !== undefined;
   const client = clientName(t.clientId);
   if (!won || !model) {
+    if (a.auto) return; // проигрыш автозаявки не засоряет почту: игрок её не подавал
     addMail(s, {
       kind: 'contract',
       title: `Тендер проигран: ${client}`,
@@ -291,8 +358,8 @@ function resolveApplication(s: GameState, t: Tender): void {
 
 /**
  * Ежедневно: убрать просроченные тендеры без заявки; решить заявки (победа → контракт, для RLHF - разметчики;
- * поражение → письмо); работа контрактов за счёт pool(contracts) поровну; завершение → проверка честного балла,
- * оплата или штраф; просрочка → штраф.
+ * поражение → письмо, если заявка была ручной); работа контрактов за счёт pool(contracts) поровну;
+ * завершение → проверка честного балла, оплата или штраф; просрочка → штраф.
  */
 export function progressDay(s: GameState): void {
   for (const t of [...s.tenders]) {

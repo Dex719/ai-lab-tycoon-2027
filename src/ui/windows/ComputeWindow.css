@@ -153,7 +153,17 @@
 
 .cw-qty { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; }
 .cw-qty > label { color: var(--text-dim); }
-.cw-qty-note { grid-column: 2 / -1; font-size: 13px; color: var(--text-dim); }
+/* Отметка на дорожке ползунка, где кончается обычная цена: --cap - доля длины дорожки (0..1).
+   Центр ползунка ходит от 8px до «ширина − 8px» (ползунок 16px), поэтому отметка считается так же. */
+.cw-qty-range { position: relative; min-width: 0; }
+.cw-qty-range .range { position: relative; z-index: 1; }
+.cw-qty-range.has-cap::after {
+  content: ''; position: absolute; top: 3px; bottom: 3px; width: 2px; margin-left: -1px;
+  left: calc(8px + (100% - 16px) * var(--cap, 1));
+  background: var(--warn); border-radius: 1px; pointer-events: none;
+}
+.cw-qty-note { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 13px; color: var(--text-dim); }
 .cw-qty-note.bad { color: var(--bad); }
+.cw-qty-note .warn { color: var(--warn); }
 .card.cw-sum { background: #fff; }
 .cw-foot-note { margin-right: auto; align-self: center; font-size: 13px; color: var(--text-dim); }

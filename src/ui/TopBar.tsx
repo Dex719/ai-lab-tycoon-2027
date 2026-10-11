@@ -131,7 +131,7 @@ export function TopBar({ s }: { s: GameState }) {
       </div>
       <div className="topbar-right">
         <span>Доля рынка: {fmtShare(s.market.labShares.player ?? 0, 2)}</span>
-        <span>«Арена»: {fmtRank(rank)}</span>
+        <span title="Место лучшей модели среди моделей в продаже. Цель: 1-е место на 31.12.2024">«Арена»: {fmtRank(rank)}</span>
       </div>
       {(store.pauseReason || negative) && speed === 0 && (
         <div className="pause-note">

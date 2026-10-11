@@ -4,12 +4,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./training', () => ({ applyFailChoice: vi.fn() }));
-vi.mock('./leaderboard', () => ({ bestElo: vi.fn(() => 1000) }));
+// marketArenaRank нужен оценке инвесторов (письмо совета директоров называет цену выкупа): моделей на рынке нет.
+vi.mock('./leaderboard', () => ({ bestElo: vi.fn(() => 1000), marketArenaRank: vi.fn(() => null) }));
 
 import { EVENTS, money, pointsWord } from '../data/events';
 import { LABS } from '../data/labs';
 import { rentCapFor, rentPerGpuDay } from './compute';
-import { ARENA_OPEN_DATE, ATTENTION_PAPER_DISCOUNT, CHAT_MOMENT_BRAND, CHOICE_DAYS, EXPORT_CONTROL_BRAND, FAIL_CHOICE_DAYS } from './constants';
+import {
+  ARENA_OPEN_DATE,
+  ATTENTION_PAPER_DISCOUNT,
+  BOARD_BUYBACK_SHARE,
+  BOARD_DEFEND_REP,
+  BOARD_PLAN_HYPE,
+  BOARD_PLAN_VALUATION_MULT,
+  CHAT_MOMENT_BRAND,
+  CHOICE_DAYS,
+  EXPORT_CONTROL_BRAND,
+  FAIL_CHOICE_DAYS,
+  FOUNDER_BOARD_SHARE,
+} from './constants';
+import { BOARD_PLAN_FLAG, buybackCost, valuation } from './investors';
 import {
   applyChoice,
   awaitingEvent,
@@ -166,6 +180,7 @@ describe('данные событий', () => {
         'arena-open',
         'attention-paper-player',
         'attention-paper-public',
+        'board-control',
         'chat-moment-player',
         'chat-moment-rival',
         'export-controls-2022',
@@ -428,20 +443,24 @@ describe('парные события: срабатывает ровно одн�
     expect(b.firedEvents.filter((x) => x.startsWith('chat-moment'))).toEqual(['chat-moment-rival']);
   });
 
-  it('сценарий игрока: сработали все события, кроме двух лишних веток и срыва обучения', () => {
+  // Не срабатывают: две лишние ветки пар, срыв обучения (только через triggerEvent) и совет директоров (доля основателя 100 %).
+  const NEVER = 4;
+
+  it('сценарий игрока: сработали все события, кроме двух лишних веток, срыва обучения и совета директоров', () => {
     const s = newState();
     s.research.done.push('attention');
     s.models.push(model());
     const firedOn = runAllDays(s);
-    expect(Object.keys(firedOn)).toHaveLength(EVENTS.length - 3);
+    expect(Object.keys(firedOn)).toHaveLength(EVENTS.length - NEVER);
     expect(firedOn['attention-paper-public']).toBeUndefined();
     expect(firedOn['chat-moment-rival']).toBeUndefined();
     expect(firedOn['training-fail']).toBeUndefined();
+    expect(firedOn['board-control']).toBeUndefined();
   });
 
-  it('сценарий без игрока: тоже EVENTS.length − 3 событий', () => {
+  it('сценарий без игрока: тоже EVENTS.length − 4 событий', () => {
     const firedOn = runAllDays(newState());
-    expect(Object.keys(firedOn)).toHaveLength(EVENTS.length - 3);
+    expect(Object.keys(firedOn)).toHaveLength(EVENTS.length - NEVER);
     expect(firedOn['attention-paper-player']).toBeUndefined();
     expect(firedOn['chat-moment-player']).toBeUndefined();
   });
@@ -461,7 +480,7 @@ describe('парные события: срабатывает ровно одн�
       if (att) s.research.done.push('attention');
       if (over) s.models.push(model(over));
       const firedOn = firedList(s);
-      expect(firedOn).toHaveLength(EVENTS.length - 3);
+      expect(firedOn).toHaveLength(EVENTS.length - NEVER);
 
       const attention = att ? 'attention-paper-player' : 'attention-paper-public';
       const attentionOther = att ? 'attention-paper-public' : 'attention-paper-player';
@@ -589,6 +608,8 @@ describe('эффекты выбора', () => {
       // срыв обучения проверяется отдельно (мок training), дефицит GPU - через модификаторы
       if (!def.choices || def.id === 'training-fail' || def.id === 'gpu-shortage') continue;
       def.choices.forEach((c, idx) => {
+        // выкуп доли зависит от оценки лаборатории: проверяется отдельно
+        if (def.id === 'board-control' && idx === 2) return;
         const s = newState();
         s.reputation = 50;
         s.hype.player = 50;
@@ -613,6 +634,8 @@ describe('эффекты выбора', () => {
       'gpt3-api/1',
       'chat-moment-rival/0',
       'chat-moment-rival/1',
+      'board-control/0',
+      'board-control/1',
     ]);
   });
 
@@ -701,6 +724,99 @@ describe('эффекты выбора', () => {
     choose(s, 'gpu-shortage', 1);
     expect(modValue(s, 'rentCap').mult).toBe(0.5);
     expect(modValue(s, 'rentPrice').mult).toBeCloseTo(1.2, 10);
+  });
+});
+
+describe('совет директоров (board-control)', () => {
+  it('срабатывает один раз, когда доля основателя опускается ниже FOUNDER_BOARD_SHARE; ровно на границе - нет', () => {
+    const s = newState();
+    s.day = 100;
+    s.founderShare = FOUNDER_BOARD_SHARE;
+    fireDue(s);
+    expect(s.firedEvents).not.toContain('board-control');
+
+    s.founderShare = FOUNDER_BOARD_SHARE - 0.01;
+    fireDue(s);
+    expect(s.firedEvents).toContain('board-control');
+    const mail = pendingChoice(s)!;
+    expect(mail.eventId).toBe('board-control');
+    expect(mail.kind).toBe('event');
+    expect(mail.title).toBe('Совет директоров требует контроля');
+    expect(mail.body).toContain('49 %');
+    expect(mail.body).toContain(money(buybackCost(s)));
+    expect(mail.choices).toHaveLength(3);
+    expect(mail.defaultChoice).toBe(0);
+    expect(mail.replyByDay).toBe(100 + CHOICE_DAYS);
+
+    // Дальше не повторяется, даже если доля падает ещё ниже.
+    applyChoice(s, mail.id, 1);
+    s.founderShare = 0.1;
+    s.day = 500;
+    fireDue(s);
+    expect(s.mail.filter((m) => m.eventId === 'board-control')).toHaveLength(1);
+  });
+
+  it('«Принять план совета»: шумиха +BOARD_PLAN_HYPE и флаг сниженной оценки следующего раунда', () => {
+    const s = newState();
+    s.founderShare = 0.4;
+    choose(s, 'board-control', 0);
+    expect(s.hype.player).toBe(BOARD_PLAN_HYPE);
+    expect(s.reputation).toBe(20);
+    expect(s.flags[BOARD_PLAN_FLAG]).toBe(true);
+    expect(valuation(s).boardMult).toBe(BOARD_PLAN_VALUATION_MULT);
+    expect(s.founderShare).toBe(0.4);
+  });
+
+  it('«Отстоять свой план»: репутация BOARD_DEFEND_REP, остальное без изменений', () => {
+    const s = newState();
+    s.founderShare = 0.4;
+    const cash = s.cash;
+    choose(s, 'board-control', 1);
+    expect(s.reputation).toBe(20 + BOARD_DEFEND_REP);
+    expect(s.hype.player).toBe(0);
+    expect(s.cash).toBe(cash);
+    expect(s.flags[BOARD_PLAN_FLAG]).toBeUndefined();
+    expect(s.founderShare).toBe(0.4);
+  });
+
+  it('«Выкупить долю»: деньги по цене выкупа на день ответа, доля основателя +BOARD_BUYBACK_SHARE', () => {
+    const s = newState();
+    s.founderShare = 0.4;
+    const cash = s.cash;
+    const cost = buybackCost(s);
+    expect(cost).toBeGreaterThan(0);
+    choose(s, 'board-control', 2);
+    expect(s.cash).toBeCloseTo(cash - cost, 6);
+    expect(s.founderShare).toBeCloseTo(0.4 + BOARD_BUYBACK_SHARE, 12);
+    expect(s.reputation).toBe(20);
+    expect(s.hype.player).toBe(0);
+    const last = s.mail[s.mail.length - 1];
+    expect(last.kind).toBe('finance');
+    expect(last.title).toContain('Выкуплено');
+  });
+
+  it('без ответа в срок выбирается план совета (вариант по умолчанию)', () => {
+    const s = newState();
+    s.day = 10;
+    s.founderShare = 0.3;
+    fireDue(s);
+    const mail = pendingChoice(s)!;
+    deferChoice(s, mail.id);
+    s.day = mail.replyByDay!;
+    expireChoices(s);
+    expect(mail.chosen).toBe(0);
+    expect(mail.autoChosen).toBe(true);
+    expect(s.hype.player).toBe(BOARD_PLAN_HYPE);
+    expect(s.flags[BOARD_PLAN_FLAG]).toBe(true);
+  });
+
+  it('подсказки называют числа из констант', () => {
+    const def = EVENTS.find((e) => e.id === 'board-control')!;
+    expect(def.choices![0].hint).toBe(`+${BOARD_PLAN_HYPE} шумихи, оценка в следующем раунде ×0,7`);
+    expect(def.choices![1].hint).toBe(`−${Math.abs(BOARD_DEFEND_REP)} репутации`);
+    expect(def.choices![2].label).toBe(`Выкупить ${Math.round(BOARD_BUYBACK_SHARE * 100)} % компании`);
+    expect(def.choices![2].hint).toContain('надбавкой 25 %');
+    expect(def.choices![2].hint).toContain(`+${Math.round(BOARD_BUYBACK_SHARE * 100)} п.п.`);
   });
 });
 

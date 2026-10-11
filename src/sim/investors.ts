@@ -1,8 +1,18 @@
 // Раунды инвестиций (FR-10). TSK-008.
 
-import { MANIA, REV_MULT, ROUND_COOLDOWN_DAYS, ROUND_FRACTIONS, VALUATION_FLOOR } from './constants';
+import {
+  BOARD_BUYBACK_PREMIUM,
+  BOARD_BUYBACK_SHARE,
+  BOARD_PLAN_VALUATION_MULT,
+  FOUNDER_WARN_SHARE,
+  MANIA,
+  REV_MULT,
+  ROUND_COOLDOWN_DAYS,
+  ROUND_FRACTIONS,
+  VALUATION_FLOOR,
+} from './constants';
 import { addMail } from './events';
-import { earn, revenueLast90 } from './finance';
+import { earn, revenueLast90, spend } from './finance';
 import { marketArenaRank } from './leaderboard';
 import { byYear, lerpByDate, yearOf } from './time';
 import type { GameState, Result } from './types';
@@ -13,10 +23,17 @@ export interface Valuation {
   revenuePart: number; // annualRevenue × revMult
   techPart: number; // rankFactor × mania
   rankFactor: number;
-  bestRank: number | null; // место лучшей модели игрока на Арене среди моделей на рынке
+  bestRank: number | null; // место лучшей модели игрока на Арене среди моделей, доступных по API
   hypeMult: number;
   repMult: number;
+  /** Множитель плана совета директоров (BOARD_PLAN_VALUATION_MULT до следующего раунда), иначе 1. */
+  boardMult: number;
 }
+
+/** Флаг состояния: принят план совета директоров, следующий раунд пройдёт по сниженной оценке. */
+export const BOARD_PLAN_FLAG = 'boardPlan';
+/** Флаг состояния: письмо о доле основателя ниже FOUNDER_WARN_SHARE уже отправлено. */
+export const FOUNDER_WARNED_FLAG = 'founderWarned';
 
 /** «$1,2 млн», «$350 тыс.», «$800». */
 function fmtMoney(x: number): string {
@@ -56,8 +73,49 @@ export function valuation(s: GameState): Valuation {
   const techPart = rankFactor * lerpByDate(MANIA, s.day, true);
   const hypeMult = 1 + s.hype.player / 100;
   const repMult = 0.6 + s.reputation / 125;
-  const total = Math.max(VALUATION_FLOOR, revenuePart + techPart) * hypeMult * repMult;
-  return { total, annualRevenue, revenuePart, techPart, rankFactor, bestRank, hypeMult, repMult };
+  const boardMult = s.flags[BOARD_PLAN_FLAG] ? BOARD_PLAN_VALUATION_MULT : 1;
+  const total = Math.max(VALUATION_FLOOR, revenuePart + techPart) * hypeMult * repMult * boardMult;
+  return { total, annualRevenue, revenuePart, techPart, rankFactor, bestRank, hypeMult, repMult, boardMult };
+}
+
+/** Цена выкупа BOARD_BUYBACK_SHARE компании: доля × оценка × надбавка инвесторам. */
+export function buybackCost(s: GameState): number {
+  return valuation(s).total * BOARD_BUYBACK_SHARE * BOARD_BUYBACK_PREMIUM;
+}
+
+/**
+ * Выкупить BOARD_BUYBACK_SHARE компании у инвесторов по buybackCost (деньги могут уйти в минус: это решение
+ * игрока в событии 'board-control'). Доля основателя не выше 1.
+ */
+export function buyBackShares(s: GameState): void {
+  const cost = buybackCost(s);
+  spend(s, 'overhead', cost);
+  s.founderShare = Math.min(1, s.founderShare + BOARD_BUYBACK_SHARE);
+  addMail(s, {
+    kind: 'finance',
+    title: `Выкуплено ${Math.round(BOARD_BUYBACK_SHARE * 100)} % компании`,
+    body: `Доля выкуплена у инвесторов за ${fmtMoney(cost)}. Доля основателя - ${fmtShare(s.founderShare)} %.`,
+  });
+}
+
+/** «50,4» из 0,504: доля основателя с десятыми. */
+function fmtShare(share: number): string {
+  return String(Math.round(share * 1000) / 10).replace('.', ',');
+}
+
+/** Один раз, когда доля основателя опустилась ниже FOUNDER_WARN_SHARE: важное письмо. */
+function warnFounderShare(s: GameState): void {
+  if (s.founderShare >= FOUNDER_WARN_SHARE || s.flags[FOUNDER_WARNED_FLAG]) return;
+  s.flags[FOUNDER_WARNED_FLAG] = true;
+  addMail(s, {
+    kind: 'finance',
+    important: true,
+    title: `Доля основателя ниже ${Math.round(FOUNDER_WARN_SHARE * 100)} %`,
+    body:
+      `У основателя осталось ${fmtShare(s.founderShare)} % компании. ` +
+      'Контроль над лабораторией у инвесторов, и каждый новый раунд оставляет основателю всё меньше. ' +
+      'Деньги надёжнее брать с рынка: выручка API и контракты долю не размывают.',
+  });
 }
 
 /** Причина, почему раунд недоступен (кулдаун - «через N дней»), или null. */
@@ -84,14 +142,16 @@ export function raiseRound(s: GameState, fraction: number): Result {
   earn(s, 'investors', money);
   s.founderShare *= 1 - f;
   s.lastRoundDay = s.day;
-  const share = String(Math.round(s.founderShare * 1000) / 10).replace('.', ',');
+  // План совета директоров действует на один раунд: скидка к оценке снята.
+  if (s.flags[BOARD_PLAN_FLAG]) delete s.flags[BOARD_PLAN_FLAG];
   addMail(s, {
     kind: 'finance',
     title: `Раунд инвестиций закрыт: ${fmtMoney(money)}`,
     body:
       `При оценке лаборатории в ${fmtMoney(value)} инвесторы вложили ${fmtMoney(money)} ` +
-      `за ${Math.round(f * 100)} % компании. Доля основателя - ${share} %. ` +
+      `за ${Math.round(f * 100)} % компании. Доля основателя - ${fmtShare(s.founderShare)} %. ` +
       `Следующий раунд возможен через ${ROUND_COOLDOWN_DAYS} дн.`,
   });
+  warnFounderShare(s);
   return { ok: true };
 }

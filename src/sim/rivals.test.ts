@@ -3,7 +3,19 @@ import { LABS } from '../data/labs';
 import { RIVAL_MODELS } from '../data/rivalModels';
 import { benchDef, benchScore, capFromScore, introduceDue } from './benchmarks';
 import { HYPE_ARENA_TOP_BONUS, HYPE_RANK_BONUS, MARKET_MAX_AGE_DAYS, MARKET_MODELS_PER_LAB } from './constants';
-import { findRivalDef, marketRivals, releaseDue, rivalCaps, rivalDay, rivalDef, rivalPrice, rivalScore } from './rivals';
+import { refPrice } from './market';
+import {
+  catalogPrice,
+  findRivalDef,
+  marketRivals,
+  releaseDue,
+  rivalCaps,
+  rivalDay,
+  rivalDef,
+  rivalPrice,
+  rivalPriceDecay,
+  rivalScore,
+} from './rivals';
 import { createInitialState } from './state';
 import { byYear, dateToDay, END_DAY, yearOf } from './time';
 import { BENCHMARK_IDS, DOMAINS, LAB_IDS } from './types';
@@ -252,16 +264,39 @@ describe('rivalScore', () => {
 });
 
 describe('rivalPrice', () => {
-  it('входная и выходная цены известны - (3·in + out) / 4', () => {
-    expect(rivalPrice(byId('gtp-4'), dateToDay('2023-06-01'))).toBeCloseTo((3 * 30 + 60) / 4, 9);
-    expect(rivalPrice(byId('gtp-3'), 0)).toBe(60);
-    expect(rivalPrice(byId('deepseak-v3'), dateToDay('2024-12-30'))).toBeCloseTo((3 * 0.14 + 0.28) / 4, 9);
+  it('в день выхода (и до него) - смешанная цена каталога (3·in + out) / 4', () => {
+    expect(catalogPrice(byId('gtp-4'))).toBeCloseTo((3 * 30 + 60) / 4, 9);
+    expect(rivalPrice(byId('gtp-4'), rivalDay(byId('gtp-4')))).toBeCloseTo((3 * 30 + 60) / 4, 9);
+    expect(rivalPrice(byId('gtp-3'), 0)).toBe(60); // до выхода цена не выше каталожной
+    expect(rivalPrice(byId('deepseak-v3'), dateToDay('2024-12-26'))).toBeCloseTo((3 * 0.14 + 0.28) / 4, 9);
+  });
+
+  it('после выхода цена падает вместе с рынком: × refPrice(день) / refPrice(день выхода)', () => {
+    const gtp4 = byId('gtp-4');
+    const born = rivalDay(gtp4);
+    const later = dateToDay('2024-06-01');
+    const ratio = refPrice(later) / refPrice(born);
+    expect(ratio).toBeLessThan(0.5);
+    expect(rivalPriceDecay(gtp4, later)).toBeCloseTo(ratio, 12);
+    expect(rivalPrice(gtp4, later)).toBeCloseTo(37.5 * ratio, 9);
+    // До выхода и в день выхода множитель 1, дальше не растёт.
+    expect(rivalPriceDecay(gtp4, born)).toBe(1);
+    expect(rivalPriceDecay(gtp4, born - 400)).toBe(1);
+    let prev = Infinity;
+    for (let d = born; d <= END_DAY; d += 30) {
+      const p = rivalPrice(gtp4, d);
+      expect(p).toBeLessThanOrEqual(prev);
+      expect(p).toBeGreaterThan(0);
+      prev = p;
+    }
   });
 
   it('известна только одна цена - берём её', () => {
     const def = byId('gtp-4');
-    expect(rivalPrice({ ...def, priceIn: 7, priceOut: null }, 0)).toBe(7);
-    expect(rivalPrice({ ...def, priceIn: null, priceOut: 9 }, 0)).toBe(9);
+    const born = rivalDay(def);
+    expect(rivalPrice({ ...def, priceIn: 7, priceOut: null }, born)).toBe(7);
+    expect(rivalPrice({ ...def, priceIn: null, priceOut: 9 }, born)).toBe(9);
+    expect(catalogPrice({ ...def, priceIn: null, priceOut: null })).toBeNull();
   });
 
   it('цен нет - цена лаборатории по умолчанию на год дня', () => {

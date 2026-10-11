@@ -17,6 +17,10 @@ export const BANKRUPT_DAYS = 60;
 export const TRAIN_FLOP_PER_H100E_DAY = 989e12 * 0.4 * 86400;
 export const INF_FLOP_PER_H100E_DAY = 989e12 * 0.15 * 86400;
 export const RENT_CAP_2017 = 512; // на тип GPU, удваивается каждый год
+// Мягкий лимит аренды: сверх обычного лимита карты дают по цене × RENT_OVER_CAP_MULT,
+// но не больше RENT_HARD_CAP_MULT × лимит (жёсткий потолок).
+export const RENT_OVER_CAP_MULT = 1.8;
+export const RENT_HARD_CAP_MULT = 4;
 export const MAX_TOKENS_B: Record<number, number> = {
   2017: 50, 2018: 100, 2019: 300, 2020: 1000, 2021: 2000, 2022: 5000, 2023: 10000, 2024: 20000,
 };
@@ -40,7 +44,7 @@ export const ALGO_COST_GROWTH = 1.6;
 export const ALGO_MULT = 1.25;
 export const ATTENTION_PAPER_DISCOUNT = 0.4;
 // Исследование раньше своего исторического времени дороже (как в Processor Tycoon):
-// цена × (1 + EARLY_PENALTY_PER_YEAR × лет до исторической даты).
+// цена × (1 + EARLY_PENALTY_PER_YEAR[tech] × лет до исторической даты).
 export const TECH_HISTORY_DATE: Record<Exclude<TechId, ChainTech>, string> = {
   attention: '2017-06-12',
   scaling: '2020-01-23',
@@ -48,7 +52,14 @@ export const TECH_HISTORY_DATE: Record<Exclude<TechId, ChainTech>, string> = {
 };
 export const ALGO_HISTORY_START = '2017-01-01'; // уровень k «исторически» достигается через k × ALGO_LEVEL_DAYS дней
 export const ALGO_LEVEL_DAYS = 243; // ≈ 1,5 уровня в год: 12-й уровень - к концу 2024 года
-export const EARLY_PENALTY_PER_YEAR = 2.5;
+// Надбавка за год опережения по технологиям: RLHF - главный скачок Эло, поэтому раньше срока он много дороже.
+export const EARLY_PENALTY_PER_YEAR: Record<TechId, number> = {
+  attention: 2.5,
+  scaling: 2.5,
+  rlhf: 10, // было 6: с большой мощностью RLHF успевали на год раньше истории и забирали весь рынок 2021-2022 годов
+  algo: 2.5,
+  context: 2.5,
+};
 
 // Длинный контекст: уровень → [токенов, дата, когда такой контекст появился в истории]
 export const CONTEXT_LEVELS: [number, string][] = [
@@ -100,8 +111,11 @@ export const FAIL_CHOICE_DAYS = 14; // срыв обучения: проект �
 // Арена
 export const ELO_BASE = 553; // базовые модели без RLHF - плохие собеседники: «как GTP-3» ≈ 800, как в каталоге
 export const ELO_PER_CAP = 5;
-export const ELO_RLHF_BASE = 210; // RLHF - главный скачок качества на Арене (у моделей с RLHF Эло прежнее: 553 + 210 = 693 + 70)
-export const ELO_RLHF_PER_ALGO = 13; // было 12: «разумный» бот - около 3-го места, №1 - для сильной игры
+// RLHF - главный скачок качества на Арене, но ранний RLHF (2021-2022, низкий уровень алгоритмов) даёт меньше,
+// чем поздний: было 210 + 13 × уровень, стало 165 + 21 × уровень (на 10-м уровне ≈375 вместо 340).
+// Так «разумный» бот к концу игры занимает 2-4-е место; №1 - для сильной игры.
+export const ELO_RLHF_BASE = 165;
+export const ELO_RLHF_PER_ALGO = 21;
 export const ARENA_WEIGHTS: Record<DomainId, number> = { language: 0.5, code: 0.25, reasoning: 0.25 };
 export const ARENA_OPEN_DATE = '2023-05-03';
 
@@ -109,8 +123,9 @@ export const ARENA_OPEN_DATE = '2023-05-03';
 export const HYPE_RANK_BONUS = [12, 6, 3];
 export const HYPE_ARENA_TOP_BONUS = 10;
 export const HYPE_MONTHLY_DECAY = 0.9;
-export const HYPE_K_BEFORE_ARENA = 3;
-export const HYPE_K_AFTER_ARENA = 1.5;
+// Шумиха в качестве: было 1,5 / 1 - вместе с брендом она давала игроку 90 % рынка даже при равном Эло.
+export const HYPE_K_BEFORE_ARENA = 1;
+export const HYPE_K_AFTER_ARENA = 0.7;
 export const HYPE_LOST_DEMAND_K = 0.3;
 
 // Рынок
@@ -125,22 +140,23 @@ export const DEMAND_TOKENS: [string, number][] = [
 export const REF_PRICE: [string, number][] = [
   ['2017-01-01', 100], ['2020-01-01', 60], ['2022-01-01', 20], ['2023-01-01', 10], ['2024-01-01', 3], ['2024-12-31', 2.5],
 ];
+// Внешний вариант: с выходом ChatGTP (30.11.2022) клиенты сравнивают любой API с бесплатным чат-ботом - скачок до 1080.
 export const REF_QUALITY: [string, number][] = [
-  ['2017-01-01', 900], ['2020-01-01', 950], ['2023-01-01', 1050], ['2024-01-01', 1150], ['2024-12-31', 1180],
+  ['2017-01-01', 900], ['2020-01-01', 950], ['2022-11-29', 1010], ['2022-11-30', 1080], ['2024-01-01', 1150], ['2024-12-31', 1180],
 ];
-export const PLAYER_BRAND_K = 0.6;
+export const PLAYER_BRAND_K = 0.4; // было 0,6: репутация 100 давала +0,6 полезности - больше, чем 60 Эло
 export const CHAT_MOMENT_BRAND = 0.5;
 export const EXPORT_CONTROL_BRAND = -0.2;
 
-// Тендеры
+// Тендеры: немного, но крупных - TENDERS_PER_MONTH + 0…1 в месяц, работа и оплата в пять раз больше прежних.
 export const TENDERS_PER_MONTH: Record<number, number> = {
-  2017: 2, 2018: 2, 2019: 2, 2020: 3, 2021: 3, 2022: 3, 2023: 4, 2024: 4,
+  2017: 1, 2018: 1, 2019: 1, 2020: 1, 2021: 1, 2022: 1, 2023: 1, 2024: 1,
 };
 export const CAP_LEVEL: Record<number, number> = {
   2017: 0, 2018: 15, 2019: 30, 2020: 45, 2021: 55, 2022: 62, 2023: 72, 2024: 80,
 };
 export const WORK_BASE: [string, number][] = [
-  ['2017-01-01', 20], ['2020-01-01', 200], ['2023-01-01', 2000], ['2024-12-31', 10000],
+  ['2017-01-01', 100], ['2020-01-01', 1000], ['2023-01-01', 10000], ['2024-12-31', 50000],
 ];
 export const TENDER_APPLY_DAYS = 20;
 export const TENDER_EXPIRE_DAYS = 30;
@@ -150,17 +166,29 @@ export const RLHF_TENDER_LABELERS = 0.25;
 export const REP_CONTRACT_OK = 3;
 export const REP_CONTRACT_FAIL = -8;
 
-// Инвесторы
-export const VALUATION_FLOOR = 10_000_000;
+// Инвесторы. Деньги инвесторов за игру - не больше ~1,5 выручки (API + контракты): мания и множители
+// выручки снижены ещё в 3-4 раза, раунд - раз в год. Иначе раунды кормили аренду в десятки раз больше рынка.
+export const VALUATION_FLOOR = 4_000_000;
 export const MANIA: [string, number][] = [
-  ['2017-01-01', 50e6], ['2019-01-01', 100e6], ['2020-01-01', 300e6], ['2021-01-01', 500e6],
-  ['2022-01-01', 0.6e9], ['2023-01-01', 3e9], ['2024-01-01', 8e9], ['2024-12-31', 10e9],
+  ['2017-01-01', 10e6], ['2019-01-01', 20e6], ['2020-01-01', 50e6], ['2021-01-01', 80e6],
+  ['2022-01-01', 100e6], ['2023-01-01', 0.2e9], ['2024-01-01', 0.5e9], ['2024-12-31', 0.7e9],
 ];
 export const REV_MULT: Record<number, number> = {
-  2017: 15, 2018: 15, 2019: 15, 2020: 15, 2021: 15, 2022: 20, 2023: 30, 2024: 35,
+  2017: 1.5, 2018: 1.5, 2019: 1.5, 2020: 1.5, 2021: 1.5, 2022: 1.5, 2023: 1.5, 2024: 2,
 };
 export const ROUND_FRACTIONS = [0.1, 0.2, 0.3] as const;
-export const ROUND_COOLDOWN_DAYS = 180;
+export const ROUND_COOLDOWN_DAYS = 365;
+// Доля основателя: ниже FOUNDER_BOARD_SHARE совет директоров берёт управление (событие 'board-control'),
+// ниже FOUNDER_WARN_SHARE приходит важное письмо-предупреждение (один раз).
+export const FOUNDER_BOARD_SHARE = 0.5;
+export const FOUNDER_WARN_SHARE = 0.25;
+// Событие 'board-control': принять план совета - шумиха +BOARD_PLAN_HYPE, оценка следующего раунда × BOARD_PLAN_VALUATION_MULT;
+// отстоять свой план - репутация BOARD_DEFEND_REP; выкупить BOARD_BUYBACK_SHARE компании по текущей оценке × BOARD_BUYBACK_PREMIUM.
+export const BOARD_PLAN_HYPE = 20;
+export const BOARD_PLAN_VALUATION_MULT = 0.7;
+export const BOARD_DEFEND_REP = -10;
+export const BOARD_BUYBACK_SHARE = 0.1;
+export const BOARD_BUYBACK_PREMIUM = 1.25;
 
 // Финансы
 export const OVERHEAD_MONTHLY = 100_000;

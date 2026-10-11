@@ -1,6 +1,7 @@
 // Общие мелкие компоненты для окон.
 
 import { useCallback, useEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { IconAlert, IconInfo } from '../icons';
 
 export function Tabs<T extends string>(props: { tabs: { id: T; label: ReactNode }[]; value: T; onChange: (id: T) => void }) {
@@ -181,5 +182,38 @@ export function Dialog(props: {
         {props.footer && <div className="foot">{props.footer}</div>}
       </div>
     </div>
+  );
+}
+
+/**
+ * Подтверждение необратимого действия: заголовок, сводка последствий, «Отмена» и кнопка-глагол.
+ * Окно выводится в document.body, поэтому его можно открыть из любого окна игры.
+ */
+export function ConfirmDialog(props: {
+  title: string;
+  confirmLabel: string;
+  danger?: boolean;
+  onConfirm: () => void;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return createPortal(
+    <Dialog
+      title={props.title}
+      onClose={props.onClose}
+      footer={
+        <>
+          <button className="btn" onClick={props.onClose}>
+            Отмена
+          </button>
+          <button className={`btn ${props.danger ? 'danger' : 'primary'}`} onClick={props.onConfirm}>
+            {props.confirmLabel}
+          </button>
+        </>
+      }
+    >
+      <div className="confirm-body">{props.children}</div>
+    </Dialog>,
+    document.body,
   );
 }

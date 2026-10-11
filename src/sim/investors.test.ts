@@ -7,8 +7,18 @@ const m = vi.hoisted(() => ({ marketArenaRank: vi.fn() }));
 
 vi.mock('./leaderboard', () => ({ marketArenaRank: m.marketArenaRank }));
 
-import { MANIA, REV_MULT, ROUND_COOLDOWN_DAYS, ROUND_FRACTIONS, VALUATION_FLOOR } from './constants';
-import { canRaise, raiseRound, valuation } from './investors';
+import {
+  BOARD_BUYBACK_PREMIUM,
+  BOARD_BUYBACK_SHARE,
+  BOARD_PLAN_VALUATION_MULT,
+  FOUNDER_WARN_SHARE,
+  MANIA,
+  REV_MULT,
+  ROUND_COOLDOWN_DAYS,
+  ROUND_FRACTIONS,
+  VALUATION_FLOOR,
+} from './constants';
+import { BOARD_PLAN_FLAG, buyBackShares, buybackCost, canRaise, FOUNDER_WARNED_FLAG, raiseRound, valuation } from './investors';
 import { createInitialState } from './state';
 import { byYear, dateToDay, lerpByDate } from './time';
 
@@ -60,7 +70,7 @@ function setDailyRevenue(s: GameState, perDay: number): void {
 // ---------- Оценка ----------
 
 describe('valuation: пол', () => {
-  it('без выручки и моделей - пол $10 млн, умноженный на шумиху и репутацию', () => {
+  it('без выручки и моделей - пол $4 млн, умноженный на шумиху и репутацию', () => {
     const s = newState();
     s.reputation = 20;
     s.hype.player = 0;
@@ -78,7 +88,7 @@ describe('valuation: пол', () => {
   it('малая выручка не опускает оценку ниже пола', () => {
     const s = newState();
     s.reputation = 50;
-    setDailyRevenue(s, 1_000); // за год ≈ $365 тыс., × 15 ≈ $5,5 млн < пол
+    setDailyRevenue(s, 1_000); // за год ≈ $365 тыс., × 6 ≈ $2,2 млн < пол
     const v = valuation(s);
     expect(v.revenuePart).toBeLessThan(VALUATION_FLOOR);
     expect(v.total).toBeCloseTo(VALUATION_FLOOR * v.hypeMult * v.repMult, 4);
@@ -100,8 +110,8 @@ describe('valuation: выручка', () => {
     expect(v.annualRevenue).toBeCloseTo(9_000_000 * (365 / 90), 4);
   });
 
-  it('доля выручки = годовая × множитель года (15 / 20 / 30 / 35)', () => {
-    for (const [iso, mult] of [['2018-06-01', 15], ['2022-06-01', 20], ['2023-06-01', 30], ['2024-06-01', 35]] as const) {
+  it('доля выручки = годовая × множитель года (1,5 / 1,5 / 1,5 / 2)', () => {
+    for (const [iso, mult] of [['2018-06-01', 1.5], ['2022-06-01', 1.5], ['2023-06-01', 1.5], ['2024-06-01', 2]] as const) {
       const s = newState(dateToDay(iso));
       setDailyRevenue(s, 1_000_000);
       const v = valuation(s);
@@ -128,13 +138,13 @@ describe('valuation: выручка', () => {
     s.models.push(makeModel('p1'));
     ranks.p1 = 2;
     const v = valuation(s);
-    const expected = (v.annualRevenue * 15 + 0.5 * lerpByDate(MANIA, s.day, true)) * 1.3 * (0.6 + 60 / 125);
+    const expected = (v.annualRevenue * 1.5 + 0.5 * lerpByDate(MANIA, s.day, true)) * 1.3 * (0.6 + 60 / 125);
     expect(v.total).toBeCloseTo(expected, 2);
   });
 });
 
 describe('valuation: место на Арене', () => {
-  const day2023 = dateToDay('2023-01-01'); // шумиха мании = $8 млрд
+  const day2023 = dateToDay('2023-01-01'); // мания = $0,2 млрд
 
   function totalForRank(rank: number | null): number {
     const s = newState(day2023);
@@ -154,7 +164,7 @@ describe('valuation: место на Арене', () => {
       const v = valuation(s);
       expect(v.bestRank).toBe(rank);
       expect(v.rankFactor).toBe(factor);
-      expect(v.techPart).toBeCloseTo(factor * 3e9, 0);
+      expect(v.techPart).toBeCloseTo(factor * 0.2e9, 0);
     }
   });
 
@@ -175,9 +185,9 @@ describe('valuation: место на Арене', () => {
       s.models.push(makeModel('p1'));
       ranks.p1 = 1;
     }
-    expect(valuation(early).techPart).toBeCloseTo(50e6, 0);
+    expect(valuation(early).techPart).toBeCloseTo(10e6, 0);
     expect(valuation(late).techPart).toBeCloseTo(lerpByDate(MANIA, late.day, true), 0);
-    expect(valuation(late).techPart).toBeGreaterThan(8e9);
+    expect(valuation(late).techPart).toBeGreaterThan(0.5e9);
   });
 
   it('берётся лучшее место среди моделей на рынке', () => {
@@ -260,15 +270,15 @@ describe('canRaise', () => {
     expect(canRaise(newState(10))).toBeNull();
   });
 
-  it('кулдаун 180 дней, сообщение с числом дней', () => {
+  it('кулдаун 365 дней, сообщение с числом дней', () => {
     const s = newState(100);
     s.lastRoundDay = 100;
-    expect(canRaise(s)).toBe('Следующий раунд - через 180 дн.');
+    expect(canRaise(s)).toBe('Следующий раунд - через 365 дн.');
     s.day = 200;
-    expect(canRaise(s)).toBe('Следующий раунд - через 80 дн.');
-    s.day = 279;
+    expect(canRaise(s)).toBe('Следующий раунд - через 265 дн.');
+    s.day = 464;
     expect(canRaise(s)).toBe('Следующий раунд - через 1 дн.');
-    s.day = 280;
+    s.day = 465;
     expect(canRaise(s)).toBeNull();
     s.day = 1000;
     expect(canRaise(s)).toBeNull();
@@ -321,7 +331,7 @@ describe('raiseRound', () => {
     const share = s.founderShare;
     s.day = 120;
     const r = raiseRound(s, 0.1);
-    expect(r).toEqual({ ok: false, error: 'Следующий раунд - через 110 дн.' });
+    expect(r).toEqual({ ok: false, error: 'Следующий раунд - через 295 дн.' });
     expect(s.cash).toBe(cash);
     expect(s.founderShare).toBe(share);
     expect(s.lastRoundDay).toBe(50);
@@ -355,16 +365,17 @@ describe('raiseRound', () => {
 // ---------- Дополнительные проверки ----------
 
 describe('valuation: опорные числа', () => {
-  it('2024, выручка $1 млн в день, репутация 50, без шумихи и моделей: ровно $12,775 млрд', () => {
+  it('2024, выручка $1 млн в день, репутация 50, без шумихи и моделей: ровно $730 млн', () => {
     const s = newState(dateToDay('2024-06-01'));
     setDailyRevenue(s, 1_000_000); // 90 млн за 90 дней, 365 млн в год
     s.reputation = 50; // множитель 0,6 + 50 / 125 = 1
     s.hype.player = 0;
     const v = valuation(s);
     expect(v.annualRevenue).toBeCloseTo(365_000_000, 2);
-    expect(v.revenuePart).toBeCloseTo(365_000_000 * 35, 0);
+    expect(v.revenuePart).toBeCloseTo(365_000_000 * 2, 0);
     expect(v.techPart).toBe(0);
-    expect(v.total).toBeCloseTo(12_775_000_000, 0);
+    expect(v.boardMult).toBe(1);
+    expect(v.total).toBeCloseTo(730_000_000, 0);
   });
 
   it('мания: точки кривой и логарифм между ними', () => {
@@ -374,14 +385,14 @@ describe('valuation: опорные числа', () => {
       ranks.p1 = 1;
       return valuation(s).techPart;
     };
-    expect(techAt('2017-01-01')).toBeCloseTo(50e6, 0);
-    expect(techAt('2022-01-01')).toBeCloseTo(0.6e9, 0);
-    expect(techAt('2023-01-01')).toBeCloseTo(3e9, 0);
-    expect(techAt('2024-01-01')).toBeCloseTo(8e9, 0);
-    // Середина 2022 года: лог-среднее √(0,6 млрд × 3 млрд) ≈ 1,34 млрд, а линейное было бы 1,8 млрд.
+    expect(techAt('2017-01-01')).toBeCloseTo(10e6, 0);
+    expect(techAt('2022-01-01')).toBeCloseTo(0.1e9, 0);
+    expect(techAt('2023-01-01')).toBeCloseTo(0.2e9, 0);
+    expect(techAt('2024-01-01')).toBeCloseTo(0.5e9, 0);
+    // Середина 2022 года: лог-среднее √(0,1 млрд × 0,2 млрд) ≈ 0,141 млрд, а линейное было бы 0,15 млрд.
     const mid = techAt('2022-07-02');
-    expect(mid).toBeGreaterThan(1.2e9);
-    expect(mid).toBeLessThan(1.5e9);
+    expect(mid).toBeGreaterThan(0.135e9);
+    expect(mid).toBeLessThan(0.146e9);
   });
 
   it('нет моделей вообще, 2024 год: технологий нет, оценка - пол', () => {
@@ -468,20 +479,20 @@ describe('raiseRound: подробности', () => {
     s.reputation = 50;
     const cash = s.cash;
     raiseRound(s, 0.1);
-    expect(s.cash - cash).toBeCloseTo(1_277_500_000, 0); // 10 % от $12,775 млрд
+    expect(s.cash - cash).toBeCloseTo(73_000_000, 0); // 10 % от $730 млн
   });
 
-  it('письмо: суммы в миллиардах, доля, срок до следующего раунда', () => {
+  it('письмо: суммы в миллионах, доля, срок до следующего раунда', () => {
     const s = newState(dateToDay('2024-06-01'));
     setDailyRevenue(s, 1_000_000);
     s.reputation = 50;
     raiseRound(s, 0.1);
     const body = s.mail[s.mail.length - 1].body;
-    expect(body).toContain('$12,8 млрд');
-    expect(body).toContain('$1,3 млрд');
+    expect(body).toContain('$730 млн');
+    expect(body).toContain('$73 млн');
     expect(body).toContain('10 % компании');
     expect(body).toContain('Доля основателя - 90 %');
-    expect(body).toContain('через 180 дн.');
+    expect(body).toContain('через 365 дн.');
   });
 
   it('доля основателя в письме с десятыми: 0,9 × 0,8 = 72 %, потом × 0,7 = 50,4 %', () => {
@@ -501,5 +512,103 @@ describe('raiseRound: подробности', () => {
     expect(s.finance.month.income.investors).toBeGreaterThan(0);
     expect(s.finance.month.income.api).toBe(0);
     expect(s.finance.month.income.contracts).toBe(0);
+  });
+});
+
+// ---------- Совет директоров и доля основателя ----------
+
+describe('план совета директоров (флаг boardPlan)', () => {
+  it('с флагом оценка × BOARD_PLAN_VALUATION_MULT, без флага - как обычно', () => {
+    const s = newState(dateToDay('2023-06-01'));
+    setDailyRevenue(s, 300_000);
+    const base = valuation(s);
+    expect(base.boardMult).toBe(1);
+    s.flags[BOARD_PLAN_FLAG] = true;
+    const cut = valuation(s);
+    expect(cut.boardMult).toBe(BOARD_PLAN_VALUATION_MULT);
+    expect(cut.total / base.total).toBeCloseTo(BOARD_PLAN_VALUATION_MULT, 9);
+    // Остальные части не трогает.
+    expect(cut.revenuePart).toBe(base.revenuePart);
+    expect(cut.hypeMult).toBe(base.hypeMult);
+  });
+
+  it('скидка действует на один раунд: после раунда флаг снят, следующая оценка полная', () => {
+    const s = newState(dateToDay('2023-06-01'));
+    setDailyRevenue(s, 300_000);
+    const full = valuation(s).total;
+    s.flags[BOARD_PLAN_FLAG] = true;
+    const cash = s.cash;
+    expect(raiseRound(s, 0.1)).toEqual({ ok: true });
+    expect(s.cash - cash).toBeCloseTo(full * BOARD_PLAN_VALUATION_MULT * 0.1, 2);
+    expect(s.flags[BOARD_PLAN_FLAG]).toBeUndefined();
+    expect(valuation(s).boardMult).toBe(1);
+  });
+});
+
+describe('выкуп доли у инвесторов', () => {
+  it('цена выкупа = оценка × доля выкупа × надбавка', () => {
+    const s = newState(dateToDay('2023-06-01'));
+    setDailyRevenue(s, 300_000);
+    expect(buybackCost(s)).toBeCloseTo(valuation(s).total * BOARD_BUYBACK_SHARE * BOARD_BUYBACK_PREMIUM, 6);
+  });
+
+  it('выкуп: деньги уходят накладными, доля основателя растёт, письмо', () => {
+    const s = newState(dateToDay('2023-06-01'));
+    s.founderShare = 0.45;
+    const cost = buybackCost(s);
+    const cash = s.cash;
+    buyBackShares(s);
+    expect(s.cash).toBeCloseTo(cash - cost, 6);
+    expect(s.finance.month.expense.overhead).toBeCloseTo(cost, 6);
+    expect(s.founderShare).toBeCloseTo(0.45 + BOARD_BUYBACK_SHARE, 12);
+    const mail = s.mail[s.mail.length - 1];
+    expect(mail.kind).toBe('finance');
+    expect(mail.title).toContain(`${Math.round(BOARD_BUYBACK_SHARE * 100)} %`);
+    expect(mail.body).toContain('55 %');
+  });
+
+  it('доля основателя не выше 100 %, денег может не хватить - счёт уходит в минус', () => {
+    const s = newState();
+    s.founderShare = 0.95;
+    s.cash = 0;
+    buyBackShares(s);
+    expect(s.founderShare).toBe(1);
+    expect(s.cash).toBeLessThan(0);
+  });
+});
+
+describe('предупреждение о доле основателя', () => {
+  const warnings = (s: GameState) => s.mail.filter((m) => m.kind === 'finance' && m.important && m.title.includes('Доля основателя'));
+
+  it('приходит один раз, когда доля падает ниже FOUNDER_WARN_SHARE', () => {
+    const s = newState();
+    raiseRound(s, 0.3); // 0,7
+    s.day += ROUND_COOLDOWN_DAYS;
+    raiseRound(s, 0.3); // 0,49
+    s.day += ROUND_COOLDOWN_DAYS;
+    raiseRound(s, 0.3); // 0,343
+    expect(warnings(s)).toHaveLength(0);
+    expect(s.flags[FOUNDER_WARNED_FLAG]).toBeUndefined();
+
+    s.day += ROUND_COOLDOWN_DAYS;
+    raiseRound(s, 0.3); // 0,24 < 0,25
+    expect(s.founderShare).toBeLessThan(FOUNDER_WARN_SHARE);
+    const [w] = warnings(s);
+    expect(w).toBeDefined();
+    expect(w.body).toContain('24 %');
+    expect(w.read).toBe(false);
+    expect(s.flags[FOUNDER_WARNED_FLAG]).toBe(true);
+
+    s.day += ROUND_COOLDOWN_DAYS;
+    raiseRound(s, 0.3); // 0,168 - повторного письма нет
+    expect(warnings(s)).toHaveLength(1);
+  });
+
+  it('ровно на границе письма нет', () => {
+    const s = newState();
+    s.founderShare = 0.3125; // после раунда 20 % доля станет ровно 0,25 (двоичная точность: 5/16 × 0,8)
+    raiseRound(s, 0.2);
+    expect(s.founderShare).toBe(FOUNDER_WARN_SHARE);
+    expect(warnings(s)).toHaveLength(0);
   });
 });

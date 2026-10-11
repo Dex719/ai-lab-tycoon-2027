@@ -379,3 +379,7 @@ table.grid td.num, table.grid th.num { text-align: right; }
 .legend { background: var(--plot); color: #d6d8dc; padding: 10px 12px; font-size: 14px; }
 .legend .r { display: flex; align-items: center; gap: 8px; justify-content: space-between; line-height: 1.8; }
 .legend .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+/* Подтверждение: сводка последствий списком «подпись - значение» */
+.confirm-body { display: flex; flex-direction: column; gap: 8px; }
+.confirm-body .kv { margin-top: 4px; }

@@ -1,12 +1,23 @@
-/* Окно «Контракты»: слева серая колонка со списком, справа белая карточка (как в Processor Tycoon). */
+/* Окно «Контракты»: вкладки сверху, слева серая колонка со списком, справа белая карточка (как в Processor Tycoon). */
 
-.ct { display: flex; height: 100%; min-height: 0; color: var(--text); }
+.ct { display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--text); }
+
+/* ---------- Вкладки «Тендеры» / «Мои контракты» ---------- */
+.ct-tabs {
+  flex: none; display: flex; gap: 22px; padding: 0 18px; overflow-x: auto;
+  background: var(--win-title); border-bottom: 1px solid var(--line);
+}
+.ct-tabs .tab { flex: none; font-variant-numeric: tabular-nums; }
+
+.ct-body { flex: 1; min-height: 0; display: flex; }
 
 /* ---------- Левая колонка ---------- */
 .ct-side {
-  flex: 0 0 272px; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px;
+  flex: 0 0 288px; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px;
   background: var(--win-body); border-right: 1px solid var(--line);
 }
+.ct-auto { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.ct-auto input { flex: none; margin: 0; }
 .ct-filter { display: grid; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 8px; }
 .ct-filter select { min-width: 0; }
 
@@ -24,7 +35,7 @@
 .ct-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .ct-item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .ct-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ct-item-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-dim); }
+.ct-item-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .ct-item .progress { height: 4px; margin-top: 4px; }
 .ct-item-end { flex: none; display: flex; align-items: center; gap: 6px; }
 .ct-item-end .ok { display: flex; color: var(--good); }
@@ -54,6 +65,8 @@
 .ct-col { min-width: 0; display: flex; flex-direction: column; gap: 10px; align-content: start; }
 .ct-h { margin: 0; font-size: 20px; font-weight: 300; color: #2a2c30; }
 .ct-col select { width: 100%; }
+/* Значения «подпись - значение» с большими числами («$12,5 млн», «1,2 тыс. H100e-дн.») не переносятся. */
+.ct-col .kv > :nth-child(even) { white-space: nowrap; }
 .ct-picked { height: 32px; display: flex; align-items: center; padding: 0 8px; background: var(--win-body); border: 1px solid var(--line); border-radius: 2px; }
 .ct-nomodel {
   display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 10px 12px;
@@ -66,7 +79,7 @@
 .ct-cmp-l { color: var(--text-dim); }
 
 .ct-bar-row { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 4px; color: var(--text-dim); }
-.ct-bar-row .v { color: var(--text); font-variant-numeric: tabular-nums; }
+.ct-bar-row .v { color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
 .ct-col .progress { height: 10px; }
 
 .ct-alerts { display: flex; flex-direction: column; gap: 6px; }

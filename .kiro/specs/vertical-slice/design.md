@@ -72,7 +72,7 @@ src/
 
 | id | Название | Реальный | Домен | Дата | g | Dif | S | Насыщение |
 |---|---|---|---|---|---|---|---|---|
-| squad | SQuAT | SQuAD 1.1 | language | 2016-06-16 | 0 | −30 | 21 | 91 |
+| squad | SQuAT | SQuAD 1.1 | language | 2016-06-16 | 0 | 0 | 21 | 91 |
 | glue | GLUU | GLUE | language | 2018-04-20 | 0,5 | 21,5 | 17 | 90 |
 | mmlu | MMLO | MMLU | language | 2020-09-07 | 0,25 | 62 | 11,3 | 90 |
 | humaneval | HumanEvol | HumanEval | code | 2021-07-07 | 0 | 73,4 | 5,2 | 90 |

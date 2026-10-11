@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { START_CASH } from '../sim/constants';
 import { formatDateShort } from '../sim/time';
-import { Dialog, ErrorText } from './components/common';
+import { ConfirmDialog, Dialog, ErrorText } from './components/common';
 import { fmtMoney } from './format';
 import { fmtRank } from './labels';
 import { deleteSlot, formatSavedAt, latestSlot, listSlots, MANUAL_SLOTS, type SlotId, type SlotInfo } from './saves';
@@ -96,14 +96,14 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
           <span className="good">{fmtMoney(START_CASH)}</span>
           <span>Конец партии</span>
           <span>31.12.2024</span>
-          <span>Цель</span>
-          <span>{fmtRank(1)} на «Арене»</span>
+          <span title="Победа: ваша модель первая по Эло среди моделей, которые продаются через API, 31.12.2024">Цель</span>
+          <span>{fmtRank(1)} среди моделей в продаже</span>
           <span>Соперники</span>
           <span>7 лабораторий</span>
         </div>
         <label className="row" style={{ gap: 8 }}>
           <input type="checkbox" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />
-          <span>Обучение для новичков</span>
+          <span>Обучение игре</span>
         </label>
         <button type="submit" className="btn primary wide" disabled={!valid}>
           Начать
@@ -129,7 +129,7 @@ function SlotRow({ slot, children }: { slot: SlotInfo; children: React.ReactNode
           <>
             <div className="t">{m.labName}</div>
             <div className="m">
-              {formatDateShort(m.day)} · {fmtMoney(m.cash)} · {m.arenaRank !== null ? `${fmtRank(m.arenaRank)} на «Арене»` : 'моделей на «Арене» нет'}
+              {formatDateShort(m.day)} · {fmtMoney(m.cash)} · {m.arenaRank !== null ? `${fmtRank(m.arenaRank)} в продаже` : 'моделей в продаже нет'}
             </div>
             <div className="m">Сохранено {formatSavedAt(m.savedAt)}</div>
           </>
@@ -145,10 +145,12 @@ function SlotRow({ slot, children }: { slot: SlotInfo; children: React.ReactNode
 /** Ячейки сохранений. mode='load' - загрузка (из меню и из игры), mode='save' - сохранение из игры. */
 export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose: () => void }) {
   const [slots, setSlots] = useState(listSlots);
-  const [confirm, setConfirm] = useState<SlotId | null>(null);
+  const [confirm, setConfirm] = useState<SlotId | null>(null); // перезапись при сохранении
+  const [del, setDel] = useState<SlotId | null>(null); // ячейка, удаление которой ждёт подтверждения
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<SlotId | null>(null);
   const visible = mode === 'save' ? slots.filter((s) => s.id !== 'auto') : slots;
+  const delSlot = del !== null ? (slots.find((x) => x.id === del) ?? null) : null;
 
   function load(id: SlotId) {
     const err = store.loadSlot(id);
@@ -169,7 +171,7 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
 
   function remove(id: SlotId) {
     deleteSlot(id);
-    setConfirm(null);
+    setDel(null);
     setSlots(listSlots());
   }
 
@@ -180,26 +182,12 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
           <SlotRow key={slot.id} slot={slot}>
             {mode === 'load' && slot.meta && (
               <>
-                {confirm === slot.id ? (
-                  <>
-                    <span className="small">Удалить?</span>
-                    <button className="btn small danger" onClick={() => remove(slot.id)}>
-                      Удалить
-                    </button>
-                    <button className="btn small" onClick={() => setConfirm(null)}>
-                      Отмена
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button className="btn small primary" onClick={() => load(slot.id)}>
-                      Загрузить
-                    </button>
-                    <button className="btn small danger" onClick={() => setConfirm(slot.id)}>
-                      Удалить
-                    </button>
-                  </>
-                )}
+                <button className="btn small primary" onClick={() => load(slot.id)}>
+                  Загрузить
+                </button>
+                <button className="btn small danger" onClick={() => setDel(slot.id)}>
+                  Удалить
+                </button>
               </>
             )}
             {mode === 'save' && MANUAL_SLOTS.includes(slot.id) && (
@@ -228,6 +216,23 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
       <div style={{ marginTop: 10 }}>
         <ErrorText error={error} />
       </div>
+      {del !== null && delSlot?.meta && (
+        // Подтверждение выводится поверх этого окна; Escape в нём не должен закрывать и список ячеек.
+        <span onKeyDown={(e) => e.stopPropagation()}>
+          <ConfirmDialog title="Удаление сохранения" confirmLabel="Удалить" danger onConfirm={() => remove(del)} onClose={() => setDel(null)}>
+            <div className="kv">
+              <span>Ячейка</span>
+              <span>{slotTitle(del)}</span>
+              <span>Лаборатория</span>
+              <span>{delSlot.meta.labName}</span>
+              <span>Дата в игре</span>
+              <span>{formatDateShort(delSlot.meta.day)}</span>
+              <span>Сохранено</span>
+              <span>{formatSavedAt(delSlot.meta.savedAt)}</span>
+            </div>
+          </ConfirmDialog>
+        </span>
+      )}
     </Dialog>
   );
 }

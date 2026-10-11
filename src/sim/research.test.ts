@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { GPUS } from '../data/gpus';
 import { setAllocation, setRent } from './compute';
-import { ALGO_BASE_COST, ALGO_COST_GROWTH, CONTEXT_BASE_COST, CONTEXT_COST_GROWTH, CONTEXT_LEVELS, RP_BASE, RP_K, TECH_COST } from './constants';
+import {
+  ALGO_BASE_COST,
+  ALGO_COST_GROWTH,
+  CONTEXT_BASE_COST,
+  CONTEXT_COST_GROWTH,
+  CONTEXT_LEVELS,
+  EARLY_PENALTY_PER_YEAR,
+  RP_BASE,
+  RP_K,
+  TECH_COST,
+} from './constants';
 import { addModifier, FOREVER } from './events';
 import {
   canResearch,
@@ -107,15 +117,20 @@ describe('techCost', () => {
     expect(techCost(s, 'algo')).toBe(10_000);
   });
 
-  it('раньше исторической даты дороже: × (1 + 2,5 × лет опережения)', () => {
+  it('раньше исторической даты дороже: × (1 + k × лет опережения), у RLHF k = 10, у остальных 2,5', () => {
+    expect(EARLY_PENALTY_PER_YEAR).toEqual({ attention: 2.5, scaling: 2.5, rlhf: 10, algo: 2.5, context: 2.5 });
     const s = createInitialState('Тест', 1);
     s.day = dateToDay('2021-01-27'); // RLHF - за год до InstructGTP (27.01.2022)
-    expect(earlyPenalty(s, 'rlhf')).toBeCloseTo(1 + 2.5 * (365 / 365), 6);
-    expect(techCost(s, 'rlhf')).toBeCloseTo(30_000 * 3.5, 6);
+    expect(earlyPenalty(s, 'rlhf')).toBeCloseTo(1 + 10 * (365 / 365), 6);
+    expect(techCost(s, 'rlhf')).toBeCloseTo(30_000 * 11, 6);
     s.day = dateToDay('2022-01-27');
     expect(techCost(s, 'rlhf')).toBe(30_000);
     s.day = dateToDay('2023-01-01');
     expect(techCost(s, 'rlhf')).toBe(30_000); // позже - без скидки
+
+    s.day = dateToDay('2019-01-23'); // масштабирование - за год до 23.01.2020
+    expect(earlyPenalty(s, 'scaling')).toBeCloseTo(3.5, 6);
+    expect(techCost(s, 'scaling')).toBeCloseTo(15_000 * 3.5, 6);
   });
 
   it('алгоритмы: k-й уровень «исторически» через k × 243 дня от 01.01.2017', () => {

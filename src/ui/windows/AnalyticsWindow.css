@@ -60,6 +60,9 @@
 .an-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .an-key { display: inline-flex; align-items: center; color: var(--text-dim); font-size: 13px; }
 .an-key b { margin-right: 6px; font-weight: 600; color: var(--text); }
+/* Условное обозначение «не в продаже» в «Арене»: образец пометки и её смысл. */
+.an-key .est { margin-right: 6px; }
+.an-key-s { color: var(--text-dim); }
 
 /* Предупреждение (Alert) над таблицей или под ней. */
 .an-page .alert { margin-bottom: 8px; }

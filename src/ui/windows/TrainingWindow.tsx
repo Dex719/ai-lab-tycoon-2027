@@ -28,7 +28,7 @@ import { CONTEXT_MAX_LEVEL, contextLabel, maxContext } from '../../sim/research'
 import { archFor, chinchillaFactor, contextFlopMult, estimate, labelersCost } from '../../sim/training';
 import { DOMAINS } from '../../sim/types';
 import type { BenchmarkId, DomainId, GameState, TrainingPlan, TrainingRun } from '../../sim/types';
-import { Alert, ErrorText, ProgressBar, Range } from '../components/common';
+import { Alert, ConfirmDialog, ErrorText, ProgressBar, Range } from '../components/common';
 import { endSentence, fmtCardDays, fmtElo, fmtMoney, fmtNum, fmtParams, fmtPct, fmtTokens } from '../format';
 import { IconLock } from '../icons';
 import { actions, store } from '../store';
@@ -274,6 +274,7 @@ function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
   const eta = perDay > 0 ? Math.max(1, Math.ceil(left / perDay)) : null;
   const late = eta !== null && s.day + eta > END_DAY;
   const waiting = awaitingEvent(s, 'training-fail');
+  const labelers = labelersCost(p); // оплачены при старте, при отмене не возвращаются
   const targets = p.benchShare > 0 ? p.benchTargets.map((b) => benchDef(b).name).join(', ') : '';
   const summary = [
     archName(t.arch),
@@ -321,17 +322,29 @@ function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
         </div>
       </div>
       <div className="nm-run-act">
-        {confirm ? (
-          <>
-            <span className="nm-run-ask">Вычисления и оплата разметчиков не возвращаются.</span>
-            <button className="btn danger small" onClick={cancel}>Отменить проект</button>
-            <button className="btn small" onClick={() => setConfirm(false)}>Оставить</button>
-          </>
-        ) : (
-          <button className="btn danger small" onClick={() => setConfirm(true)}>Отменить</button>
-        )}
+        <button className="btn danger small" onClick={() => setConfirm(true)}>
+          Отменить
+        </button>
         <ErrorText error={err} />
       </div>
+      {confirm && (
+        <ConfirmDialog title="Отмена обучения" confirmLabel="Отменить проект" danger onConfirm={cancel} onClose={() => setConfirm(false)}>
+          <div className="kv">
+            <span>Проект</span>
+            <span>{p.name}</span>
+            <span>Готово</span>
+            <span>{fmtPct(frac * 100)}</span>
+            <span title="Выполненные вычисления пропадают: новый проект начнётся с нуля">Теряется вычислений</span>
+            <span>{fmtCardDays(t.flopDone / TRAIN_FLOP_PER_H100E_DAY)} H100e-дн.</span>
+            {labelers > 0 && (
+              <>
+                <span title="Разметчикам заплатили при старте: деньги не возвращаются">Разметчики, не возвращаются</span>
+                <span>{fmtMoney(labelers)}</span>
+              </>
+            )}
+          </div>
+        </ConfirmDialog>
+      )}
     </div>
   );
 }

@@ -8,13 +8,15 @@ import {
   normalizeAlloc,
   pool,
   rentCapFor,
+  rentCostPerDay,
+  rentMaxFor,
   rentPerDay,
   rentPerGpuDay,
   setAllocation,
   setRent,
   totalH100e,
 } from './compute';
-import { DEFAULT_ALLOC } from './constants';
+import { DEFAULT_ALLOC, RENT_HARD_CAP_MULT, RENT_OVER_CAP_MULT } from './constants';
 import { addModifier, FOREVER } from './events';
 import { createInitialState } from './state';
 import { dateToDay } from './time';
@@ -181,6 +183,57 @@ describe('лимит аренды', () => {
     addModifier(s, { id: 'ban', kind: 'rentCap', target: 'h100', mult: 0.5, untilDay: FOREVER });
     expect(rentCapFor(s, 'h100')).toBe(32_768 / 2);
     expect(rentCapFor(s, 'a100')).toBe(32_768);
+  });
+});
+
+describe('мягкий лимит аренды', () => {
+  it('потолок = RENT_HARD_CAP_MULT × лимит, модификатор rentCap двигает и его', () => {
+    expect(RENT_HARD_CAP_MULT).toBe(4);
+    expect(rentMaxFor(stateAt('2017-01-01'), 'p100')).toBe(512 * 4);
+    expect(rentMaxFor(stateAt('2024-12-31'), 'h100')).toBe(65_536 * 4);
+    const s = stateAt('2017-06-01');
+    addModifier(s, { id: 'cap', kind: 'rentCap', mult: 0.5, untilDay: FOREVER });
+    expect(rentCapFor(s, 'p100')).toBe(256);
+    expect(rentMaxFor(s, 'p100')).toBe(1024);
+  });
+
+  it('до лимита карты по обычной цене, сверх лимита - × RENT_OVER_CAP_MULT', () => {
+    expect(RENT_OVER_CAP_MULT).toBeCloseTo(1.8, 9);
+    const s = stateAt('2018-05-01'); // лимит 1024
+    const price = dayRentOf('p100', 2018);
+    expect(rentCostPerDay(s, 'p100', 0)).toBe(0);
+    expect(rentCostPerDay(s, 'p100', 100)).toBeCloseTo(100 * price, 6);
+    expect(rentCostPerDay(s, 'p100', 1024)).toBeCloseTo(1024 * price, 6);
+    expect(rentCostPerDay(s, 'p100', 1025)).toBeCloseTo(1024 * price + 1 * price * RENT_OVER_CAP_MULT, 6);
+    expect(rentCostPerDay(s, 'p100', 2048)).toBeCloseTo(1024 * price + 1024 * price * RENT_OVER_CAP_MULT, 6);
+    // Кривое число карт (минус, NaN) ничего не стоит.
+    expect(rentCostPerDay(s, 'p100', -5)).toBe(0);
+    expect(rentCostPerDay(s, 'p100', Number.NaN)).toBe(0);
+  });
+
+  it('надбавка учитывает модификаторы цены и лимита', () => {
+    const s = stateAt('2018-05-01');
+    addModifier(s, { id: 'price', kind: 'rentPrice', mult: 2, untilDay: FOREVER });
+    addModifier(s, { id: 'cap', kind: 'rentCap', mult: 0.5, untilDay: FOREVER }); // лимит 512
+    const price = dayRentOf('p100', 2018) * 2;
+    expect(rentCostPerDay(s, 'p100', 600)).toBeCloseTo(512 * price + 88 * price * RENT_OVER_CAP_MULT, 6);
+  });
+
+  it('rentPerDay складывает стоимость с надбавкой по каждому типу', () => {
+    const s = stateAt('2018-05-01'); // лимит 1024
+    s.compute.rented.p100 = 1500;
+    s.compute.rented.v100 = 10;
+    const expected = rentCostPerDay(s, 'p100', 1500) + rentCostPerDay(s, 'v100', 10);
+    expect(rentPerDay(s)).toBeCloseTo(expected, 6);
+    expect(rentPerDay(s)).toBeGreaterThan(1500 * dayRentOf('p100', 2018) + 10 * dayRentOf('v100', 2018));
+  });
+
+  it('setRent принимает число между лимитом и потолком', () => {
+    const s = stateAt('2018-05-01'); // лимит 1024, потолок 4096
+    expect(setRent(s, 'p100', 1025)).toEqual({ ok: true });
+    expect(setRent(s, 'p100', 4096)).toEqual({ ok: true });
+    expect(setRent(s, 'p100', 4097).ok).toBe(false);
+    expect(s.compute.rented.p100).toBe(4096);
   });
 });
 
@@ -362,28 +415,28 @@ describe('setRent', () => {
     expect(s.cash).toBe(cash);
   });
 
-  it('лимит считается отдельно на каждый тип', () => {
-    const s = stateAt('2018-05-01'); // лимит 1024 на тип
-    expect(setRent(s, 'p100', 1024)).toEqual({ ok: true });
-    expect(setRent(s, 'v100', 1024)).toEqual({ ok: true });
-    expect(setRent(s, 'v100', 1025).ok).toBe(false);
+  it('потолок считается отдельно на каждый тип', () => {
+    const s = stateAt('2018-05-01'); // лимит 1024 на тип, потолок 4096
+    expect(setRent(s, 'p100', 4096)).toEqual({ ok: true });
+    expect(setRent(s, 'v100', 4096)).toEqual({ ok: true });
+    expect(setRent(s, 'v100', 4097).ok).toBe(false);
   });
 
-  it('текст ошибки лимита: имя GPU и лимит цифрами без пробелов', () => {
+  it('текст ошибки потолка: имя GPU и потолок цифрами без пробелов', () => {
     const s = createInitialState('Тест', 1);
-    expect(setRent(s, 'p100', 513)).toEqual({ ok: false, error: 'Лимит аренды Fermi P100 в этом году - 512 шт.' });
+    expect(setRent(s, 'p100', 2049)).toEqual({ ok: false, error: 'Потолок аренды Fermi P100 в этом году - 2048 шт.' });
     s.day = dateToDay('2024-12-31');
-    expect(setRent(s, 'h100', 65_537)).toEqual({ ok: false, error: 'Лимит аренды Fermi H100 в этом году - 65536 шт.' });
-    expect(setRent(s, 'h100', 65_536)).toEqual({ ok: true });
+    expect(setRent(s, 'h100', 262_145)).toEqual({ ok: false, error: 'Потолок аренды Fermi H100 в этом году - 262144 шт.' });
+    expect(setRent(s, 'h100', 262_144)).toEqual({ ok: true });
   });
 
-  it('модификатор rentCap уменьшает допустимое число, и ошибка называет новый лимит', () => {
+  it('модификатор rentCap уменьшает допустимое число, и ошибка называет новый потолок', () => {
     const s = stateAt('2017-06-01');
-    addModifier(s, { id: 'shortage', kind: 'rentCap', mult: 0.5, untilDay: FOREVER });
-    const r = setRent(s, 'p100', 300);
+    addModifier(s, { id: 'shortage', kind: 'rentCap', mult: 0.5, untilDay: FOREVER }); // лимит 256, потолок 1024
+    const r = setRent(s, 'p100', 1100);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toContain('256');
-    expect(setRent(s, 'p100', 256)).toEqual({ ok: true });
+    if (!r.ok) expect(r.error).toContain('1024');
+    expect(setRent(s, 'p100', 1024)).toEqual({ ok: true });
   });
 
   it('недоступный тип отклоняется раньше, чем проверяется лимит', () => {
@@ -397,27 +450,27 @@ describe('setRent', () => {
     expect(s.compute.rented.h100).toBe(0);
   });
 
-  it('выше лимита - ошибка с числом лимита; ровно лимит - можно', () => {
+  it('выше потолка - ошибка с числом потолка; ровно потолок - можно', () => {
     const s = createInitialState('Тест', 1);
-    const r = setRent(s, 'p100', 513);
+    const r = setRent(s, 'p100', 2049);
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error).toContain('512');
+    if (!r.ok) expect(r.error).toContain('2048');
     expect(s.compute.rented.p100).toBe(0);
-    expect(setRent(s, 'p100', 512)).toEqual({ ok: true });
-    expect(s.compute.rented.p100).toBe(512);
+    expect(setRent(s, 'p100', 2048)).toEqual({ ok: true });
+    expect(s.compute.rented.p100).toBe(2048);
   });
 
-  it('лимит растёт вместе с годом', () => {
+  it('потолок растёт вместе с годом', () => {
     const s = createInitialState('Тест', 1);
-    expect(setRent(s, 'p100', 1000).ok).toBe(false);
+    expect(setRent(s, 'p100', 3000).ok).toBe(false);
     s.day = dateToDay('2018-01-01');
-    expect(setRent(s, 'p100', 1000).ok).toBe(true);
+    expect(setRent(s, 'p100', 3000).ok).toBe(true);
   });
 
-  it('уменьшать можно всегда, даже когда лимит упал ниже текущего числа', () => {
+  it('уменьшать можно всегда, даже когда потолок упал ниже текущего числа', () => {
     const s = stateAt('2023-06-01');
     expect(setRent(s, 'h100', 1000)).toEqual({ ok: true });
-    addModifier(s, { id: 'ban', kind: 'rentCap', mult: 0.01, untilDay: FOREVER }); // лимит 327
+    addModifier(s, { id: 'ban', kind: 'rentCap', mult: 0.001, untilDay: FOREVER }); // лимит 32, потолок 128
     expect(setRent(s, 'h100', 1200).ok).toBe(false); // увеличивать нельзя
     expect(setRent(s, 'h100', 1000)).toEqual({ ok: true }); // оставить как есть можно
     expect(setRent(s, 'h100', 500)).toEqual({ ok: true }); // уменьшить можно

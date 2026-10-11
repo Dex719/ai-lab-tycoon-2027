@@ -105,9 +105,9 @@ export function yearsEarly(s: GameState, tech: TechId): number {
   return Math.max(0, (techHistoryDay(s, tech) - s.day) / 365);
 }
 
-/** Множитель цены за опережение истории: 1 + EARLY_PENALTY_PER_YEAR × лет. */
+/** Множитель цены за опережение истории: 1 + EARLY_PENALTY_PER_YEAR[tech] × лет (у RLHF надбавка выше). */
 export function earlyPenalty(s: GameState, tech: TechId): number {
-  return 1 + EARLY_PENALTY_PER_YEAR * yearsEarly(s, tech);
+  return 1 + (EARLY_PENALTY_PER_YEAR[tech] ?? 0) * yearsEarly(s, tech);
 }
 
 /**
