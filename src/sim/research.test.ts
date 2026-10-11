@@ -1,0 +1,472 @@
+import { describe, expect, it } from 'vitest';
+import { setAllocation, setRent } from './compute';
+import { ALGO_BASE_COST, ALGO_COST_GROWTH, RP_BASE, RP_K, TECH_COST } from './constants';
+import { addModifier, FOREVER } from './events';
+import { canResearch, progressDay, researchBlockReason, rpPerDay, setResearch, TECHS, techCost } from './research';
+import { createInitialState } from './state';
+import { dateToDay } from './time';
+import type { GameState, TechId } from './types';
+import { TECH_IDS } from './types';
+
+/** Новая игра с мощностью, полностью отданной экспериментам. */
+function labWithExperiments(p100: number): GameState {
+  const s = createInitialState('Тест', 1);
+  setRent(s, 'p100', p100);
+  setAllocation(s, { training: 0, contracts: 0, experiments: 1, inference: 0 });
+  return s;
+}
+
+/** Один игровой день без всего остального: исследование, затем день +1. */
+function researchDay(s: GameState): void {
+  progressDay(s);
+  s.day += 1;
+}
+
+const researchMail = (s: GameState) => s.mail.filter((m) => m.kind === 'research');
+
+describe('каталог технологий', () => {
+  it('четыре технологии в порядке показа с русскими названиями', () => {
+    expect(TECHS.map((t) => t.id)).toEqual(['attention', 'scaling', 'rlhf', 'algo']);
+    expect(TECHS.map((t) => t.id)).toEqual([...TECH_IDS]);
+    expect(TECHS.map((t) => t.name)).toEqual([
+      'Механизм внимания',
+      'Законы масштабирования',
+      'Обучение на отзывах людей (RLHF)',
+      'Алгоритмические улучшения',
+    ]);
+    for (const t of TECHS) expect(t.description.length).toBeGreaterThan(20);
+  });
+});
+
+describe('techCost', () => {
+  it('базовые цены из констант', () => {
+    const s = createInitialState('Тест', 1);
+    expect(techCost(s, 'attention')).toBe(4000);
+    expect(techCost(s, 'scaling')).toBe(15_000);
+    expect(techCost(s, 'rlhf')).toBe(30_000);
+    expect(techCost(s, 'attention')).toBe(TECH_COST.attention);
+  });
+
+  it('algo: 5000 × 1,6^уровень', () => {
+    const s = createInitialState('Тест', 1);
+    expect(techCost(s, 'algo')).toBe(5000);
+    s.research.algoLevel = 1;
+    expect(techCost(s, 'algo')).toBeCloseTo(8000, 6);
+    s.research.algoLevel = 2;
+    expect(techCost(s, 'algo')).toBeCloseTo(12_800, 6);
+    s.research.algoLevel = 4;
+    expect(techCost(s, 'algo')).toBeCloseTo(ALGO_BASE_COST * ALGO_COST_GROWTH ** 4, 6);
+  });
+
+  it('модификатор researchCost с target меняет цену только этой технологии', () => {
+    const s = createInitialState('Тест', 1);
+    addModifier(s, { id: 'paper', kind: 'researchCost', target: 'attention', mult: 0.4, untilDay: FOREVER });
+    expect(techCost(s, 'attention')).toBeCloseTo(1600, 9);
+    expect(techCost(s, 'scaling')).toBe(15_000);
+    expect(techCost(s, 'algo')).toBe(5000);
+  });
+
+  it('общий модификатор researchCost действует на все технологии', () => {
+    const s = createInitialState('Тест', 1);
+    addModifier(s, { id: 'boom', kind: 'researchCost', mult: 2, untilDay: FOREVER });
+    expect(techCost(s, 'scaling')).toBe(30_000);
+    expect(techCost(s, 'algo')).toBe(10_000);
+  });
+});
+
+describe('rpPerDay', () => {
+  it('без мощности — только базовая работа команды', () => {
+    expect(rpPerDay(createInitialState('Тест', 1))).toBe(RP_BASE);
+  });
+
+  it('10 + 25 × sqrt(мощность экспериментов)', () => {
+    const s = labWithExperiments(105); // 105 × 0,019 ≈ 2 H100e
+    expect(rpPerDay(s)).toBeCloseTo(RP_BASE + RP_K * Math.sqrt(105 * 0.019), 9);
+  });
+
+  it('учитывает только долю «Эксперименты»', () => {
+    const s = labWithExperiments(105);
+    setAllocation(s, { training: 1, contracts: 0, experiments: 0, inference: 0 });
+    expect(rpPerDay(s)).toBe(RP_BASE);
+  });
+
+  it('отдача убывает: в 4 раза больше мощности — лишь вдвое больше сверх базы', () => {
+    const a = rpPerDay(labWithExperiments(100)) - RP_BASE;
+    const b = rpPerDay(labWithExperiments(400)) - RP_BASE;
+    expect(b / a).toBeCloseTo(2, 9);
+  });
+
+  it('опорное число: 105 P100 (≈ 2 H100e) на эксперименты дают ≈ 45,3 очка в день', () => {
+    expect(rpPerDay(labWithExperiments(105))).toBeCloseTo(45.3, 1);
+  });
+
+  it('половина мощности на эксперименты: корень считается от доли, а не от всей мощности', () => {
+    const s = labWithExperiments(105);
+    setAllocation(s, { training: 0.5, contracts: 0, experiments: 0.5, inference: 0 });
+    expect(rpPerDay(s)).toBeCloseTo(10 + 25 * Math.sqrt(105 * 0.019 * 0.5), 9);
+  });
+
+  it('кривая доля (минус или NaN) не даёт NaN и не ломает очки', () => {
+    const s = labWithExperiments(105);
+    s.compute.alloc.experiments = Number.NaN;
+    expect(rpPerDay(s)).toBe(RP_BASE);
+    s.compute.alloc.experiments = -0.5;
+    expect(rpPerDay(s)).toBe(RP_BASE);
+  });
+});
+
+describe('требования и выбор исследования', () => {
+  it('без «Механизма внимания» нельзя взять масштабирование и RLHF', () => {
+    const s = createInitialState('Тест', 1);
+    expect(canResearch(s, 'attention')).toBe(true);
+    expect(canResearch(s, 'scaling')).toBe(false);
+    expect(canResearch(s, 'rlhf')).toBe(false);
+    expect(canResearch(s, 'algo')).toBe(true);
+
+    for (const tech of ['scaling', 'rlhf'] as const) {
+      const r = setResearch(s, tech);
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.error).toContain('Механизм внимания');
+    }
+    expect(s.research.current).toBeNull();
+  });
+
+  it('тексты отказов: что именно изучить сначала и что уже изучено', () => {
+    const s = createInitialState('Тест', 1);
+    expect(setResearch(s, 'scaling')).toEqual({ ok: false, error: 'Сначала изучите: Механизм внимания' });
+    expect(setResearch(s, 'rlhf')).toEqual({ ok: false, error: 'Сначала изучите: Механизм внимания' });
+    expect(researchBlockReason(s, 'attention')).toBeNull();
+    expect(researchBlockReason(s, 'algo')).toBeNull();
+
+    s.research.done.push('attention');
+    expect(setResearch(s, 'attention')).toEqual({ ok: false, error: 'Это исследование уже завершено' });
+    expect(researchBlockReason(s, 'attention')).toBe('Это исследование уже завершено');
+  });
+
+  it('отказ не меняет ни текущее исследование, ни очки', () => {
+    const s = labWithExperiments(105);
+    setResearch(s, 'attention');
+    researchDay(s);
+    const before = JSON.stringify(s.research);
+    expect(setResearch(s, 'scaling').ok).toBe(false);
+    expect(setResearch(s, 'bogus' as TechId).ok).toBe(false);
+    expect(JSON.stringify(s.research)).toBe(before);
+    expect(s.research.current).toBe('attention');
+  });
+
+  it('неизвестное исследование — отказ, а не падение', () => {
+    const s = createInitialState('Тест', 1);
+    expect(setResearch(s, 'bogus' as TechId)).toEqual({ ok: false, error: 'Нет такого исследования' });
+    expect(canResearch(s, 'bogus' as TechId)).toBe(false);
+    s.research.current = 'bogus' as TechId;
+    expect(() => progressDay(s)).not.toThrow();
+    expect(s.research.current).toBeNull();
+  });
+
+  it('цепочка на настоящем ходу: изучили внимание — тут же открылись масштабирование и RLHF', () => {
+    const s = createInitialState('Тест', 1);
+    setResearch(s, 'attention');
+    s.research.points.attention = techCost(s, 'attention');
+    progressDay(s);
+    expect(s.research.done).toEqual(['attention']);
+    expect(setResearch(s, 'scaling')).toEqual({ ok: true });
+    expect(setResearch(s, 'rlhf')).toEqual({ ok: true });
+    expect(s.research.current).toBe('rlhf');
+  });
+
+  it('после «Механизма внимания» масштабирование и RLHF открываются', () => {
+    const s = createInitialState('Тест', 1);
+    s.research.done.push('attention');
+    expect(canResearch(s, 'scaling')).toBe(true);
+    expect(canResearch(s, 'rlhf')).toBe(true);
+    expect(setResearch(s, 'rlhf')).toEqual({ ok: true });
+    expect(s.research.current).toBe('rlhf');
+  });
+
+  it('изученное нельзя взять снова, кроме algo', () => {
+    const s = createInitialState('Тест', 1);
+    s.research.done.push('attention', 'scaling');
+    expect(canResearch(s, 'attention')).toBe(false);
+    const r = setResearch(s, 'attention');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.length).toBeGreaterThan(0);
+    expect(canResearch(s, 'algo')).toBe(true);
+    expect(setResearch(s, 'algo')).toEqual({ ok: true });
+  });
+
+  it('null останавливает исследование, очки сохраняются', () => {
+    const s = labWithExperiments(105);
+    setResearch(s, 'attention');
+    researchDay(s);
+    researchDay(s);
+    const saved = s.research.points.attention;
+    expect(saved).toBeGreaterThan(0);
+
+    expect(setResearch(s, null)).toEqual({ ok: true });
+    expect(s.research.current).toBeNull();
+    expect(s.research.points.attention).toBe(saved);
+
+    researchDay(s); // ничего не выбрано — очки не растут
+    expect(s.research.points.attention).toBe(saved);
+
+    setResearch(s, 'attention');
+    expect(s.research.points.attention).toBe(saved);
+  });
+
+  it('очки другой технологии не теряются при переключении', () => {
+    const s = labWithExperiments(105);
+    s.research.done.push('attention');
+    setResearch(s, 'scaling');
+    researchDay(s);
+    const scalingPoints = s.research.points.scaling;
+    setResearch(s, 'algo');
+    researchDay(s);
+    expect(s.research.points.scaling).toBe(scalingPoints);
+    expect(s.research.points.algo).toBeGreaterThan(0);
+  });
+});
+
+describe('progressDay', () => {
+  it('без текущего исследования ничего не меняет', () => {
+    const s = labWithExperiments(105);
+    const before = JSON.stringify(s);
+    progressDay(s);
+    expect(JSON.stringify(s)).toBe(before);
+  });
+
+  it('прибавляет rpPerDay к текущей технологии', () => {
+    const s = labWithExperiments(105);
+    setResearch(s, 'attention');
+    const rp = rpPerDay(s);
+    progressDay(s);
+    expect(s.research.points.attention).toBeCloseTo(rp, 9);
+    expect(s.research.points.scaling).toBe(0);
+    expect(researchMail(s)).toHaveLength(0);
+  });
+
+  it('по достижении цены технология изучена, письмо «research», выбор снят', () => {
+    const s = createInitialState('Тест', 1);
+    setResearch(s, 'attention');
+    s.research.points.attention = techCost(s, 'attention') - 1;
+    progressDay(s);
+
+    expect(s.research.done).toEqual(['attention']);
+    expect(s.research.current).toBeNull();
+    const mails = researchMail(s);
+    expect(mails).toHaveLength(1);
+    expect(mails[0].title).toContain('Механизм внимания');
+    expect(mails[0].body).toContain('Трансформер');
+    expect(mails[0].read).toBe(false);
+  });
+
+  it('письма о масштабировании и RLHF называют эффект', () => {
+    const s = createInitialState('Тест', 1);
+    s.research.done.push('attention');
+
+    setResearch(s, 'scaling');
+    s.research.points.scaling = techCost(s, 'scaling');
+    progressDay(s);
+    setResearch(s, 'rlhf');
+    s.research.points.rlhf = techCost(s, 'rlhf');
+    progressDay(s);
+
+    expect(s.research.done).toEqual(['attention', 'scaling', 'rlhf']);
+    const [scaling, rlhf] = researchMail(s);
+    expect(scaling.title).toContain('Законы масштабирования');
+    expect(scaling.body).toContain('прогноз');
+    expect(rlhf.title).toContain('RLHF');
+    expect(rlhf.body).toContain('RLHF-тендеры');
+  });
+
+  it('скидка на «Механизм внимания» учитывается сразу', () => {
+    const s = createInitialState('Тест', 1);
+    setResearch(s, 'attention');
+    s.research.points.attention = 2000;
+    progressDay(s);
+    expect(s.research.done).toEqual([]); // цена пока 4000
+    addModifier(s, { id: 'paper', kind: 'researchCost', target: 'attention', mult: 0.4, untilDay: FOREVER });
+    progressDay(s);
+    expect(s.research.done).toEqual(['attention']); // цена стала 1600
+  });
+
+  it('кривое состояние: нельзя вести то, что ещё не открыто', () => {
+    const s = labWithExperiments(105);
+    s.research.current = 'scaling'; // внимание не изучено
+    progressDay(s);
+    expect(s.research.current).toBeNull();
+    expect(s.research.points.scaling).toBe(0);
+  });
+
+  it('кривое состояние: уже изученное не ведётся, очки и письма не растут', () => {
+    const s = labWithExperiments(105);
+    s.research.done.push('attention');
+    s.research.current = 'attention';
+    progressDay(s);
+    expect(s.research.current).toBeNull();
+    expect(s.research.points.attention).toBe(0);
+    expect(s.research.done).toEqual(['attention']);
+    expect(researchMail(s)).toHaveLength(0);
+  });
+
+  it('граница цены: не хватает чуть-чуть — не готово, хватает ровно — готово', () => {
+    const s = createInitialState('Тест', 1);
+    const rp = rpPerDay(s);
+    setResearch(s, 'attention');
+    s.research.points.attention = techCost(s, 'attention') - rp - 0.5;
+    progressDay(s);
+    expect(s.research.done).toEqual([]);
+    expect(s.research.current).toBe('attention');
+
+    s.research.points.attention = techCost(s, 'attention') - rp;
+    progressDay(s);
+    expect(s.research.done).toEqual(['attention']);
+  });
+
+  it('за один день завершается не больше одной технологии, избыток очков не переносится', () => {
+    const s = createInitialState('Тест', 1);
+    s.research.done.push('attention');
+    setResearch(s, 'scaling');
+    s.research.points.scaling = 1e9;
+    s.research.points.rlhf = 1e9;
+    progressDay(s);
+    expect(s.research.done).toEqual(['attention', 'scaling']);
+    expect(s.research.current).toBeNull();
+    expect(researchMail(s)).toHaveLength(1);
+  });
+
+  it('письмо приходит в день завершения и сразу непрочитанное', () => {
+    const s = createInitialState('Тест', 1);
+    s.day = 88;
+    setResearch(s, 'attention');
+    s.research.points.attention = 1e9;
+    progressDay(s);
+    const [mail] = researchMail(s);
+    expect(mail.day).toBe(88);
+    expect(mail.read).toBe(false);
+    expect(mail.choices).toBeUndefined();
+  });
+
+  it('без модификаторов и при одинаковом состоянии ход даёт один и тот же результат', () => {
+    const run = () => {
+      const s = labWithExperiments(105);
+      setResearch(s, 'attention');
+      for (let i = 0; i < 120; i++) researchDay(s);
+      return JSON.stringify(s);
+    };
+    expect(run()).toBe(run());
+  });
+});
+
+describe('алгоритмические улучшения повторяются', () => {
+  it('уровень растёт, очки обнуляются, исследование продолжается, цена дорожает', () => {
+    const s = createInitialState('Тест', 1);
+    setResearch(s, 'algo');
+
+    const costs: number[] = [];
+    for (let level = 0; level < 4; level++) {
+      costs.push(techCost(s, 'algo'));
+      s.research.points.algo = techCost(s, 'algo');
+      progressDay(s);
+      expect(s.research.algoLevel).toBe(level + 1);
+      expect(s.research.points.algo).toBe(0);
+      expect(s.research.current).toBe('algo');
+      expect(s.research.done).not.toContain('algo');
+    }
+    expect(costs[0]).toBe(5000);
+    for (let i = 1; i < costs.length; i++) expect(costs[i]).toBeCloseTo(costs[i - 1] * 1.6, 6);
+
+    const mails = researchMail(s);
+    expect(mails).toHaveLength(4);
+    expect(mails[0].title).toContain('уровень 1');
+    expect(mails[3].title).toContain('уровень 4');
+    expect(mails[0].body).toContain('1,25');
+    expect(mails[1].body).toContain('1,56'); // 1,25² ≈ 1,5625
+    expect(mails[2].body).toContain('1,95'); // 1,25³ ≈ 1,953
+    expect(mails[3].body).toContain('2,44'); // 1,25⁴ ≈ 2,441
+    for (const m of mails) expect(m.body).not.toMatch(/\d\.\d/); // в числах запятая, не точка
+  });
+
+  it('algo не требует «Механизма внимания» и не попадает в изученные', () => {
+    const s = createInitialState('Тест', 1);
+    expect(setResearch(s, 'algo')).toEqual({ ok: true });
+    s.research.points.algo = techCost(s, 'algo');
+    progressDay(s);
+    expect(s.research.algoLevel).toBe(1);
+    expect(s.research.done).toEqual([]);
+    expect(canResearch(s, 'algo')).toBe(true);
+  });
+
+  it('очки algo не переносятся в следующий уровень (по JSDoc — сброс в 0)', () => {
+    const s = createInitialState('Тест', 1);
+    setResearch(s, 'algo');
+    s.research.points.algo = 1e9;
+    progressDay(s);
+    expect(s.research.algoLevel).toBe(1);
+    expect(s.research.points.algo).toBe(0);
+  });
+
+  it('реальный ход: уровень 1 за 5000 очков, затем уровень 2 дольше', () => {
+    const s = labWithExperiments(105);
+    setResearch(s, 'algo');
+    const rp = rpPerDay(s);
+
+    let days = 0;
+    while (s.research.algoLevel < 1 && days < 1000) {
+      researchDay(s);
+      days++;
+    }
+    expect(s.research.algoLevel).toBe(1);
+    expect(days).toBe(Math.ceil(5000 / rp));
+
+    let days2 = 0;
+    while (s.research.algoLevel < 2 && days2 < 1000) {
+      researchDay(s);
+      days2++;
+    }
+    expect(s.research.algoLevel).toBe(2);
+    expect(days2).toBe(Math.ceil(8000 / rp));
+    expect(days2).toBeGreaterThan(days);
+  });
+});
+
+describe('опорный сценарий: внимание успеть до 12.06.2017', () => {
+  it('2 H100e (105 P100) на эксперименты с первого дня — готово до 12.06.2017', () => {
+    const s = createInitialState('Тест', 1);
+    expect(setRent(s, 'p100', 105)).toEqual({ ok: true });
+    expect(setAllocation(s, { training: 0, contracts: 0, experiments: 1, inference: 0 })).toEqual({ ok: true });
+    expect(setResearch(s, 'attention')).toEqual({ ok: true });
+
+    const deadline = dateToDay('2017-06-12');
+    while (s.day < deadline && !s.research.done.includes('attention')) researchDay(s);
+
+    expect(s.research.done).toContain('attention');
+    expect(s.day).toBeLessThan(deadline);
+    // sanity: не мгновенно — 4000 очков при ≈45 в день это около трёх месяцев
+    expect(s.day).toBeGreaterThan(60);
+    expect(researchMail(s)).toHaveLength(1);
+  });
+
+  it('готово ровно через ceil(цена / очки в день) дней и с запасом до статьи Gogle', () => {
+    const s = labWithExperiments(105);
+    setResearch(s, 'attention');
+    const rp = rpPerDay(s);
+    let days = 0;
+    while (!s.research.done.includes('attention') && days < 1000) {
+      researchDay(s);
+      days++;
+    }
+    expect(days).toBe(Math.ceil(4000 / rp));
+    // Письмо «Вы первые» пойдёт 12.06.2017 (день 162): запас — не меньше двух месяцев.
+    expect(dateToDay('2017-06-12') - days).toBeGreaterThanOrEqual(60);
+    expect(researchMail(s)[0].day).toBe(days - 1);
+  });
+
+  it('без экспериментов (только база команды) успеть нельзя', () => {
+    const s = createInitialState('Тест', 1);
+    setAllocation(s, { training: 1, contracts: 0, experiments: 0, inference: 0 });
+    setResearch(s, 'attention');
+    const deadline = dateToDay('2017-06-12');
+    while (s.day < deadline) researchDay(s);
+    expect(s.research.done).toEqual([]);
+  });
+});

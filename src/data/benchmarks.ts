@@ -16,7 +16,7 @@ export const BENCHMARKS: BenchmarkDef[] = [
   },
   {
     id: 'mmlu', name: 'MMLO', realName: 'MMLU', domain: 'language', introduced: '2020-09-07',
-    guess: 0.25, difficulty: 61, spread: 10.5, saturation: 90,
+    guess: 0.25, difficulty: 62, spread: 11.3, saturation: 90,
     description: 'Знания по 57 предметам, тест с четырьмя вариантами ответа.',
   },
   {

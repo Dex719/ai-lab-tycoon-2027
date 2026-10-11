@@ -57,7 +57,7 @@ export const FAIL_ROLLBACK = 0.25;
 // Арена
 export const ELO_BASE = 693;
 export const ELO_PER_CAP = 5;
-export const ELO_RLHF_BASE = 60;
+export const ELO_RLHF_BASE = 70; // было 60: запас для опоры «как GTP-3.5» (Elo ≥ 1080 при base ≈ 60)
 export const ELO_RLHF_PER_ALGO = 12;
 export const ARENA_WEIGHTS: Record<DomainId, number> = { language: 0.5, code: 0.25, reasoning: 0.25 };
 export const ARENA_OPEN_DATE = '2023-05-03';

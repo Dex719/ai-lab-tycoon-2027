@@ -1,0 +1,173 @@
+/* Тёмная тема «рабочий стол ОС 2000-х». Цвета — переменные; окна используют только эти классы. */
+:root {
+  --bg-desk: #14202e;
+  --bg-desk-2: #1c2f45;
+  --bg-win: #1b222c;
+  --bg-panel: #232c38;
+  --bg-input: #121820;
+  --bg-hover: #2b3645;
+  --border: #3a4656;
+  --border-light: #4d5b6e;
+  --text: #dbe2ea;
+  --text-dim: #8d9aab;
+  --accent: #4ea1ff;
+  --accent-2: #2f6fb5;
+  --title-a: #2c5282;
+  --title-b: #1a365d;
+  --title-inactive-a: #3b4758;
+  --title-inactive-b: #2a3341;
+  --good: #5fd38d;
+  --bad: #ff6b6b;
+  --warn: #ffc857;
+  --player: #e8e8e8;
+  --font: 'Segoe UI', Tahoma, Verdana, sans-serif;
+  --mono: Consolas, 'Courier New', monospace;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; }
+body {
+  background: var(--bg-desk);
+  color: var(--text);
+  font: 13px/1.4 var(--font);
+  overflow: hidden;
+  user-select: none;
+}
+input, select, textarea { user-select: text; }
+
+/* ---------- Рабочий стол ---------- */
+.app { display: flex; flex-direction: column; height: 100%; }
+.desktop {
+  position: relative; flex: 1; overflow: hidden;
+  background:
+    radial-gradient(ellipse at 70% 30%, rgba(78, 161, 255, 0.08), transparent 60%),
+    linear-gradient(160deg, var(--bg-desk-2), var(--bg-desk));
+}
+.icons { position: absolute; left: 8px; top: 8px; display: grid; grid-auto-flow: column; grid-template-rows: repeat(6, 82px); gap: 4px 6px; }
+.icon {
+  width: 84px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 2px; border: 1px solid transparent; border-radius: 3px; cursor: pointer; color: var(--text);
+  background: none; font: inherit; text-align: center;
+}
+.icon:hover { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.12); }
+.icon .glyph { font-size: 30px; line-height: 36px; position: relative; }
+.icon .label { font-size: 12px; text-shadow: 0 1px 2px #000; }
+.icon .badge { position: absolute; top: -2px; right: -10px; }
+
+/* ---------- Верхняя панель ---------- */
+.topbar {
+  display: flex; align-items: center; gap: 18px; padding: 4px 10px; height: 38px;
+  background: linear-gradient(#2a3442, #1d2530); border-bottom: 1px solid #000; box-shadow: 0 1px 0 var(--border);
+}
+.topbar .lab { font-weight: 700; }
+.topbar .stat { display: flex; flex-direction: column; line-height: 1.1; }
+.topbar .stat .k { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+.topbar .stat .v { font-size: 14px; font-variant-numeric: tabular-nums; }
+.topbar .spacer { flex: 1; }
+.speed { display: flex; gap: 2px; }
+.speed .btn { min-width: 34px; }
+.speed .btn.on { background: var(--accent-2); border-color: var(--accent); color: #fff; }
+
+/* ---------- Окна ---------- */
+.window {
+  position: absolute; display: flex; flex-direction: column;
+  background: var(--bg-win); border: 1px solid var(--border-light); border-radius: 4px 4px 2px 2px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55); min-width: 260px; min-height: 120px;
+}
+.titlebar {
+  display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 4px 0 8px;
+  background: linear-gradient(var(--title-inactive-a), var(--title-inactive-b)); color: #c9d3de;
+  border-radius: 3px 3px 0 0; cursor: move; font-weight: 600; flex: none;
+}
+.window.active .titlebar { background: linear-gradient(var(--title-a), var(--title-b)); color: #fff; }
+.titlebar .t { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.titlebar .x {
+  width: 20px; height: 18px; line-height: 14px; padding: 0; border: 1px solid #0006; border-radius: 2px;
+  background: #b33a3a; color: #fff; font-weight: 700; cursor: pointer;
+}
+.window-body { flex: 1; overflow: auto; padding: 10px; user-select: text; }
+.resize { position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; cursor: nwse-resize; }
+
+/* ---------- Элементы ---------- */
+.btn {
+  font: inherit; color: var(--text); background: linear-gradient(#36414f, #2a3340);
+  border: 1px solid var(--border-light); border-radius: 3px; padding: 3px 10px; cursor: pointer;
+}
+.btn:hover:not(:disabled) { background: linear-gradient(#41506200, #3a4757); background-color: #3a4757; }
+.btn:active:not(:disabled) { background: #222a35; }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.primary { background: linear-gradient(#3a7bd5, #2b5ea8); border-color: #5b9cf0; color: #fff; }
+.btn.danger { background: linear-gradient(#a83a3a, #822b2b); border-color: #d06060; color: #fff; }
+.btn.small { padding: 1px 6px; font-size: 12px; }
+
+input[type='text'], input[type='number'], select {
+  font: inherit; color: var(--text); background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: 2px; padding: 3px 6px;
+}
+input[type='number'] { width: 90px; text-align: right; }
+input[type='range'] { accent-color: var(--accent); }
+input[type='checkbox'] { accent-color: var(--accent); }
+
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+.grow { flex: 1; }
+.card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 3px; padding: 8px 10px; }
+.section-title { font-weight: 700; margin: 10px 0 6px; color: #fff; }
+.section-title:first-child { margin-top: 0; }
+.muted { color: var(--text-dim); }
+.small { font-size: 12px; }
+.good { color: var(--good); }
+.bad { color: var(--bad); }
+.warn { color: var(--warn); }
+.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.error { color: var(--bad); font-size: 12px; }
+.badge {
+  display: inline-block; min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--bad);
+  color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center;
+}
+.field { display: grid; grid-template-columns: 150px 1fr; align-items: center; gap: 4px 10px; }
+.field > label { color: var(--text-dim); }
+
+table.grid { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+table.grid th, table.grid td { padding: 3px 6px; border-bottom: 1px solid #2c3644; text-align: left; white-space: nowrap; }
+table.grid th { position: sticky; top: 0; background: #2a3442; color: #c4cfdb; font-weight: 600; z-index: 1; }
+table.grid th.sortable { cursor: pointer; }
+table.grid tr:nth-child(even) td { background: rgba(255, 255, 255, 0.02); }
+table.grid tr.player td { background: rgba(78, 161, 255, 0.12); font-weight: 600; }
+table.grid tr:hover td { background: var(--bg-hover); }
+table.grid td.num, table.grid th.num { text-align: right; }
+.est { color: var(--text-dim); font-style: italic; }
+.dim { opacity: 0.45; }
+
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+.tab {
+  font: inherit; color: var(--text-dim); background: none; border: 1px solid transparent; border-bottom: none;
+  padding: 4px 12px; cursor: pointer; border-radius: 3px 3px 0 0;
+}
+.tab.on { color: #fff; background: var(--bg-panel); border-color: var(--border); }
+
+.progress { height: 12px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+.progress > div { height: 100%; background: linear-gradient(90deg, var(--accent-2), var(--accent)); }
+
+/* ---------- Модальные окна и экраны ---------- */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(5, 10, 18, 0.65); display: flex; align-items: center;
+  justify-content: center; z-index: 10000;
+}
+.modal {
+  width: min(560px, calc(100vw - 32px)); background: var(--bg-win); border: 1px solid var(--border-light);
+  border-radius: 4px; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+}
+.modal .titlebar { cursor: default; background: linear-gradient(var(--title-a), var(--title-b)); color: #fff; }
+.modal .body { padding: 14px 16px; white-space: pre-wrap; user-select: text; }
+.modal .choices { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 16px; }
+.modal .choice { text-align: left; padding: 8px 12px; }
+.modal .choice .hint { display: block; font-size: 12px; color: #c7d6e8; opacity: 0.85; }
+
+.screen {
+  height: 100%; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at 50% 30%, #23405f, var(--bg-desk) 70%);
+}
+.screen .panel { width: min(520px, calc(100vw - 32px)); padding: 24px 28px; }
+.screen h1 { margin: 0 0 4px; font-size: 26px; }
+.screen h2 { margin: 0 0 16px; font-size: 14px; font-weight: 400; color: var(--text-dim); }

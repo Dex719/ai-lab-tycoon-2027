@@ -1,0 +1,750 @@
+{
+  "models": [
+    {
+      "id": "clade-1",
+      "lab": "antropik",
+      "realName": "Claude 1 (Claude v1.3)",
+      "gameName": "Clade 1",
+      "released": "2023-03-14",
+      "api": true,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": null,
+      "priceInPer1M": 11.02,
+      "priceOutPer1M": 32.68,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 77,
+        "humaneval": 56,
+        "gsm8k": 85.2,
+        "gpqa": null,
+        "swebench": null
+      },
+      "arenaElo": 1146,
+      "arenaEstimated": true,
+      "benchContaminationSuspected": false,
+      "notes": "Announced 2023-03-14 with a closed-beta/business API. No public price at launch; $11.02/$32.68 per 1M tokens is Anthropic's July 2023 rate sheet (Claude 1 priced same as Claude 2). Scores are Claude 1.3 from the Claude 2 model card (MMLU 5-shot, Codex HumanEval pass@1, GSM8K). Arena: claude-1 was removed from the Arena before Jan 2025, so 1146 is its March 2024 snapshot value (same Elo scale within about +/-5), flagged as estimate. Parameter count and compute never disclosed.",
+      "sources": [
+        "https://www.anthropic.com/news/claude-2",
+        "https://www-cdn.anthropic.com/5c49cc247484cecf107c699baf29250302e5da70/claude-2-model-card.pdf",
+        "https://www-cdn.anthropic.com/90df03aed08b794ab03c5a7bf28b2ad9cf26cf3c/model_pricing_july2023.pdf",
+        "https://www.tomsguide.com/ai/claude-takes-the-top-spot-in-ai-chatbot-ranking-finally-knocking-gpt-4-down-to-second-place"
+      ]
+    },
+    {
+      "id": "clade-instant-1",
+      "lab": "antropik",
+      "realName": "Claude Instant 1.x (launched as claude-instant-v1)",
+      "gameName": "Clade Instant 1",
+      "released": "2023-03-14",
+      "api": true,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": null,
+      "priceInPer1M": 1.63,
+      "priceOutPer1M": 5.51,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 73.4,
+        "humaneval": 52.8,
+        "gsm8k": 80.9,
+        "gpqa": null,
+        "swebench": null
+      },
+      "arenaElo": 1110,
+      "arenaEstimated": true,
+      "benchContaminationSuspected": false,
+      "notes": "Cheap/fast Claude tier launched alongside Claude 1. Price is the July 2023 rate sheet ($1.63/$5.51); Instant 1.2 (2023-08-09) and a later price cut brought it to about $0.80/$2.40. Scores are Claude Instant 1.1 from the Claude 2 model card (MMLU 5-shot 73.4, HumanEval 52.8; GSM8K 80.9 from the same card, less certain). Arena: claude-instant-1 had left the Arena by Jan 2025; 1110 is a March-2024-era value from memory and secondary sources, flagged as estimate.",
+      "sources": [
+        "https://www-cdn.anthropic.com/5c49cc247484cecf107c699baf29250302e5da70/claude-2-model-card.pdf",
+        "https://www-cdn.anthropic.com/90df03aed08b794ab03c5a7bf28b2ad9cf26cf3c/model_pricing_july2023.pdf"
+      ]
+    },
+    {
+      "id": "clade-2",
+      "lab": "antropik",
+      "realName": "Claude 2",
+      "gameName": "Clade 2",
+      "released": "2023-07-11",
+      "api": true,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": 3.866e+24,
+      "priceInPer1M": 11.02,
+      "priceOutPer1M": 32.68,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 78.5,
+        "humaneval": 71.2,
+        "gsm8k": 88,
+        "gpqa": null,
+        "swebench": null
+      },
+      "arenaElo": 1131,
+      "arenaEstimated": true,
+      "benchContaminationSuspected": false,
+      "notes": "Public claude.ai beta plus API, 100K context. Official: Codex HumanEval 71.2 (vs 56.0 for Claude 1.3), GSM8K 88.0, MMLU 5-shot 78.5 (Claude 2 model card). Compute 3.866e24 FLOP is Epoch AI's speculative estimate. Price from Anthropic's July 2023 sheet. Arena: claude-2.0 not in the Jan 2025 snapshot; 1131 comes from an older table (about 1131) so flagged estimate.",
+      "sources": [
+        "https://www.anthropic.com/news/claude-2",
+        "https://www-cdn.anthropic.com/5c49cc247484cecf107c699baf29250302e5da70/claude-2-model-card.pdf",
+        "https://epoch.ai/data/notable_ai_models.csv",
+        "https://www-cdn.anthropic.com/90df03aed08b794ab03c5a7bf28b2ad9cf26cf3c/model_pricing_july2023.pdf"
+      ]
+    },
+    {
+      "id": "clade-2-1",
+      "lab": "antropik",
+      "realName": "Claude 2.1",
+      "gameName": "Clade 2.1",
+      "released": "2023-11-21",
+      "api": true,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": null,
+      "priceInPer1M": 8,
+      "priceOutPer1M": 24,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": null,
+        "humaneval": null,
+        "gsm8k": null,
+        "gpqa": null,
+        "swebench": null
+      },
+      "arenaElo": 1118,
+      "arenaEstimated": true,
+      "benchContaminationSuspected": false,
+      "notes": "First 200K-token context; Anthropic claimed 2x fewer false statements and 30% fewer wrong answers on long documents, but published no standard benchmark scores, so scores are null (it behaves roughly like Claude 2.0). $8/$24 per 1M is the Nov 2023 pricing update (confirmed by secondary sources; the announcement only links a PDF). Arena: claude-2.1 had been removed by Jan 2025; 1118 is an estimate from its early-2024 value.",
+      "sources": [
+        "https://www.anthropic.com/news/claude-2-1"
+      ]
+    },
+    {
+      "id": "clade-3-opos",
+      "lab": "antropik",
+      "realName": "Claude 3 Opus",
+      "gameName": "Clade 3 Opos",
+      "released": "2024-03-04",
+      "api": true,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": 1.64e+25,
+      "priceInPer1M": 15,
+      "priceOutPer1M": 75,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 86.8,
+        "humaneval": 84.9,
+        "gsm8k": 95,
+        "gpqa": 50.4,
+        "swebench": 22.2
+      },
+      "arenaElo": 1247,
+      "arenaEstimated": false,
+      "benchContaminationSuspected": false,
+      "notes": "Official: MMLU 5-shot 86.8, GPQA Diamond 0-shot CoT 50.4, GSM8K 0-shot CoT 95.0, HumanEval 0-shot 84.9. SWE-bench Verified 22.2 is from Anthropic's Oct 2024 addendum (Anthropic scaffold). Compute 1.64e25 FLOP is Epoch's imputed estimate from benchmarks. Arena: claude-3-opus-20240229, 1247.3 on the 2025-01-21 snapshot (it peaked about 1253 in March 2024).",
+      "sources": [
+        "https://www.anthropic.com/news/claude-3-family",
+        "https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf",
+        "https://www-cdn.anthropic.com/c7822cdc35ad788ec87e14b3a9d45010f1f86c38.pdf",
+        "https://epoch.ai/data/notable_ai_models.csv",
+        "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset"
+      ]
+    },
+    {
+      "id": "clade-3-sonet",
+      "lab": "antropik",
+      "realName": "Claude 3 Sonnet",
+      "gameName": "Clade 3 Sonet",
+      "released": "2024-03-04",
+      "api": true,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": null,
+      "priceInPer1M": 3,
+      "priceOutPer1M": 15,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 78.3,
+        "humaneval": 73,
+        "gsm8k": 92.3,
+        "gpqa": 40.4,
+        "swebench": null
+      },
+      "arenaElo": 1201,
+      "arenaEstimated": false,
+      "benchContaminationSuspected": false,
+      "notes": "Mid-tier Claude 3; powered free claude.ai at launch. Scores from Anthropic's later model-card addenda (MMLU 5-shot 78.3, GPQA 40.4, GSM8K 92.3, HumanEval 73.0). Arena: claude-3-sonnet-20240229, 1200.9 on the 2025-01-21 snapshot. Compute and params undisclosed (Epoch has no estimate).",
+      "sources": [
+        "https://www.anthropic.com/news/claude-3-family",
+        "https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf",
+        "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset"
+      ]
+    },
+    {
+      "id": "clade-3-haiko",
+      "lab": "antropik",
+      "realName": "Claude 3 Haiku",
+      "gameName": "Clade 3 Haiko",
+      "released": "2024-03-13",
+      "api": true,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": null,
+      "priceInPer1M": 0.25,
+      "priceOutPer1M": 1.25,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 75.2,
+        "humaneval": 75.9,
+        "gsm8k": 88.9,
+        "gpqa": 33.3,
+        "swebench": 7.2
+      },
+      "arenaElo": 1179,
+      "arenaEstimated": false,
+      "benchContaminationSuspected": false,
+      "notes": "Announced 2024-03-04 as 'coming soon'; API availability 2024-03-13. MMLU 5-shot 75.2, HumanEval 75.9, GPQA 33.3 and SWE-bench Verified 7.2 from Anthropic's Oct 2024 addendum; GSM8K 88.9 is the launch-card figure (not re-verified in this session). Arena: claude-3-haiku-20240307, 1179.3 on 2025-01-21.",
+      "sources": [
+        "https://www.anthropic.com/news/claude-3-family",
+        "https://www-cdn.anthropic.com/c7822cdc35ad788ec87e14b3a9d45010f1f86c38.pdf",
+        "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset"
+      ]
+    },
+    {
+      "id": "clade-3-5-sonet",
+      "lab": "antropik",
+      "realName": "Claude 3.5 Sonnet (June 2024, claude-3-5-sonnet-20240620)",
+      "gameName": "Clade 3.5 Sonet",
+      "released": "2024-06-20",
+      "api": true,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": 2.7e+25,
+      "priceInPer1M": 3,
+      "priceOutPer1M": 15,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 88.7,
+        "humaneval": 92,
+        "gsm8k": 96.4,
+        "gpqa": 59.4,
+        "swebench": 33.4
+      },
+      "arenaElo": 1268,
+      "arenaEstimated": false,
+      "benchContaminationSuspected": false,
+      "notes": "Anthropic's blog is dated 2024-06-21 but it launched the evening of 2024-06-20 US time. MMLU 5-shot 88.7 (0-shot CoT 88.3), GPQA Diamond 0-shot CoT 59.4, GSM8K 96.4, HumanEval 92.0; SWE-bench Verified 33.4 (Oct 2024 addendum). Compute 2.7e25 FLOP is Epoch's estimate. Arena: claude-3-5-sonnet-20240620, 1268.2 on 2025-01-21.",
+      "sources": [
+        "https://www.anthropic.com/news/claude-3-5-sonnet",
+        "https://www-cdn.anthropic.com/fed9cc193a14b84131812372d8d5857f8f304c52/Model_Card_Claude_3_Addendum.pdf",
+        "https://www-cdn.anthropic.com/c7822cdc35ad788ec87e14b3a9d45010f1f86c38.pdf",
+        "https://epoch.ai/data/notable_ai_models.csv",
+        "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset"
+      ]
+    },
+    {
+      "id": "clade-3-5-sonet-new",
+      "lab": "antropik",
+      "realName": "Claude 3.5 Sonnet (new, Oct 2024, claude-3-5-sonnet-20241022)",
+      "gameName": "Clade 3.5 Sonet (new)",
+      "released": "2024-10-22",
+      "api": true,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": null,
+      "priceInPer1M": 3,
+      "priceOutPer1M": 15,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 88.7,
+        "humaneval": 93.7,
+        "gsm8k": null,
+        "gpqa": 65,
+        "swebench": 49
+      },
+      "arenaElo": 1283,
+      "arenaEstimated": false,
+      "benchContaminationSuspected": false,
+      "notes": "Upgraded 3.5 Sonnet, same price; introduced computer use (beta). MMLU 5-shot 88.7 (5-shot CoT 90.5, 0-shot CoT 89.3), GPQA Diamond 65.0, HumanEval 93.7, SWE-bench Verified 49.0 (SOTA at the time). GSM8K was dropped from the new card, so null. Arena: claude-3-5-sonnet-20241022, 1283.2 on 2025-01-21 (Anthropic's top Arena model then). No separate compute estimate.",
+      "sources": [
+        "https://www.anthropic.com/news/3-5-models-and-computer-use",
+        "https://www-cdn.anthropic.com/c7822cdc35ad788ec87e14b3a9d45010f1f86c38.pdf",
+        "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset"
+      ]
+    },
+    {
+      "id": "clade-3-5-haiko",
+      "lab": "antropik",
+      "realName": "Claude 3.5 Haiku",
+      "gameName": "Clade 3.5 Haiko",
+      "released": "2024-11-04",
+      "api": true,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": null,
+      "priceInPer1M": 1,
+      "priceOutPer1M": 5,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 77.6,
+        "humaneval": 88.1,
+        "gsm8k": null,
+        "gpqa": 41.6,
+        "swebench": 40.6
+      },
+      "arenaElo": 1238,
+      "arenaEstimated": false,
+      "benchContaminationSuspected": false,
+      "notes": "Announced 2024-10-22; API release 2024-11-04. Launch price $1/$5 per 1M, cut to $0.80/$4 on 2024-12-03 (Anthropic page). MMLU 5-shot 77.6 (0-shot CoT 80.3), GPQA Diamond 41.6, HumanEval 88.1, MATH 69.2, SWE-bench Verified 40.6 (beat original 3.5 Sonnet). GSM8K not reported. Arena: claude-3-5-haiku-20241022, 1237.6 on 2025-01-21.",
+      "sources": [
+        "https://www.anthropic.com/news/3-5-models-and-computer-use",
+        "https://www-cdn.anthropic.com/c7822cdc35ad788ec87e14b3a9d45010f1f86c38.pdf",
+        "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset"
+      ]
+    },
+    {
+      "id": "bort",
+      "lab": "gogle",
+      "realName": "BERT (BERT-Large, 340M)",
+      "gameName": "BORT",
+      "released": "2018-11-02",
+      "api": false,
+      "openWeights": true,
+      "paramsB": 0.34,
+      "trainFlop": 285000000000000000000,
+      "priceInPer1M": null,
+      "priceOutPer1M": null,
+      "scores": {
+        "squad": 91.8,
+        "glue": 80.5,
+        "mmlu": null,
+        "humaneval": null,
+        "gsm8k": null,
+        "gpqa": null,
+        "swebench": null
+      },
+      "arenaElo": 500,
+      "arenaEstimated": true,
+      "benchContaminationSuspected": false,
+      "notes": "Paper on arXiv 2018-10-11; code and checkpoints open-sourced 2018-11-02 (used as release date). SQuAD v1.1 test F1 91.8 for single BERT-Large (ensemble + TriviaQA reached 93.2); GLUE test score 80.5 (BERT-Base 78.3). Compute 2.85e20 FLOP per Epoch AI. Encoder-only, cannot generate text or chat, so Arena Elo 500 is a pure placeholder below the Arena floor (llama-13b about 799).",
+      "sources": [
+        "https://arxiv.org/abs/1810.04805",
+        "https://research.google/blog/open-sourcing-bert-state-of-the-art-pre-training-for-natural-language-processing/",
+        "https://epoch.ai/data/notable_ai_models.csv"
+      ]
+    },
+    {
+      "id": "t5x",
+      "lab": "gogle",
+      "realName": "T5 (T5-11B)",
+      "gameName": "T5x",
+      "released": "2019-10-23",
+      "api": false,
+      "openWeights": true,
+      "paramsB": 11,
+      "trainFlop": 3.3e+22,
+      "priceInPer1M": null,
+      "priceOutPer1M": null,
+      "scores": {
+        "squad": 96.2,
+        "glue": 90.3,
+        "mmlu": null,
+        "humaneval": null,
+        "gsm8k": null,
+        "gpqa": null,
+        "swebench": null
+      },
+      "arenaElo": 650,
+      "arenaEstimated": true,
+      "benchContaminationSuspected": false,
+      "notes": "Text-to-text encoder-decoder, 60M to 11B variants, Apache-2.0 weights with the paper. T5-11B: SQuAD v1.1 dev F1 96.22 (EM 91.26), GLUE average 90.3, SuperGLUE 88.9 (SuperGLUE confirmed from the paper, GLUE average from memory of Table 14). Compute 3.3e22 FLOP per Epoch AI. Not instruction/chat tuned, so Arena Elo 650 is an extrapolated placeholder.",
+      "sources": [
+        "https://arxiv.org/abs/1910.10683",
+        "https://epoch.ai/data/notable_ai_models.csv"
+      ]
+    },
+    {
+      "id": "meeno",
+      "lab": "gogle",
+      "realName": "Meena",
+      "gameName": "Meeno",
+      "released": "2020-01-28",
+      "api": false,
+      "openWeights": false,
+      "paramsB": 2.6,
+      "trainFlop": 1.12e+23,
+      "priceInPer1M": null,
+      "priceOutPer1M": null,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": null,
+        "humaneval": null,
+        "gsm8k": null,
+        "gpqa": null,
+        "swebench": null
+      },
+      "arenaElo": 760,
+      "arenaEstimated": true,
+      "benchContaminationSuspected": false,
+      "notes": "Announced 2020-01-28 and never released (announcement date used). 2.6B-parameter open-domain chatbot trained on about 341GB of social-media conversations, 30 days on a TPUv3 pod. Reported its own Sensibleness and Specificity Average of 79% with tuned decoding (72% without) vs 86% for humans. No standard LLM benchmarks. Compute 1.12e23 FLOP per Epoch. Arena Elo is an extrapolated placeholder.",
+      "sources": [
+        "https://arxiv.org/abs/2001.09977",
+        "https://epoch.ai/data/notable_ai_models.csv"
+      ]
+    },
+    {
+      "id": "lamba",
+      "lab": "gogle",
+      "realName": "LaMDA (137B)",
+      "gameName": "LaMBA",
+      "released": "2021-05-18",
+      "api": false,
+      "openWeights": false,
+      "paramsB": 137,
+      "trainFlop": 3.55e+23,
+      "priceInPer1M": null,
+      "priceOutPer1M": null,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": null,
+        "humaneval": null,
+        "gsm8k": null,
+        "gpqa": null,
+        "swebench": null
+      },
+      "arenaElo": 900,
+      "arenaEstimated": true,
+      "benchContaminationSuspected": false,
+      "notes": "Announced at Google I/O 2021-05-18 (paper Jan 2022); never sold as an API or released as weights, only limited public testing via AI Test Kitchen from Aug 2022 and then as the original Bard engine. 137B decoder-only dialog model pretrained on 1.56T words. Compute 3.55e23 FLOP per Epoch. No standard benchmark scores reported. Arena Elo is an estimate.",
+      "sources": [
+        "https://arxiv.org/abs/2201.08239",
+        "https://epoch.ai/data/notable_ai_models.csv"
+      ]
+    },
+    {
+      "id": "paln",
+      "lab": "gogle",
+      "realName": "PaLM (540B)",
+      "gameName": "PaLN",
+      "released": "2022-04-04",
+      "api": false,
+      "openWeights": false,
+      "paramsB": 540,
+      "trainFlop": 2.5272e+24,
+      "priceInPer1M": null,
+      "priceOutPer1M": null,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 69.3,
+        "humaneval": 26.2,
+        "gsm8k": 56.5,
+        "gpqa": null,
+        "swebench": null
+      },
+      "arenaElo": 900,
+      "arenaEstimated": true,
+      "benchContaminationSuspected": false,
+      "notes": "Announced 2022-04-04 and never released (announcement date used); the later PaLM API ran PaLM 2. 540B dense, 780B tokens, 6144 TPU v4 chips. GSM8K 56.5 is 8-shot CoT (74.4 with self-consistency; PaLM 2 report Table 7). HumanEval pass@1 26.2 (PaLM-Coder 540B: 35.9). MMLU 5-shot 69.3 as reported in the Flan-PaLM line of work, not re-verified here. Compute 2.5272e24 FLOP per Epoch. Base model, so Arena Elo 900 is an estimate.",
+      "sources": [
+        "https://arxiv.org/abs/2204.02311",
+        "https://arxiv.org/abs/2305.10403",
+        "https://epoch.ai/data/notable_ai_models.csv"
+      ]
+    },
+    {
+      "id": "berd",
+      "lab": "gogle",
+      "realName": "Bard (original LaMDA-based)",
+      "gameName": "Berd",
+      "released": "2023-03-21",
+      "api": false,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": null,
+      "priceInPer1M": null,
+      "priceOutPer1M": null,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": null,
+        "humaneval": null,
+        "gsm8k": null,
+        "gpqa": null,
+        "swebench": null
+      },
+      "arenaElo": 960,
+      "arenaEstimated": true,
+      "benchContaminationSuspected": false,
+      "notes": "Free consumer chatbot opened to waitlisted US/UK users 2023-03-21 on a lightweight LaMDA; moved to PaLM 2 on 2023-05-10, Gemini Pro on 2023-12-06, and renamed Gemini on 2024-02-08. No API, price or benchmarks published for the LaMDA version. Arena Elo 960 is an estimate (the later 'Bard (Gemini Pro)' entry sat around 1203 to 1208 in early 2024, but that is a different engine).",
+      "sources": [
+        "https://blog.google/technology/ai/try-bard/",
+        "https://blog.google/technology/ai/google-gemini-ai/"
+      ]
+    },
+    {
+      "id": "paln-2",
+      "lab": "gogle",
+      "realName": "PaLM 2 (PaLM 2-L)",
+      "gameName": "PaLN 2",
+      "released": "2023-05-10",
+      "api": true,
+      "openWeights": false,
+      "paramsB": 340,
+      "trainFlop": 7.34e+24,
+      "priceInPer1M": 2,
+      "priceOutPer1M": 2,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 78.3,
+        "humaneval": 37.6,
+        "gsm8k": 80.7,
+        "gpqa": null,
+        "swebench": null
+      },
+      "arenaElo": 1004,
+      "arenaEstimated": false,
+      "benchContaminationSuspected": false,
+      "notes": "Announced at I/O 2023-05-10; offered through the PaLM API and Vertex AI (text-bison and chat-bison sizes). MMLU 5-shot 78.3 and GSM8K 80.7 (8-shot CoT; 91.0 with self-consistency) are PaLM 2-L from the technical report; HumanEval pass@1 37.6 is PaLM 2-S* (code-tuned small), so treat as a lower bound. Params 340B and 7.34e24 FLOP are Epoch estimates (Google did not disclose). Price is approximate: about $0.0005 per 1K characters on Vertex AI converted at 4 chars per token (secondary sources, $2 to $4 plausible). Arena: 'palm-2' (bison size) 1003.6 on 2025-01-21.",
+      "sources": [
+        "https://arxiv.org/abs/2305.10403",
+        "https://epoch.ai/data/notable_ai_models.csv",
+        "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset"
+      ]
+    },
+    {
+      "id": "gemeni-1-0-pro",
+      "lab": "gogle",
+      "realName": "Gemini 1.0 Pro",
+      "gameName": "Gemeni 1.0 Pro",
+      "released": "2023-12-06",
+      "api": true,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": 1.8e+25,
+      "priceInPer1M": 0.5,
+      "priceOutPer1M": 1.5,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 71.8,
+        "humaneval": 67.7,
+        "gsm8k": 77.9,
+        "gpqa": 27.9,
+        "swebench": null
+      },
+      "arenaElo": 1131,
+      "arenaEstimated": false,
+      "benchContaminationSuspected": false,
+      "notes": "Rolled into Bard 2023-12-06; API via AI Studio/Vertex AI from 2023-12-13 (free tier at first). MMLU 5-shot 71.8 (79.1 with CoT@8), GSM8K 11-shot 77.9 (86.5 maj1@32 in the 1.0 report), HumanEval 67.7, GPQA 27.9 (from the Gemini 1.5 report tables). Price $0.50/$1.50 per 1M is the Gemini API paid rate from early 2024; the Dec 2023 Vertex price was about $0.00025/$0.0005 per 1K chars. Compute 1.8e25 FLOP is Epoch's speculative benchmark-imputed figure and looks high for a Pro-size model. Arena: gemini-pro-dev-api 1131.4 on 2025-01-21 (the Bard-style 'gemini-pro' entry is 1110.5).",
+      "sources": [
+        "https://blog.google/technology/ai/google-gemini-ai/",
+        "https://arxiv.org/abs/2403.05530",
+        "https://epoch.ai/data/notable_ai_models.csv",
+        "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset"
+      ]
+    },
+    {
+      "id": "gemeni-1-0-ultro",
+      "lab": "gogle",
+      "realName": "Gemini 1.0 Ultra",
+      "gameName": "Gemeni 1.0 Ultro",
+      "released": "2024-02-08",
+      "api": false,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": 5e+25,
+      "priceInPer1M": null,
+      "priceOutPer1M": null,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 83.7,
+        "humaneval": 74.4,
+        "gsm8k": 88.9,
+        "gpqa": 35.7,
+        "swebench": null
+      },
+      "arenaElo": 1190,
+      "arenaEstimated": true,
+      "benchContaminationSuspected": false,
+      "notes": "Announced 2023-12-06; first public access 2024-02-08 through Gemini Advanced ($19.99/month, Bard renamed Gemini). Vertex AI access was allowlist-only, so api=false and no public per-token price. MMLU 5-shot 83.7 (headline 90.0 used CoT@32), GSM8K 11-shot 88.9 (94.4 maj1@32), HumanEval 74.4, GPQA Diamond 35.7. Google's own 1.5 report warns Ultra's HumanEval could jump to 89 with test-set leakage. Compute 5e25 FLOP is Epoch's speculative estimate. Never on the Arena, so Elo 1190 is my estimate (between gpt-4-0314 at 1186 and Claude 3 Sonnet at 1201).",
+      "sources": [
+        "https://blog.google/technology/ai/google-gemini-ai/",
+        "https://arxiv.org/abs/2403.05530",
+        "https://epoch.ai/data/notable_ai_models.csv"
+      ]
+    },
+    {
+      "id": "gemeni-1-5-pro",
+      "lab": "gogle",
+      "realName": "Gemini 1.5 Pro",
+      "gameName": "Gemeni 1.5 Pro",
+      "released": "2024-02-15",
+      "api": true,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": 1.58e+25,
+      "priceInPer1M": 3.5,
+      "priceOutPer1M": 10.5,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 81.9,
+        "humaneval": 71.9,
+        "gsm8k": 91.7,
+        "gpqa": 41.5,
+        "swebench": null
+      },
+      "arenaElo": 1260,
+      "arenaEstimated": false,
+      "benchContaminationSuspected": false,
+      "notes": "2024-02-15 was a limited preview (AI Studio/Vertex); public preview came 2024-04-09 and the paid Gemini API tier was priced at I/O in May. MoE, 1M-token context. Scores are the original Feb 2024 version (MMLU 81.9, HumanEval 71.9, GPQA 41.5; GSM8K 91.7 from memory of the Feb report); the May 2024 update scored MMLU 85.9, HumanEval 84.1, GPQA 46.2, GSM8K 90.8. Price is $3.50/$10.50 per 1M for prompts up to 128K (cut to $1.25/$5 in Sept 2024). Compute 1.58e25 FLOP is Epoch's imputed estimate. Arena: gemini-1.5-pro-001, 1259.8 on 2025-01-21 (closest checkpoint; 002 from Sept 2024 is 1302.7).",
+      "sources": [
+        "https://arxiv.org/abs/2403.05530",
+        "https://epoch.ai/data/notable_ai_models.csv",
+        "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset",
+        "https://www.blogdumoderateur.com/modeles-ia-plus-performants-janvier-2025/"
+      ]
+    },
+    {
+      "id": "gemeni-1-5-flesh",
+      "lab": "gogle",
+      "realName": "Gemini 1.5 Flash",
+      "gameName": "Gemeni 1.5 Flesh",
+      "released": "2024-05-14",
+      "api": true,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": null,
+      "priceInPer1M": 0.35,
+      "priceOutPer1M": 1.05,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 78.9,
+        "humaneval": 74.3,
+        "gsm8k": 86.2,
+        "gpqa": 39.5,
+        "swebench": null
+      },
+      "arenaElo": 1227,
+      "arenaEstimated": false,
+      "benchContaminationSuspected": false,
+      "notes": "Announced at I/O 2024-05-14 with public preview in AI Studio. Price $0.35 in / $1.05 out per 1M for prompts up to 128K (Google briefly listed output as $0.53 and called it a typo). MMLU 5-shot 78.9, HumanEval 74.3, GSM8K 11-shot 86.2, GPQA 39.5 from the Gemini 1.5 report. Arena: gemini-1.5-flash-001, 1226.9 on 2025-01-21 (002 is 1271). No compute estimate available.",
+      "sources": [
+        "https://arxiv.org/abs/2403.05530",
+        "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset",
+        "https://itc.ua/en/news/google-suddenly-increased-the-cost-of-gemini-1-5-flash-by-98-and-claimed-that-the-previous-one-was-a-typo"
+      ]
+    },
+    {
+      "id": "gemeni-2-0-flesh",
+      "lab": "gogle",
+      "realName": "Gemini 2.0 Flash (Experimental, Dec 2024)",
+      "gameName": "Gemeni 2.0 Flesh",
+      "released": "2024-12-11",
+      "api": true,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": null,
+      "priceInPer1M": 0.1,
+      "priceOutPer1M": 0.4,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": null,
+        "humaneval": null,
+        "gsm8k": null,
+        "gpqa": 62.1,
+        "swebench": 21.4
+      },
+      "arenaElo": 1356,
+      "arenaEstimated": false,
+      "benchContaminationSuspected": false,
+      "notes": "Experimental release 2024-12-11 was free in AI Studio and the Gemini API; $0.10/$0.40 per 1M is the Feb 2025 GA price, used because launch was free, so treat as an approximation. Launch table: MMLU-Pro 76.4, GPQA Diamond 62.1 (from memory, MMLU-Pro and LiveCodeBench 35.1 verified), MATH 89.7, Natural2Code 92.9, so MMLU, HumanEval and GSM8K are null. SWE-bench Verified 21.4 comes from Google's April 2025 comparison table, not the Dec 2024 launch. Arena: Gemini-2.0-Flash-Exp 1356 in the Jan 2025 leaderboard (published 2025-01-22).",
+      "sources": [
+        "https://blog.google/technology/google-deepmind/google-gemini-ai-update-december-2024/",
+        "https://charonhub.deeplearning.ai/google-introduces-gemini-2-0-flash-a-faster-more-capable-ai-model/",
+        "https://www.blogdumoderateur.com/modeles-ia-plus-performants-janvier-2025/",
+        "https://llmlearner.com/models/gemini-2-flash-exp"
+      ]
+    },
+    {
+      "id": "gemeni-exp-1206",
+      "lab": "gogle",
+      "realName": "Gemini-Exp-1206",
+      "gameName": "Gemeni-Exp-1206",
+      "released": "2024-12-06",
+      "api": false,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": null,
+      "priceInPer1M": null,
+      "priceOutPer1M": null,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": null,
+        "humaneval": null,
+        "gsm8k": null,
+        "gpqa": null,
+        "swebench": null
+      },
+      "arenaElo": 1374,
+      "arenaEstimated": false,
+      "benchContaminationSuspected": false,
+      "notes": "Free experimental model in Google AI Studio and the Gemini API (no paid tier, no pricing), later folded into Gemini 2.0 Pro. It took #1 on LMArena at launch. Google published no benchmark table, so scores are null. Arena: 1374 (2nd in the Jan 2025 leaderboard published 2025-01-22, behind Gemini-2.0-Flash-Thinking at 1380). It ranked lower under style control.",
+      "sources": [
+        "https://www.blogdumoderateur.com/modeles-ia-plus-performants-janvier-2025/",
+        "https://www.helicone.ai/blog/google-gemini-exp-1206"
+      ]
+    },
+    {
+      "id": "gemmo-2-27b",
+      "lab": "gogle",
+      "realName": "Gemma 2 27B",
+      "gameName": "Gemmo 2 27B",
+      "released": "2024-06-27",
+      "api": false,
+      "openWeights": true,
+      "paramsB": 27.2,
+      "trainFlop": 2.1e+24,
+      "priceInPer1M": null,
+      "priceOutPer1M": null,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 75.2,
+        "humaneval": 51.8,
+        "gsm8k": 74,
+        "gpqa": null,
+        "swebench": null
+      },
+      "arenaElo": 1220,
+      "arenaEstimated": false,
+      "benchContaminationSuspected": false,
+      "notes": "Open-weights (Gemma license) model, 13T training tokens, 8K context, released with a 9B sibling. Pretrained 27B from the Gemma 2 report: MMLU 5-shot 75.2, GSM8K 5-shot 74.0, HumanEval pass@1 51.8. Compute is my 6ND estimate (6 x 27.2B x 13T = 2.1e24). No pricing since Google distributes weights (hosted by third parties). Arena: gemma-2-27b-it, 1220.2 on 2025-01-21 (report cited 1218 at launch).",
+      "sources": [
+        "https://arxiv.org/abs/2408.00118",
+        "https://huggingface.co/blog/gemma2",
+        "https://huggingface.co/datasets/lmarena-ai/leaderboard-dataset"
+      ]
+    }
+  ],
+  "caveats": "ARENA SNAPSHOT: All 'not estimated' Elo values come from one source: LMArena's own leaderboard-dataset (Hugging Face, config 'text', category 'overall', no style control), leaderboard_publish_date 2025-01-21. Cross-checks match: Gemini 1.5 Pro-002 1302.7 vs 1303, o1-2024-12-17 1351 vs 1351, DeepSeek-V3 1320 vs 1320 in a Jan-22-2025 news roundup. Gemini-Exp-1206 (1374) and Gemini 2.0 Flash Exp (1356) are NOT in that dataset (it omits experimental/preliminary models), so those two values come from the Jan 2025 leaderboard roundup at blogdumoderateur.com (same snapshot era, same scale). Claude 1, 2.0, 2.1 and Instant-1, and all pre-2024 Google research models, are not in the Jan 2025 snapshot, so their Elo values are flagged arenaEstimated=true: Claude-1 1146 is verified from a March 2024 table; Claude-2.0 1131, Claude-2.1 1118 and Instant 1110 rely on an older table plus memory; the Arena scale barely drifted (Claude 3 Haiku 1178-1179, Sonnet 1198-1201 between March 2024 and Jan 2025), so about +/-5 error. BERT 500, T5 650, Meena 760, LaMDA 900, PaLM 900, Bard 960 and Gemini 1.0 Ultra 1190 are my own extrapolations/placeholders (not chat models or never on the Arena); do not treat as measurements. Values such as an openlm.ai page I saw were from a later recalibration (about +20 higher) and were NOT used.\\n\\nSCORE POLICY: I used standard single-sample settings (MMLU 5-shot, GSM8K greedy/CoT, HumanEval pass@1, GPQA Diamond) rather than the more flattering headline numbers (e.g. Gemini 1.0 Ultra MMLU 90.0 CoT@32, GSM8K 94.4 maj1@32); headline values are in notes where relevant. Gemini 1.5 Pro scores are the original Feb 2024 version; the May 2024 improved version is in its notes. Items I could not re-verify in this session and flagged in notes: T5 GLUE average 90.3, PaLM MMLU 69.3, Claude 3 Haiku GSM8K 88.9, Gemini 1.5 Pro (Feb) GSM8K 91.7, Gemini 2.0 Flash GPQA 62.1 (launch table), Claude Instant GSM8K 80.9. Claude 3 Sonnet MMLU 78.3 is from Anthropic's later addenda (I recalled the launch card as 79.0 but could not check the 10MB+ original card).\\n\\nDATES/PRICES: 'released' = first public availability where one exists (BERT = 2018-11-02 code release, paper 2018-10-11), otherwise the announcement date for never-released models (Meena, LaMDA, PaLM, Gemini 1.0 Ultra API). Gemini 1.5 Pro uses the 2024-02-15 limited-preview announcement per the brief (public preview was 2024-04-09). Claude 3.5 Sonnet uses 2024-06-20 although Anthropic's blog is dated 06-21. Prices are USD per 1M tokens at or near launch; PaLM 2 and Gemini 1.0 Pro are conversions from per-character Vertex AI pricing and Gemini 2.0 Flash uses the Feb 2025 GA price because the Dec 2024 launch was free; Gemini 1.5 Pro price is the May 2024 paid tier. No model was flagged for benchContaminationSuspected: I found no credible public reports of test contamination for these models (Google's Gemini 1.5 report itself warns about HumanEval leakage in general, and the LMArena style-control gap for Gemini-Exp models is not contamination). Compute/params come from Epoch AI's notable_ai_models.csv; entries marked speculative or imputed there (Claude 2/3 Opus/3.5 Sonnet, Gemini 1.0 Pro/Ultra/1.5 Pro) are low confidence, and Gemma 2 compute is my own 6ND estimate. Anthropic params are undisclosed (null). Totals: 10 Anthropic and 14 Google models; 'Claude Instant' is a single entry covering 1.x versions."
+}

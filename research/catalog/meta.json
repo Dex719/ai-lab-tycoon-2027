@@ -1,0 +1,506 @@
+{
+  "gpus": [
+    {
+      "name": "P100",
+      "released": "2016-04-05",
+      "denseBf16Tflops": 21.2,
+      "h100e": 0.0214,
+      "rentUsdPerGpuHourByYear": {
+        "2017": 1.9,
+        "2018": 1.46,
+        "2019": 1.3,
+        "2020": 1.15,
+        "2021": 1.0,
+        "2022": 0.85,
+        "2023": 0.75,
+        "2024": 0.65
+      },
+      "notes": "Vendor in game = Fermi Systems (real Nvidia); model code P100 unchanged. CONVENTION: `released` is the ANNOUNCEMENT date for every GPU in this list; first availability is given in each note. Announced 2016-04-05 at GTC 2016 (GP100/Pascal), i.e. just before the 2016-06 window start; kept as a deliberate exception because it is the baseline data-center GPU of the whole window. First availability: DGX-1 (8x P100 SXM2, USD 129,000) US general availability June 2016; PCIe P100 shown at ISC in June 2016, shipping Q4 2016. No tensor cores: 21.2 TFLOPS is plain FP16 (2x FP32 rate) for the SXM2 part per the Tesla P100 datasheet (PCIe variant ~18.7). h100e = 21.2/989. RENT: no public on-demand P100 existed in 2016 (the cloud GPU of 2016 was K80, e.g. AWS p2 ~0.90/GPU-h), so 2016 is omitted. VERIFIED: Google Compute Engine put P100 into beta on 2017-09-21 at 2.30/GPU-h (K80 0.70) and cut GPU prices by up to 36% on 2017-11-20 to 1.46 (K80 0.45); 1.46 still appeared on the 2018-06-12 price post. 2017 value 1.90 is my time-weighted blend of 2.30 (Sep-Nov) and 1.46 (Nov-Dec), shaded toward Azure NC_v2 (~2.07/GPU-h). 2019-2024 values are interpolated by me for a legacy part (hyperscaler list stayed ~1.46, marketplace/neocloud P100 far below 1.0), so treat them as low confidence."
+    },
+    {
+      "name": "V100",
+      "released": "2017-05-10",
+      "denseBf16Tflops": 125,
+      "h100e": 0.1264,
+      "rentUsdPerGpuHourByYear": {
+        "2017": 3.06,
+        "2018": 2.6,
+        "2019": 2.4,
+        "2020": 1.8,
+        "2021": 1.7,
+        "2022": 1.6,
+        "2023": 1.5,
+        "2024": 1.4
+      },
+      "notes": "Vendor in game = Fermi Systems; code V100 unchanged. Announced 2017-05-10 at GTC (Volta GV100). DGX-1 with V100 shipped Q3 2017. AWS P3 instances launched 2017-10-25 (first public cloud V100): p3.2xlarge 3.06/GPU-h, p3.8xlarge 12.24, p3.16xlarge 24.48 (=3.06/GPU). Google Cloud V100 beta ~2018-04-30; price post of 2018-06-12 lists V100 2.48/GPU-h on-demand (0.74 preemptible). 125 TFLOPS = mixed-precision FP16 tensor throughput of the SXM2 part, per the Tesla V100 datasheet (PCIe = 112); V100 has no BF16 support, so the figure is FP16-tensor with FP32 accumulate, and it is dense (no sparsity feature exists on Volta). The May 2017 launch material rounded to 120 TFLOPS. h100e = 125/989. RENT: 2017-2019 use hyperscaler list prices (AWS/Azure 3.06, GCP 2.48 from 2018) shaded for early neocloud/marketplace offers; Lambda reportedly added an 8x V100 box at 4.40/h (0.55/GPU-h) in May 2020 (not re-verified), while AWS/GCP list prices never fell (3.06/2.48). My typical number from 2020 on is a blend between that 0.55 floor and the 2.48-3.06 hyperscaler list; it is an estimate, not a published series."
+    },
+    {
+      "name": "A100",
+      "released": "2020-05-14",
+      "denseBf16Tflops": 312,
+      "h100e": 0.3155,
+      "rentUsdPerGpuHourByYear": {
+        "2020": 3.7,
+        "2021": 2.6,
+        "2022": 2.5,
+        "2023": 2.4,
+        "2024": 2
+      },
+      "notes": "Vendor in game = Fermi Systems; code A100 unchanged. Announced 2020-05-14 (GTC 2020 virtual keynote, Ampere GA100); DGX A100 shipped at launch. Cloud: Google A2 VMs alpha 2020-07-07; AWS P4d announced and GA 2020-11-02 at 32.77/h for 8 GPUs = 4.10/GPU-h; Azure ND A100 v4 (ND96asr_v4) 27.20/h for 8 = 3.40/GPU-h; Google a2-highgpu-1g 3.67/h (VM plus 1 GPU). 80GB variant announced 2020-11-16. 312 TFLOPS is dense FP16/BF16 tensor per the NVIDIA datasheet (624 is the 2:4-sparsity figure). h100e = 312/989. RENT: hyperscaler list 3.40-4.10 unchanged through 2024 (AWS did not cut P4d until June 2025, not 2024); neocloud on-demand roughly 1.1-2.2 (Lambda about 1.10-1.29 for A100 40GB, CoreWeave about 2.06-2.21, marketplaces lower). Typical = my judgement between the two bands, falling from list-price-only in 2020 to about 2.0 in 2024 as H100 supply loosened A100 neocloud prices to ~1.0-1.8. Estimate, medium-low confidence."
+    },
+    {
+      "name": "H100",
+      "released": "2022-03-22",
+      "denseBf16Tflops": 989,
+      "h100e": 1,
+      "rentUsdPerGpuHourByYear": {
+        "2023": 4.7,
+        "2024": 3
+      },
+      "notes": "Vendor in game = Fermi Systems; code H100 unchanged. Announced 2022-03-22 (GTC 2022, Hopper) with 'available starting Q3'; declared in full production 2022-09-20; first OEM systems from ~Oct 2022 (no public cloud in 2022). Cloud: private previews/limited availability in Mar 2023 (Azure, OCI; CoreWeave and Cirrascale GA), AWS P5 announced mid-2023 and GA around Aug 2023 (exact GA date not re-verified), Azure ND H100 v5 GA 2023, Google A3 2023. 989 TFLOPS = dense BF16/FP16 tensor of the SXM part (1,979 is the with-sparsity figure); h100e = 1.0 by definition. RENT: hyperscaler list = 98.32/h per 8-GPU instance = 12.29/GPU-h (AWS p5.48xlarge, Azure ND96isr H100 v5) and 88.49/8 = 11.06 (GCP a3-highgpu-8g); AWS cut P5 prices only in June 2025. Silicon Data's observed hyperscaler median was 7.76 (Aug-Dec 2023), 7.92 (Jan-May 2024) and 9.34 (Jun-Dec 2024); its neocloud median for Jun-Dec 2024 was 2.99 and marketplace 2.58 (re-verified on silicondata.com). Latent Space/Eugene Cheah (Oct 2024): neocloud rates started near 4.70, peaked above 8 in the 2023 shortage, ~2.85 by early 2024, and sub-2 on resale markets by Oct 2024. Typical value 2023 = 4.70 (neocloud launch rate during shortage), 2024 = 3.00 (neocloud/marketplace median). 2022 omitted (no on-demand availability). Medium confidence."
+    },
+    {
+      "name": "H200",
+      "released": "2023-11-13",
+      "denseBf16Tflops": 989,
+      "h100e": 1,
+      "rentUsdPerGpuHourByYear": {
+        "2024": 5
+      },
+      "notes": "Vendor in game = Fermi Systems; code H200 unchanged. Announced 2023-11-13 (HGX H200, 141GB HBM3e, 4.8 TB/s); systems shipping from Q2 2024, clouds (CoreWeave, AWS P5e/P5en, Azure, Google) roughly H2 2024 (exact GA dates not verified). Same Hopper compute die as H100: NVIDIA's H200 page lists FP16/BF16 tensor 1,979 TFLOPS with footnote 'with sparsity', so dense = ~989 and h100e = 1.0 (the gain is memory capacity/bandwidth, not FLOPS; for a memory-bound game mechanic you may want to give it an inference bonus rather than a FLOPS bonus). RENT (low confidence): AWS p5en list price today is 63.30/8 = 7.91/GPU-h, but that is the CURRENT price and may already include AWS's June-2025 P5-family cut, so it is not a verified 2024 price; Azure ND H200 v5 about 10.60-13.78/GPU-h; CoreWeave about 6.31/GPU-h (8-GPU nodes); neocloud/marketplace H200 roughly 3.5-4.5. 5.00 is my blended typical for late 2024."
+    },
+    {
+      "name": "B200",
+      "released": "2024-03-18",
+      "denseBf16Tflops": 2250,
+      "h100e": 2.275,
+      "rentUsdPerGpuHourByYear": {},
+      "notes": "ADDED by fact-check (missing notable item). Vendor in game = Fermi Systems; code B200 unchanged. Announced 2024-03-18 (GTC 2024, Blackwell, two reticle-limit dies, 208B transistors). First volume shipments Q4 2024 to early 2025 and first public-cloud instances in 2025 (shipping timeline from memory, not web-verified), so no on-demand rental existed in 2024 and the rent series is empty. 2,250 TFLOPS = dense FP16/BF16 tensor per GPU (4,500 is the with-sparsity figure; NVIDIA's HGX B200 8-GPU summary lists 36 PFLOPS FP16/BF16 which is sparse, i.e. 4.5 PF per GPU sparse = 2.25 PF dense). Announced with 192GB HBM3e; shipping HGX B200 parts are 180GB. h100e = 2250/989. `released` follows this list's announcement-date convention; do not make it purchasable before 2025 if you model real availability."
+    }
+  ],
+  "market": {
+    "llmApiSpendUsdPerYear": {
+      "2017": 120000000,
+      "2018": 200000000,
+      "2019": 300000000,
+      "2020": 400000000,
+      "2021": 550000000,
+      "2022": 800000000,
+      "2023": 2000000000,
+      "2024": 4500000000
+    },
+    "openaiRevenueUsdPerYear": {
+      "2019": 0,
+      "2020": 3000000,
+      "2021": 10000000,
+      "2022": 28000000,
+      "2023": 1000000000,
+      "2024": 3700000000
+    },
+    "anthropicRevenueUsdPerYear": {
+      "2022": 10000000,
+      "2023": 50000000,
+      "2024": 381000000
+    },
+    "frontierPricePer1MByYear": {
+      "2020": 60,
+      "2021": 60,
+      "2022": 20,
+      "2023": 15,
+      "2024": 4.4
+    },
+    "notes": "CONFIDENCE TIERS. (a) Hard (checked against Epoch AI's Companies Data Hub CSV, epoch.ai/data/ai_companies_revenue_reports.csv, which quotes the original press): OpenAI 2022 = 28M recognized (The Information); OpenAI 2024 = 3.7B recognized (Bloomberg 2025-03-26; the NYT had reported the same figure as a 2024 projection on 2024-09-27: ChatGPT 2.7B + other 1B); Anthropic 2024 = 381M recognized (The Information, via Epoch; the draft's 385M was a rounded blend and is replaced); Menlo Ventures 'State of Generative AI in the Enterprise' (2024-11-20): model layer 3.5B in 2024, total enterprise genAI spend 2.3B (2023) and 13.8B (2024), application layer 4.6B (0.6B in 2023). (b) Estimates by me: OpenAI 2023 = 1.0B recognized (NYT: ChatGPT alone was 700M in 2023, plus API/other; reported run-rate points were 1.0B Aug 2023, 1.3B Oct 2023, then 1.6B (The Information) to 2.0B (FT) at Dec 2023 -- these are ANNUALIZED, not calendar-year revenue, so the often-quoted '1.6B in 2023' is not a calendar-year figure; plausible calendar range 0.9-1.3B). OpenAI 2019-2021 are rough placeholders (no source; 2019 ~0, no commercial product; API private beta began 2020-06-11; third-party sites claim 3.5M for 2020 and 34-36M for 2021, but 2021 looks too high versus the 28M reported for 2022). Anthropic 2022 (10M) appears only in secondary summaries (low confidence); Anthropic 2023 (50M) is my estimate from run-rate points (100M annualized in Oct 2023 per The Information; 87M annualized at 2024-01-01 per Anthropic; ~1.0B annualized in Dec 2024 per CNBC), which imply roughly 40-60M of calendar-2023 revenue. Run-rate (annualized, exit-of-year) values if you prefer them: OpenAI Dec 2023 1.6-2.0B, Dec 2024 5.5B; Anthropic Jan 2024 0.087B, Dec 2024 ~1.0B. (c) llmApiSpendUsdPerYear is a modelled series, not a published statistic: 2023-2024 anchored on Menlo (2024 model layer 3.5B plus ~1B of classic cloud NLP APIs; 2023 ~1B LLM APIs plus ~1B classic NLP); 2017-2022 are order-of-magnitude placeholders dominated by classic NLP APIs (Google/AWS/Azure/IBM) with GPT-3 API contributing almost nothing before 2022. No source publishes a clean global series, so use as shape, not fact. FRONTIER PRICE: blended USD per 1M tokens at 3:1 input:output weighting, using the price of the best general-purpose API model at year end. 2020-2021 GPT-3 davinci 0.06/1K = 60/1M (same for in/out); 2022 davinci cut to 0.02/1K = 20/1M effective 2022-09-01; 2023 year-end GPT-4 Turbo 10/30 per 1M = 15.0 (earlier in 2023 GPT-4 8k was 30/60 = 37.5 blended and 32k was 60/120 = 75); 2024 GPT-4o (2024-08-06 snapshot) 2.50/10 = 4.375. Alternatives in 2024: Claude 3.5 Sonnet 3/15 = 6.0, Claude 3 Opus 15/75 = 30, o1 15/60 = 26.25 (plus hidden reasoning tokens billed). No commercial LLM API existed in 2017-2019 (GPT-3 API beta started 2020-06-11), so those years are omitted rather than faked."
+  },
+  "benchmarks": [
+    {
+      "id": "squad",
+      "realName": "SQuAD v1.1 (Stanford Question Answering Dataset)",
+      "gameName": "SQuAT",
+      "introduced": "2016-06-16",
+      "domain": "language",
+      "randomBaseline": 4.3,
+      "humanBaseline": 91.2,
+      "sotaByYear": {
+        "2016": 80.4,
+        "2017": 88.2,
+        "2018": 93.2,
+        "2019": 95.1,
+        "2020": 95.4,
+        "2021": 95.7,
+        "2022": 95.7,
+        "2023": 95.7,
+        "2024": 95.7
+      },
+      "notes": "Metric = F1 on the hidden test set (%). Paper (arXiv 1606.05250, v1 2016-06-16) Table 5: random guess F1 4.3 / EM 1.3 (test), sliding window 20.0 F1, logistic regression 51.0 F1, human 86.8 F1 / 77.0 EM on the paper's own test estimate. Leaderboard human performance = 91.221 F1 / 82.304 EM (used as humanBaseline). SOTA by year RE-VERIFIED row by row against the dated SQuAD-explorer v1.1 leaderboard: 2016 Dynamic Coattention Networks ensemble 80.383 F1 (2016-11-01) -- the draft's 81.1 'BiDAF ensemble, 2016-12-06' was wrong, BiDAF ensemble is dated 2017-02-22 at 81.525 and Multi-Perspective Matching ensemble 81.257 on 2017-01-24; 2017 AttentionReader+ ensemble 88.163 (2017-12-22; r-net ensemble 88.126 on 12-17; r-net+ 88.493 on 2018-01-03); 2018 BERT ensemble 93.160 (2018-10-05); 2019 XLNet single 95.080 (2019-05-21); 2020 LUKE single 95.379 (2020-04-10); 2021 ANNA single 95.719 (2021-07-24); no higher entries afterwards, benchmark effectively retired. Humans beaten on EM by r-net+ (82.650 vs 82.304) on 2018-01-03, and on F1 first by Microsoft nlnet ensemble (91.677 vs 91.221) on 2018-09-26 -- not by BERT as the draft said; BERT (93.160, 2018-10-05) then widened the gap."
+    },
+    {
+      "id": "glue",
+      "realName": "GLUE (General Language Understanding Evaluation)",
+      "gameName": "GLUU",
+      "introduced": "2018-04-20",
+      "domain": "language",
+      "randomBaseline": 40,
+      "humanBaseline": 87.1,
+      "sotaByYear": {
+        "2018": 80.5,
+        "2019": 90.3,
+        "2020": 90.8,
+        "2021": 91.3,
+        "2022": 91.3,
+        "2023": 91.3,
+        "2024": 91.3
+      },
+      "notes": "Metric = GLUE macro-average score (0-100). Paper arXiv 1804.07461 v1 2018-04-20 (ICLR 2019). Human baseline 87.1 (crowdworker estimate, Nangia & Bowman 2019; confirmed as the leaderboard 'GLUE Human Baselines' row). randomBaseline 40 is MY computed estimate from trivial majority-class accuracies across the nine tasks (CoLA MCC 0, SST-2 ~51, MRPC ~75, STS-B 0, QQP ~32, MNLI ~35, QNLI ~50, RTE ~53, WNLI ~65 -> mean ~40.1); GLUE does not publish an official random score. Best score at launch ~70 (BiLSTM+ELMo-style baselines); 80.5 BERT-large (Oct 2018). 2019: T5-11B reports GLUE average 90.3 in its paper (Table 14, arXiv 2019-10-23; previous best 89.4 = ALBERT), and the same 90.3 is the T5 row on the leaderboard; Baidu ERNIE was reported as the first to pass 90 (90.1) in Dec 2019 (MIT Technology Review 2019-12-26). 2020: Alibaba StructBERT 90.3 (reported 2020-03-03). The 2020 series value 90.8 = DeBERTa/TuringNLRv4, which Microsoft's blog of 2021-01-06 says sits atop GLUE at 90.8; its GLUE submission date is not verified (the DeBERTa-1.5B SuperGLUE human-parity announcement was 2020-12-29), so end-2020 could instead be ~90.6-90.7 (PING-AN ALBERT+DAAF+NAS 90.6, MacALBERT+DKM 90.7; dates unknown). 2021: leaderboard snapshot of 2022-01-01 (from arXiv 2302.09268 Table 2): Vega v1 91.3 (JD Explore Academy), TuringNLR v5 91.2, ERNIE 91.1, StructBERT+CLEVER 91.0, DeBERTa+CLEVER 91.0, DeBERTa/TuringNLRv4 90.8, MacALBERT+DKM 90.7, T5 90.3, human 87.1. Leaderboard effectively inactive since 2022, so 2022-2024 = saturated at 91.3."
+    },
+    {
+      "id": "mmlu",
+      "realName": "MMLU (Massive Multitask Language Understanding)",
+      "gameName": "MMLO",
+      "introduced": "2020-09-07",
+      "domain": "language",
+      "randomBaseline": 25,
+      "humanBaseline": 89.8,
+      "sotaByYear": {
+        "2020": 48.9,
+        "2021": 60,
+        "2022": 75.2,
+        "2023": 90,
+        "2024": 92.3
+      },
+      "notes": "Metric = accuracy % over 57 subjects. Paper arXiv 2009.03300 v1 2020-09-07: random 25%, non-expert crowdworkers 34.5%, estimated expert-level 89.8% (used as humanBaseline). 2020: UnifiedQA 48.9 (fine-tuned) vs GPT-3 175B few-shot 43.9. 2021: Gopher 60.0 (Dec 2021). 2022: Chinchilla 67.5 (67.6 in its paper, Mar 2022), PaLM 540B 69.3, Flan-PaLM 540B 75.2 5-shot (Oct 2022; the Flan paper abstract headlines 75.2% on five-shot MMLU). 2023: GPT-4 86.4 (5-shot, Mar 2023); Gemini Ultra 90.0 with CoT@32 prompting (Dec 2023; its 5-shot score was 83.7), the first claim above the 89.8 expert estimate; used 90.0 as the best published number. 2024: OpenAI o1 92.3 (o1-preview 90.8); Claude 3.5 Sonnet and GPT-4o ~88.7. Prompting setups differ across years, so the series is headline numbers, not like-for-like."
+    },
+    {
+      "id": "humaneval",
+      "realName": "HumanEval",
+      "gameName": "HumanEvol",
+      "introduced": "2021-07-07",
+      "domain": "code",
+      "randomBaseline": 0,
+      "humanBaseline": null,
+      "sotaByYear": {
+        "2021": 37.7,
+        "2022": 47,
+        "2023": 88.4,
+        "2024": 96.3
+      },
+      "notes": "Metric = pass@1 % on 164 hand-written Python problems; series = best single-model pass@1 without agentic scaffolds or test-time search. No human baseline is published for this benchmark (null). Paper arXiv 2107.03374 v1 2021-07-07: Codex-12B 28.8% pass@1, Codex-S 37.7% pass@1 (77.5% pass@100), GPT-3 0%, GPT-J 11.4%. 2022: code-davinci-002 47.0% pass@1 (CodeT paper; CodeT test-reranking reached 65.8% but that uses extra machinery; PaLM-Coder 36.0). 2023: GPT-4 was reported at 67.0% in the March 2023 technical report, but the EvalPlus evaluation lists GPT-4 (May 2023) at 88.4% -- RE-VERIFIED directly in the EvalPlus leaderboard data file (evalplus.github.io/results.json): GPT-4 (May 2023) 88.4, GPT-4-Turbo (Nov 2023) 85.4, GPT-3.5 (May 2023) 73.2, DeepSeek-Coder-33B-instruct 81.1; agent frameworks around GPT-4 reported 91-96% in 2023 and are excluded. Caveat: 2021-2022 values come from the original harness and the 2023 value from EvalPlus, so the 2022->2023 jump partly reflects measurement differences. 2024: same EvalPlus file lists o1-preview and o1-mini (Sep 2024) at 96.3%, GPT-4o (Aug 2024) 92.7, Qwen2.5-Coder-32B-Instruct 92.1, DeepSeek-V3 (Nov 2024) 91.5, GPT-4-Turbo (Apr 2024) 90.2, Claude 3.5 Sonnet (Jun 2024) 87.2; vendor-reported bests were 92.4 (o1-mini), 93.7 (Claude 3.5 Sonnet, Oct 2024), 92.7 (Qwen2.5-Coder-32B). Benchmark is saturated (~90+) from 2024."
+    },
+    {
+      "id": "gsm8k",
+      "realName": "GSM8K (Grade School Math 8K)",
+      "gameName": "GSM8C",
+      "introduced": "2021-10-27",
+      "domain": "reasoning",
+      "randomBaseline": 0,
+      "humanBaseline": null,
+      "sotaByYear": {
+        "2021": 55,
+        "2022": 83.2,
+        "2023": 94.4,
+        "2024": 96.8
+      },
+      "notes": "Metric = problem-solving accuracy % on the 1,319-problem test set (8.5K total problems). Paper arXiv 2110.14168 v1 2021-10-27. No formal human baseline was published (null; problems are grade-school level so humans are effectively ~100% minus slips). 2021: fine-tuned GPT-3 175B + trained verifier ~55% (fine-tuning alone ~33%). 2022: PaLM 540B 56.5% CoT / 74.4% with self-consistency (Mar), Minerva 540B 58.8% / 78.5% maj1@64 (Jun), DiVeRSe on code-davinci-002 83.2% (Jun 2022, voting plus verifier) used as best published. 2023: GPT-4 92.0% 5-shot CoT (Mar), Gemini Ultra 94.4% maj1@32 (Dec) used as headline; the GPT-4 Code Interpreter self-verification paper (arXiv 2308.07921, Aug 2023) is reported by a secondary summary to reach 92.9% alone and 97.0% with CSV plus weighted majority voting -- I could not confirm 97.0 in the paper itself, so it is excluded as a tool-augmented method (analogous to the HumanEval scaffold exclusion). 2024: Claude 3.5 Sonnet 96.4 (Jun), Llama 3.1 405B 96.8 (Jul) used; benchmark saturated. Series mixes plain, majority-vote and verifier results as authors reported them."
+    },
+    {
+      "id": "gpqa",
+      "realName": "GPQA Diamond",
+      "gameName": "GPQE",
+      "introduced": "2023-11-20",
+      "domain": "reasoning",
+      "randomBaseline": 25,
+      "humanBaseline": 69.7,
+      "sotaByYear": {
+        "2023": 38.8,
+        "2024": 87.7
+      },
+      "notes": "Metric = accuracy % on the 198-question Diamond subset (4-choice, so random = 25). Paper arXiv 2311.12022 v1 2023-11-20. Paper figures: Diamond expert validators 81.3% and non-expert validators 22.1% (Table 2, flagged by the authors as inflated by selection effects), 65% expert / 34% non-expert on the extended set, GPT-4 few-shot CoT 38.8% on Diamond (39% headline). humanBaseline 69.7 = the PhD-expert score OpenAI measured on Diamond for the o1 announcement (2024-09-12), taken from secondary reporting and memory because openai.com could not be fetched (not independently re-verified); use 81.3 if you want the paper's own number. 2024 series value 87.7 = o3 as announced 2024-12-20 (not released then); best RELEASED model at end of 2024 was OpenAI o1 at ~78.0 (o1-preview ~73 in Sep); Claude 3.5 Sonnet ~59-65, Claude 3 Opus 50.4 (Mar 2024). Pre-2024 values below ~40."
+    },
+    {
+      "id": "swebench",
+      "realName": "SWE-bench / SWE-bench Verified",
+      "gameName": "SWE-banch",
+      "introduced": "2023-10-10",
+      "domain": "code",
+      "randomBaseline": 0,
+      "humanBaseline": null,
+      "sotaByYear": {
+        "2023": 1.96,
+        "2024": 71.7
+      },
+      "notes": "Metric = % of GitHub issues resolved (unit tests pass). SWE-bench paper arXiv 2310.06770 v1 2023-10-10: 2,294 issues in 12 Python repos, best model Claude 2 resolved 1.96% (BM25 retrieval). SWE-bench Verified (500 human-validated tasks) introduced by OpenAI 2024-08-13; GPT-4o 33.2% there at launch. No human baseline is published (null; Verified tasks were screened to be solvable). 2024 progression: SWE-agent+GPT-4 12.47% on full set (2024-04-02), AutoCodeRover 19% on Lite (Apr) and 24.89% on the full set (Nov), Claude 3.5 Sonnet (upgraded) 49.0% on Verified (2024-10-22), leaderboard bests in Dec 2024: Amazon Q Developer Agent (v20241202-dev) 55.0% ranked first and devlo 54.2% second in a third-party comparison table of the original Verified leaderboard, OpenHands+CodeAct v2.1 53.0% (later recalculated slightly lower); a Blackbox AI agent entry at 62.8% exists but its date was not verified (likely 2025). The 2024 series value 71.7 = o3 as announced 2024-12-20 (self-reported, unreleased); best verified leaderboard entry at year end was ~55%. Series therefore switches from the full set (2023) to Verified (2024); the benchmark was effectively near zero before 2024."
+    }
+  ],
+  "events": [
+    {
+      "key": "v100_announce",
+      "date": "2017-05-10",
+      "what": "Fermi Systems announces the Tesla V100 / Volta at GTC 2017; 125 tensor TFLOPS (120 in launch materials). [real: Nvidia]"
+    },
+    {
+      "key": "transformer_paper",
+      "date": "2017-06-12",
+      "what": "gogle researchers post 'Attention Is All You Nead' (the Transformer architecture) to arXiv (1706.03762 v1, 17:57 UTC). [real: Google, 'Attention Is All You Need']"
+    },
+    {
+      "key": "aws_p3_launch",
+      "date": "2017-10-25",
+      "what": "AWZ launches EC2 P3 instances with up to 8 V100s (p3.2xlarge 3.06 USD/h), the first public-cloud V100. [real: AWS]"
+    },
+    {
+      "key": "glue_paper",
+      "date": "2018-04-20",
+      "what": "GLUU benchmark paper posted to arXiv (1804.07461 v1). [real: GLUE]"
+    },
+    {
+      "key": "gpt1",
+      "date": "2018-06-11",
+      "what": "openbrain publishes GTP-1 ('Improving Language Understanding by Generative Pre-Training'). [real: OpenAI GPT-1]"
+    },
+    {
+      "key": "bert_paper",
+      "date": "2018-10-11",
+      "what": "BORT paper posted to arXiv (1810.04805 v1); BORT-large later tops GLUU (80.5) and SQuAT. [real: BERT]"
+    },
+    {
+      "key": "gpt2_staged_release",
+      "date": "2019-02-14",
+      "what": "openbrain announces GTP-2 ('Better Language Models and Their Implications') and withholds the full model, releasing only the 124M version: start of the staged release (774M on 2019-08-20, full 1.5B on 2019-11-05). [real: OpenAI GPT-2]"
+    },
+    {
+      "key": "ms_openai_1b",
+      "date": "2019-07-22",
+      "what": "Micrasoft invests USD 1 billion in openbrain and becomes its exclusive cloud provider. [real: Microsoft, OpenAI]"
+    },
+    {
+      "key": "gpt2_774m_release",
+      "date": "2019-08-20",
+      "what": "openbrain releases the 774M-parameter GTP-2 model in the staged release. [real: OpenAI GPT-2]"
+    },
+    {
+      "key": "t5_paper",
+      "date": "2019-10-23",
+      "what": "gogle posts the T5x paper 'Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer' (1910.10683 v1); T5x-11B reaches GLUU 90.3. [real: Google T5]"
+    },
+    {
+      "key": "gpt2_full_release",
+      "date": "2019-11-05",
+      "what": "openbrain releases the full 1.5B-parameter GTP-2 (final stage). [real: OpenAI GPT-2]"
+    },
+    {
+      "key": "kaplan_scaling_laws",
+      "date": "2020-01-23",
+      "what": "Kaplon et al., 'Scaling Laws for Neural Language Models' posted to arXiv (2001.08361 v1). [real: Kaplan et al.]"
+    },
+    {
+      "key": "a100_announce",
+      "date": "2020-05-14",
+      "what": "Fermi Systems announces the A100 (Ampere) at GTC 2020; DGX A100 ships. [real: Nvidia]"
+    },
+    {
+      "key": "gpt3_paper",
+      "date": "2020-05-28",
+      "what": "GTP-3 paper 'Language Models are Few-Shot Learners' posted to arXiv (2005.14165 v1). [real: GPT-3]"
+    },
+    {
+      "key": "gpt3_api_launch",
+      "date": "2020-06-11",
+      "what": "openbrain launches its first commercial product, the openbrain API (GTP-3 family), as a private beta. [real: OpenAI API]"
+    },
+    {
+      "key": "mmlu_paper",
+      "date": "2020-09-07",
+      "what": "MMLO benchmark paper posted to arXiv (2009.03300 v1). [real: MMLU]"
+    },
+    {
+      "key": "aws_p4d_launch",
+      "date": "2020-11-02",
+      "what": "AWZ launches EC2 P4d instances with 8x A100 at 32.77 USD/h. [real: AWS]"
+    },
+    {
+      "key": "humaneval_codex_paper",
+      "date": "2021-07-07",
+      "what": "Kodex paper and HumanEvol benchmark posted to arXiv (2107.03374 v1). [real: Codex, HumanEval]"
+    },
+    {
+      "key": "gsm8k_paper",
+      "date": "2021-10-27",
+      "what": "GSM8C paper 'Training Verifiers to Solve Math Word Problems' posted to arXiv (2110.14168 v1). [real: GSM8K]"
+    },
+    {
+      "key": "instructgpt_paper",
+      "date": "2022-03-04",
+      "what": "InstructGTP paper 'Training language models to follow instructions with human feedback' posted to arXiv (2203.02155 v1); openbrain's blog post on InstructGTP was earlier, in late January 2022. [real: InstructGPT]"
+    },
+    {
+      "key": "h100_announce",
+      "date": "2022-03-22",
+      "what": "Fermi Systems announces the H100 (Hopper) at GTC 2022; 'available starting Q3'. [real: Nvidia]"
+    },
+    {
+      "key": "chinchilla_paper",
+      "date": "2022-03-29",
+      "what": "gogle's 'Training Compute-Optimal Large Language Models' (Chinchila) posted to arXiv (2203.15556 v1). [real: DeepMind Chinchilla]"
+    },
+    {
+      "key": "openai_api_price_cut_2022",
+      "date": "2022-09-01",
+      "what": "openbrain cuts GTP-3 davinci API price from 0.06 to 0.02 USD per 1K tokens. [real: OpenAI GPT-3]"
+    },
+    {
+      "key": "us_export_controls_2022",
+      "date": "2022-10-07",
+      "what": "US Commerce/BIS announces the first advanced-computing and semiconductor export controls on China (formally published in the Federal Register 2022-10-13); A100/H100-class chips become license-controlled for China."
+    },
+    {
+      "key": "chatgpt_launch",
+      "date": "2022-11-30",
+      "what": "openbrain releases ChatGTP as a free research preview (GTP-3.5 series fine-tuned with RLHF). [real: OpenAI ChatGPT]"
+    },
+    {
+      "key": "ms_openai_2023_investment",
+      "date": "2023-01-23",
+      "what": "Micrasoft announces the third phase of its partnership with openbrain: a multiyear, multibillion-dollar investment (widely reported as about USD 10 billion). [real: Microsoft, OpenAI]"
+    },
+    {
+      "key": "llama_release",
+      "date": "2023-02-24",
+      "what": "Mota announces LLaMO research models. [real: Meta LLaMA]"
+    },
+    {
+      "key": "chatgpt_api_launch",
+      "date": "2023-03-01",
+      "what": "openbrain opens the ChatGTP API (gtp-3.5-turbo) at 0.002 USD per 1K tokens (2 USD per 1M), roughly 10x cheaper than the GTP-3.5 davinci model. [real: OpenAI gpt-3.5-turbo]"
+    },
+    {
+      "key": "gpt4_launch",
+      "date": "2023-03-14",
+      "what": "openbrain releases GTP-4 (technical report: MMLO 86.4, HumanEvol 67.0); antropik launches Clade 1 the same day. [real: OpenAI GPT-4, Anthropic Claude 1]"
+    },
+    {
+      "key": "google_deepmind_merger",
+      "date": "2023-04-20",
+      "what": "gogle merges its Brain and DeepMind research units into a single lab, Google DeepMind. [real: Google Brain + DeepMind]"
+    },
+    {
+      "key": "lmsys_chatbot_arena_launch",
+      "date": "2023-05-03",
+      "what": "LMSIS publishes 'Chatbot Arena: Benchmarking LLMs in the Wild with Elo Ratings', launching the crowdsourced Arina leaderboard (about 4.7K votes in the first week). [real: LMSYS Chatbot Arena]"
+    },
+    {
+      "key": "claude_2",
+      "date": "2023-07-11",
+      "what": "antropik releases Clade 2. [real: Anthropic Claude 2]"
+    },
+    {
+      "key": "llama_2",
+      "date": "2023-07-18",
+      "what": "Mota releases Llamo 2 (7B/13B/70B) with open weights under a license allowing commercial use. [real: Meta Llama 2]"
+    },
+    {
+      "key": "amazon_anthropic_investment",
+      "date": "2023-09-25",
+      "what": "Amazen announces an investment of up to USD 4 billion in antropik. [real: Amazon, Anthropic]"
+    },
+    {
+      "key": "swebench_paper",
+      "date": "2023-10-10",
+      "what": "SWE-banch paper posted to arXiv (2310.06770 v1); best model Clade 2 solves 1.96%. [real: SWE-bench, Claude 2]"
+    },
+    {
+      "key": "us_export_controls_2023",
+      "date": "2023-10-17",
+      "what": "US Commerce/BIS issues updated advanced-computing/semiconductor export rules (two interim final rules plus one final rule) closing the A800/H800 loophole and widening the covered-chip definition."
+    },
+    {
+      "key": "us_ai_executive_order",
+      "date": "2023-10-30",
+      "what": "US President issues Executive Order 14110 on safe, secure and trustworthy AI, with reporting duties for models trained above 1e26 FLOP."
+    },
+    {
+      "key": "gpt4_turbo",
+      "date": "2023-11-06",
+      "what": "openbrain announces GTP-4 Turba at 10/30 USD per 1M tokens (input/output) at DevDay. [real: OpenAI GPT-4 Turbo]"
+    },
+    {
+      "key": "h200_announce",
+      "date": "2023-11-13",
+      "what": "Fermi Systems announces the H200 (141GB HBM3e); shipping from Q2 2024. [real: Nvidia]"
+    },
+    {
+      "key": "openai_board_crisis",
+      "date": "2023-11-17",
+      "what": "openbrain's board fires CEO Sam Altman; after employee and investor backlash he is reinstated under a new board agreed on 2023-11-22. [real: OpenAI]"
+    },
+    {
+      "key": "gpqa_paper",
+      "date": "2023-11-20",
+      "what": "GPQE paper posted to arXiv (2311.12022 v1); GTP-4 baseline 39%. [real: GPQA, GPT-4]"
+    },
+    {
+      "key": "gemini_1_launch",
+      "date": "2023-12-06",
+      "what": "gogle announces Gemeni 1.0 (Ultro/Pro/Nana), claiming MMLO 90.0% with CoT@32. [real: Gemini 1.0 Ultra/Pro/Nano]"
+    },
+    {
+      "key": "gemini_1_5",
+      "date": "2024-02-15",
+      "what": "gogle announces Gemeni 1.5 Pro with a 1-million-token context window. [real: Gemini 1.5 Pro]"
+    },
+    {
+      "key": "claude_3_launch",
+      "date": "2024-03-04",
+      "what": "antropik releases the Clade 3 family (Haiko/Sonet/Opos); Opos GPQE Diamond 50.4. [real: Claude 3 Haiku/Sonnet/Opus]"
+    },
+    {
+      "key": "b200_announce",
+      "date": "2024-03-18",
+      "what": "Fermi Systems announces the Blackwell generation (B200 / GB200) at GTC 2024; volume shipments from late 2024 to 2025. [real: Nvidia]"
+    },
+    {
+      "key": "gpt4o_launch",
+      "date": "2024-05-13",
+      "what": "openbrain releases GTP-4o. [real: OpenAI GPT-4o]"
+    },
+    {
+      "key": "claude_3_5_sonnet",
+      "date": "2024-06-20",
+      "what": "antropik releases Clade 3.5 Sonet (upgraded version on 2024-10-22 reaches 49.0% on SWE-banch Verified). [real: Claude 3.5 Sonnet]"
+    },
+    {
+      "key": "llama_3_1_405b",
+      "date": "2024-07-23",
+      "what": "Mota releases Llamo 3.1 405B, the first open-weights model competitive with frontier closed models. [real: Meta Llama 3.1 405B]"
+    },
+    {
+      "key": "eu_ai_act",
+      "date": "2024-08-01",
+      "what": "The EU AI Act enters into force."
+    },
+    {
+      "key": "swebench_verified",
+      "date": "2024-08-13",
+      "what": "openbrain publishes SWE-banch Verified, a 500-task human-validated subset; GTP-4o resolves 33.2%. [real: OpenAI SWE-bench Verified, GPT-4o]"
+    },
+    {
+      "key": "o1_preview",
+      "date": "2024-09-12",
+      "what": "openbrain releases q1-preview and q1-mini, the first reasoning models trained with RL on chain of thought. [real: OpenAI o1-preview, o1-mini]"
+    },
+    {
+      "key": "o1_full_release",
+      "date": "2024-12-05",
+      "what": "openbrain releases the full q1 model and ChatGTP Pro. [real: OpenAI o1, ChatGPT Pro]"
+    },
+    {
+      "key": "o3_arc_agi_announcement",
+      "date": "2024-12-20",
+      "what": "openbrain announces q3 on the final day of its 12-day event; ARC Prise reports 75.7% (low compute) and 87.5% (high compute) on ARC-AGO semi-private; openbrain cites 87.7% GPQE Diamond and 71.7% SWE-banch Verified. [real: OpenAI o3, ARC Prize, ARC-AGI]"
+    },
+    {
+      "key": "deepseek_v3",
+      "date": "2024-12-26",
+      "what": "deepcent releases the DeepSeak-V3 open-weights model. [real: DeepSeek-V3]"
+    }
+  ],
+  "caveats": "Method and confidence. This is a skeptical second pass over the draft. Re-verified against primary or near-primary data this pass: the SQuAD v1.1 leaderboard (parsed row by row from the SQuAD-explorer page, with dates); the T5 paper Table 14 (GLUE 90.3 vs previous best 89.4); the GLUE leaderboard snapshot of 2022-01-01 (arXiv 2302.09268 Table 2: Vega v1 91.3, TuringNLR v5 91.2, ERNIE 91.1, DeBERTa/TuringNLRv4 90.8, T5 90.3, human 87.1) and the 2021 rearranging-leaderboards paper (arXiv 2112.01342); the EvalPlus leaderboard data file (GPT-4 May 2023 88.4, o1-preview/o1-mini 96.3, etc.); Epoch AI's company revenue CSV (OpenAI 2022 28M, 2024 3.7B; ChatGPT-only 2023 700M; Anthropic 2024 381M, 87M run-rate at 2024-01-01); the Menlo Ventures 2024 report (model layer 3.5B, total 2.3B -> 13.8B); Silicon Data H100 rental medians; Google Cloud GPU prices (P100 2.30 at 2017-09-21 launch, 1.46 after the 2017-11-20 cut); the DeBERTa repo/blog dates; the T5 and ERNIE/StructBERT GLUE news. CHANGES vs draft: (1) SQuAT/SQuAD 2016 sotaByYear 81.1 -> 80.4 because the draft's 'BiDAF ensemble 2016-12-06' does not exist on the leaderboard (BiDAF ensemble is dated 2017-02-22 at 81.525; best 2016 entry is Dynamic Coattention Networks ensemble 80.383 on 2016-11-01); (2) SQuAD notes: humans were first beaten on F1 by Microsoft nlnet (91.677, 2018-09-26), not by BERT; (3) GLUE notes rewritten with sourced numbers and dates; the 2020 value 90.8 is now attributed to DeBERTa/TuringNLRv4 but its GLUE submission date remains unverified (could be Jan 2021), values otherwise unchanged; (4) HumanEval notes now cite the verified EvalPlus data (88.4 for GPT-4 May 2023, 96.3 for o1-preview/mini) and flag the harness change between 2022 and 2023; (5) Anthropic 2024 revenue 385M -> 381M (the sourced figure); OpenAI 2023 note clarifies that 1.6B/2.0B are run-rates; (6) P100 rent note: the pre-cut Google price is now verified at 2.30 (was 'about 2.30, unverified'); (7) H200 note: the AWS p5en 63.30/8 price is flagged as a current, possibly post-June-2025-cut price, not a 2024 price; (8) ADDED GPU B200 (announced 2024-03-18, dense BF16 2250 TFLOPS, h100e 2.275, no 2024 rental); (9) events re-sorted chronologically, the 2022 export-control entry no longer claims an effective date I could not verify, and 14 notable events added (ms_openai_1b, t5_paper, ms_openai_2023_investment, chatgpt_api_launch, google_deepmind_merger, claude_2, llama_2, amazon_anthropic_investment, us_ai_executive_order, openai_board_crisis, gemini_1_5, b200_announce, llama_3_1_405b, eu_ai_act); (10) NAMING: event `what` text now uses the game names (GTP, ChatGTP, InstructGTP, Kodex, q1/q3, Clade/Sonet/Opos/Haiko, Gemeni/Ultro, BORT, T5x, DeepSeak, openbrain, antropik, gogle, deepcent; invented: Mota=Meta, Llamo=Llama, Micrasoft=Microsoft, Amazen=Amazon, AWZ=AWS, LMSIS=LMSYS, Arina=Arena, Chinchila=Chinchilla, Turba=Turbo, Nana=Nano, Kaplon=Kaplan, ARC Prise/ARC-AGO) with the real name in a trailing [real: ...] tag; benchmark gameNames unchanged; `key` ids and GPU codes are stable identifiers and keep real spellings; `notes` fields keep real names as the source trail. NOT CHANGED / known weak spots: all rental prices after the verified anchors (P100 2019-2024, V100 2020-2024, A100 2021-2024, H200), which are my blends of hyperscaler list and neocloud prices; llmApiSpendUsdPerYear (modelled); OpenAI revenue 2019-2021 and 2023, Anthropic revenue 2022-2023 (estimates); GLUE random baseline (computed); several SOTA-by-year values mix prompting/ensemble/voting and vendor-reported methods (see each note); GPQE and SWE-banch 2024 values are o3 announcement numbers, not released-model numbers (released bests: GPQA ~78.0, SWE-bench Verified ~49-55); GPQA humanBaseline 69.7 comes from secondary reporting. NOT RE-VERIFIED because the web-search budget ran out mid-pass: AWS P5 exact GA date, B200 first-shipment timing, the exact dates of the newly added events (taken from memory; all are well-known public dates), and the o1/o3 GPQA/SWE figures (openai.com is not fetchable). SCOPE NOTES: P100's announcement date 2016-04-05 is before the 2016-06 window start and is kept deliberately (first availability June 2016; `released` is the announcement date for all GPUs). This group contains no arena Elo values and no parameter counts, so the one-snapshot Elo check is not applicable here (the only arena item is the LMSYS launch date). Non-Nvidia accelerators (AMD MI300X, Google TPUs) are out of the draft's scope and were not added. Unit conventions: benchmark scores are percentages 0-100; money is USD; dates are ISO; denseBf16Tflops is dense FP16/BF16 tensor (FP16 for P100, no sparsity)."
+}
