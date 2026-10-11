@@ -370,9 +370,9 @@ describe('CLIENTS', () => {
     expect(new Set(CLIENTS.map((c) => c.name)).size).toBe(20);
   });
 
-  it('названия русские, в кавычках «…», отрасль указана', () => {
+  it('названия русские вида Банк «Северный», отрасль указана', () => {
     for (const c of CLIENTS) {
-      expect(c.name).toMatch(/^«.*[А-Яа-яЁё].*»$/);
+      expect(c.name).toMatch(/^[А-ЯЁ][а-яё]+ «[^«»]*[А-Яа-яЁё][^«»]*»$/);
       expect(c.id).toMatch(/^[a-z0-9-]+$/);
       expect(c.industry.trim().length).toBeGreaterThan(2);
     }
@@ -883,7 +883,7 @@ describe('progressDay: решение по заявке, подробности'
     const s = applied({ durationDays: 90, payment: 100_000, clientId: 'bank-severny' });
     progressDay(s);
     const body = lastMail(s).body;
-    expect(body).toContain('«Банк «Северный»»');
+    expect(body).toContain('Банк «Северный»');
     expect(body).toContain('Модель-1');
     expect(body).toContain('90 дн.');
     expect(body).toContain('$100 тыс.');

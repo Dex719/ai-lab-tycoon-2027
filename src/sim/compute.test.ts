@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { GPUS } from '../data/gpus';
 import {
   availableGpus,
   cheapestH100eDay,
@@ -17,13 +18,27 @@ import { DEFAULT_ALLOC } from './constants';
 import { addModifier, FOREVER } from './events';
 import { createInitialState } from './state';
 import { dateToDay } from './time';
-import type { GameState, GpuId } from './types';
+import type { GameState, GpuDef, GpuId } from './types';
 
 /** Новая игра, перемотанная на дату. */
 function stateAt(iso: string): GameState {
   const s = createInitialState('Тест', 1);
   s.day = dateToDay(iso);
   return s;
+}
+
+/** Описание GPU из данных (src/data/gpus.ts): числа в тестах берём отсюда, а не литералами. */
+function gpuData(id: GpuId): GpuDef {
+  const def = GPUS.find((g) => g.id === id);
+  if (!def) throw new Error(`нет GPU ${id} в данных`);
+  return def;
+}
+
+/** Аренда одного GPU за сутки по таблице данных за указанный год. */
+function dayRentOf(id: GpuId, year: number): number {
+  const hourly = gpuData(id).rentPerGpuHour[year];
+  if (hourly === undefined) throw new Error(`нет цены ${id} за ${year}`);
+  return hourly * 24;
 }
 
 describe('каталог GPU и доступность', () => {
@@ -40,13 +55,7 @@ describe('каталог GPU и доступность', () => {
   });
 
   it('каждый GPU доступен ровно с даты выхода (граница — день выхода)', () => {
-    const releases: [GpuId, string][] = [
-      ['p100', '2016-06-20'],
-      ['v100', '2017-10-25'],
-      ['a100', '2020-11-02'],
-      ['h100', '2023-03-21'],
-      ['h200', '2024-08-01'],
-    ];
+    const releases: [GpuId, string][] = GPUS.map((g): [GpuId, string] => [g.id, g.availableFrom]);
     for (const [id, iso] of releases) {
       const s = stateAt(iso);
       expect(isGpuAvailable(s, id), `${id} в день выхода`).toBe(true);
@@ -66,21 +75,21 @@ describe('каталог GPU и доступность', () => {
 
 describe('цена аренды', () => {
   it('берёт цену года из таблицы и умножает на 24 часа', () => {
-    expect(rentPerGpuDay(stateAt('2017-03-01'), 'p100')).toBeCloseTo(1.5 * 24, 9);
-    expect(rentPerGpuDay(stateAt('2024-03-01'), 'p100')).toBeCloseTo(0.7 * 24, 9);
-    expect(rentPerGpuDay(stateAt('2023-06-01'), 'h100')).toBeCloseTo(4.5 * 24, 9);
+    expect(rentPerGpuDay(stateAt('2017-03-01'), 'p100')).toBeCloseTo(dayRentOf('p100', 2017), 9);
+    expect(rentPerGpuDay(stateAt('2024-03-01'), 'p100')).toBeCloseTo(dayRentOf('p100', 2024), 9);
+    expect(rentPerGpuDay(stateAt('2023-06-01'), 'h100')).toBeCloseTo(dayRentOf('h100', 2023), 9);
   });
 
   it('если года в таблице нет — берёт ближайший известный', () => {
     // у A100 таблица начинается с 2020: в 2018 берём цену 2020
-    expect(rentPerGpuDay(stateAt('2018-05-01'), 'a100')).toBeCloseTo(3.9 * 24, 9);
+    expect(rentPerGpuDay(stateAt('2018-05-01'), 'a100')).toBeCloseTo(dayRentOf('a100', 2020), 9);
     // у H200 только 2024: в 2026 берём цену 2024
-    expect(rentPerGpuDay(stateAt('2026-05-01'), 'h200')).toBeCloseTo(3.8 * 24, 9);
+    expect(rentPerGpuDay(stateAt('2026-05-01'), 'h200')).toBeCloseTo(dayRentOf('h200', 2024), 9);
   });
 
   it('цена меняется с первым днём нового года', () => {
-    expect(rentPerGpuDay(stateAt('2017-12-31'), 'p100')).toBeCloseTo(1.5 * 24, 9);
-    expect(rentPerGpuDay(stateAt('2018-01-01'), 'p100')).toBeCloseTo(1.46 * 24, 9);
+    expect(rentPerGpuDay(stateAt('2017-12-31'), 'p100')).toBeCloseTo(dayRentOf('p100', 2017), 9);
+    expect(rentPerGpuDay(stateAt('2018-01-01'), 'p100')).toBeCloseTo(dayRentOf('p100', 2018), 9);
   });
 
   it('год в «дырке» таблицы — берётся предыдущий известный, до таблицы — первый', () => {
@@ -137,7 +146,7 @@ describe('цена аренды', () => {
     expect(rentPerDay(s)).toBe(0);
     s.compute.rented.p100 = 100;
     s.compute.rented.v100 = 10;
-    const expected = 100 * 1.46 * 24 + 10 * 3.06 * 24;
+    const expected = 100 * dayRentOf('p100', 2018) + 10 * dayRentOf('v100', 2018);
     expect(rentPerDay(s)).toBeCloseTo(expected, 6);
   });
 
@@ -147,7 +156,7 @@ describe('цена аренды', () => {
     s.compute.rented.v100 = 10;
     addModifier(s, { id: 'all', kind: 'rentPrice', mult: 2, untilDay: FOREVER });
     addModifier(s, { id: 'v100only', kind: 'rentPrice', target: 'v100', mult: 0.5, untilDay: FOREVER });
-    const expected = 100 * 1.46 * 24 * 2 + 10 * 3.06 * 24 * 2 * 0.5;
+    const expected = 100 * dayRentOf('p100', 2018) * 2 + 10 * dayRentOf('v100', 2018) * 2 * 0.5;
     expect(rentPerDay(s)).toBeCloseTo(expected, 6);
   });
 });
@@ -181,7 +190,7 @@ describe('мощность и доли', () => {
     expect(totalH100e(s)).toBe(0);
     s.compute.rented.p100 = 100;
     s.compute.rented.v100 = 10;
-    expect(totalH100e(s)).toBeCloseTo(100 * 0.019 + 10 * 0.126, 9);
+    expect(totalH100e(s)).toBeCloseTo(100 * gpuData('p100').h100e + 10 * gpuData('v100').h100e, 9);
   });
 
   it('pool = totalH100e × доля', () => {
@@ -198,24 +207,30 @@ describe('мощность и доли', () => {
 describe('cheapestH100eDay', () => {
   it('в первый день единственный вариант — P100', () => {
     const s = createInitialState('Тест', 1);
-    expect(cheapestH100eDay(s)).toBeCloseTo((1.5 * 24) / 0.019, 6);
+    expect(cheapestH100eDay(s)).toBeCloseTo(dayRentOf('p100', 2017) / gpuData('p100').h100e, 6);
   });
 
   it('берёт минимум по доступным: V100 дешевле P100 за H100e', () => {
     const s = stateAt('2018-05-01');
-    expect(cheapestH100eDay(s)).toBeCloseTo((3.06 * 24) / 0.126, 6);
+    const v100 = dayRentOf('v100', 2018) / gpuData('v100').h100e;
+    const p100 = dayRentOf('p100', 2018) / gpuData('p100').h100e;
+    expect(v100).toBeLessThan(p100); // условие теста по данным
+    expect(cheapestH100eDay(s)).toBeCloseTo(v100, 6);
   });
 
-  it('H200 дороже H100 за H100e, пока нет скидки; со скидкой выигрывает', () => {
+  it('H200 и H100 за H100e одинаково дороги по данным, пока нет скидки; со скидкой H200 выигрывает', () => {
     const s = stateAt('2024-09-01');
-    expect(cheapestH100eDay(s)).toBeCloseTo(2.8 * 24, 6); // H100
+    const h100 = dayRentOf('h100', 2024) / gpuData('h100').h100e;
+    const h200 = dayRentOf('h200', 2024) / gpuData('h200').h100e;
+    expect(h200).toBeCloseTo(h100, 9); // условие теста: 4,2 / 1,4 = 3,0 = цена H100
+    expect(cheapestH100eDay(s)).toBeCloseTo(h100, 6);
     addModifier(s, { id: 'h200-sale', kind: 'rentPrice', target: 'h200', mult: 0.5, untilDay: FOREVER });
-    expect(cheapestH100eDay(s)).toBeCloseTo((3.8 * 24 * 0.5) / 1.15, 6);
+    expect(cheapestH100eDay(s)).toBeCloseTo(h200 * 0.5, 6);
   });
 
   it('недоступные типы не учитываются', () => {
     const s = stateAt('2023-01-01'); // H100 ещё не вышел (с 21.03.2023)
-    expect(cheapestH100eDay(s)).toBeCloseTo((2.0 * 24) / 0.316, 6); // A100 в 2023
+    expect(cheapestH100eDay(s)).toBeCloseTo(dayRentOf('a100', 2023) / gpuData('a100').h100e, 6); // A100 в 2023
   });
 });
 
@@ -310,7 +325,7 @@ describe('setRent', () => {
     const s = createInitialState('Тест', 1);
     expect(setRent(s, 'p100', 105)).toEqual({ ok: true });
     expect(s.compute.rented.p100).toBe(105);
-    expect(totalH100e(s)).toBeCloseTo(2, 1);
+    expect(totalH100e(s)).toBeCloseTo(105 * gpuData('p100').h100e, 9);
   });
 
   it('число должно быть целым и не меньше нуля', () => {

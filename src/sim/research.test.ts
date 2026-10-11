@@ -1,12 +1,23 @@
 import { describe, expect, it } from 'vitest';
+import { GPUS } from '../data/gpus';
 import { setAllocation, setRent } from './compute';
 import { ALGO_BASE_COST, ALGO_COST_GROWTH, RP_BASE, RP_K, TECH_COST } from './constants';
 import { addModifier, FOREVER } from './events';
 import { canResearch, progressDay, researchBlockReason, rpPerDay, setResearch, TECHS, techCost } from './research';
 import { createInitialState } from './state';
 import { dateToDay } from './time';
-import type { GameState, TechId } from './types';
+import type { GameState, GpuId, TechId } from './types';
 import { TECH_IDS } from './types';
+
+/** Мощность GPU в H100e из данных (src/data/gpus.ts). */
+function h100eOf(id: GpuId): number {
+  const def = GPUS.find((g) => g.id === id);
+  if (!def) throw new Error(`нет GPU ${id} в данных`);
+  return def.h100e;
+}
+
+/** Опора из design.md: «2 H100e на эксперименты». Число P100 под неё считаем из данных (сейчас 93 шт. ≈ 1,99 H100e). */
+const ANCHOR_P100 = Math.round(2 / h100eOf('p100'));
 
 /** Новая игра с мощностью, полностью отданной экспериментам. */
 function labWithExperiments(p100: number): GameState {
@@ -80,12 +91,12 @@ describe('rpPerDay', () => {
   });
 
   it('10 + 25 × sqrt(мощность экспериментов)', () => {
-    const s = labWithExperiments(105); // 105 × 0,019 ≈ 2 H100e
-    expect(rpPerDay(s)).toBeCloseTo(RP_BASE + RP_K * Math.sqrt(105 * 0.019), 9);
+    const s = labWithExperiments(ANCHOR_P100); // ≈ 2 H100e
+    expect(rpPerDay(s)).toBeCloseTo(RP_BASE + RP_K * Math.sqrt(ANCHOR_P100 * h100eOf('p100')), 9);
   });
 
   it('учитывает только долю «Эксперименты»', () => {
-    const s = labWithExperiments(105);
+    const s = labWithExperiments(ANCHOR_P100);
     setAllocation(s, { training: 1, contracts: 0, experiments: 0, inference: 0 });
     expect(rpPerDay(s)).toBe(RP_BASE);
   });
@@ -96,18 +107,20 @@ describe('rpPerDay', () => {
     expect(b / a).toBeCloseTo(2, 9);
   });
 
-  it('опорное число: 105 P100 (≈ 2 H100e) на эксперименты дают ≈ 45,3 очка в день', () => {
-    expect(rpPerDay(labWithExperiments(105))).toBeCloseTo(45.3, 1);
+  it('опорное число: ≈ 2 H100e на эксперименты дают ≈ 45 очков в день', () => {
+    const rp = rpPerDay(labWithExperiments(ANCHOR_P100));
+    expect(rp).toBeCloseTo(RP_BASE + RP_K * Math.sqrt(ANCHOR_P100 * h100eOf('p100')), 9);
+    expect(rp).toBeCloseTo(45, 0);
   });
 
   it('половина мощности на эксперименты: корень считается от доли, а не от всей мощности', () => {
-    const s = labWithExperiments(105);
+    const s = labWithExperiments(ANCHOR_P100);
     setAllocation(s, { training: 0.5, contracts: 0, experiments: 0.5, inference: 0 });
-    expect(rpPerDay(s)).toBeCloseTo(10 + 25 * Math.sqrt(105 * 0.019 * 0.5), 9);
+    expect(rpPerDay(s)).toBeCloseTo(RP_BASE + RP_K * Math.sqrt(ANCHOR_P100 * h100eOf('p100') * 0.5), 9);
   });
 
   it('кривая доля (минус или NaN) не даёт NaN и не ломает очки', () => {
-    const s = labWithExperiments(105);
+    const s = labWithExperiments(ANCHOR_P100);
     s.compute.alloc.experiments = Number.NaN;
     expect(rpPerDay(s)).toBe(RP_BASE);
     s.compute.alloc.experiments = -0.5;
@@ -144,7 +157,7 @@ describe('требования и выбор исследования', () => {
   });
 
   it('отказ не меняет ни текущее исследование, ни очки', () => {
-    const s = labWithExperiments(105);
+    const s = labWithExperiments(ANCHOR_P100);
     setResearch(s, 'attention');
     researchDay(s);
     const before = JSON.stringify(s.research);
@@ -195,7 +208,7 @@ describe('требования и выбор исследования', () => {
   });
 
   it('null останавливает исследование, очки сохраняются', () => {
-    const s = labWithExperiments(105);
+    const s = labWithExperiments(ANCHOR_P100);
     setResearch(s, 'attention');
     researchDay(s);
     researchDay(s);
@@ -214,7 +227,7 @@ describe('требования и выбор исследования', () => {
   });
 
   it('очки другой технологии не теряются при переключении', () => {
-    const s = labWithExperiments(105);
+    const s = labWithExperiments(ANCHOR_P100);
     s.research.done.push('attention');
     setResearch(s, 'scaling');
     researchDay(s);
@@ -228,14 +241,14 @@ describe('требования и выбор исследования', () => {
 
 describe('progressDay', () => {
   it('без текущего исследования ничего не меняет', () => {
-    const s = labWithExperiments(105);
+    const s = labWithExperiments(ANCHOR_P100);
     const before = JSON.stringify(s);
     progressDay(s);
     expect(JSON.stringify(s)).toBe(before);
   });
 
   it('прибавляет rpPerDay к текущей технологии', () => {
-    const s = labWithExperiments(105);
+    const s = labWithExperiments(ANCHOR_P100);
     setResearch(s, 'attention');
     const rp = rpPerDay(s);
     progressDay(s);
@@ -290,7 +303,7 @@ describe('progressDay', () => {
   });
 
   it('кривое состояние: нельзя вести то, что ещё не открыто', () => {
-    const s = labWithExperiments(105);
+    const s = labWithExperiments(ANCHOR_P100);
     s.research.current = 'scaling'; // внимание не изучено
     progressDay(s);
     expect(s.research.current).toBeNull();
@@ -298,7 +311,7 @@ describe('progressDay', () => {
   });
 
   it('кривое состояние: уже изученное не ведётся, очки и письма не растут', () => {
-    const s = labWithExperiments(105);
+    const s = labWithExperiments(ANCHOR_P100);
     s.research.done.push('attention');
     s.research.current = 'attention';
     progressDay(s);
@@ -348,7 +361,7 @@ describe('progressDay', () => {
 
   it('без модификаторов и при одинаковом состоянии ход даёт один и тот же результат', () => {
     const run = () => {
-      const s = labWithExperiments(105);
+      const s = labWithExperiments(ANCHOR_P100);
       setResearch(s, 'attention');
       for (let i = 0; i < 120; i++) researchDay(s);
       return JSON.stringify(s);
@@ -406,7 +419,7 @@ describe('алгоритмические улучшения повторяютс
   });
 
   it('реальный ход: уровень 1 за 5000 очков, затем уровень 2 дольше', () => {
-    const s = labWithExperiments(105);
+    const s = labWithExperiments(ANCHOR_P100);
     setResearch(s, 'algo');
     const rp = rpPerDay(s);
 
@@ -430,9 +443,9 @@ describe('алгоритмические улучшения повторяютс
 });
 
 describe('опорный сценарий: внимание успеть до 12.06.2017', () => {
-  it('2 H100e (105 P100) на эксперименты с первого дня — готово до 12.06.2017', () => {
+  it('≈ 2 H100e на эксперименты с 01.01.2017 — внимание готово до 12.06.2017', () => {
     const s = createInitialState('Тест', 1);
-    expect(setRent(s, 'p100', 105)).toEqual({ ok: true });
+    expect(setRent(s, 'p100', ANCHOR_P100)).toEqual({ ok: true });
     expect(setAllocation(s, { training: 0, contracts: 0, experiments: 1, inference: 0 })).toEqual({ ok: true });
     expect(setResearch(s, 'attention')).toEqual({ ok: true });
 
@@ -447,7 +460,7 @@ describe('опорный сценарий: внимание успеть до 12
   });
 
   it('готово ровно через ceil(цена / очки в день) дней и с запасом до статьи Gogle', () => {
-    const s = labWithExperiments(105);
+    const s = labWithExperiments(ANCHOR_P100);
     setResearch(s, 'attention');
     const rp = rpPerDay(s);
     let days = 0;

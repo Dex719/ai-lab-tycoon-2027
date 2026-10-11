@@ -1,10 +1,11 @@
 // Таблица бенчмарков и Арена: строки, места, шумиха выпуска, насыщение (FR-5, FR-6). TSK-007.
 
-import type { BenchmarkId, GameState, HypeOwner, ModelRef } from './types';
-
-const TODO = (): never => {
-  throw new Error('not implemented');
-};
+import { activeBenchmarks, benchDef, introducedBenchmarks } from './benchmarks';
+import { HYPE_ARENA_TOP_BONUS, HYPE_RANK_BONUS } from './constants';
+import { addMail } from './events';
+import { findRivalDef, marketRivals, rivalDay, rivalScore } from './rivals';
+import { modelScore } from './training';
+import type { BenchmarkId, GameState, HypeOwner, ModelRef, PlayerModel, RivalModelDef } from './types';
 
 export interface BoardRow {
   ref: ModelRef;
@@ -20,17 +21,210 @@ export interface BoardRow {
   onMarket: boolean;
 }
 
+// ---------- Внутренний список выпущенных моделей ----------
+
+// Лёгкая запись без баллов: места считаются по одному бенчмарку, поэтому баллы берём лениво.
+interface Entry {
+  ref: ModelRef;
+  owner: HypeOwner;
+  releasedDay: number;
+  order: number; // порядок выхода: при равных днях вышедшая позже считается новее
+  elo: number;
+  rival: RivalModelDef | null;
+  model: PlayerModel | null;
+}
+
+/** Все выпущенные модели: соперники в порядке выхода, затем модели игрока. Неизвестные id каталога пропускаются. */
+function entries(s: GameState): Entry[] {
+  const out: Entry[] = [];
+  let order = 0;
+  for (const id of s.rivalsReleased) {
+    const def = findRivalDef(id);
+    if (!def) continue;
+    out.push({ ref: { kind: 'rival', id }, owner: def.lab, releasedDay: rivalDay(def), order: order++, elo: def.arenaElo, rival: def, model: null });
+  }
+  for (const m of s.models) {
+    if (m.releasedDay === null) continue;
+    out.push({ ref: { kind: 'player', id: m.id }, owner: 'player', releasedDay: m.releasedDay, order: order++, elo: m.arenaElo, rival: null, model: m });
+  }
+  return out;
+}
+
+function entryName(e: Entry): string {
+  return e.rival ? e.rival.gameName : (e.model as PlayerModel).name;
+}
+
+/** Показанный балл: у соперника реальный или оценка, у игрока — с подгонкой (честный, если разоблачён). */
+function shownScore(e: Entry, bid: BenchmarkId): { value: number; estimated: boolean } {
+  if (e.rival) return rivalScore(e.rival, bid);
+  return { value: modelScore(e.model as PlayerModel, bid, false), estimated: false };
+}
+
+function sameRef(a: ModelRef, b: ModelRef): boolean {
+  return a.kind === b.kind && a.id === b.id;
+}
+
+/** a обходит b при равных значениях: вышла раньше, а в один день — раньше по порядку. */
+function earlier(a: Entry, b: Entry): boolean {
+  return a.releasedDay < b.releasedDay || (a.releasedDay === b.releasedDay && a.order < b.order);
+}
+
+/** Место (с 1) модели ref среди list по value, по убыванию; null — модели нет в списке. */
+function rankIn(list: Entry[], ref: ModelRef, value: (e: Entry) => number): number | null {
+  const target = list.find((e) => sameRef(e.ref, ref));
+  if (!target) return null;
+  const mine = value(target);
+  let rank = 1;
+  for (const e of list) {
+    if (e === target) continue;
+    const v = value(e);
+    if (v > mine || (v === mine && earlier(e, target))) rank++;
+  }
+  return rank;
+}
+
+/** Модели, которые сейчас на рынке: соперники из marketRivals и модели игрока на API. */
+function onMarketOnly(s: GameState, list: Entry[]): Entry[] {
+  const ids = new Set(marketRivals(s).map((d) => d.id));
+  return list.filter((e) => (e.rival ? ids.has(e.rival.id) : (e.model as PlayerModel).onApi));
+}
+
+// ---------- Таблица ----------
+
 /** Все выпущенные модели (соперники из rivalsReleased + модели игрока с releasedDay), новые сверху. */
-export function leaderboard(_s: GameState): BoardRow[] { return TODO(); }
+export function leaderboard(s: GameState): BoardRow[] {
+  const list = entries(s);
+  if (list.length === 0) return [];
+  list.sort((a, b) => b.releasedDay - a.releasedDay || b.order - a.order);
+
+  const shown = introducedBenchmarks(s);
+  const market = new Set(marketRivals(s).map((d) => d.id));
+  return list.map((e): BoardRow => {
+    const scores: BoardRow['scores'] = {};
+    for (const bid of shown) scores[bid] = shownScore(e, bid);
+    if (e.rival) {
+      return {
+        ref: e.ref,
+        name: e.rival.gameName,
+        owner: e.owner,
+        releasedDay: e.releasedDay,
+        scores,
+        elo: e.elo,
+        eloEstimated: e.rival.arenaEstimated,
+        flagged: e.rival.contaminated,
+        exposed: false,
+        onMarket: market.has(e.rival.id),
+      };
+    }
+    const m = e.model as PlayerModel;
+    return {
+      ref: e.ref,
+      name: m.name,
+      owner: 'player',
+      releasedDay: e.releasedDay,
+      scores,
+      elo: e.elo,
+      eloEstimated: false,
+      flagged: m.exposed,
+      exposed: m.exposed,
+      onMarket: m.onApi,
+    };
+  });
+}
+
 /** Место (1 = лучший) по показанному баллу среди выпущенных моделей; null — бенчмарк не вышел или модели нет. */
-export function benchRank(_s: GameState, _ref: ModelRef, _bid: BenchmarkId): number | null { return TODO(); }
+export function benchRank(s: GameState, ref: ModelRef, bid: BenchmarkId): number | null {
+  if (!s.benchmarks[bid]?.introduced) return null;
+  return rankIn(entries(s), ref, (e) => shownScore(e, bid).value);
+}
+
 /** Место на Арене по Эло среди всех выпущенных моделей. */
-export function arenaRank(_s: GameState, _ref: ModelRef): number | null { return TODO(); }
+export function arenaRank(s: GameState, ref: ModelRef): number | null {
+  return rankIn(entries(s), ref, (e) => e.elo);
+}
+
 /** Место на Арене среди моделей, которые сейчас на рынке (для инвесторов). */
-export function marketArenaRank(_s: GameState, _ref: ModelRef): number | null { return TODO(); }
+export function marketArenaRank(s: GameState, ref: ModelRef): number | null {
+  return rankIn(onMarketOnly(s, entries(s)), ref, (e) => e.elo);
+}
+
 /** Бонус шумихи при выпуске модели: по активным бенчмаркам места 1/2/3 → HYPE_RANK_BONUS, №1 Арены → +HYPE_ARENA_TOP_BONUS. */
-export function releaseHypeBonus(_s: GameState, _ref: ModelRef): number { return TODO(); }
+export function releaseHypeBonus(s: GameState, ref: ModelRef): number {
+  const list = entries(s);
+  let bonus = 0;
+  for (const bid of activeBenchmarks(s)) {
+    const rank = rankIn(list, ref, (e) => shownScore(e, bid).value);
+    if (rank !== null && rank <= HYPE_RANK_BONUS.length) bonus += HYPE_RANK_BONUS[rank - 1];
+  }
+  if (rankIn(list, ref, (e) => e.elo) === 1) bonus += HYPE_ARENA_TOP_BONUS;
+  return bonus;
+}
+
 /** Лучший Эло среди выпущенных моделей владельца (или 0). */
-export function bestElo(_s: GameState, _owner: HypeOwner): number { return TODO(); }
-/** Проверить насыщение активных бенчмарков по лучшему показанному баллу; насыщенные — флаг и письмо kind 'benchmark'. */
-export function updateSaturation(_s: GameState): void { TODO(); }
+export function bestElo(s: GameState, owner: HypeOwner): number {
+  let best = 0;
+  if (owner === 'player') {
+    for (const m of s.models) if (m.releasedDay !== null && m.arenaElo > best) best = m.arenaElo;
+    return best;
+  }
+  for (const id of s.rivalsReleased) {
+    const def = findRivalDef(id);
+    if (def && def.lab === owner && def.arenaElo > best) best = def.arenaElo;
+  }
+  return best;
+}
+
+// ---------- Насыщение ----------
+
+// Оценочные баллы соперников (≈) насыщения не вызывают: «почти максимум» должен быть опубликованным результатом,
+// а не нашей догадкой по Эло (иначе GPQE и SWE-banch «насытились» бы моделью, у которой нет ни одного балла).
+// true — считать и оценки, как «показанные» баллы таблицы.
+const SATURATION_COUNTS_ESTIMATES = false;
+
+function fmtPct(x: number): string {
+  return `${x.toFixed(1).replace('.', ',')} %`;
+}
+
+/**
+ * Балл для проверки насыщения: у соперника — опубликованный (оценки не в счёт, см. SATURATION_COUNTS_ESTIMATES),
+ * у игрока — честный, без подгонки. Иначе подогнанная модель сама «насыщала» бы свой бенчмарк и уходила
+ * от разоблачения.
+ */
+function saturationScore(e: Entry, bid: BenchmarkId): { value: number; estimated: boolean } {
+  if (e.rival) return rivalScore(e.rival, bid);
+  return { value: modelScore(e.model as PlayerModel, bid, true), estimated: false };
+}
+
+/**
+ * Проверить насыщение активных бенчмарков по лучшему баллу (saturationScore); насыщенные — флаг и письмо
+ * kind 'benchmark'. Повторно письмо не приходит.
+ */
+export function updateSaturation(s: GameState): void {
+  const active = activeBenchmarks(s);
+  if (active.length === 0) return;
+  const list = entries(s);
+  if (list.length === 0) return;
+  for (const bid of active) {
+    const def = benchDef(bid);
+    let best = -Infinity;
+    let leader: Entry | null = null;
+    for (const e of list) {
+      const sc = saturationScore(e, bid);
+      if (sc.estimated && !SATURATION_COUNTS_ESTIMATES) continue;
+      if (sc.value > best) {
+        best = sc.value;
+        leader = e;
+      }
+    }
+    if (leader === null || best < def.saturation) continue;
+    s.benchmarks[bid].saturated = true;
+    addMail(s, {
+      kind: 'benchmark',
+      title: `Бенчмарк ${def.name} насыщен`,
+      body:
+        `Лучшие модели набирают на ${def.name} почти максимум: ${entryName(leader)} — ${fmtPct(best)}. ` +
+        'Тест больше не отличает сильные модели друг от друга, поэтому он не влияет на шумиху и тендеры. ' +
+        'В таблице он остаётся серым; теперь важнее более новые тесты.',
+    });
+  }
+}
