@@ -76,10 +76,10 @@ function ToastItem({ t, onOpen, onClose }: { t: ToastData; onOpen: (t: ToastData
         <button type="button" onClick={() => onOpen(t)} title="Открыть письмо в «Почте»">
           Открыть
         </button>
-        <button type="button" className="quiet" onClick={() => onClose(t.key)} title="Скрыть уведомление" aria-label="Скрыть уведомление">
-          <IconClose size={12} />
-        </button>
       </span>
+      <button type="button" className="toast-x" onClick={() => onClose(t.key)} title="Скрыть уведомление" aria-label="Скрыть уведомление">
+        <IconClose size={12} />
+      </button>
     </div>
   );
 }

@@ -46,7 +46,7 @@ import {
 import { DOMAINS, TIER_IDS, TIER_NAMES } from '../../sim/types';
 import type { BenchmarkId, DomainId, GameState, Tier, TrainingPlan, TrainingRun } from '../../sim/types';
 import { Cards } from '../components/Cards';
-import { Alert, ConfirmDialog, ErrorText, ProgressBar, Range } from '../components/common';
+import { Alert, ConfirmDialog, DenyNote, ErrorText, GuardButton, ProgressBar, Range, useFlash } from '../components/common';
 import { TierBadge } from '../components/TierBadge';
 import {
   endSentence,
@@ -295,6 +295,7 @@ function ContextBlock(props: { s: GameState; value: number; onChange: (v: number
   const level = s.research.contextLevel;
   const shown = CONTEXT_LEVELS.slice(0, Math.min(CONTEXT_MAX_LEVEL, level + 1) + 1);
   const market = refContext(s.day);
+  const [note, flash] = useFlash();
   return (
     <section className="nm-block">
       <h2 className="nm-h">Контекст</h2>
@@ -308,10 +309,10 @@ function ContextBlock(props: { s: GameState; value: number; onChange: (v: number
               type="button"
               role="radio"
               aria-checked={value === tokens}
-              disabled={locked}
+              aria-disabled={locked || undefined}
               className={`nm-ctx-opt${value === tokens ? ' on' : ''}`}
-              title={locked ? 'Нужен следующий уровень исследования «Длинный контекст».' : undefined}
-              onClick={() => onChange(tokens)}
+              title={locked ? CONTEXT_LOCKED : undefined}
+              onClick={() => (locked ? flash(CONTEXT_LOCKED) : onChange(tokens))}
             >
               <b>
                 {locked && <IconLock size={12} />}
@@ -321,6 +322,7 @@ function ContextBlock(props: { s: GameState; value: number; onChange: (v: number
             </button>
           );
         })}
+        <DenyNote text={note} />
       </div>
       <div className="nm-ctx-foot">
         <span title="Модели с контекстом длиннее обычного покупают охотнее, с коротким - реже.">
@@ -434,6 +436,11 @@ function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
 
 // ---------- Левая колонка ----------
 
+/** Срок в месяцах с одним знаком после запятой: «9,6», не меньше «0,1». */
+function monthsText(days: number): string {
+  return String(Math.max(0.1, Math.round((days / DAYS_IN_MONTH) * 10) / 10)).replace('.', ',');
+}
+
 function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; open: OpenFn }) {
   const { s, plan, est, open } = props;
   if (!est) return <div className="error">Оценка проекта недоступна.</div>;
@@ -492,7 +499,11 @@ function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; ope
       <Item label="Стоимость проекта" title={costTitle} tone="cost">
         {cost !== null ? (
           <>
-            ≈ {fmtMoney(cost)} <small>({fmtMoney(rentDay * DAYS_IN_MONTH)}/мес.)</small>
+            ≈ {fmtMoney(cost)}{' '}
+            {/* Срок в месяцах меняется вместе с планом, поэтому скобка обновляется вместе с суммой. */}
+            <small>
+              ({monthsText(days ?? 0)} мес. по {fmtMoney(rentDay * DAYS_IN_MONTH)})
+            </small>
           </>
         ) : (
           '-'
@@ -556,6 +567,9 @@ function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; ope
 
 // ---------- Уровень ----------
 
+const TIER_LOCKED = 'Передний край ещё мал для этого уровня.';
+const CONTEXT_LOCKED = 'Нужен следующий уровень исследования «Длинный контекст».';
+
 /** Один вариант уровня: название, размеры, цены по умолчанию и сколько пользователей обслужит карта H100e. */
 function TierOption(props: { s: GameState; tier: Tier; selected: boolean; onPick: () => void }) {
   const { s, tier, selected } = props;
@@ -564,16 +578,16 @@ function TierOption(props: { s: GameState; tier: Tier; selected: boolean; onPick
   const preset = tierPreset(s, tier);
   const apiPrice = TIER_API_PRICE_MULT[tier] * refPrice(s.day);
   const users = (servingTokensPerH100eDay(preset.paramsB) * servingMult(s, { techs: modelTechs(s) })) / TOKENS_PER_USER_DAY;
+  const [note, flash] = useFlash();
   return (
-    // Заблокированная кнопка не получает наведения, поэтому подсказка висит на обёртке.
-    <div className="nm-tier-wrap" title={avail ? undefined : 'Передний край ещё мал для этого уровня.'}>
+    <div className="nm-tier-wrap" title={avail ? undefined : TIER_LOCKED}>
       <button
         type="button"
         role="radio"
         aria-checked={selected}
-        disabled={!avail}
+        aria-disabled={!avail || undefined}
         className={`nm-tier ${tier}${selected ? ' on' : ''}`}
-        onClick={props.onPick}
+        onClick={avail ? props.onPick : () => flash(TIER_LOCKED)}
       >
         <span className="nm-tier-name">{TIER_NAMES[tier]}</span>
         <span className="nm-tier-range">
@@ -590,6 +604,7 @@ function TierOption(props: { s: GameState; tier: Tier; selected: boolean; onPick
           ≈ {fmtNum(Math.round(users))} пользователей на H100e
         </span>
       </button>
+      <DenyNote text={note} />
     </div>
   );
 }
@@ -736,15 +751,14 @@ export default function TrainingWindow({ s, open }: WindowProps) {
           <div className="nm-side-foot">
             {reason && (slotsFull ? <div className="nm-reason warn">{reason}</div> : <ErrorText error={reason} />)}
             <ErrorText error={err} />
-            <button
+            <GuardButton
               className="btn primary wide nm-start"
               data-tutorial="train-start"
-              disabled={!canStart}
-              title={canStart ? undefined : (reason ?? undefined)}
+              reason={canStart ? null : (reason ?? 'Обучение сейчас начать нельзя.')}
               onClick={start}
             >
               Начать обучение
-            </button>
+            </GuardButton>
           </div>
         </aside>
 

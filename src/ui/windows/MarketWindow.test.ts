@@ -191,7 +191,7 @@ describe('segmentViews', () => {
     expect(consumers.rows).toEqual([]);
     expect(consumers.leader).toBeNull();
     expect(consumers.noneShare).toBe(1);
-    expect(SUBS_CLOSED).toBe('Подписки появятся после выхода чат-ботов (30.11.2022).');
+    expect(SUBS_CLOSED).toBe('Подписки появятся позже.');
 
     for (const v of views.slice(1)) {
       expect(v.open).toBe(true);

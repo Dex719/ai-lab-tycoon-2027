@@ -133,7 +133,7 @@ export function setOnSubs(s: GameState, modelId: string, onSubs: boolean): Resul
   if (!m) return { ok: false, error: 'Нет такой модели' };
   if (m.releasedDay === null) return { ok: false, error: 'Модель ещё не выпущена' };
   if (onSubs) {
-    if (!subsOpen(s.day)) return { ok: false, error: 'Подписки появятся после выхода чат-ботов (30.11.2022).' };
+    if (!subsOpen(s.day)) return { ok: false, error: 'Подписки появятся позже.' };
     if (m.review === 'required' || m.review === 'pending') return { ok: false, error: 'Сначала пройдите внешнюю проверку.' };
   }
   m.onSubs = onSubs;

@@ -59,6 +59,8 @@ export interface EventDef {
 const ATTENTION_DATE = '2017-06-12';
 const CHAT_DATE = CHAT_MOMENT_DATE; // чат-момент: с него же открыт канал подписок (sim/market.subsOpen)
 const SHORTAGE_END = '2024-03-31';
+/** Строка о канале подписок в письмах чат-момента: с этого дня модели можно продавать по подписке. */
+const SUBS_OPEN_NOTE = 'С этого дня модели можно продавать по подписке: включите её в окне «Модели» и выделите долю «Подписки» в «Мощностях».';
 const AD_COST = 300_000; // реклама своего API после открытия GTP-3
 
 // ---------- Помощники ----------
@@ -163,9 +165,10 @@ function gpuEvent(gpu: GpuDef): EventDef {
           : '';
       return {
         kind: 'news',
-        title: `Доступна аренда ${gpu.name}`,
+        title: `Вышла новая видеокарта: ${gpu.name}`,
         body:
-          `${gpu.name} доступна в облаке: одна карта равна ${String(Math.round(gpu.h100e * 100) / 100).replace('.', ',')} H100e.${gain} ` +
+          `${gpu.name} доступна в облаке. Мощность одной карты - ${String(Math.round(gpu.h100e * 100) / 100).replace('.', ',')} H100e, ` +
+          `аренда - ${money(rentPerGpuDay(s, gpu.id))} в день за карту (${money(now)} за H100e в день).${gain} ` +
           'Арендовать карту можно в окне «Мощности».',
       };
     },
@@ -319,7 +322,8 @@ export const EVENTS: EventDef[] = [
         body:
           'После запуска ChatGTP интерес к чат-ботам резко вырос. ' +
           `Эло ${who} не ниже, чем у лучшей модели OpenBrain. ` +
-          'Шумиха +40, репутация +10.',
+          'Шумиха +40, репутация +10. ' +
+          SUBS_OPEN_NOTE,
       };
     },
     onFire: (s) => {
@@ -340,7 +344,8 @@ export const EVENTS: EventDef[] = [
       body:
         'OpenBrain открыла ChatGTP - чат-бота для свободного диалога. ' +
         'За пять дней им воспользовался миллион человек. ' +
-        'Бренд OpenBrain укрепился, клиенты ожидают чат-ботов и от других лабораторий.',
+        'Бренд OpenBrain укрепился, клиенты ожидают чат-ботов и от других лабораторий. ' +
+        SUBS_OPEN_NOTE,
     }),
     onFire: (s) => {
       addModifier(s, {

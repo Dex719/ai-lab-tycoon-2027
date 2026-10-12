@@ -1,8 +1,8 @@
 // Общие мелкие компоненты для окон.
 
-import { useCallback, useEffect, useRef, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { IconAlert, IconInfo } from '../icons';
+import { IconAlert, IconClose, IconInfo } from '../icons';
 
 export function Tabs<T extends string>(props: { tabs: { id: T; label: ReactNode }[]; value: T; onChange: (id: T) => void }) {
   return (
@@ -173,8 +173,8 @@ export function Dialog(props: {
         <div className="titlebar">
           <span className="t">{props.title}</span>
           {props.onClose && (
-            <button className="wbtn close" onClick={props.onClose} aria-label="Закрыть">
-              ×
+            <button className="wbtn close" onClick={props.onClose} aria-label="Закрыть" title="Закрыть">
+              <IconClose size={14} />
             </button>
           )}
         </div>
@@ -215,5 +215,82 @@ export function ConfirmDialog(props: {
       <div className="confirm-body">{props.children}</div>
     </Dialog>,
     document.body,
+  );
+}
+
+// ---------- «Новое» и отклик недоступных кнопок ----------
+
+/** Сколько игровых дней новинка помечена значком «Новое». */
+export const NEW_BADGE_DAYS = 7;
+
+/** Новинка, появившаяся в день since, ещё свежая: прошло меньше NEW_BADGE_DAYS дней. */
+export function isFresh(day: number, since: number): boolean {
+  return day >= since && day - since < NEW_BADGE_DAYS;
+}
+
+/** Значок «Новое» рядом с подписью: виден NEW_BADGE_DAYS игровых дней с дня since. */
+export function NewBadge({ day, since }: { day: number; since: number }) {
+  if (!isFresh(day, since)) return null;
+  return (
+    <span className="new-badge" title="Появилось недавно">
+      Новое
+    </span>
+  );
+}
+
+/** Короткое сообщение на 3,5 секунды: почему нажатый элемент сейчас недоступен. */
+export function useFlash(ms = 3500): [string | null, (text: string) => void] {
+  const [text, setText] = useState<string | null>(null);
+  const timer = useRef<number | undefined>(undefined);
+  const show = useCallback(
+    (next: string) => {
+      setText(next);
+      window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => setText(null), ms);
+    },
+    [ms],
+  );
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  return [text, show];
+}
+
+/** Красная строка под элементом: причина недоступности. Не сдвигает раскладку (выводится поверх). */
+export function DenyNote({ text }: { text: string | null }) {
+  return text ? (
+    <span className="deny-note" role="alert">
+      {text}
+    </span>
+  ) : null;
+}
+
+/**
+ * Кнопка, которая выглядит недоступной, пока есть причина (reason), но отвечает на нажатие:
+ * под ней на 3,5 секунды появляется красная строка с причиной. Без причины - обычная кнопка.
+ */
+export function GuardButton(props: {
+  reason: string | null | undefined;
+  onClick: () => void;
+  className?: string;
+  title?: string;
+  children: ReactNode;
+  [data: `data-${string}`]: string | undefined;
+}) {
+  const { reason, onClick, className, title, children, ...rest } = props;
+  const [note, flash] = useFlash();
+  const blocked = !!reason;
+  return (
+    <span className="guard">
+      <button
+        type="button"
+        {...rest}
+        className={className}
+        title={title ?? reason ?? undefined}
+        aria-disabled={blocked || undefined}
+        onClick={() => (blocked ? flash(reason!) : onClick())}
+      >
+        {children}
+      </button>
+      <DenyNote text={note} />
+    </span>
   );
 }

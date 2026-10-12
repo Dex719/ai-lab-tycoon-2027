@@ -100,7 +100,7 @@ describe('releaseModel с подпиской', () => {
     expect(m.subsPrice).toBe(10); // лёгкая модель
     expect(m.review).toBe('none');
     expect(releaseMail(s).body).toContain('Модель доступна клиентам по API.');
-    expect(setOnSubs(s, 'p1', true)).toEqual({ ok: false, error: 'Подписки появятся после выхода чат-ботов (30.11.2022).' });
+    expect(setOnSubs(s, 'p1', true)).toEqual({ ok: false, error: 'Подписки появятся позже.' });
   });
 
   it('после 30.11.2022: подписка включается, цена подписки из opts (до центов), письмо «и по подписке»', () => {

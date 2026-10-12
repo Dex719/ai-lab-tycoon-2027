@@ -56,7 +56,8 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 12px 16px 16px;
+  /* Без отступа сверху: прилипающие заголовки встают ровно к верхнему краю, над ними не просвечивают строки. */
+  padding: 0 16px 16px;
   background: var(--cw-well);
 }
 .cw-main {
@@ -66,6 +67,9 @@
   gap: 16px;
 }
 .cw-rented { flex: 1 1 300px; min-width: 0; }
+/* Заголовок карточек прилипает к верху поля, как шапка распределения: прокрутка не режет его наполовину. */
+.cw-rented > .cw-h { position: sticky; top: 0; z-index: 2; padding: 12px 0 8px; background: var(--cw-well); }
+.cw-rented > .cw-h + * { margin-top: 0; }
 .cw-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
@@ -96,6 +100,7 @@
 .cw-panel {
   flex: 0 0 360px;
   min-width: 0;
+  margin-top: 12px;
   padding: 10px 14px 8px;
   background: var(--panel);
   border: 1px solid var(--line-soft);
@@ -103,22 +108,26 @@
 }
 /* Шапка (заголовок, полоса, «Занято») прилипает к верху прокручиваемого поля: сумму долей видно,
    пока двигаешь нижние ползунки. */
-.cw-panel-head { position: sticky; top: 0; z-index: 3; margin: -10px -14px 0; padding: 10px 14px 2px; background: var(--panel); border-radius: 4px 4px 0 0; }
+.cw-panel-head {
+  position: sticky; top: 0; z-index: 3; margin: -10px -14px 0; padding: 10px 14px 4px; background: var(--panel);
+  border-radius: 4px 4px 0 0; border-bottom: 1px solid var(--line-soft);
+}
 .cw-panel-head > .cw-h { margin-bottom: 4px; }
 /* Подвал: место под ошибку (занято всегда) и кнопки. */
 .cw-panel-foot { margin-top: 6px; border-top: 1px solid var(--line-soft); }
 .cw-panel-note { margin: 0 0 2px; font-size: 13px; color: var(--text-dim); }
 .cw-allocbar { display: flex; height: 12px; margin: 8px 0 4px; overflow: hidden; background: #e3e5e9; border-radius: 2px; }
 .cw-allocbar > div { transition: width 120ms ease-out; }
-/* «Занято: N %»: зелёная при 100, серая пока есть свободные проценты, оранжевая при переборе. Высота строки постоянная. */
+/* Занятая мощность: зелёная при 100 %, приглушённо-оранжевая, если часть простаивает (мягкое предупреждение, не ошибка).
+   Высота строки постоянная. */
 .cw-occ { min-height: 20px; font-size: 13px; line-height: 20px; color: var(--text-dim); }
 .cw-occ.full { color: #1d6b36; font-weight: 600; }
-.cw-occ.over { color: #a85a00; font-weight: 600; }
+.cw-occ.idle { color: #b8742a; }
 .cw-alloc-row { padding: 6px 0 4px; border-top: 1px solid var(--line-soft); }
-.cw-occ + .cw-alloc-row, .cw-panel-note + .cw-alloc-row { border-top: none; }
+.cw-panel-head + .cw-alloc-row, .cw-panel-note + .cw-alloc-row { border-top: none; }
 .cw-alloc-top { display: flex; align-items: center; gap: 8px; }
 .cw-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; }
-.cw-alloc-name { flex: 1; font-weight: 600; }
+.cw-alloc-name { flex: 1; min-width: 0; font-weight: 600; }
 .cw-alloc-val { color: var(--text-dim); white-space: nowrap; font-size: 13px; }
 .cw-alloc-ctl { display: flex; align-items: center; gap: 10px; }
 .cw-alloc-ctl .range { flex: 1; min-width: 0; width: auto; }
@@ -204,10 +213,12 @@
   position: absolute; top: 21px; left: clamp(62px, var(--capx), calc(100% - 62px)); transform: translateX(-50%);
   font-size: 12px; font-weight: 600; color: #a85a00; white-space: nowrap; pointer-events: none;
 }
-.cw-qty-legend { grid-column: 2 / -1; font-size: 13px; line-height: 1.45; color: #4a4d54; }
+.cw-qty-legend { grid-column: 2 / -1; display: flex; justify-content: space-between; gap: 12px; min-height: 19px; font-size: 13px; line-height: 1.45; color: #4a4d54; }
+.cw-qty-max { margin-left: auto; color: var(--text-dim); white-space: nowrap; }
+.cw-hide { visibility: hidden; }
 .cw-sw { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; border-radius: 2px; background: var(--accent); }
-.cw-sw.over { margin-left: 6px; background: #e8891c; }
-.cw-qty-note { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 13px; color: var(--text-dim); }
+.cw-sw.over { background: #e8891c; }
+.cw-qty-note { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 2px 14px; min-height: 19px; font-size: 13px; color: var(--text-dim); }
 .cw-qty-note.bad { color: var(--bad); }
 .cw-qty-note .warn { color: #a85a00; font-weight: 600; }
 .card.cw-sum { background: #fff; }

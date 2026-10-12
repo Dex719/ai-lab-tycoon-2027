@@ -27,31 +27,46 @@ export function distribute(weights: number[], total: number): number[] {
   return out;
 }
 
-/** Доли в целых процентах, сумма ровно 100. */
+/** Доли в целых процентах; сумма - доля занятой мощности (до 100), остаток простаивает. */
 export function percentsOf(alloc: Allocation): Percents {
-  const p = distribute(ALLOC_ROWS.map((r) => alloc[r.key]), 100);
+  const weights = ALLOC_ROWS.map((r) => (Number.isFinite(alloc[r.key]) && alloc[r.key] > 0 ? alloc[r.key] : 0));
+  const sum = weights.reduce((a, b) => a + b, 0);
   const out = {} as Percents;
+  if (!(sum > 0)) {
+    ALLOC_ROWS.forEach((r) => (out[r.key] = 0));
+    return out;
+  }
+  const p = distribute(weights, Math.min(100, Math.round(sum * 100)));
   ALLOC_ROWS.forEach((r, i) => (out[r.key] = p[i]));
   return out;
 }
 
-/** Поставить долю key в value % и пропорционально пересчитать остальные доли (диалог исследования). */
+/**
+ * Поставить долю key в value % и пропорционально пересчитать остальные доли (диалог исследования).
+ * Занятая мощность не уменьшается: если часть простаивала, простаивает и дальше (пока хватает места под value).
+ */
 export function withPercent(cur: Percents, key: AllocKey, value: number): Percents {
   const v = Math.max(0, Math.min(100, Math.round(value)));
+  const used = Math.min(100, Math.max(totalPercent(cur), v));
   const others = ALLOC_ROWS.map((r) => r.key).filter((k) => k !== key);
-  const next = distribute(others.map((k) => cur[k]), 100 - v);
+  const next = distribute(others.map((k) => cur[k]), used - v);
   const out = { ...cur, [key]: v };
   others.forEach((k, i) => (out[k] = next[i]));
   return out;
 }
 
-/** Поставить долю key в value % (0…100), не трогая остальные: ползунки окна «Мощности» независимы. */
+/** Наибольшее значение доли key: 100 минус сумма остальных долей (сумма никогда не больше 100 %). */
+export function maxPercent(cur: Percents, key: AllocKey): number {
+  return Math.max(0, 100 - (totalPercent(cur) - cur[key]));
+}
+
+/** Поставить долю key в value %, не трогая остальные; значение зажимается в 0…(100 − сумма остальных). */
 export function setPercent(cur: Percents, key: AllocKey, value: number): Percents {
-  const v = Math.max(0, Math.min(100, Math.round(Number.isFinite(value) ? value : 0)));
+  const v = Math.max(0, Math.min(maxPercent(cur, key), Math.round(Number.isFinite(value) ? value : 0)));
   return { ...cur, [key]: v };
 }
 
-/** Сумма долей в процентах («Занято: N %»). */
+/** Сумма долей в процентах. */
 export function totalPercent(p: Percents): number {
   return ALLOC_ROWS.reduce((a, r) => a + p[r.key], 0);
 }
@@ -66,12 +81,11 @@ export function samePercents(a: Percents, b: Percents): boolean {
   return ALLOC_ROWS.every((r) => a[r.key] === b[r.key]);
 }
 
-/** Строка «Занято: N %»: tone full - ровно 100, free - есть свободные проценты, over - лишние. */
-export function occupancy(p: Percents): { total: number; tone: 'full' | 'free' | 'over'; text: string } {
-  const total = totalPercent(p);
-  if (total === 100) return { total, tone: 'full', text: 'Занято: 100 %' };
-  if (total < 100) return { total, tone: 'free', text: `Занято: ${total} %, свободно: ${100 - total} %` };
-  return { total, tone: 'over', text: `Занято: ${total} %, лишние: ${total - 100} %` };
+/** Строка о занятой мощности: tone full - занято 100 %, idle - часть мощности простаивает (мягкое предупреждение). */
+export function occupancy(p: Percents): { total: number; tone: 'full' | 'idle'; text: string } {
+  const total = Math.min(100, totalPercent(p));
+  if (total >= 100) return { total, tone: 'full', text: 'Используется 100 % мощности.' };
+  return { total, tone: 'idle', text: `Используется ${total} % мощности, ${100 - total} % простаивает.` };
 }
 
 /** Каналы, в которых сейчас что-то продаётся: хотя бы одна выпущенная модель с включённым каналом. */
@@ -89,16 +103,17 @@ export const ZERO_SHARE_WARNING: Record<keyof SoldChannels, string> = {
 };
 
 export interface AllocCheck {
-  /** Текст ошибки (сумма не 100 %) или null: действие вызывать нельзя. */
+  /** Текст ошибки или null: действие вызывать нельзя. Сумма больше 100 % из окна не набирается, это страховка. */
   error: string | null;
   /** Каналы с долей 0 %, в которых есть продажи: нужно подтверждение игрока. Пусто, пока есть ошибка. */
   zero: (keyof SoldChannels)[];
 }
 
-/** Проверка перед «Распределить»: сумма ровно 100 %, затем нули в каналах с продажами. Ошибки показывают только после нажатия. */
+/** Проверка перед «Распределить»: сумма не больше 100 % и не ноль, затем нули в каналах с продажами. */
 export function checkAllocation(p: Percents, sold: SoldChannels): AllocCheck {
   const total = totalPercent(p);
-  if (total !== 100) return { error: `Сумма долей должна быть 100 %. Сейчас ${total} %.`, zero: [] };
+  if (total > 100) return { error: 'Сумма долей должна быть 100 %.', zero: [] };
+  if (total <= 0) return { error: 'Выделите мощность хотя бы на одну долю.', zero: [] };
   const zero: (keyof SoldChannels)[] = [];
   if (sold.api && p.api === 0) zero.push('api');
   if (sold.subs && p.subs === 0) zero.push('subs');

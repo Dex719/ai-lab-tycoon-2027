@@ -15,7 +15,7 @@ import { canRaise, valuation } from '../../sim/investors';
 import type { Valuation } from '../../sim/investors';
 import { byYear, formatDateShort, lerpByDate, yearOf } from '../../sim/time';
 import type { GameState } from '../../sim/types';
-import { Alert, ConfirmDialog, ErrorText } from '../components/common';
+import { Alert, ConfirmDialog, ErrorText, GuardButton } from '../components/common';
 import { fmtMoney, fmtMult, fmtNum, fmtShare } from '../format';
 import { fmtRank } from '../labels';
 import { actions, store } from '../store';
@@ -166,14 +166,14 @@ function RoundCard(props: { fraction: number; v: Valuation | null; share: number
         <span>Доля после</span>
         <span className={toneClass(after)}>{fmtShare(after)}</span>
       </div>
-      <button
+      <GuardButton
         className="btn primary wide"
-        disabled={why !== null}
-        title={why ?? `Продать ${fmtShare(fraction, 0)} компании за ${fmtMoney(money ?? 0)}`}
+        reason={why}
+        title={why === null ? `Продать ${fmtShare(fraction, 0)} компании за ${fmtMoney(money ?? 0)}` : undefined}
         onClick={props.onSell}
       >
         Продать долю
-      </button>
+      </GuardButton>
     </div>
   );
 }

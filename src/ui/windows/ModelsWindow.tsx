@@ -7,7 +7,6 @@ import type { WindowProps } from '.';
 import { benchDef, DOMAIN_NAMES, introducedBenchmarks } from '../../sim/benchmarks';
 import { pool, rentPerDay } from '../../sim/compute';
 import {
-  CHAT_MOMENT_DATE,
   SUBS_PRICE_MAX,
   SUBS_PRICE_MIN,
   TIER_API_PRICE_MULT,
@@ -19,7 +18,7 @@ import { awaitingEvent } from '../../sim/events';
 import { contextLabel } from '../../sim/research';
 import { arenaRank, benchRank } from '../../sim/leaderboard';
 import { minPrice, playerSales, refPrice, subsOpen } from '../../sim/market';
-import { dateToDay, formatDateShort } from '../../sim/time';
+import { formatDateShort } from '../../sim/time';
 import {
   arenaElo as forecastElo,
   capsFromPlan,
@@ -41,7 +40,7 @@ import {
   type TrainingRun,
 } from '../../sim/types';
 import { Cards } from '../components/Cards';
-import { Alert, ConfirmDialog, ErrorText, ProgressBar } from '../components/common';
+import { Alert, ConfirmDialog, DenyNote, ErrorText, GuardButton, ProgressBar, useFlash } from '../components/common';
 import { TierBadge } from '../components/TierBadge';
 import { fmtDays, fmtElo, fmtH100e, fmtMoney, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare, fmtTokens } from '../format';
 import { IconChevronLeft, IconModels } from '../icons';
@@ -60,7 +59,7 @@ const PRICE_STEPS = [
 
 const PRICE_TITLE = 'Цена за 1 млн токенов в долларах. Чем ниже цена, тем больше доля рынка и выше нагрузка на мощности «API».';
 const SUBS_PRICE_TITLE = 'Цена подписки в долларах в месяц. Чем ниже цена, тем больше подписчиков и выше нагрузка на мощности «Подписки».';
-const SUBS_CLOSED = `Подписки появятся после выхода чат-ботов (${formatDateShort(dateToDay(CHAT_MOMENT_DATE))}).`;
+const SUBS_CLOSED = 'Подписки появятся позже.';
 const REVIEW_FIRST = 'Сначала пройдите внешнюю проверку.';
 
 type Tone = 'idle' | 'sale' | 'off';
@@ -260,13 +259,34 @@ function PriceInput(props: {
   );
 }
 
-/** Переключатель канала продаж: флажок с подписью; причина, почему его нельзя включить, - в подсказке. */
-function Switch(props: { checked: boolean; label: string; title?: string; disabled?: boolean; onChange: (v: boolean) => void }) {
+/**
+ * Переключатель канала продаж: флажок с подписью. Пока есть причина (reason), флажок выглядит недоступным,
+ * но нажатие на него показывает причину красной строкой на 3,5 секунды.
+ */
+function Switch(props: { checked: boolean; label: string; title?: string; reason?: string | null; onChange: (v: boolean) => void }) {
+  const [note, flash] = useFlash();
+  const blocked = !!props.reason;
   return (
-    <label className={`mw-switch${props.checked ? ' on' : ''}${props.disabled ? ' disabled' : ''}`} title={props.title}>
-      <input type="checkbox" checked={props.checked} disabled={props.disabled} onChange={(e) => props.onChange(e.target.checked)} />
-      <span>{props.label}</span>
-    </label>
+    <span className="mw-switch-wrap">
+      <label
+        className={`mw-switch${props.checked ? ' on' : ''}${blocked ? ' disabled' : ''}`}
+        title={props.title}
+        onClick={(e) => {
+          if (!blocked) return;
+          e.preventDefault();
+          flash(props.reason!);
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={props.checked}
+          aria-disabled={blocked || undefined}
+          onChange={(e) => !blocked && props.onChange(e.target.checked)}
+        />
+        <span>{props.label}</span>
+      </label>
+      <DenyNote text={note} />
+    </span>
   );
 }
 
@@ -368,7 +388,7 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
               checked={subsOn}
               label="Продавать по подписке"
               title={subsBlock ?? 'Обычные пользователи платят за чат с моделью каждый месяц.'}
-              disabled={subsBlock !== null}
+              reason={subsBlock}
               onChange={setSubsWanted}
             />
             <div className="mw-edit">
@@ -389,15 +409,15 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
 
         <div className="mw-panel-foot">
           <span className="mw-sub">Цены можно менять после выпуска.</span>
-          <button
+          <GuardButton
             className="btn primary"
             data-tutorial="release"
-            disabled={!canRelease}
-            title={canRelease ? 'Выпустить модель на рынок' : (blockReason ?? undefined)}
+            reason={canRelease ? null : (blockReason ?? 'Модель пока нельзя выпустить.')}
+            title={canRelease ? 'Выпустить модель на рынок' : undefined}
             onClick={release}
           >
             Выпустить
-          </button>
+          </GuardButton>
         </div>
         <ErrorText error={err} />
       </div>
@@ -521,14 +541,14 @@ function ReviewBox({ s, m }: { s: GameState; m: PlayerModel }) {
         До проверки её можно продавать только по API.
       </span>
       <div className="mw-review-act">
-        <button
+        <GuardButton
           className="btn primary"
-          disabled={short}
-          title={short ? shortText : `Проверка займёт ${fmtDays(days)} и стоит ${fmtMoney(cost)}`}
+          reason={short ? shortText : null}
+          title={short ? undefined : `Проверка займёт ${fmtDays(days)} и стоит ${fmtMoney(cost)}`}
           onClick={() => setConfirm(true)}
         >
           Начать проверку
-        </button>
+        </GuardButton>
         <span className="mw-sub">
           <b className="mw-cost">{fmtMoney(cost)}</b>, {fmtDays(days)}
         </span>
@@ -589,11 +609,10 @@ function SubsPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowP
           checked={m.onSubs}
           label="Продавать по подписке"
           title={blocked ? blockTitle : 'Обычные пользователи платят за чат с моделью каждый месяц.'}
-          disabled={blocked}
+          reason={blocked ? (blockTitle ?? SUBS_CLOSED) : null}
           onChange={(v) => run(store.dispatch(actions.setOnSubs, m.id, v))}
         />
       </div>
-      {!opened && <div className="mw-sub">{SUBS_CLOSED}</div>}
       <ReviewBox s={s} m={m} />
       {noPool && (
         <Alert tone="warn" action={{ label: 'Открыть «Мощности»', onClick: () => open('compute') }}>
@@ -624,12 +643,14 @@ function SubsPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowP
 }
 
 function SalesBlock({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowProps['open'] }) {
+  // До открытия подписок панель «Подписка» свёрнута в одну строку, API занимает всю ширину.
+  const subsLater = !subsOpen(s.day) && !m.onSubs;
   return (
     <section>
       <h3 className="mw-h">Продажи</h3>
-      <div className="mw-channels">
+      <div className={`mw-channels${subsLater ? ' single' : ''}`}>
         <ApiPanel s={s} m={m} open={open} />
-        <SubsPanel s={s} m={m} open={open} />
+        {subsLater ? <div className="mw-subs-later">{SUBS_CLOSED}</div> : <SubsPanel s={s} m={m} open={open} />}
       </div>
     </section>
   );

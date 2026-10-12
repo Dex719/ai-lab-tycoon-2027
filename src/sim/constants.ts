@@ -37,7 +37,7 @@ export const RENT_CAP_2017 = 512; // на тип GPU, удваивается к�
 // Мягкий лимит аренды: сверх обычного лимита карты дают по цене × RENT_OVER_CAP_MULT,
 // но не больше RENT_HARD_CAP_MULT × лимит (жёсткий потолок).
 export const RENT_OVER_CAP_MULT = 1.8;
-export const RENT_HARD_CAP_MULT = 4;
+export const RENT_HARD_CAP_MULT = 2;
 export const MAX_TOKENS_B: Record<number, number> = {
   2017: 50, 2018: 100, 2019: 300, 2020: 1000, 2021: 2000, 2022: 5000, 2023: 10000, 2024: 20000,
 };

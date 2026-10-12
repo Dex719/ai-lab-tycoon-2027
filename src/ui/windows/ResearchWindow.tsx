@@ -1,10 +1,12 @@
 // Окно «Исследования»: карта всех технологий на сером холсте (образец - «Исследования» в Processor Tycoon).
-// Столбцы - годы появления в истории, линии - требования. Карту можно двигать мышью или пальцем и масштабировать.
+// Столбцы - годы появления в истории, линии - требования. Карту двигают мышью или пальцем, колесо мыши - масштаб.
+// Полос прокрутки нет: положение карты меняется только перетаскиванием и масштабом.
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
+import { pointsWord } from '../../data/events';
 import { GPUS } from '../../data/gpus';
 import { pool, rentPerDay, totalH100e } from '../../sim/compute';
 import { ALGO_MULT, CONTEXT_LEVELS, RP_BASE, RP_K } from '../../sim/constants';
@@ -50,7 +52,7 @@ type Status = 'done' | 'current' | 'available' | 'blocked';
 
 // Размеры холста при масштабе 1, px.
 const NW = 240; // ширина узла
-const NH = 100; // высота узла
+const NH = 124; // высота узла
 const PAD = 32; // поля
 const YEAR_H = 30; // строка годов над картой
 const COL_GAP = 64; // между столбцами
@@ -68,6 +70,27 @@ const ROW_H = NH + ROW_GAP;
 // Сохранённый вид карты: масштаб и прокрутка.
 const VIEW_KEY = 'ai-lab-tycoon:research-view';
 const DRAG_THRESHOLD = 4; // px: меньше - это щелчок, а не перетаскивание
+/** Чувствительность колеса: один щелчок колеса мыши (deltaY ≈ 100) меняет масштаб примерно на 15 %. */
+const WHEEL_K = 0.0015;
+
+/** Подсказка в шапке окна: откуда берутся очки исследований. */
+const RP_HINT = 'Очки появляются каждый день от доли «Исследования» в «Мощностях» и идут в выбранную технологию.';
+
+/** «Накоплено 1 200 из 8 438 очков» - прогресс текущей технологии. */
+function progressText(points: number, cost: number): string {
+  return `Накоплено ${fmtNum(points)} из ${fmtNum(cost)} очков`;
+}
+
+/** «очко / очка / очков» после числа в формате fmtNum: после «тыс.» и «млн» - всегда «очков». */
+function pointsNoun(n: number): string {
+  const r = Math.round(n);
+  return r >= 1e4 ? 'очков' : pointsWord(r);
+}
+
+/** «Цена: 8 438 очков». */
+function priceText(cost: number): string {
+  return `Цена: ${fmtNum(Math.round(cost))} ${pointsNoun(cost)}`;
+}
 
 interface SavedView {
   zoom: number;
@@ -204,16 +227,17 @@ function TechNode({ s, id, label, code, rp, x, y, onPick }: NodeProps) {
               </span>
             ) : (
               <>
-                <span>Цена</span>
-                <span>{fmtNum(cost)} очков</span>
                 <span>Срок</span>
                 <span>{days === null ? '-' : `${fmtNum(days)} дн.`}</span>
               </>
             )}
           </span>
         </span>
+        {status !== 'done' && (
+          <span className="rs-pts">{status === 'current' || points > 0 ? progressText(points, cost) : priceText(cost)}</span>
+        )}
         {status !== 'done' && points > 0 && (
-          <span className="rs-prog" title={`${fmtNum(points)} из ${fmtNum(cost)} очков`}>
+          <span className="rs-prog" title={progressText(points, cost)}>
             <span style={{ width: `${share * 100}%` }} />
           </span>
         )}
@@ -390,15 +414,17 @@ export default function ResearchWindow({ s, open }: WindowProps) {
     }
   };
 
-  // Ctrl + колесо - масштаб вокруг курсора. Слушатель не пассивный: иначе браузер масштабирует всю страницу.
+  // Колесо мыши - масштаб вокруг курсора (без Ctrl). Слушатель не пассивный: иначе браузер прокрутит или масштабирует страницу.
   useEffect(() => {
     const el = viewRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
+      const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY; // строки → пиксели
+      if (dy === 0) return;
       const r = el.getBoundingClientRect();
-      zoomTo(zoom * (e.deltaY < 0 ? 1 + ZOOM_STEP : 1 / (1 + ZOOM_STEP)), e.clientX - r.left, e.clientY - r.top);
+      const k = Math.exp(-Math.max(-150, Math.min(150, dy)) * WHEEL_K);
+      zoomTo(zoom * k, e.clientX - r.left, e.clientY - r.top);
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -481,7 +507,7 @@ export default function ResearchWindow({ s, open }: WindowProps) {
           <button type="button" className="btn small" title="Уменьшить" aria-label="Уменьшить" disabled={zoom <= ZOOM_MIN} onClick={() => zoomTo(zoom - ZOOM_STEP)}>
             −
           </button>
-          <span className="rs-zoom-val num" title="Масштаб. Ctrl + колесо мыши - изменить">
+          <span className="rs-zoom-val num" title="Масштаб. Колесо мыши - изменить">
             {pct} %
           </span>
           <button type="button" className="btn small" title="Увеличить" aria-label="Увеличить" disabled={zoom >= ZOOM_MAX} onClick={() => zoomTo(zoom + ZOOM_STEP)}>
@@ -490,7 +516,30 @@ export default function ResearchWindow({ s, open }: WindowProps) {
           <button type="button" className="btn small" title="Показать всю карту" onClick={fit}>
             По размеру
           </button>
+          <span className="rs-hints" aria-hidden="true">
+            <span className="rs-hint" title="Перетаскивание - перемещение">
+              <svg width="18" height="18" viewBox="0 0 18 18">
+                <path
+                  d="M6 8.5V4.2a1.1 1.1 0 0 1 2.2 0V8M8.2 7.6V3.1a1.1 1.1 0 0 1 2.2 0v4.6M10.4 7.8V4.1a1.1 1.1 0 0 1 2.2 0v5.4M12.6 8.2V6.3a1.1 1.1 0 0 1 2.2 0V11c0 3-2 5-4.8 5H9.4c-1.6 0-2.7-.7-3.6-1.9L3.4 10.9a1.1 1.1 0 0 1 1.8-1.3L6 10.6"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+            <span className="rs-hint" title="Колесо - масштаб">
+              <svg width="18" height="18" viewBox="0 0 18 18">
+                <rect x="4.5" y="1.8" width="9" height="14.4" rx="4.5" fill="none" stroke="currentColor" strokeWidth="1.3" />
+                <path d="M9 4.6v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </span>
+          </span>
         </div>
+        <span className="rs-rp" title={RP_HINT}>
+          Очки исследований: <b className="num">+{fmtNum(rp)}</b> в день
+        </span>
         <div className="rs-state">
           {current ? (
             <>
@@ -515,7 +564,6 @@ export default function ResearchWindow({ s, open }: WindowProps) {
             {BRANCH_NAMES[b]}
           </span>
         ))}
-        <span className="rs-legend-hint">Перетащите карту мышью, Ctrl + колесо - масштаб</span>
       </div>
 
       <div
@@ -619,10 +667,6 @@ export default function ResearchWindow({ s, open }: WindowProps) {
         </div>
       )}
       <div className="rs-bar">
-        <span className="rs-stat" title={`${fmtNum(RP_BASE)} + ${fmtNum(RP_K)} × √(H100e на исследования)`}>
-          <span className="l">Очки в день</span>
-          <b className="num">{fmtNum(rp)}</b>
-        </span>
         <span className="rs-stat" title={`Доля мощности на исследования: ${fmtPct(s.compute.alloc.experiments * 100, 0)}`}>
           <span className="l">Мощность</span>
           <b className="num">{fmtNum(power)} H100e</b>
@@ -739,9 +783,9 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
               <dd>{techRequires(id).map((t) => `«${techName(t)}»`).join(', ')}</dd>
             </>
           )}
-          <dt>Стоимость</dt>
+          <dt>Цена</dt>
           <dd>
-            {fmtNum(cost)} очков
+            {fmtNum(cost)} {pointsNoun(cost)}
             {penalty > 1 && (
               <small title="Исследование раньше исторической даты стоит дороже. Цена снижается по мере приближения к этой дате.">
                 раньше истории, цена ×{fmtMult(penalty)}
@@ -756,11 +800,11 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
               </dd>
             </>
           )}
-          {points > 0 && (
+          {(isCurrent || points > 0) && (
             <>
               <dt>Накоплено</dt>
               <dd>
-                {fmtNum(points)} очков ({fmtPct((points / cost) * 100, 0)})
+                {fmtNum(points)} из {fmtNum(cost)} очков ({fmtPct((points / cost) * 100, 0)})
               </dd>
             </>
           )}
@@ -810,6 +854,9 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
           </div>
         </div>
 
+        <div className="rs-d-note" title={RP_HINT}>
+          Скорость: {fmtNum(rp)} {pointsNoun(rp)} в день, до конца исследования {fmtNum(days)} дн.
+        </div>
         {!noCards && changed && <div className="rs-d-note">Остальным задачам останется {fmtPct(100 - pct, 0)} мощности.</div>}
         {other && <div className="rs-d-note">Сейчас изучается «{other}». Его очки сохранятся.</div>}
         <ErrorText error={error} />

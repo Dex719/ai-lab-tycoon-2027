@@ -84,7 +84,10 @@ export function cheapestH100eDay(s: GameState): number {
   return best;
 }
 
-/** Привести доли к неотрицательным с суммой 1 (все нули → DEFAULT_ALLOC). */
+/**
+ * Привести доли к неотрицательным с суммой не больше 1: остаток мощности простаивает.
+ * Сумма больше 1 делится до 1 с сохранением пропорций; все нули → DEFAULT_ALLOC.
+ */
 export function normalizeAlloc(a: Allocation): Allocation {
   const clean = {} as Allocation;
   let sum = 0;
@@ -95,13 +98,13 @@ export function normalizeAlloc(a: Allocation): Allocation {
   }
   // Нули или переполнение суммы (бессмысленные числа) - стартовые доли.
   if (!(sum > 0) || !Number.isFinite(sum)) return { ...DEFAULT_ALLOC };
-  // Доли уже в сумме дают 1 - не трогаем, чтобы не плодить мелкие ошибки округления.
-  if (Math.abs(sum - 1) < 1e-9) return clean;
+  // Сумма не больше 1 (с запасом на ошибки округления процентов) - не трогаем: остаток простаивает.
+  if (sum <= 1 + 1e-9) return clean;
   for (const k of ALLOC_KEYS) clean[k] /= sum;
   return clean;
 }
 
-/** Действие: поставить долю (нормализуется). */
+/** Действие: поставить доли (сумма не больше 1, остаток простаивает; больше 1 - нормализуется). */
 export function setAllocation(s: GameState, a: Allocation): Result {
   s.compute.alloc = normalizeAlloc(a);
   return { ok: true };

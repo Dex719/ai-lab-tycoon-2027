@@ -23,10 +23,15 @@
 }
 .rs-legend-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
 .rs-legend-item i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; }
-.rs-legend-hint { margin-left: auto; color: var(--text-dim); white-space: nowrap; }
+.rs-hints { display: inline-flex; align-items: center; gap: 2px; margin-left: 4px; color: #8a8e95; }
+.rs-hint { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 2px; cursor: help; }
+.rs-hint:hover { color: var(--text-body); background: rgba(0, 0, 0, 0.05); }
+.rs-rp { margin-left: auto; white-space: nowrap; color: #50545b; cursor: help; }
+.rs-rp b { color: var(--text); font-weight: 600; }
+.rs-rp + .rs-state { margin-left: 0; }
 
-/* Холст: прокрутка, перетаскивание и масштаб. touch-action: none - палец двигает карту, а не страницу. */
-.rs-canvas { position: relative; flex: 1; min-height: 0; overflow: auto; background: var(--line); user-select: none; cursor: grab; touch-action: none; }
+/* Холст: перетаскивание и масштаб без полос прокрутки (положение меняет код). touch-action: none - палец двигает карту, а не страницу. */
+.rs-canvas { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--line); user-select: none; cursor: grab; touch-action: none; }
 .rs-canvas.dragging { cursor: grabbing; }
 .rs-canvas.dragging .rs-node { cursor: grabbing; }
 .rs-space { position: relative; }
@@ -69,6 +74,8 @@
 .rs-node.blocked .rs-kv > :nth-child(odd) { color: #45484e; }
 .rs-node .rs-kv > .rs-done { grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; font-weight: 600; text-align: left; }
 
+.rs-pts { display: block; margin-top: 5px; font-size: 12px; line-height: 16px; color: var(--text-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.rs-node.blocked .rs-pts { color: #34373c; }
 .rs-prog { display: block; height: 4px; margin-top: auto; background: #d9dce1; border-radius: 2px; overflow: hidden; }
 .rs-prog > span { display: block; height: 100%; background: var(--accent); }
 .rs-node.done .rs-prog { background: #2f3134; }

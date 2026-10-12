@@ -10,7 +10,7 @@ import { applyChance, canApply, contractWorkFor } from '../../sim/contracts';
 import { modelScore } from '../../sim/training';
 import type { Contract, GameState, PlayerModel, Tender } from '../../sim/types';
 import { Cards } from '../components/Cards';
-import { Alert, ConfirmDialog, ErrorText, ProgressBar } from '../components/common';
+import { Alert, ConfirmDialog, ErrorText, GuardButton, ProgressBar } from '../components/common';
 import { endSentence, fmtH100e, fmtMoney, fmtNum, fmtPct, fmtShare } from '../format';
 import { IconAlert, IconCheck, IconChevronLeft, IconCompute, IconContracts, IconModels } from '../icons';
 import { actions, store } from '../store';
@@ -443,15 +443,14 @@ function TenderCard(props: {
         ) : (
           <>
             {model && <span className="ct-why">{reason ?? `Решение при закрытии тендера, через ${days(left)}`}</span>}
-            <button
+            <GuardButton
               className="btn primary"
               data-tutorial="apply"
-              disabled={reason !== null}
-              title={reason ?? undefined}
+              reason={reason}
               onClick={() => (trap ? setConfirming(true) : submit())}
             >
               Подать заявку
-            </button>
+            </GuardButton>
           </>
         )}
         <ErrorText error={err} />

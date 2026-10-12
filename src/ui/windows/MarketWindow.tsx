@@ -4,7 +4,7 @@
 import { useMemo, type CSSProperties } from 'react';
 import type { WindowProps } from '.';
 import { personalityOf } from '../../data/labPersonalities';
-import { CHAT_MOMENT_DATE, HYPE_OWNERS, SEGMENT_DEF, SUBS_REF_PRICE } from '../../sim/constants';
+import { HYPE_OWNERS, SEGMENT_DEF, SUBS_REF_PRICE } from '../../sim/constants';
 import { bestElo } from '../../sim/leaderboard';
 import {
   marketSnapshot,
@@ -16,7 +16,7 @@ import {
 } from '../../sim/market';
 import { contextLabel } from '../../sim/research';
 import { findRivalDefIn, labStance, lastMove, moveName, rivalDayIn, type HistoryRow } from '../../sim/rivalry';
-import { dateToDay, dayToDate, formatDateShort } from '../../sim/time';
+import { dayToDate, formatDateShort } from '../../sim/time';
 import { SEGMENT_IDS, type Channel, type GameState, type HypeOwner, type SegmentId, type Tier } from '../../sim/types';
 import { Alert } from '../components/common';
 import { TierBadge } from '../components/TierBadge';
@@ -55,7 +55,7 @@ const CHANNEL_TITLE: Record<Channel, string> = {
 };
 
 /** Текст вместо карточки обычных пользователей, пока канал подписок закрыт. */
-export const SUBS_CLOSED = `Подписки появятся после выхода чат-ботов (${formatDateShort(dateToDay(CHAT_MOMENT_DATE))}).`;
+export const SUBS_CLOSED = 'Подписки появятся позже.';
 
 const NONE_TITLE = 'Часть спроса, которую не получила ни одна модель';
 

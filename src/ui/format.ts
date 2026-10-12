@@ -62,6 +62,11 @@ export function fmtNum(n: number): string {
 }
 
 /** Множитель без потери точности: 1,25 → «1,25», 14,55 → «14,6», 120 → «120». */
+/** Целое число полностью, с разрядами: «1 024», «32 768». */
+export function fmtInt(n: number): string {
+  return Number.isFinite(n) ? dec(Math.round(n), 0) : '-';
+}
+
 export function fmtMult(n: number): string {
   if (!Number.isFinite(n)) return '-';
   const a = Math.abs(n);

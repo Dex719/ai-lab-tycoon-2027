@@ -102,7 +102,8 @@ const MIN_PRICE_SHARE = 1 / 100;
 // День открытия «Арены»: с него шумиха весит меньше.
 const ARENA_OPEN_DAY = dateToDay(ARENA_OPEN_DATE);
 // Чат-момент: с него открыт канал подписок.
-const CHAT_MOMENT_DAY = dateToDay(CHAT_MOMENT_DATE);
+/** День открытия канала подписок (чат-момент). */
+export const CHAT_MOMENT_DAY = dateToDay(CHAT_MOMENT_DATE);
 
 // Модель на рынке до расчёта долей (одна запись на модель, участвует в сегментах своего канала).
 interface Candidate {

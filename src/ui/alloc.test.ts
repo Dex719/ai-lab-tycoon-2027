@@ -6,6 +6,7 @@ import { DEFAULT_ALLOC } from '../sim/constants';
 import {
   ALLOC_ROWS,
   checkAllocation,
+  maxPercent,
   occupancy,
   percentsOf,
   samePercents,
@@ -26,6 +27,12 @@ describe('ALLOC_ROWS и percentsOf', () => {
     expect(ALLOC_ROWS.map((r) => r.label)).toEqual(['Обучение', 'Контракты', 'Исследования', 'API', 'Подписки']);
     // у каждой строки свой цвет: по нему красятся ползунок и полоса распределения
     expect(new Set(ALLOC_ROWS.map((r) => r.color)).size).toBe(5);
+  });
+
+  it('percentsOf: сумма меньше 1 - остаток простаивает, нули - все доли 0', () => {
+    expect(percentsOf({ training: 0, contracts: 0.93, experiments: 0, api: 0.0, subs: 0 }).contracts).toBe(93);
+    expect(totalPercent(percentsOf({ training: 0.2, contracts: 0.5, experiments: 0.2, api: 0, subs: 0 }))).toBe(90);
+    expect(totalPercent(percentsOf({ training: 0, contracts: 0, experiments: 0, api: 0, subs: 0 }))).toBe(0);
   });
 
   it('percentsOf: все пять ключей, сумма ровно 100', () => {
@@ -49,8 +56,8 @@ describe('ALLOC_ROWS и percentsOf', () => {
 
 describe('setPercent', () => {
   it('меняет только свою долю: остальные не двигаются', () => {
-    const next = setPercent(base, 'api', 55);
-    expect(next).toEqual({ ...base, api: 55 });
+    const next = setPercent(base, 'api', 5);
+    expect(next).toEqual({ ...base, api: 5 });
     for (const k of ALLOC_KEYS) if (k !== 'api') expect(next[k]).toBe(base[k]);
   });
 
@@ -60,15 +67,19 @@ describe('setPercent', () => {
     expect(base).toEqual(copy);
   });
 
-  it('сумма после ползунка может быть не 100: ползунки независимы', () => {
-    const next = setPercent(base, 'training', 100);
-    expect(totalPercent(next)).toBe(160);
+  it('сумма никогда не больше 100: потолок доли - 100 минус остальные', () => {
+    expect(setPercent(base, 'training', 100).training).toBe(40);
+    expect(totalPercent(setPercent(base, 'training', 100))).toBe(100);
+    const p: Percents = { training: 0, contracts: 0, experiments: 0, api: 7, subs: 0 };
+    expect(maxPercent(p, 'contracts')).toBe(93);
+    expect(setPercent(p, 'contracts', 99).contracts).toBe(93);
   });
 
-  it('значение округляется и зажимается в 0…100, мусор - ноль', () => {
-    expect(setPercent(base, 'api', 12.6).api).toBe(13);
+  it('значение округляется и зажимается в 0…максимум, мусор - ноль', () => {
+    const free: Percents = { training: 0, contracts: 0, experiments: 0, api: 10, subs: 0 };
+    expect(setPercent(free, 'api', 12.6).api).toBe(13);
     expect(setPercent(base, 'api', -5).api).toBe(0);
-    expect(setPercent(base, 'api', 250).api).toBe(100);
+    expect(setPercent(free, 'api', 250).api).toBe(100);
     expect(setPercent(base, 'api', NaN).api).toBe(0);
     expect(setPercent(base, 'api', Infinity).api).toBe(0);
   });
@@ -77,6 +88,10 @@ describe('setPercent', () => {
     const next = withPercent(base, 'training', 70);
     expect(next.training).toBe(70);
     expect(totalPercent(next)).toBe(100);
+    // простаивающая часть остаётся простаивать
+    const idle = withPercent({ training: 30, contracts: 30, experiments: 30, api: 0, subs: 0 }, 'experiments', 50);
+    expect(idle.experiments).toBe(50);
+    expect(totalPercent(idle)).toBe(90);
   });
 });
 
@@ -92,21 +107,21 @@ describe('totalPercent, samePercents, occupancy', () => {
     expect(samePercents(base, { ...base, subs: 11 })).toBe(false);
   });
 
-  it('occupancy: ровно 100, свободно, лишние', () => {
-    expect(occupancy(base)).toEqual({ total: 100, tone: 'full', text: 'Занято: 100 %' });
-    expect(occupancy(setPercent(base, 'api', 0))).toEqual({ total: 90, tone: 'free', text: 'Занято: 90 %, свободно: 10 %' });
-    expect(occupancy(setPercent(base, 'api', 30))).toEqual({ total: 120, tone: 'over', text: 'Занято: 120 %, лишние: 20 %' });
+  it('occupancy: ровно 100 или часть простаивает', () => {
+    expect(occupancy(base)).toEqual({ total: 100, tone: 'full', text: 'Используется 100 % мощности.' });
+    expect(occupancy({ ...base, api: 3 })).toEqual({ total: 93, tone: 'idle', text: 'Используется 93 % мощности, 7 % простаивает.' });
   });
 });
 
 describe('checkAllocation', () => {
   const none = { api: false, subs: false };
 
-  it('сумма не 100 - ошибка с текущей суммой, подтверждений нет', () => {
-    const r = checkAllocation(setPercent(base, 'api', 30), { api: true, subs: true });
-    expect(r.error).toBe('Сумма долей должна быть 100 %. Сейчас 120 %.');
+  it('сумма меньше 100 - не ошибка; больше 100 или ноль - короткая ошибка', () => {
+    expect(checkAllocation({ ...base, api: 0 }, none)).toEqual({ error: null, zero: [] });
+    const r = checkAllocation({ ...base, api: 30 }, { api: true, subs: true });
+    expect(r.error).toBe('Сумма долей должна быть 100 %.');
     expect(r.zero).toEqual([]);
-    expect(checkAllocation(setPercent(base, 'api', 0), none).error).toContain('Сейчас 90 %');
+    expect(checkAllocation({ training: 0, contracts: 0, experiments: 0, api: 0, subs: 0 }, none).error).not.toBeNull();
   });
 
   it('сумма 100 и нет нулей - всё чисто', () => {

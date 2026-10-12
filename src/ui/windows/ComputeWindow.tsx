@@ -17,12 +17,13 @@ import {
   totalH100e,
 } from '../../sim/compute';
 import { RENT_HARD_CAP_MULT, RENT_OVER_CAP_MULT } from '../../sim/constants';
-import { inferenceNeed, marketSnapshot } from '../../sim/market';
-import { dateToDay, formatDateShort } from '../../sim/time';
+import { CHAT_MOMENT_DAY, inferenceNeed, marketSnapshot, subsOpen } from '../../sim/market';
+import { dateToDay } from '../../sim/time';
 import type { GameState, GpuDef, GpuId } from '../../sim/types';
 import {
   ALLOC_ROWS,
   checkAllocation,
+  maxPercent,
   occupancy,
   percentsOf,
   samePercents,
@@ -35,8 +36,8 @@ import {
   type SoldChannels,
 } from '../alloc';
 import { Cards } from '../components/Cards';
-import { Alert, ConfirmDialog, Dialog, ErrorText, Range } from '../components/common';
-import { fmtH100e as fmtH, fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
+import { Alert, ConfirmDialog, Dialog, ErrorText, NewBadge, Range } from '../components/common';
+import { fmtH100e as fmtH, fmtInt, fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
 import { actions, store } from '../store';
 import './ComputeWindow.css';
 
@@ -76,6 +77,24 @@ function cheapestGpuId(s: GameState): GpuId | null {
   return best.id;
 }
 
+/**
+ * Строки долей, которые видит игрок: «Подписки» - только после открытия канала подписок
+ * (или если доля почему-то уже не нулевая, чтобы её можно было убрать).
+ */
+function visibleRows(s: GameState) {
+  return ALLOC_ROWS.filter((r) => r.key !== 'subs' || subsOpen(s.day) || s.compute.alloc.subs > 0);
+}
+
+/** Подпись доли со значком «Новое» у «Подписок» в первые дни после открытия канала. */
+function RowLabel({ s, r }: { s: GameState; r: (typeof ALLOC_ROWS)[number] }) {
+  return (
+    <>
+      {r.label}
+      {r.key === 'subs' && <NewBadge day={s.day} since={CHAT_MOMENT_DAY} />}
+    </>
+  );
+}
+
 // ---------- Сведения ----------
 
 function Summary({ s, onRent }: { s: GameState; onRent: () => void }) {
@@ -109,11 +128,11 @@ function Summary({ s, onRent }: { s: GameState; onRent: () => void }) {
           <dd className={over > 0 ? 'warn' : undefined}>{capText}</dd>
         </dl>
         <dl className="cw-kv">
-          {ALLOC_ROWS.map((r) => (
+          {visibleRows(s).map((r) => (
             <Fragment key={r.key}>
               <dt title={r.hint}>
                 <span className="cw-dot" style={{ background: r.color }} />
-                {r.label}
+                <RowLabel s={s} r={r} />
               </dt>
               <dd>
                 {fmtH(pool(s, r.key))} H100e
@@ -192,6 +211,7 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
   const max = Math.max(rentMaxFor(s, g.id), rented);
   const parsed = text.trim() === '' ? NaN : Number(text);
   const count = Number.isInteger(parsed) && parsed >= 0 && parsed <= max ? parsed : null;
+  const atMax = count === max;
   const over = count === null ? 0 : overCap(count, cap);
   const cheapest = cheapestGpuId(s);
   // Где на ползунке кончается обычная цена (доля длины дорожки); при лимите не ниже потолка отметки нет.
@@ -247,30 +267,27 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
             <span>H100e на карту</span>
             <span>$ за H100e в день</span>
           </div>
-          {GPUS.map((x) => {
-            const avail = isGpuAvailable(s, x.id);
-            const from = formatDateShort(dateToDay(x.availableFrom));
-            return (
-              <button
-                key={x.id}
-                type="button"
-                role="radio"
-                aria-checked={x.id === id}
-                className={`cw-gpu${x.id === id ? ' is-selected' : ''}`}
-                disabled={!avail}
-                onClick={() => pick(x)}
-                title={avail ? undefined : `Доступна с ${from}`}
-              >
-                <span className="cw-gpu-name">
-                  <span>{x.name}</span>
-                  {!avail && <span className="cw-gpu-from">Доступна с {from}</span>}
-                  {avail && x.id === cheapest && <span className="cw-gpu-tag">Выгоднее всего</span>}
+          {/* Карты, которые ещё не вышли, не показываются вовсе: игрок не должен знать будущее. */}
+          {GPUS.filter((x) => isGpuAvailable(s, x.id)).map((x) => (
+            <button
+              key={x.id}
+              type="button"
+              role="radio"
+              aria-checked={x.id === id}
+              className={`cw-gpu${x.id === id ? ' is-selected' : ''}`}
+              onClick={() => pick(x)}
+            >
+              <span className="cw-gpu-name">
+                <span>
+                  {x.name}
+                  <NewBadge day={s.day} since={dateToDay(x.availableFrom)} />
                 </span>
-                <span className="n">{fmtH(x.h100e)}</span>
-                <span className="n">{avail ? fmtMoney(rentPerGpuDay(s, x.id) / x.h100e) : '-'}</span>
-              </button>
-            );
-          })}
+                {x.id === cheapest && <span className="cw-gpu-tag">Выгоднее всего</span>}
+              </span>
+              <span className="n">{fmtH(x.h100e)}</span>
+              <span className="n">{fmtMoney(rentPerGpuDay(s, x.id) / x.h100e)}</span>
+            </button>
+          ))}
         </div>
 
         <div className="cw-qty">
@@ -298,17 +315,19 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
             onBlur={normalize}
             onKeyDown={(e) => e.key === 'Enter' && submit()}
           />
-          {capFrac !== null && (
-            <div className="cw-qty-legend">
-              <span className="cw-sw" />
-              До {fmtNum(cap)} шт. - обычная цена,
+          {/* Строка зарезервирована всегда: «Максимум» появляется у правого края ползунка, размер диалога не меняется. */}
+          <div className="cw-qty-legend">
+            <span className={capFrac === null ? 'cw-hide' : undefined}>
               <span className="cw-sw over" />
-              сверх лимита - в {fmtMult(RENT_OVER_CAP_MULT)} раза дороже, максимум {fmtNum(max)} шт.
-            </div>
-          )}
+              Сверх лимита - в {fmtMult(RENT_OVER_CAP_MULT)} раза дороже.
+            </span>
+            <span className={`cw-qty-max${atMax ? '' : ' cw-hide'}`} aria-hidden={!atMax}>
+              Максимум {fmtInt(max)} шт.
+            </span>
+          </div>
           <div className={`cw-qty-note${count === null ? ' bad' : ''}`}>
             {count === null ? (
-              `Введите целое число от 0 до ${fmtNum(max)}`
+              `Введите целое число от 0 до ${fmtInt(max)}`
             ) : (
               over > 0 && (
                 <span className="warn">
@@ -325,21 +344,18 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
             <dd>{count === null ? '-' : `${fmtH(count * g.h100e)} H100e`}</dd>
             <dt title="Аренда за сутки × 30, с надбавкой за карты сверх лимита">Стоимость</dt>
             <dd className="cw-cost">{count === null ? '-' : `${fmtMoney(monthlyCost(s, g.id, count))} в месяц`}</dd>
-            {over > 0 && (
-              <>
-                <dt title={`Надбавка за ${fmtNum(over)} шт. сверх лимита: цена ${OVER_MULT_TEXT}`}>Из них надбавка</dt>
-                <dd className="warn">{fmtMoney(overCost)} в месяц</dd>
-              </>
-            )}
+            {/* Строки есть всегда (с прочерком), чтобы диалог не менял высоту при движении ползунка. */}
+            <dt title={`Надбавка за карты сверх лимита: цена ${OVER_MULT_TEXT}`}>Из них надбавка</dt>
+            <dd className={over > 0 ? 'warn' : undefined}>{over > 0 ? `${fmtMoney(overCost)} в месяц` : '-'}</dd>
             <dt>Сейчас в аренде</dt>
             <dd>{fmtNum(rented)} шт.</dd>
-            {count !== null && count !== rented && (
-              <>
-                <dt title="Разница с текущей арендой этого типа карт">Изменение</dt>
-                <dd className={lowering ? 'good' : 'bad'}>
-                  {fmtChange(monthlyCost(s, g.id, count) - monthlyCost(s, g.id, rented), (count - rented) * g.h100e)}
-                </dd>
-              </>
+            <dt title="Разница с текущей арендой этого типа карт">Изменение</dt>
+            {count !== null && count !== rented ? (
+              <dd className={lowering ? 'good' : 'bad'}>
+                {fmtChange(monthlyCost(s, g.id, count) - monthlyCost(s, g.id, rented), (count - rented) * g.h100e)}
+              </dd>
+            ) : (
+              <dd>-</dd>
             )}
           </dl>
         </div>
@@ -384,6 +400,8 @@ function ClientNeed({ s, need, have }: { s: GameState; need: number | undefined;
 /** Поле процента рядом с ползунком: пока в нём печатают, показывается набранный текст, после ухода из поля - долю. */
 function PercentInput(props: {
   value: number;
+  /** Наибольшее значение: 100 минус сумма остальных долей. Больше набрать нельзя, число зажимается. */
+  max: number;
   label: string;
   changed: boolean;
   onChange: (v: number) => void;
@@ -395,7 +413,7 @@ function PercentInput(props: {
       <input
         type="number"
         min={0}
-        max={100}
+        max={props.max}
         step={1}
         inputMode="decimal"
         value={text ?? String(props.value)}
@@ -407,7 +425,7 @@ function PercentInput(props: {
           const n = Number(raw);
           if (!Number.isFinite(n)) return;
           props.onChange(n);
-          if (n < 0 || n > 100) setText(String(Math.max(0, Math.min(100, Math.round(n)))));
+          if (n < 0 || n > props.max) setText(String(Math.max(0, Math.min(props.max, Math.round(n)))));
         }}
         onBlur={() => setText(null)}
         onKeyDown={(e) => {
@@ -432,6 +450,7 @@ function AllocPanel({ s }: { s: GameState }) {
   const total = totalH100e(s);
   const occ = occupancy(shown);
   const need = safeInferenceNeed(s);
+  const rows = visibleRows(s);
 
   const edit = (key: AllocKey, value: number) => {
     setError(null);
@@ -445,7 +464,7 @@ function AllocPanel({ s }: { s: GameState }) {
     if (r.ok) setDraft(null);
   };
 
-  // «Распределить»: сумма должна быть 100 %; нулевую долю API или подписок при продажах в канале игрок подтверждает.
+  // «Распределить»: сумма не больше 100 % (остаток простаивает); нулевую долю API или подписок при продажах в канале игрок подтверждает.
   const apply = () => {
     if (!draft || !changed) return;
     const check = checkAllocation(draft, soldChannels(s.models));
@@ -469,18 +488,25 @@ function AllocPanel({ s }: { s: GameState }) {
             <div key={r.key} style={{ width: `${shown[r.key]}%`, background: r.color }} />
           ))}
         </div>
-        <div className={`cw-occ ${occ.tone}`} role="status">
+        <div
+          className={`cw-occ ${occ.tone}`}
+          role="status"
+          title={occ.tone === 'idle' ? 'Свободная мощность простаивает, а аренда за неё всё равно списывается.' : undefined}
+        >
           {occ.text}
         </div>
       </div>
       {total <= 0 && <p className="cw-panel-note">Мощность появится после аренды карт.</p>}
-      {ALLOC_ROWS.map((r) => {
+      {rows.map((r) => {
         const h = (total * shown[r.key]) / 100;
+        const cap = maxPercent(shown, r.key);
         return (
           <div key={r.key} className="cw-alloc-row" title={r.hint}>
             <div className="cw-alloc-top">
               <span className="cw-dot" style={{ background: r.color }} />
-              <span className="cw-alloc-name">{r.label}</span>
+              <span className="cw-alloc-name">
+                <RowLabel s={s} r={r} />
+              </span>
               <span className="cw-alloc-val">
                 {fmtH(h)} H100e
                 <Cards s={s} h100e={h} />
@@ -498,10 +524,11 @@ function AllocPanel({ s }: { s: GameState }) {
               />
               <PercentInput
                 value={shown[r.key]}
+                max={cap}
                 label={r.label}
                 changed={draft !== null && shown[r.key] !== current[r.key]}
                 onChange={(v) => edit(r.key, v)}
-                onEnter={() => occupancy(shown).total === 100 && apply()}
+                onEnter={apply}
               />
             </div>
             {(r.key === 'api' || r.key === 'subs') && <ClientNeed s={s} need={need?.[r.key]} have={h} />}
