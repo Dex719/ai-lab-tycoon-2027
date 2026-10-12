@@ -8,6 +8,7 @@ import { ConfirmDialog, Dialog, ErrorText } from './components/common';
 import { fmtMoney } from './format';
 import { fmtRank } from './labels';
 import { deleteSlot, formatSavedAt, latestSlot, listSlots, MANUAL_SLOTS, type SlotId, type SlotInfo } from './saves';
+import { applyRealNames } from './realNamesDom';
 import { getSettings, setSettings } from './settings';
 import { store } from './store';
 
@@ -288,6 +289,19 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           <input type="checkbox" checked={settings.toasts} onChange={() => toggle('toasts')} />
           <span>Всплывающие уведомления</span>
         </label>
+        <label className="row">
+          <input
+            type="checkbox"
+            checked={settings.realNames}
+            onChange={() => {
+              const next = setSettings({ realNames: !settings.realNames });
+              set(next);
+              applyRealNames(next.realNames);
+            }}
+          />
+          <span>Оригинальные названия</span>
+        </label>
+        <div className="small muted">Показывает настоящие названия компаний, моделей и тестов. Сохранения не меняются.</div>
         <div className="small muted">Управление: пробел - пауза. Кнопки скорости - на верхней панели.</div>
       </div>
     </Dialog>

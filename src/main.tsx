@@ -4,6 +4,7 @@ import { botAct, type BotKind } from './sim/bots';
 import { applyChoice, pendingChoice } from './sim/events';
 import { advanceDay } from './sim/tick';
 import { App } from './ui/App';
+import { initRealNames } from './ui/realNamesDom';
 import { actions, store } from './ui/store';
 import './ui/theme.css';
 import './ui/responsive.css';
@@ -43,6 +44,8 @@ if (import.meta.env.DEV) {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) store.pauseForHidden();
 });
+
+initRealNames();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -4,10 +4,11 @@ export interface Settings {
   pauseOnImportant: boolean; // пауза, когда приходит важное письмо
   pauseOnHidden: boolean; // пауза, когда вкладка браузера скрыта
   toasts: boolean; // всплывающие уведомления о новых письмах
+  realNames: boolean; // показывать настоящие названия компаний, моделей и тестов
 }
 
 const KEY = 'ailab.settings';
-const DEFAULTS: Settings = { pauseOnImportant: true, pauseOnHidden: true, toasts: true };
+const DEFAULTS: Settings = { pauseOnImportant: true, pauseOnHidden: true, toasts: true, realNames: false };
 
 let cache: Settings | null = null;
 
