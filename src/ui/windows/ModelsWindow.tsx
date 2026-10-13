@@ -158,6 +158,33 @@ function ModelList(props: {
   onSelect: (id: string) => void;
   open: WindowProps['open'];
 }) {
+  // Снятые с продажи модели сворачиваем в «Архив»; если выбрана одна из них, группа открыта.
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const archived = props.models.filter((m) => saleState(m).tone === 'off');
+  const active = props.models.filter((m) => saleState(m).tone !== 'off');
+  const archiveShown = archiveOpen || archived.some((m) => m.id === props.selectedId);
+  const renderModel = (m: PlayerModel) => {
+    const st = saleState(m);
+    const rv = reviewState(m);
+    return (
+      <button
+        key={m.id}
+        className={`mw-item ${st.tone}${m.id === props.selectedId ? ' is-selected' : ''}`}
+        aria-current={m.id === props.selectedId}
+        onClick={() => props.onSelect(m.id)}
+      >
+        <span className="mw-item-text">
+          <span className="mw-item-name" title={m.name}>{m.name}</span>
+          <span className="mw-item-state">
+            <TierBadge tier={m.plan.tier} />
+            <span>{st.text}</span>
+          </span>
+          {rv && rv.tone !== 'good' && <span className={`mw-item-state ${rv.tone}`}>{rv.text}</span>}
+          {m.exposed && <span className="mw-item-state bad">Подгонка раскрыта</span>}
+        </span>
+      </button>
+    );
+  };
   return (
     <aside className="mw-side">
       <div className="mw-list">
@@ -166,11 +193,10 @@ function ModelList(props: {
           return (
             <button
               key={t.id}
-              className={`mw-item${props.selectedId === id ? ' is-selected' : ''}`}
+              className={`mw-item train${props.selectedId === id ? ' is-selected' : ''}`}
               aria-current={props.selectedId === id}
               onClick={() => props.onSelect(id)}
             >
-              <span className="mw-dot train" />
               <span className="mw-item-text">
                 <span className="mw-item-name" title={t.plan.name}>{t.plan.name}</span>
                 <span className="mw-item-state">
@@ -181,29 +207,20 @@ function ModelList(props: {
             </button>
           );
         })}
-        {props.models.map((m) => {
-          const st = saleState(m);
-          const rv = reviewState(m);
-          return (
-            <button
-              key={m.id}
-              className={`mw-item${m.id === props.selectedId ? ' is-selected' : ''}`}
-              aria-current={m.id === props.selectedId}
-              onClick={() => props.onSelect(m.id)}
-            >
-              <span className={`mw-dot ${st.tone}`} />
-              <span className="mw-item-text">
-                <span className="mw-item-name" title={m.name}>{m.name}</span>
-                <span className="mw-item-state">
-                  <TierBadge tier={m.plan.tier} />
-                  <span>{st.text}</span>
-                </span>
-                {rv && rv.tone !== 'good' && <span className={`mw-item-state ${rv.tone}`}>{rv.text}</span>}
-                {m.exposed && <span className="mw-item-state bad">Подгонка раскрыта</span>}
-              </span>
-            </button>
-          );
-        })}
+        {active.map(renderModel)}
+        {archived.length > 0 && (
+          <button
+            type="button"
+            className="mw-archive"
+            aria-expanded={archiveShown}
+            title="Модели, снятые с продажи"
+            onClick={() => setArchiveOpen((v) => !v)}
+          >
+            <span className="mw-archive-arrow">{archiveShown ? '▾' : '▸'}</span>
+            Архив ({archived.length})
+          </button>
+        )}
+        {archiveShown && archived.map(renderModel)}
       </div>
       <div className="mw-side-foot">
         <span>Моделей: {props.models.length}</span>

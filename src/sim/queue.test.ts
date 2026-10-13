@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { newGame, releaseModel } from './actions';
 import { setAllocation, setRent } from './compute';
 import { RESEARCH_QUEUE_MAX } from './constants';
-import { idleCompute, idleTotal } from './idle';
+import { addMail, pruneMail } from './events';
+import { idleCompute, idleQuiet, idleTotal, idleWarnings } from './idle';
 import { queueBlockReason, queueResearch, researchDaysLeft, rpPerDay, setResearch, techCost, unqueueResearch } from './research';
 import { progressDay } from './research';
 import { deserialize, serialize } from './save';
@@ -336,5 +337,42 @@ describe('внешняя проверка нужна только для под�
     advanceDay(s);
     expect(s.models[0].review).toBe('required');
     expect(s.mail.some((x) => x.title === 'Нужна внешняя проверка: «Один»')).toBe(true);
+  });
+});
+
+describe('мягкое предупреждение о простое', () => {
+  it('молчит первые 14 дней партии и 3 дня после смены аренды', () => {
+    const s = lab(); // lab() сам ставит аренду
+    expect(idleCompute(s)).toHaveLength(1);
+    expect(idleWarnings(s)).toEqual([]);
+    s.day += 14;
+    s.compute.rentChangedDay = undefined; // старое сохранение: смены аренды не помним
+    expect(idleQuiet(s)).toBe(false);
+    expect(idleWarnings(s)).toHaveLength(1);
+    setRent(s, 'p100', 300);
+    expect(s.compute.rentChangedDay).toBe(s.day);
+    expect(idleWarnings(s)).toEqual([]);
+    s.day += 3;
+    expect(idleWarnings(s)).toHaveLength(1);
+    setRent(s, 'p100', 300); // то же число: не смена
+    expect(idleWarnings(s)).toHaveLength(1);
+  });
+});
+
+describe('чистка почты', () => {
+  it('прочитанные письма старше года уходят, непрочитанные и с невыбранным ответом остаются', () => {
+    const s = newGame('Тест', 1);
+    s.mail = [];
+    const old = addMail(s, { kind: 'news', title: 'старое прочитанное', body: '.' });
+    const oldUnread = addMail(s, { kind: 'news', title: 'старое новое', body: '.' });
+    const oldChoice = addMail(s, { kind: 'event', title: 'выбор', body: '.', choices: [{ label: 'а', hint: '' }] });
+    old.read = true;
+    oldChoice.read = true;
+    s.day += 400;
+    const fresh = addMail(s, { kind: 'news', title: 'свежее', body: '.' });
+    fresh.read = true;
+    pruneMail(s);
+    expect(s.mail.map((m) => m.title).sort()).toEqual(['выбор', 'свежее', 'старое новое'].sort());
+    expect(oldUnread.read).toBe(false);
   });
 });

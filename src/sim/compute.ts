@@ -140,6 +140,7 @@ export function setRent(s: GameState, id: GpuId, count: number): Result {
       return { ok: false, error: `Потолок аренды ${def.name} в этом году - ${max} шт.` };
     }
   }
+  if (s.compute.rented[id] !== count) s.compute.rentChangedDay = s.day;
   s.compute.rented[id] = count + 0; // «+ 0» превращает −0 в обычный 0
   return { ok: true };
 }

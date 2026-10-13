@@ -17,6 +17,9 @@ import {
   freeSlots,
   gpuBuyPrice,
   gpusPerMw,
+  resaleFactor,
+  resalePrice,
+  sellDcGpus,
   writeOffDcGpus,
 } from './datacenters';
 import { serialize, deserialize } from './save';
@@ -198,6 +201,25 @@ describe('карты в своём дата-центре', () => {
     expect(writeOffDcGpus(s, 'abilene', 'a100', 500).ok).toBe(true);
     expect(dc.gpus.a100).toBe(0);
     expect(s.cash).toBe(cash);
+  });
+
+  it('продажа старых карт: цена падает с возрастом и новыми поколениями, деньги приходят сразу', () => {
+    const s = gameOn('2021-06-01');
+    const dc = readyDc(s);
+    dc.gpus.v100 = 100;
+    const f0 = resaleFactor(s, 'v100'); // V100 вышла в октябре 2017: возраст 3 года, новее есть A100
+    expect(f0).toBeCloseTo(0.1, 5); // 0,6 - 0,6 - 0,05 -> не меньше 10 %
+    const fresh = gameOn('2024-07-01');
+    expect(resaleFactor(fresh, 'h200')).toBeCloseTo(0.6, 5);
+    expect(resaleFactor(fresh, 'h100')).toBeCloseTo(0.6 - 0.2 - 0.05, 5);
+    const cash = s.cash;
+    const capex = s.finance.month.expense.capex;
+    const amount = 40 * resalePrice(s, 'v100');
+    expect(sellDcGpus(s, 'abilene', 'v100', 101).ok).toBe(false);
+    expect(sellDcGpus(s, 'abilene', 'v100', 40).ok).toBe(true);
+    expect(dc.gpus.v100).toBe(60);
+    expect(s.cash).toBeCloseTo(cash + amount, 3);
+    expect(s.finance.month.expense.capex).toBeCloseTo(capex - amount, 3);
   });
 
   it('своя H100 в 2024 году дешевле аренды в месяц и окупается за 1-3 года', () => {

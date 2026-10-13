@@ -26,6 +26,17 @@
   padding: 8px 10px 8px 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--text-dim);
 }
 
+/* Цветная полоска слева по состоянию: в продаже - зелёная, обучается - синяя, обучена - оранжевая, снята - серая. */
+.mw-item { box-shadow: inset 5px 0 0 #aab0b8; }
+.mw-item.sale { box-shadow: inset 5px 0 0 var(--good); }
+.mw-item.train { box-shadow: inset 5px 0 0 #2f80e4; }
+.mw-item.idle { box-shadow: inset 5px 0 0 #e08a1e; }
+.mw-item.off { box-shadow: inset 5px 0 0 #aab0b8; }
+.mw-archive {
+  display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 4px; padding: 8px 10px 8px 12px; cursor: pointer;
+  background: none; border: none; border-top: 1px solid var(--line); color: var(--text-dim); font-size: 13px; font-weight: 600; text-align: left;
+}
+.mw-archive:hover { color: var(--text); }
 .mw-dot { flex: none; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: #aab0b8; }
 .mw-dot.sale { background: var(--good); }
 .mw-dot.off { background: var(--warn); }

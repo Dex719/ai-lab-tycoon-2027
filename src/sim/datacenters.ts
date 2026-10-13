@@ -290,6 +290,35 @@ export function buyDcGpus(s: GameState, site: DcSiteId, gpu: GpuId, count: numbe
   return { ok: true };
 }
 
+/** Доля цены новой карты при перепродаже: 60 % в первый год после выхода модели, дальше -20 % в год, -5 % за каждое новое поколение, не меньше 10 %. */
+export function resaleFactor(s: GameState, gpu: GpuId): number {
+  const def = gpuDef(gpu);
+  const age = Math.max(0, Math.floor((s.day - dateToDay(def.availableFrom)) / 365));
+  const newer = GPUS.filter((g) => g.h100e > def.h100e && isGpuAvailable(s, g.id)).length;
+  return Math.max(0.1, 0.6 - 0.2 * age - 0.05 * newer);
+}
+
+/** Сколько получим за одну старую карту, $. */
+export function resalePrice(s: GameState, gpu: GpuId): number {
+  return gpuBuyPrice(s, gpu) * resaleFactor(s, gpu);
+}
+
+/**
+ * Действие: продать стоящие карты. Деньги приходят сразу и вычитаются из «Разовых вложений» месяца
+ * (статья capex считается чистой: покупки минус продажи), чтобы не искажать доходы.
+ */
+export function sellDcGpus(s: GameState, site: DcSiteId, gpu: GpuId, count: number): Result {
+  const dc = findDc(s, site);
+  if (!dc) return { ok: false, error: 'На этой площадке нет дата-центра' };
+  if (!Number.isInteger(count) || count < 1) return { ok: false, error: 'Число карт должно быть целым и больше нуля' };
+  if (count > (dc.gpus[gpu] ?? 0)) return { ok: false, error: 'Столько карт этого типа в дата-центре нет' };
+  const amount = count * resalePrice(s, gpu);
+  dc.gpus[gpu] -= count;
+  s.cash += amount;
+  s.finance.month.expense.capex -= amount;
+  return { ok: true };
+}
+
 /** Действие: списать карты (без возврата денег), чтобы освободить место. */
 export function writeOffDcGpus(s: GameState, site: DcSiteId, gpu: GpuId, count: number): Result {
   const dc = findDc(s, site);

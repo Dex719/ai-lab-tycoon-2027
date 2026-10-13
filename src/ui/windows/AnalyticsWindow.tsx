@@ -1,17 +1,17 @@
 // «Аналитика» с вкладками, как в Processor Tycoon: ваши модели, рынок, бенчмарки, арена, финансы, лаборатории.
 
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import type { WindowProps } from '.';
 import { playerSales, subsOpen, type PlayerSales } from '../../sim/market';
 import { contextLabel } from '../../sim/research';
-import { dayToDate, formatDateShort } from '../../sim/time';
+import { formatDateShort } from '../../sim/time';
 import type { GameState, PlayerModel } from '../../sim/types';
 import { Alert } from '../components/common';
 import { TierBadge } from '../components/TierBadge';
 import { fmtElo, fmtMoney, fmtNum, fmtPrice, fmtShare } from '../format';
 import { INCOME_LABELS, modelChannels, reviewNote } from '../labels';
 import './AnalyticsWindow.css';
-import { buildChartData, ChartPanel, finite, liveMonthLabel, StatStrip, type SeriesDef } from './analyticsShared';
+import { buildChartData, ChartPanel, currentMonthView, finite, StatStrip, type SeriesDef } from './analyticsShared';
 import FinanceTab from './FinanceWindow';
 import MarketTab, { LabsTab } from './MarketWindow';
 import { ArenaTab, BenchmarksTab } from './RatingsWindow';
@@ -93,11 +93,11 @@ function YourModelsTab({ s, open }: WindowProps) {
   const history = s.finance.history;
   const data = useMemo(() => buildChartData(history, REVENUE_SERIES), [history, history.length]);
   const subsData = useMemo(() => buildChartData(history, SUBSCRIBERS_SERIES), [history, history.length]);
-  const cur = dayToDate(s.day);
+  const view = currentMonthView(s);
   const live = {
-    api: s.finance.month.income.api,
-    subs: s.finance.month.income.subs,
-    contracts: s.finance.month.income.contracts,
+    api: view.ledger.income.api,
+    subs: view.ledger.income.subs,
+    contracts: view.ledger.income.contracts,
   };
   const subsAvailable = subsOpen(s.day);
   const showSubsChart = subsAvailable || history.some((r) => finite(r.subscribers) > 0);
@@ -143,7 +143,7 @@ function YourModelsTab({ s, open }: WindowProps) {
 
       <section>
         <h2 className="an-h">Выручка по месяцам</h2>
-        <ChartPanel data={data} yFormat={fmtMoney} live={live} liveLabel={liveMonthLabel(cur.year, cur.month)} />
+        <ChartPanel data={data} yFormat={fmtMoney} live={live} liveLabel={view.label} />
       </section>
 
       {showSubsChart && (
@@ -153,7 +153,7 @@ function YourModelsTab({ s, open }: WindowProps) {
             data={subsData}
             yFormat={fmtNum}
             live={{ subscribers: finite(s.market.playerSubs) }}
-            liveLabel={liveMonthLabel(cur.year, cur.month)}
+            liveLabel={view.label}
             height={200}
           />
         </section>
@@ -210,32 +210,24 @@ function ModelsTable({
     earned += finite(m.earned);
     earnedSubs += finite(m.earnedSubs);
   }
+  const [open, setOpen] = useState<string | null>(null);
+  let revenueDay = 0;
+  for (const m of models) {
+    const v = sales.get(m.id);
+    revenueDay += (v?.apiRevenueDay ?? 0) + (v?.subsRevenueDay ?? 0);
+  }
   return (
     <table className="grid an-grid flat an-wrap">
       <thead>
         <tr>
           <th>Модель</th>
-          <th>Уровень</th>
           <th title="Где продаётся модель: API, подписка или оба канала">Продажа</th>
-          <th>Выпущена</th>
-          <th className="num" title="Длина контекста, токенов">
-            Контекст
-          </th>
           <th className="num">Эло</th>
-          <th className="num" title="Доллары за 1 млн токенов">
-            Цена API
-          </th>
-          <th className="num" title="Доллары в месяц за пользователя">
-            Цена подписки
-          </th>
           <th className="num" title="Общая доля по всем сегментам">
             Доля рынка
           </th>
-          <th className="num" title="Токены API, обслуженные вчера">
-            Токенов в день
-          </th>
-          <th className="num" title="Пользователи подписки, обслуженные вчера">
-            Подписчиков
+          <th className="num" title="Выручка API и подписок за вчерашний день">
+            Выручка в день
           </th>
           <th className="num" title="Выручка API и подписок с момента выпуска">
             Заработала
@@ -248,39 +240,69 @@ function ModelsTable({
           const channels = modelChannels(m, subsAvailable);
           const note = reviewNote(m);
           const onSubs = m.onSubs && subsAvailable;
+          const isOpen = open === m.id;
+          const day = (v?.apiRevenueDay ?? 0) + (v?.subsRevenueDay ?? 0);
           return (
-            <tr key={m.id}>
-              <td>{m.name}</td>
-              <td>
-                <TierBadge tier={m.plan.tier} />
-              </td>
-              <td>
-                {channels ? <span className="good">{channels}</span> : <span className="muted">Снята с продажи</span>}
-                {note && <small className={`an-note ${note.tone}`}>{note.text}</small>}
-              </td>
-              <td>{m.releasedDay !== null ? formatDateShort(m.releasedDay) : '-'}</td>
-              <td className="num">{ctxLabel(m.plan.context)}</td>
-              <td className="num">{fmtElo(m.arenaElo)}</td>
-              <td className="num">{m.onApi ? fmtPrice(m.price) : <Dash />}</td>
-              <td className="num">{onSubs ? fmtPrice(m.subsPrice) : <Dash />}</td>
-              <td className="num">{fmtShare(finite(s.market.shares[`player:${m.id}`]))}</td>
-              <td className="num">{m.onApi && v ? fmtNum(v.apiTokens) : <Dash />}</td>
-              <td className="num">{onSubs && v ? fmtNum(Math.round(v.subsUsers)) : <Dash />}</td>
-              <td className="num">
-                {fmtMoney(finite(m.earned))}
-                {finite(m.earnedSubs) > 0 && <small className="an-note">подписки {fmtMoney(finite(m.earnedSubs))}</small>}
-              </td>
-            </tr>
+            <Fragment key={m.id}>
+              <tr
+                className={`an-click${isOpen ? ' open' : ''}`}
+                tabIndex={0}
+                aria-expanded={isOpen}
+                title="Нажмите, чтобы увидеть подробности"
+                onClick={() => setOpen(isOpen ? null : m.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setOpen(isOpen ? null : m.id);
+                  }
+                }}
+              >
+                <td>
+                  <span className="an-caret">{isOpen ? '▾' : '▸'}</span>
+                  {m.name} <TierBadge tier={m.plan.tier} />
+                </td>
+                <td>
+                  {channels ? <span className="good">{channels}</span> : <span className="muted">Снята с продажи</span>}
+                  {note && <small className={`an-note ${note.tone}`}>{note.text}</small>}
+                </td>
+                <td className="num">{fmtElo(m.arenaElo)}</td>
+                <td className="num">{fmtShare(finite(s.market.shares[`player:${m.id}`]))}</td>
+                <td className="num">{day > 0 ? fmtMoney(day) : <Dash />}</td>
+                <td className="num">
+                  {fmtMoney(finite(m.earned))}
+                  {finite(m.earnedSubs) > 0 && <small className="an-note">подписки {fmtMoney(finite(m.earnedSubs))}</small>}
+                </td>
+              </tr>
+              {isOpen && (
+                <tr className="an-detail">
+                  <td colSpan={6}>
+                    <dl className="an-dl">
+                      <dt>Выпущена</dt>
+                      <dd>{m.releasedDay !== null ? formatDateShort(m.releasedDay) : '-'}</dd>
+                      <dt>Контекст</dt>
+                      <dd>{ctxLabel(m.plan.context)}</dd>
+                      <dt title="Доллары за 1 млн токенов">Цена API</dt>
+                      <dd>{m.onApi ? fmtPrice(m.price) : <Dash />}</dd>
+                      <dt title="Доллары в месяц за пользователя">Цена подписки</dt>
+                      <dd>{onSubs ? fmtPrice(m.subsPrice) : <Dash />}</dd>
+                      <dt title="Токены API, обслуженные вчера">Токенов в день</dt>
+                      <dd>{m.onApi && v ? fmtNum(v.apiTokens) : <Dash />}</dd>
+                      <dt title="Пользователи подписки, обслуженные вчера">Подписчиков</dt>
+                      <dd>{onSubs && v ? fmtNum(Math.round(v.subsUsers)) : <Dash />}</dd>
+                    </dl>
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           );
         })}
       </tbody>
       {models.length > 1 && (
         <tfoot>
           <tr>
-            <td colSpan={8}>Всего</td>
+            <td colSpan={3}>Всего</td>
             <td className="num">{fmtShare(share)}</td>
-            <td className="num">{fmtNum(tokens)}</td>
-            <td className="num">{fmtNum(Math.round(subscribers))}</td>
+            <td className="num">{revenueDay > 0 ? fmtMoney(revenueDay) : <Dash />}</td>
             <td className="num">
               {fmtMoney(earned)}
               {earnedSubs > 0 && <small className="an-note">подписки {fmtMoney(earnedSubs)}</small>}

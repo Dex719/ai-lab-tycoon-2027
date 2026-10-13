@@ -10,7 +10,7 @@ import type { ExpenseKind, IncomeKind, MonthLedger, MonthRecord } from '../../si
 import { Alert } from '../components/common';
 import { fmtMoney, fmtNum, fmtShare } from '../format';
 import { EXPENSE_KINDS, EXPENSE_LABELS, INCOME_KINDS, INCOME_LABELS } from '../labels';
-import { buildChartData, ChartPanel, finite, liveMonthLabel, StatStrip, type SeriesDef } from './analyticsShared';
+import { buildChartData, ChartPanel, currentMonthView, finite, StatStrip, type SeriesDef } from './analyticsShared';
 
 const INCOME_COLS: { kind: IncomeKind; label: string; title?: string }[] = INCOME_KINDS.map((kind) => ({
   kind,
@@ -24,7 +24,7 @@ const EXPENSE_TITLES: Record<ExpenseKind, string> = {
   labelers: 'Оплата разметки ответов при обучении с RLHF',
   penalties: 'Штрафы за сорванные контракты',
   review: 'Оплата внешней проверки сильных моделей',
-  capex: 'Стройка своих дата-центров и покупка карт',
+  capex: 'Стройка своих дата-центров и покупка карт. В итог месяца не входит',
   power: 'Электричество и обслуживание своих дата-центров',
 };
 const EXPENSE_COLS: { kind: ExpenseKind; label: string; title: string }[] = EXPENSE_KINDS.map((kind) => ({
@@ -44,11 +44,12 @@ function sumValues(r: Record<string, number>): number {
 const revenueOf = (l: MonthLedger): number => finite(l.income.api) + finite(l.income.subs) + finite(l.income.contracts);
 
 /** Итог месяца так же, как «/мес.» на верхней панели: продажа API, подписки и контракты минус все расходы, без инвесторов. */
-const netWithoutInvestors = (l: MonthLedger): number => revenueOf(l) - sumValues(l.expense);
+const recurringExpense = (l: MonthLedger): number => sumValues(l.expense) - finite(l.expense.capex);
+const netWithoutInvestors = (l: MonthLedger): number => revenueOf(l) - recurringExpense(l);
 
 const FLOW_SERIES: SeriesDef[] = [
   { id: 'revenue', label: 'Выручка', color: '#5ed37f', title: 'API, подписки и контракты, без вложений инвесторов', pick: revenueOf },
-  { id: 'expense', label: 'Расходы', color: '#ff6b6b', pick: (r: MonthRecord) => sumValues(r.expense) },
+  { id: 'expense', label: 'Расходы', color: '#ff6b6b', title: 'Текущие расходы, без разовых вложений в дата-центры и карты', pick: (r: MonthRecord) => recurringExpense(r) },
 ];
 
 /** Сумма в ячейке таблицы: ноль показываем приглушённым тире. */
@@ -95,7 +96,8 @@ export default function FinanceTab({ s }: WindowProps) {
   const data = useMemo(() => buildChartData(history, FLOW_SERIES), [history, history.length]);
 
   const cur = dayToDate(s.day);
-  const live = { revenue: revenueOf(s.finance.month), expense: sumValues(s.finance.month.expense) };
+  const view = currentMonthView(s);
+  const live = { revenue: revenueOf(view.ledger), expense: recurringExpense(view.ledger) };
   // Первая строка - идущий месяц, дальше до 12 закрытых, новые сверху.
   const closed = history.slice(-TABLE_MONTHS).reverse();
   const negDays = s.finance.negativeDays;
@@ -115,6 +117,11 @@ export default function FinanceTab({ s }: WindowProps) {
             value: fmtNum(Math.round(finite(s.market.playerSubs))),
             title: 'Обслуженные вчера пользователи подписки',
           },
+          {
+            label: 'Разовые вложения',
+            value: <span className={finite(s.finance.month.expense.capex) > 0 ? 'bad' : undefined}>{fmtMoney(finite(s.finance.month.expense.capex))}</span>,
+            title: 'За этот месяц: стройка дата-центров и покупка карт. В «за месяц» на верхней панели не входят',
+          },
           { label: 'Аренда в день', value: <span className={rentPerDay(s) > 0 ? 'bad' : undefined}>{fmtMoney(rentPerDay(s))}</span> },
           { label: 'Накладные в день', value: <span className="bad">{fmtMoney(overheadPerDay(s))}</span> },
         ]}
@@ -128,7 +135,7 @@ export default function FinanceTab({ s }: WindowProps) {
 
       <section>
         <h2 className="an-h">Выручка и расходы по месяцам</h2>
-        <ChartPanel data={data} yFormat={fmtMoney} live={live} liveLabel={liveMonthLabel(cur.year, cur.month)} />
+        <ChartPanel data={data} yFormat={fmtMoney} live={live} liveLabel={view.label} />
       </section>
 
       <section>
@@ -158,7 +165,7 @@ export default function FinanceTab({ s }: WindowProps) {
                   {c.label}
                 </th>
               ))}
-              <th className="num" title="Продажа API, подписки и контракты минус расходы за месяц, без вложений инвесторов">
+              <th className="num" title="Продажа API, подписки и контракты минус текущие расходы за месяц, без вложений инвесторов и разовых вложений">
                 Итог без инвесторов
               </th>
               <th className="num" title="Обслуженные подписчики в последний день месяца">
@@ -167,6 +174,7 @@ export default function FinanceTab({ s }: WindowProps) {
             </tr>
           </thead>
           <tbody>
+            {!view.closed && (
             <LedgerRow
               label={
                 <>
@@ -178,6 +186,7 @@ export default function FinanceTab({ s }: WindowProps) {
               subscribers={finite(s.market.playerSubs)}
               current
             />
+            )}
             {closed.map((r) => (
               <LedgerRow key={`${r.year}-${r.month}`} label={formatMonth(r.year, r.month)} ledger={r} subscribers={finite(r.subscribers)} />
             ))}

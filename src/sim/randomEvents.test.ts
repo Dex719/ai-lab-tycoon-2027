@@ -233,7 +233,7 @@ describe('расписание', () => {
     const s = newGame('Бот', seed);
     const fired: { id: string; day: number }[] = [];
     const born = new Map<string, number>();
-    let seenMail = 0;
+    const seen = new Set<string>(); // почту чистят раз в месяц, поэтому индексы не годятся
     let maxOpen = 0;
     while (!s.outcome && s.day < until) {
       for (const m of openChoices(s)) {
@@ -243,8 +243,9 @@ describe('расписание', () => {
       }
       if (s.day % 7 === 0) botAct(s, 'reasonable');
       advanceDay(s);
-      for (; seenMail < s.mail.length; seenMail++) {
-        const m = s.mail[seenMail];
+      for (const m of s.mail) {
+        if (seen.has(m.id)) continue;
+        seen.add(m.id);
         if (m.eventId && EXTRA_EVENTS.find((e) => e.id === m.eventId)?.random) fired.push({ id: m.eventId, day: m.day });
       }
       maxOpen = Math.max(maxOpen, openChoices(s).filter((m) => EXTRA_EVENTS.some((e) => e.id === m.eventId)).length);

@@ -397,6 +397,7 @@ const STATE: Record<keyof GameState, Check> = {
   hype: record(HYPE_OWNERS, num),
   compute: shapeOf<GameState['compute']>({
     rented: record(GPU_IDS, nonNeg),
+    rentChangedDay: optional(num),
     alloc: shapeOf<GameState['compute']['alloc']>({ training: nonNeg, contracts: nonNeg, experiments: nonNeg, api: nonNeg, subs: nonNeg }),
   }),
   datacenters: shapeOf<GameState['datacenters']>({ unlockedDay: nullable(num), list: arrayOf(datacenter) }),

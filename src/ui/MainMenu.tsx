@@ -31,6 +31,7 @@ export function MainMenu() {
   return (
     <div className="menu-screen">
       <div className="menu-title">AI Lab Tycoon</div>
+      <div className="menu-sub-title">2017-2024</div>
       <nav className="menu-items" aria-label="Главное меню">
         {last !== null && (
           <button className="menu-item" onClick={cont}>

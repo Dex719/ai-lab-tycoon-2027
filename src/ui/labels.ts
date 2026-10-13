@@ -18,7 +18,7 @@ export const EXPENSE_LABELS: Record<ExpenseKind, string> = {
   labelers: 'Разметчики',
   penalties: 'Штрафы',
   review: 'Проверки',
-  capex: 'Дата-центры',
+  capex: 'Разовые вложения',
   power: 'Электричество',
 };
 

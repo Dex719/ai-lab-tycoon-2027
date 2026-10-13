@@ -40,7 +40,7 @@ import {
 import { Cards } from '../components/Cards';
 import { Alert, ConfirmDialog, Dialog, ErrorText, NewBadge, Range } from '../components/common';
 import { fmtH100e as fmtH, fmtInt, fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
-import { idleCompute } from '../../sim/idle';
+import { idleWarnings } from '../../sim/idle';
 import { IconAlert } from '../icons';
 import { timesWord } from '../../sim/text';
 import { actions, store } from '../store';
@@ -64,11 +64,22 @@ function overCap(count: number, cap: number): number {
   return Math.max(0, count - cap);
 }
 
-/** Разница со знаком: «+$1,2 тыс. в месяц, +4,5 H100e» или «−$1,2 тыс. в месяц, −4,5 H100e». */
-function fmtChange(costDelta: number, hDelta: number): string {
+/** Разница со знаком, две части: деньги («+$1,2 тыс. в месяц», красным при росте расхода) и мощность («+4,5 H100e», зелёным при росте). */
+function fmtChange(costDelta: number, hDelta: number): { money: string; power: string; moneyBad: boolean; powerGood: boolean } {
   const money = costDelta > 0 ? `+${fmtMoney(costDelta)}` : fmtMoney(costDelta);
   const h = hDelta > 0 ? `+${fmtH(hDelta)}` : hDelta < 0 ? `−${fmtH(-hDelta)}` : fmtH(0);
-  return `${money} в месяц, ${h} H100e`;
+  return { money: `${money} в месяц`, power: `${h} H100e`, moneyBad: costDelta > 0, powerGood: hDelta > 0 };
+}
+
+/** Мощность одной карты в процентах от H100: «2,1 %», «100 %», «140 %». */
+function fmtCardPower(h100e: number): string {
+  const p = h100e * 100;
+  return `${p < 10 ? String(Math.round(p * 10) / 10).replace('.', ',') : fmtInt(p)} %`;
+}
+
+/** Цена аренды одной карты в месяц: «$1 368». */
+function fmtCardMonth(perDay: number): string {
+  return `$${fmtInt(perDay * 30)}`;
 }
 
 /** Самая дешёвая по цене за H100e в день среди доступных; пока доступна одна карта, сравнивать не с чем. */
@@ -172,7 +183,7 @@ function RentedCard({ s, g, onEdit, onGiveBack }: { s: GameState; g: GpuDef; onE
     <div className="cw-card">
       <div>
         <div className="cw-card-name">{g.name}</div>
-        <div className="muted small">{fmtMoney(perDay / g.h100e)} за H100e в день</div>
+        <div className="muted small">{fmtCardMonth(perDay)} за карту в месяц</div>
       </div>
       <dl className="cw-kv">
         <dt>Карт</dt>
@@ -277,8 +288,8 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
         <div className="cw-gpus" role="radiogroup" aria-label="Тип карты">
           <div className="cw-gpu-head">
             <span>Карта</span>
-            <span>H100e на карту</span>
-            <span>$ за H100e в день</span>
+            <span title="Мощность одной карты по сравнению с H100">% от H100</span>
+            <span title="Аренда одной карты за 30 дней">$ в месяц</span>
           </div>
           {/* Карты, которые ещё не вышли, не показываются вовсе: игрок не должен знать будущее. */}
           {GPUS.filter((x) => isGpuAvailable(s, x.id)).map((x) => (
@@ -297,8 +308,8 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
                 </span>
                 {x.id === cheapest && <span className="cw-gpu-tag">Выгоднее всего</span>}
               </span>
-              <span className="n">{fmtH(x.h100e)}</span>
-              <span className="n">{fmtMoney(rentPerGpuDay(s, x.id) / x.h100e)}</span>
+              <span className="n">{fmtCardPower(x.h100e)}</span>
+              <span className="n">{fmtCardMonth(rentPerGpuDay(s, x.id))}</span>
             </button>
           ))}
         </div>
@@ -364,9 +375,15 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
             <dd>{fmtNum(rented)} шт.</dd>
             <dt title="Разница с текущей арендой этого типа карт">Изменение</dt>
             {count !== null && count !== rented ? (
-              <dd className={lowering ? 'good' : 'bad'}>
-                {fmtChange(monthlyCost(s, g.id, count) - monthlyCost(s, g.id, rented), (count - rented) * g.h100e)}
-              </dd>
+              (() => {
+                const ch = fmtChange(monthlyCost(s, g.id, count) - monthlyCost(s, g.id, rented), (count - rented) * g.h100e);
+                return (
+                  <dd>
+                    <span className={ch.moneyBad ? 'bad' : 'good'}>{ch.money}</span>,{' '}
+                    <span className={ch.powerGood ? 'good' : 'bad'}>{ch.power}</span>
+                  </dd>
+                );
+              })()
             ) : (
               <dd>-</dd>
             )}
@@ -613,7 +630,7 @@ function defaultRentId(s: GameState): GpuId {
 
 /** Простой мощности: доля выделена, а работы для неё нет. Одна рамка, в ней строки с кнопкой, которая ведёт к исправлению. */
 function IdleStrip({ s, open }: { s: GameState; open: WindowProps['open'] }) {
-  const items = idleCompute(s);
+  const items = idleWarnings(s);
   if (items.length === 0) return null;
   const shown = items.slice(0, 2);
   const rest = items.length - shown.length;
@@ -652,7 +669,12 @@ export default function ComputeWindow({ s, open }: WindowProps) {
           <section className="cw-rented">
             <h2 className="cw-h">Арендованные карты</h2>
             {rentedGpus.length === 0 ? (
-              <div className="cw-empty">Карты не арендованы.</div>
+              <div className="cw-empty">
+                <button className="btn primary cw-empty-btn" onClick={() => setDialog({ id: defaultRentId(s) })}>
+                  Арендовать первые карты
+                </button>
+                <span>Без карт нельзя обучать модели и исследовать.</span>
+              </div>
             ) : (
               <div className="cw-cards">
                 {rentedGpus.map((g) => (

@@ -26,7 +26,7 @@ function monthlyRate(s: GameState): number {
   const h = s.finance.history.at(-1);
   if (h) {
     const inc = h.income.api + h.income.subs + h.income.contracts;
-    const exp = EXPENSE_KINDS.reduce((sum, k) => sum + (h.expense[k] ?? 0), 0);
+    const exp = EXPENSE_KINDS.reduce((sum, k) => (k === 'capex' ? sum : sum + (h.expense[k] ?? 0)), 0); // разовые вложения не в счёт
     return inc - exp;
   }
   return -(rentPerDay(s) + overheadPerDay(s) + dcCostPerDay(s)) * 30;
@@ -46,12 +46,18 @@ function MoneyPopup({ s }: { s: GameState }) {
           <span className="v">{fmtMoney(m.income[k])}</span>
         </div>
       ))}
-      {EXPENSE_KINDS.map((k) => (
+      {EXPENSE_KINDS.filter((k) => k !== 'capex').map((k) => (
         <div className="r" key={k} style={m.expense[k] > 0 ? { color: 'var(--bad-on-dark)' } : undefined}>
           <span>{EXPENSE_LABELS[k]}:</span>
           <span className="v">{m.expense[k] > 0 ? '−' : ''}{fmtMoney(m.expense[k])}</span>
         </div>
       ))}
+      {m.expense.capex > 0 && (
+        <div className="r" style={{ color: '#f2f2f2' }} title="Стройка дата-центров и покупка карт. В изменение за месяц не входит">
+          <span>Разовые вложения:</span>
+          <span className="v">{fmtMoney(m.expense.capex)}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -114,7 +120,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
           <span className={s.cash < 0 ? 'tb-bad' : undefined}>{fmtMoney(s.cash)}</span>
           {(hover || pinned) && <MoneyPopup s={s} />}
         </div>
-        <div className="tb-item tb-rate" title="Доходы (API, подписки, контракты) минус расходы за прошлый месяц, без вложений инвесторов">
+        <div className="tb-item tb-rate" title="Доходы (API, подписки, контракты) минус текущие расходы за прошлый месяц. Вложения инвесторов и разовые вложения (дата-центры, карты) не входят">
           <IconArrowUpDown />
           <span className={rate >= 0 ? 'tb-good' : 'tb-bad'}>
             {rate >= 0 ? '' : '−'}

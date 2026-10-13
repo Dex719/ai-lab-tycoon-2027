@@ -59,6 +59,8 @@ export function graphEdges(): [GraphTech, GraphTech][] {
 export const ZOOM_MIN = 0.6;
 export const ZOOM_MAX = 1.6;
 export const ZOOM_STEP = 0.1;
+/** «По размеру» не уменьшает карту меньше этого масштаба: мельче текст на карточках не читается. */
+export const FIT_MIN_ZOOM = 0.8;
 
 export function clampZoom(z: number): number {
   if (!Number.isFinite(z)) return 1;

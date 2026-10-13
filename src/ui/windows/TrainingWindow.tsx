@@ -26,6 +26,7 @@ import {
   TRAIN_FLOP_PER_H100E_DAY,
 } from '../../sim/constants';
 import { END_DAY, formatDateShort, yearOf } from '../../sim/time';
+import { rivalsSellByApi } from '../../sim/leaderboard';
 import { refContext, refPrice, servingMult, servingTokensPerH100eDay, subsOpen } from '../../sim/market';
 import { CONTEXT_MAX_LEVEL, contextLabel, maxContext } from '../../sim/research';
 import {
@@ -581,6 +582,7 @@ function TierOption(props: { s: GameState; tier: Tier; selected: boolean; onPick
   const preset = tierPreset(s, tier);
   const apiPrice = TIER_API_PRICE_MULT[tier] * refPrice(s.day);
   const users = (servingTokensPerH100eDay(preset.paramsB) * servingMult(s, { techs: modelTechs(s) })) / TOKENS_PER_USER_DAY;
+  const market = rivalsSellByApi(s);
   const [note, flash] = useFlash();
   return (
     <div className="nm-tier-wrap" title={avail ? undefined : TIER_LOCKED}>
@@ -596,16 +598,21 @@ function TierOption(props: { s: GameState; tier: Tier; selected: boolean; onPick
         <span className="nm-tier-range">
           {avail ? `от ${fmtParams(lo)} до ${fmtParams(hi)} параметров` : 'Пока недоступна'}
         </span>
-        <span className="nm-tier-price" title="Цены при выпуске по умолчанию: их можно изменить в окне «Модели».">
-          API ≈ {fmtPrice(apiPrice)} за 1 млн
-          {subsOpen(s.day) && `, подписка ${fmtPrice(TIER_SUBS_PRICE[tier])} в месяц`}
-        </span>
-        <span
-          className="nm-tier-users"
-          title={`Сколько пользователей (по ${fmtNum(TOKENS_PER_USER_DAY)} токенов в день) обслужит одна карта H100e на модели такого размера.`}
-        >
-          ≈ {fmtNum(Math.round(users))} пользователей на H100e
-        </span>
+        {/* Пока рынка API нет (соперники не продают), цен и числа пользователей показывать нечему. */}
+        {market && (
+          <>
+            <span className="nm-tier-price" title="Цены при выпуске по умолчанию: их можно изменить в окне «Модели».">
+              API ≈ {fmtPrice(apiPrice)} за 1 млн
+              {subsOpen(s.day) && `, подписка ${fmtPrice(TIER_SUBS_PRICE[tier])} в месяц`}
+            </span>
+            <span
+              className="nm-tier-users"
+              title={`Сколько пользователей (по ${fmtNum(TOKENS_PER_USER_DAY)} токенов в день) обслужит одна карта H100e на модели такого размера.`}
+            >
+              ≈ {fmtNum(Math.round(users))} пользователей на H100e
+            </span>
+          </>
+        )}
       </button>
       <DenyNote text={note} />
     </div>

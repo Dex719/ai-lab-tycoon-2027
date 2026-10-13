@@ -4,7 +4,7 @@ import { HYPE_MONTHLY_DECAY, HYPE_OWNERS } from './constants';
 import { generateMonthly, progressDay as contractsDay } from './contracts';
 import { introduceDue } from './benchmarks';
 import { datacentersDay } from './datacenters';
-import { expireChoices, fireDue, pendingChoice, pruneModifiers } from './events';
+import { expireChoices, fireDue, pendingChoice, pruneMail, pruneModifiers } from './events';
 import { beginDay, closeMonth, dayStep as financeDay } from './finance';
 import { goalsDay, yearEnd } from './goals';
 import { marketArenaRank, rivalsSellByApi, updateSaturation } from './leaderboard';
@@ -73,6 +73,7 @@ export function advanceDay(s: GameState): void {
     rivalryMonth(s);
     updateSaturation(s);
     pruneModifiers(s);
+    pruneMail(s);
     if (dayToDate(s.day).month === 12) yearEnd(s); // 31 декабря: итоги года и цели следующего
   }
 

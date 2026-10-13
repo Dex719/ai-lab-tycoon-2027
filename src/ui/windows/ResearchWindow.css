@@ -47,6 +47,7 @@
 
 .rs-slot { position: absolute; }
 .rs-caption { position: absolute; left: 0; top: 100%; margin-top: 3px; font-size: 12px; line-height: 15px; color: #34373c; white-space: nowrap; }
+.rs-early { color: #a85a00; font-weight: 700; }
 .rs-caption.free { position: absolute; margin: 0; }
 
 /* Узел */

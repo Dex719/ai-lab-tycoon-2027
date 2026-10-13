@@ -23,6 +23,8 @@ import {
   gpuKwAt,
   gpusPerMw,
   ownedCards,
+  resaleFactor,
+  resalePrice,
   ownedRentEquivalentPerDay,
   stageProgress,
   usedKw,
@@ -144,7 +146,7 @@ function Stages({ s, dc }: { s: GameState; dc: Datacenter }) {
   );
 }
 
-function ReadyBody({ s, dc, onBuy, onWriteOff }: { s: GameState; dc: Datacenter; onBuy: () => void; onWriteOff: (gpu: GpuId) => void }) {
+function ReadyBody({ s, dc, onBuy, onSell, onWriteOff }: { s: GameState; dc: Datacenter; onBuy: () => void; onSell: (gpu: GpuId) => void; onWriteOff: (gpu: GpuId) => void }) {
   const used = usedKw(dc);
   const total = dc.mw * 1000;
   const types = GPUS.filter((g) => (dc.gpus[g.id] ?? 0) > 0);
@@ -173,7 +175,14 @@ function ReadyBody({ s, dc, onBuy, onWriteOff }: { s: GameState; dc: Datacenter;
                 <td className="num">{fmtInt(dc.gpus[g.id])} шт.</td>
                 <td className="num">{fmtH(dc.gpus[g.id] * g.h100e)} H100e</td>
                 <td className="num">
-                  <button className="btn small" onClick={() => onWriteOff(g.id)}>
+                  <button
+                    className="btn small"
+                    onClick={() => onSell(g.id)}
+                    title={`Продать за ${fmtMoney(dc.gpus[g.id] * resalePrice(s, g.id))}: ${fmtNum(Math.round(resaleFactor(s, g.id) * 100))} % от цены новой карты`}
+                  >
+                    Продать
+                  </button>{' '}
+                  <button className="btn small" onClick={() => onWriteOff(g.id)} title="Убрать карты без денег, чтобы освободить место">
                     Списать
                   </button>
                 </td>
@@ -212,6 +221,7 @@ function SiteCard(props: {
   def: DcSiteDef;
   onBuild: () => void;
   onBuy: () => void;
+  onSell: (gpu: GpuId) => void;
   onWriteOff: (gpu: GpuId) => void;
 }) {
   const { s, def } = props;
@@ -249,7 +259,7 @@ function SiteCard(props: {
           </dl>
         </>
       )}
-      {dc && dcReady(dc) && <ReadyBody s={s} dc={dc} onBuy={props.onBuy} onWriteOff={props.onWriteOff} />}
+      {dc && dcReady(dc) && <ReadyBody s={s} dc={dc} onBuy={props.onBuy} onSell={props.onSell} onWriteOff={props.onWriteOff} />}
     </section>
   );
 }
@@ -439,12 +449,12 @@ function BuyDialog({ s, site, onClose }: { s: GameState; site: DcSiteId; onClose
 
 // ---------- Окно ----------
 
-type Modal = null | { kind: 'build'; site: DcSiteId } | { kind: 'buy'; site: DcSiteId } | { kind: 'writeoff'; site: DcSiteId; gpu: GpuId };
+type Modal = null | { kind: 'build'; site: DcSiteId } | { kind: 'buy'; site: DcSiteId } | { kind: 'writeoff'; site: DcSiteId; gpu: GpuId } | { kind: 'sell'; site: DcSiteId; gpu: GpuId };
 
 export default function DatacentersWindow({ s }: WindowProps) {
   const [modal, setModal] = useState<Modal>(null);
   const close = () => setModal(null);
-  const woDc = modal?.kind === 'writeoff' ? findDc(s, modal.site) : undefined;
+  const woDc = modal?.kind === 'writeoff' || modal?.kind === 'sell' ? findDc(s, modal.site) : undefined;
   return (
     <div className="dc">
       <Summary s={s} />
@@ -457,6 +467,7 @@ export default function DatacentersWindow({ s }: WindowProps) {
               def={def}
               onBuild={() => setModal({ kind: 'build', site: def.id })}
               onBuy={() => setModal({ kind: 'buy', site: def.id })}
+              onSell={(gpu) => setModal({ kind: 'sell', site: def.id, gpu })}
               onWriteOff={(gpu) => setModal({ kind: 'writeoff', site: def.id, gpu })}
             />
           ))}
@@ -464,6 +475,24 @@ export default function DatacentersWindow({ s }: WindowProps) {
       </div>
       {modal?.kind === 'build' && <BuildDialog s={s} def={DC_SITES.find((d) => d.id === modal.site)!} onClose={close} />}
       {modal?.kind === 'buy' && createPortal(<BuyDialog s={s} site={modal.site} onClose={close} />, document.body)}
+      {modal?.kind === 'sell' && woDc && (
+        <ConfirmDialog
+          title="Продать карты"
+          confirmLabel="Продать"
+          onClose={close}
+          onConfirm={() => {
+            store.dispatch(actions.sellDcGpus, modal.site, modal.gpu, woDc.gpus[modal.gpu]);
+            close();
+          }}
+        >
+          <p className="dc-confirm">
+            Продать {fmtInt(woDc.gpus[modal.gpu])} шт. {gpuDef(modal.gpu).name}? Вы получите{' '}
+            <b>{fmtMoney(woDc.gpus[modal.gpu] * resalePrice(s, modal.gpu))}</b> ({fmtNum(Math.round(resaleFactor(s, modal.gpu) * 100))} % от цены новой карты).
+            Мощность уменьшится на {fmtH(woDc.gpus[modal.gpu] * gpuDef(modal.gpu).h100e)} H100e, освободится{' '}
+            {fmtMw(woDc.gpus[modal.gpu] * gpuKwAt(modal.site, modal.gpu))}.
+          </p>
+        </ConfirmDialog>
+      )}
       {modal?.kind === 'writeoff' && woDc && (
         <ConfirmDialog
           title="Списать карты"

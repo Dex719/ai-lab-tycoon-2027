@@ -3,6 +3,7 @@
 import { ALLOC_KEYS, pool, totalH100e } from './compute';
 import { subsOpen } from './market';
 import { canResearch } from './research';
+import { START_DAY } from './time';
 import type { Allocation, GameState, TechId } from './types';
 import { TECH_IDS } from './types';
 
@@ -19,6 +20,18 @@ export interface IdleItem {
   fix: IdleFix;
   /** Подпись кнопки-глагола. */
   fixLabel: string;
+}
+
+/** Первые дни новой игры предупреждений о простое нет: игрок только осваивается. */
+export const IDLE_GRACE_START_DAYS = 14;
+/** После изменения аренды предупреждения молчат столько дней. */
+export const IDLE_GRACE_RENT_DAYS = 3;
+
+/** Предупреждения о простое пока не показываем: начало партии или аренду только что меняли. */
+export function idleQuiet(s: GameState): boolean {
+  if (s.day < START_DAY + IDLE_GRACE_START_DAYS) return true;
+  const c = s.compute.rentChangedDay;
+  return c !== undefined && s.day - c < IDLE_GRACE_RENT_DAYS;
 }
 
 /** Меньше этой доли мощности простоем не считаем (округление ползунков). */
@@ -68,6 +81,11 @@ export function idleCompute(s: GameState): IdleItem[] {
     out.push({ kind: 'free', h100e: total * (1 - used), reason: 'доли распределены не полностью', fix: 'compute', fixLabel: 'Изменить доли' });
   }
   return out;
+}
+
+/** Предупреждения для игрока: то же, что idleCompute, но молчат в первые дни партии и сразу после смены аренды. */
+export function idleWarnings(s: GameState): IdleItem[] {
+  return idleQuiet(s) ? [] : idleCompute(s);
 }
 
 /** Сколько H100e простаивает всего. */

@@ -385,7 +385,8 @@ export interface GameState {
   /** Сколько закрытых месяцев лучшая модель игрока была №1 на «Арене» среди моделей, доступных по API. */
   monthsFirst: number;
   hype: Record<HypeOwner, number>; // 0..100
-  compute: { rented: Record<GpuId, number>; alloc: Allocation };
+  /** rentChangedDay - день последнего изменения аренды (для мягкого предупреждения о простое); в старых сохранениях нет. */
+  compute: { rented: Record<GpuId, number>; alloc: Allocation; rentChangedDay?: number };
   /** Свои дата-центры: день открытия функции (null - ещё закрыта) и список построек. */
   datacenters: { unlockedDay: number | null; list: Datacenter[] };
   research: {

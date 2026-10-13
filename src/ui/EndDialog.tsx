@@ -61,7 +61,7 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
         </div>
         <div className="foot">
           <button className="btn" onClick={onWatch}>
-            Остаться в игре
+            Посмотреть игру
           </button>
           <button className="btn primary" onClick={() => store.quit()}>
             Выйти в меню

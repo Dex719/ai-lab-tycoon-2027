@@ -23,6 +23,16 @@ export function addMail(s: GameState, m: NewMail): Mail {
   return mail;
 }
 
+/** Через сколько дней прочитанные письма без нерешённого выбора уходят из почты. */
+export const MAIL_KEEP_DAYS = 365;
+
+/** Убрать из почты прочитанные письма старше года; письма с невыбранным ответом остаются. */
+export function pruneMail(s: GameState): void {
+  const limit = s.day - MAIL_KEEP_DAYS;
+  const keep = (m: Mail): boolean => !m.read || m.day >= limit || (m.choices !== undefined && m.chosen === undefined);
+  if (s.mail.some((m) => !keep(m))) s.mail = s.mail.filter(keep);
+}
+
 export function markRead(s: GameState, mailId: string): void {
   const m = s.mail.find((x) => x.id === mailId);
   if (m) m.read = true;

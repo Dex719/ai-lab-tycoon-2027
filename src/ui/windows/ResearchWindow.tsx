@@ -30,6 +30,7 @@ import type { TechBranch } from '../../sim/research';
 import { formatDateShort } from '../../sim/time';
 import type { ReactNode } from 'react';
 import type { GameState, TechId } from '../../sim/types';
+import { TECH_IDS } from '../../sim/types';
 import { checkAllocation, percentsOf, soldChannels, toAllocation, withPercent, ZERO_SHARE_WARNING } from '../alloc';
 import { Alert, ConfirmDialog, Dialog, ErrorText, Range } from '../components/common';
 import { fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
@@ -44,6 +45,7 @@ import {
   graphCol,
   graphEdges,
   graphYears,
+  FIT_MIN_ZOOM,
   ZOOM_MAX,
   ZOOM_MIN,
   ZOOM_STEP,
@@ -266,7 +268,7 @@ function TechNode({ s, id, label, code, rp, x, y, onPick }: NodeProps) {
         <span className="rs-caption" title={penalty > 1 ? 'Цена снижается по мере приближения к дате появления в истории' : undefined}>
           {queuePos > 0 && <b className="rs-q">В очереди: {queuePos}</b>}
           {queuePos > 0 && penalty > 1 && ' · '}
-          {penalty > 1 && `Раньше истории: цена ×${fmtMult(penalty)}`}
+          {penalty > 1 && <b className="rs-early">Раньше истории: цена ×{fmtMult(penalty)}</b>}
         </span>
       )}
     </div>
@@ -367,10 +369,20 @@ export default function ResearchWindow({ s, open }: WindowProps) {
     return () => ro.disconnect();
   }, []);
 
+  // «По размеру»: масштаб не меньше 80 %, чтобы текст на карточках читался; карта центрируется на нужной технологии.
   const fitZoom = useCallback(
-    () => (size.w > 0 && size.h > 0 ? clampZoom(Math.min(size.w / width, size.h / height)) : 1),
+    () => (size.w > 0 && size.h > 0 ? clampZoom(Math.max(FIT_MIN_ZOOM, Math.min(size.w / width, size.h / height))) : 1),
     [size.w, size.h, width, height],
   );
+  // Технология, на которой открывается карта: идущая или первая доступная; иначе вид не сдвигаем.
+  const focusId = current ?? TECH_IDS.find((t) => !s.research.done.includes(t) && researchBlockReason(s, t) === null) ?? null;
+  const focusPoint = (): { x: number; y: number } | null => {
+    if (focusId === 'algo') return { x: algoX + NW / 2, y: algoCy };
+    if (focusId === 'context') return { x: ctxX + NW / 2, y: ctxCy };
+    if (focusId === null || !(focusId in GRAPH_ROW)) return null;
+    const p = posOf(focusId as GraphTech);
+    return { x: p.x + NW / 2, y: p.y + NH / 2 };
+  };
 
   // Первое открытие без сохранённого вида - вся карта по размеру окна; иначе - сохранённая прокрутка.
   useLayoutEffect(() => {
@@ -378,6 +390,8 @@ export default function ResearchWindow({ s, open }: WindowProps) {
     if (!el || restored.current || size.w === 0) return;
     restored.current = true;
     if (fitOnFirst.current) {
+      const fp = focusPoint();
+      if (fp) anchor.current = { x: fp.x, y: fp.y, cx: size.w / 2, cy: size.h / 2 };
       setZoom(fitZoom());
       return;
     }
@@ -435,10 +449,17 @@ export default function ResearchWindow({ s, open }: WindowProps) {
   );
 
   const fit = () => {
-    anchor.current = null;
-    setZoom(fitZoom());
+    const z = fitZoom();
+    const fp = focusPoint();
     const el = viewRef.current;
-    if (el) {
+    anchor.current = fp ? { x: fp.x, y: fp.y, cx: size.w / 2, cy: size.h / 2 } : null;
+    setZoom(z);
+    if (z === zoom && el) {
+      // Масштаб тот же: эффект смены масштаба не сработает, ставим прокрутку сами.
+      anchor.current = null;
+      el.scrollLeft = fp ? Math.max(0, fp.x * z + offX - size.w / 2) : 0;
+      el.scrollTop = fp ? Math.max(0, fp.y * z + offY - size.h / 2) : 0;
+    } else if (el && !fp) {
       el.scrollLeft = 0;
       el.scrollTop = 0;
     }

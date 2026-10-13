@@ -2,7 +2,7 @@
 
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { pool } from '../sim/compute';
-import { idleCompute, type IdleItem } from '../sim/idle';
+import { idleWarnings, type IdleItem } from '../sim/idle';
 import { TRAIN_FLOP_PER_H100E_DAY } from '../sim/constants';
 import { playerSales, subsOpen } from '../sim/market';
 import { rpPerDay, TECHS, techCost } from '../sim/research';
@@ -217,25 +217,22 @@ function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) =>
 /** Простой мощности: оранжевые строки с кнопкой, которая ведёт туда, где это исправить. */
 function Idle({ items, open }: { items: IdleItem[]; open: (id: WindowId | WindowAlias) => void }) {
   if (items.length === 0) return null;
-  const shown = items.slice(0, 2);
-  const rest = items.length - shown.length;
+  // Одна компактная строка: главная причина и кнопка. Остальные причины видны в «Мощностях».
+  const first = items[0];
+  const rest = items.length - 1;
+  const total = items.reduce((a, i) => a + i.h100e, 0);
   return (
     <div className="side-idle" role="alert">
-      {shown.map((i) => (
-        <div className="row" key={i.kind}>
-          <span>
-            Простаивает <b className="num">{fmtH100e(i.h100e)} H100e</b>: {i.reason}
-          </span>
-          <button type="button" className="btn small" title="Мощность оплачивается, но не работает" onClick={() => open(i.fix)}>
-            {i.fixLabel}
-          </button>
-        </div>
-      ))}
-      {rest > 0 && (
-        <button type="button" className="side-idle-more" onClick={() => open('compute')}>
-          Ещё {rest}: открыть «Мощности»
-        </button>
-      )}
+      <span
+        className="txt"
+        title={[`Простаивает ${fmtH100e(total)} H100e`].concat(items.map((i) => `${fmtH100e(i.h100e)} H100e: ${i.reason}`)).concat('Мощность оплачивается, но не работает').join(String.fromCharCode(10))}
+      >
+        <b>Простой:</b> {first.reason}
+        {rest > 0 ? ` (+${rest})` : ''}
+      </span>
+      <button type="button" className="btn small" onClick={() => open(rest > 0 && first.fix === 'compute' ? 'compute' : first.fix)}>
+        {first.fixLabel}
+      </button>
     </div>
   );
 }
@@ -268,7 +265,7 @@ export function SidePanel({
       {top}
       <div className="side-head">Сводка</div>
       <Goal s={s} open={open} />
-      <Idle items={idleCompute(s)} open={open} />
+      <Idle items={idleWarnings(s)} open={open} />
       <GoalsPanel s={s} open={open} />
       <div className="side-tabs">
         <button className={tab === 'projects' ? 'on' : undefined} onClick={() => setTab('projects')}>

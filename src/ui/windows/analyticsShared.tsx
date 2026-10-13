@@ -2,8 +2,8 @@
 
 import { memo, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { LABS, PLAYER_COLOR } from '../../data/labs';
-import { formatMonth } from '../../sim/time';
-import type { GameState, HypeOwner, MonthRecord } from '../../sim/types';
+import { dayToDate, formatMonth } from '../../sim/time';
+import type { GameState, HypeOwner, MonthLedger, MonthRecord } from '../../sim/types';
 
 const LAB_BY_ID = new Map(LABS.map((l) => [l.id, l]));
 
@@ -266,6 +266,19 @@ export function ChartPanel(props: {
       </div>
     </div>
   );
+}
+
+/**
+ * Что показывать как «текущий месяц»: после финала декабрь уже закрыт и идущий месяц пуст, поэтому берём закрытый.
+ * closed - показан закрытый месяц (без пометки «идёт»).
+ */
+export function currentMonthView(s: GameState): { ledger: MonthLedger; label: string; closed: boolean } {
+  const cur = dayToDate(s.day);
+  const last = s.finance.history.at(-1);
+  if (s.outcome && last && last.year === cur.year && last.month === cur.month) {
+    return { ledger: last, label: formatMonth(cur.year, cur.month), closed: true };
+  }
+  return { ledger: s.finance.month, label: liveMonthLabel(cur.year, cur.month), closed: false };
 }
 
 /** Подпись идущего месяца для легенды: «Июнь 2021 (идёт)». */

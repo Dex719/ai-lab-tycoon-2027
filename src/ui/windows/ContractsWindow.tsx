@@ -322,9 +322,16 @@ function TenderCard(props: {
     picker = (
       <div className="ct-nomodel">
         <span>Нет выпущенных моделей. Заявку подают выпущенной моделью.</span>
-        <button className="btn small" onClick={() => open('models')}>
-          Открыть «Модели»
-        </button>
+        {/* Если модель уже обучена, но не выпущена, ведём в «Модели»; иначе - создавать новую. */}
+        {s.models.some((m) => m.releasedDay === null) || s.trainings.length > 0 ? (
+          <button className="btn small" onClick={() => open('models')}>
+            Открыть «Модели»
+          </button>
+        ) : (
+          <button className="btn small" onClick={() => open('newModel')}>
+            Создать модель
+          </button>
+        )}
       </div>
     );
   } else {
