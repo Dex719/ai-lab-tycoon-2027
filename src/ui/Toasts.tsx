@@ -7,6 +7,7 @@ import { IconAlert, IconArrowUpDown, IconBank, IconCalendar, IconClose, IconFast
 import { getSettings } from './settings';
 import { store } from './store';
 import type { WindowAlias, WindowId } from './windows';
+import { lettersWord } from '../sim/text';
 
 const SHOW_MS = 6000;
 const MAX_VISIBLE = 4;
@@ -37,14 +38,6 @@ interface ToastData {
 
 function mailNum(m: Mail): number {
   return Number(m.id.slice(1));
-}
-
-function lettersWord(n: number): string {
-  const a = n % 10;
-  const b = n % 100;
-  if (a === 1 && b !== 11) return 'письмо';
-  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return 'письма';
-  return 'писем';
 }
 
 function ToastItem({ t, onOpen, onClose }: { t: ToastData; onOpen: (t: ToastData) => void; onClose: (key: number) => void }) {

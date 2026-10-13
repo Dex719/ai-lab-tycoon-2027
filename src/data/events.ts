@@ -26,7 +26,7 @@ import { spend } from '../sim/finance';
 import { BOARD_PLAN_FLAG, buyBackShares, buybackCost } from '../sim/investors';
 import { bestElo } from '../sim/leaderboard';
 import { RIVALRY_EVENTS } from '../sim/rivalry';
-import { endSentence } from '../sim/text';
+import { endSentence, pointsWord, timesWord } from '../sim/text';
 import { dateToDay } from '../sim/time';
 import { applyFailChoice } from '../sim/training';
 import type { GameState, GpuDef, HypeOwner, Mail, PlayerModel } from '../sim/types';
@@ -72,15 +72,6 @@ export function money(n: number): string {
   if (n >= 1e6 - 500) return `$${dec(n / 1e6)} млн`;
   if (n >= 1e3 - 0.5) return `$${dec(n / 1e3)} тыс.`;
   return `$${Math.round(n)}`;
-}
-
-/** «очко / очка / очков» по числу. */
-export function pointsWord(n: number): string {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return 'очко';
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'очка';
-  return 'очков';
 }
 
 const clamp100 = (x: number): number => Math.max(0, Math.min(100, x));
@@ -139,15 +130,6 @@ function exportControls(id: string, date: string, title: string, body: string): 
 
 const CHINESE_NAMES = CHINESE_LABS.map((l) => l.name).join(', ');
 
-/** «в 1,6 раза», «в 4 раза», «в 5 раз»: после дробного числа всегда «раза». */
-function timesWord(x: number): string {
-  const r = Math.round(x * 10) / 10;
-  const text = String(r).replace('.', ',');
-  const m10 = r % 10;
-  const m100 = r % 100;
-  const few = !Number.isInteger(r) || (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14));
-  return `в ${text} ${few ? 'раза' : 'раз'}`;
-}
 
 /** Новость о новом поколении GPU: насколько дешевле стал H100e-день по сравнению с лучшим прежним вариантом. */
 function gpuEvent(gpu: GpuDef): EventDef {

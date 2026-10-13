@@ -8,7 +8,7 @@ import { addMail, applyChoice, deferChoice, markRead } from './events';
 import { raiseRound } from './investors';
 import { releaseHypeBonus, updateSaturation } from './leaderboard';
 import { minPrice, subsOpen } from './market';
-import { setResearch } from './research';
+import { queueResearch, setResearch, unqueueResearch } from './research';
 import { applyDifficultyModifiers } from './rivalry';
 import type { Difficulty } from './rivalry';
 import { createInitialState } from './state';
@@ -84,7 +84,8 @@ export function releaseModel(s: GameState, modelId: string, price: number, opts:
   m.onApi = true;
   m.price = price;
   m.subsPrice = subs.price;
-  const reason = reviewReason(s, m);
+  // Проверка нужна только для подписок: пока канал не открыт, метки и платы за неё нет.
+  const reason = subsOpen(s.day) ? reviewReason(s, m) : null;
   m.review = reason === null ? 'none' : 'required';
   m.reviewEndDay = null;
   m.onSubs = !!opts.onSubs && subsOpen(s.day) && m.review === 'none';
@@ -174,6 +175,7 @@ export {
   cancelTraining,
   applyChoice as chooseOption,
   deferChoice,
+  queueResearch,
   raiseRound,
   setAllocation,
   setAutoApply,
@@ -181,4 +183,5 @@ export {
   setResearch,
   startReview,
   startTraining,
+  unqueueResearch,
 };

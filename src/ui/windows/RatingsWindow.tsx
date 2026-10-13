@@ -6,8 +6,8 @@ import { BENCHMARKS } from '../../data/benchmarks';
 import { expectedLeaderElo, leaderboard, marketArenaRank, type BoardRow } from '../../sim/leaderboard';
 import { contextLabel } from '../../sim/research';
 import { findRivalDefIn, rivalContextIn } from '../../sim/rivalry';
-import { playerBestArenaRank } from '../../sim/tick';
-import { END_DAY, formatDateShort } from '../../sim/time';
+import { ARENA_PLACE_TITLE, bestArenaPlace } from '../arena';
+import { END_DAY, formatDateShort, yearOf } from '../../sim/time';
 import type { BenchmarkDef, BenchmarkId, GameState } from '../../sim/types';
 import { fmtElo, fmtNum, fmtPct } from '../format';
 import { IconAlert, IconLock } from '../icons';
@@ -296,11 +296,11 @@ export function BenchmarksTab({ s }: WindowProps) {
 
 // ---------- Арена ----------
 
-const TIP_RANK = 'Место среди моделей в продаже: тех, что продаются через API';
+const TIP_RANK = ARENA_PLACE_TITLE;
 const TIP_NOT_SALE = 'Модель не продаётся через API: в зачёт цели не идёт';
 const TIP_GOAL = 'Победа: ваша модель первая по Эло среди моделей в продаже 31.12.2024';
 const TIP_EXPECTED = 'Лучший Эло среди моделей соперников, которые будут продаваться через API к концу 2024 года';
-const TIP_MONTHS = 'Закрытые месяцы, когда ваша лучшая модель была первой среди моделей в продаже';
+const TIP_MONTHS = 'Закрытые месяцы, когда ваша лучшая модель была первой среди моделей в продаже. Считаются только месяцы, когда соперники уже продают модели по API.';
 
 /** Модель в продаже: ваша - выпущена и на API, соперника - выпущена с API и не только показана. Только такие идут в зачёт цели. */
 export function inSaleRow(r: BoardRow): boolean {
@@ -340,7 +340,7 @@ export function ArenaTab({ s }: WindowProps) {
   const ranked = arenaRows(s, rows ?? []);
   const onSale = ranked.filter((x) => x.inSale).length;
   const mine = ranked.find((x) => x.row.owner === 'player') ?? null;
-  const myRank = safe(() => playerBestArenaRank(s));
+  const myRank = bestArenaPlace(s);
   const expected = expectedLeaderElo10(s);
   const monthsFirst = finite(s.monthsFirst);
 
@@ -423,11 +423,16 @@ export function ArenaTab({ s }: WindowProps) {
             title: TIP_RANK,
           },
           { value: fmtRank(1), label: `Цель: среди моделей в продаже на ${formatDateShort(END_DAY)}`, title: TIP_GOAL },
-          {
-            value: expected !== null ? `≈ ${fmtElo(expected)}` : '-',
-            label: 'Ожидаемый лидер к концу 2024, Эло',
-            title: TIP_EXPECTED,
-          },
+          // Планка победы раскрывает будущее: показываем её только в последний год партии.
+          ...(yearOf(s.day) >= 2024
+            ? [
+                {
+                  value: expected !== null ? `≈ ${fmtElo(expected)}` : '-',
+                  label: 'Ожидаемый лидер к концу 2024, Эло',
+                  title: TIP_EXPECTED,
+                },
+              ]
+            : []),
           {
             value: mine ? fmtElo(mine.row.elo) : '-',
             label: mine ? `Ваша лучшая: ${mine.row.name}` : 'Ваша лучшая модель, Эло',

@@ -4,7 +4,7 @@ import { valuation } from '../sim/investors';
 import { leaderboard } from '../sim/leaderboard';
 import { DIFFICULTY } from '../sim/rivalry';
 import { subsOpen } from '../sim/market';
-import { playerBestArenaRank } from '../sim/tick';
+import { ARENA_PLACE_TITLE, bestArenaPlace } from './arena';
 import { formatDate } from '../sim/time';
 import type { GameState } from '../sim/types';
 import { useModalFocus } from './components/common';
@@ -14,7 +14,7 @@ import { store } from './store';
 
 export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void }) {
   const { ref, onKeyDown } = useModalFocus<HTMLDivElement>(s.outcome ?? '');
-  const rank = playerBestArenaRank(s);
+  const rank = bestArenaPlace(s);
   const rows = leaderboard(s).filter((r) => r.ref.kind === 'player');
   const best = rows.reduce<(typeof rows)[number] | null>((b, r) => (!b || r.elo > b.elo ? r : b), null);
   const v = valuation(s);
@@ -25,7 +25,7 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
       ? `Модель лаборатории «${s.labName}» - первая среди моделей в продаже 31 декабря 2024 года.`
       : s.outcome === 'bankrupt'
         ? `Лаборатория «${s.labName}» закрылась ${formatDate(s.day)}: деньги были в минусе 60 дней подряд.`
-        : `Партия закончилась 31 декабря 2024 года. Среди моделей в продаже: ${fmtRank(rank)}.`;
+        : `Партия закончилась 31 декабря 2024 года. Место на «Арене»: ${fmtRank(rank)}.`;
   return (
     <div className="modal-backdrop">
       <div ref={ref} tabIndex={-1} className="dialog" role="dialog" aria-modal="true" aria-label={title} onKeyDown={onKeyDown}>
@@ -37,7 +37,7 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
           <div className="kv">
             <span title={DIFFICULTY[s.difficulty].description}>Сложность</span>
             <span>{DIFFICULTY[s.difficulty].name}</span>
-            <span title="Место по Эло среди моделей, которые продаются через API">Место среди моделей в продаже</span>
+            <span title={ARENA_PLACE_TITLE}>Место на «Арене»</span>
             <span>{fmtRank(rank)}</span>
             <span>Лучшая модель</span>
             <span>{best ? `${best.name}, Эло ${fmtElo(best.elo)}` : '-'}</span>

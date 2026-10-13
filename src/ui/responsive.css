@@ -104,6 +104,9 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
     position: absolute; inset: 0; width: auto; height: auto; min-width: 0; min-height: 0; max-width: none; border-radius: 0; box-shadow: none;
   }
   .window.fs-off { display: none; }
+  /* Пока на экране подсказка обучения, окно и значки кончаются над ней: --dock-h выставляет Game по высоте подсказки. */
+  .desk .window.fs { bottom: var(--dock-h, 0px); }
+  .desk .icons { bottom: var(--dock-h, 0px); }
   .window.fs .titlebar { height: 44px; border-radius: 0; font-size: 16px; cursor: default; gap: 4px; padding: 0 4px 0 2px; }
   .window.fs .titlebar .wbtn { width: 44px; height: 40px; }
   .window.fs .titlebar .wbtn.min { display: none; }

@@ -68,7 +68,7 @@ export function createInitialState(labName: string, seed: number, difficulty: Di
     monthsFirst: 0,
     hype,
     compute: { rented: { p100: 0, v100: 0, a100: 0, h100: 0, h200: 0 }, alloc: { ...DEFAULT_ALLOC } },
-    research: { current: null, points: emptyTechPoints(), done: [], algoLevel: 0, contextLevel: 0 },
+    research: { current: null, points: emptyTechPoints(), done: [], algoLevel: 0, contextLevel: 0, queue: [] },
     trainings: [],
     nextRunNum: 1,
     bestFlop: 0,

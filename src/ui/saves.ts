@@ -2,7 +2,7 @@
 
 import type { Difficulty } from '../sim/rivalry';
 import { deserialize, serialize } from '../sim/save';
-import { playerBestArenaRank } from '../sim/tick';
+import { bestArenaPlace } from './arena';
 import type { GameState } from '../sim/types';
 
 export type SlotId = 1 | 2 | 3 | 4 | 5 | 'auto';
@@ -43,12 +43,7 @@ function storageGet(key: string): string | null {
 }
 
 function metaOf(s: GameState): SlotMeta {
-  let arenaRank: number | null = null;
-  try {
-    arenaRank = playerBestArenaRank(s);
-  } catch {
-    arenaRank = null;
-  }
+  const arenaRank = bestArenaPlace(s);
   return {
     labName: s.labName,
     day: s.day,

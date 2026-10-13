@@ -598,7 +598,7 @@ const OPTIONAL_FIELDS = new Set([
   'deferred', 'autoChosen', 'context', 'contextLevel', 'earned', 'monthsFirst', 'autoApply', 'difficulty', 'rivalry',
   'tier', 'onSubs', 'subsPrice', 'review', 'reviewEndDay', 'earnedSubs', 'subs', 'subscribers', 'playerSubs', 'totalSubs',
   'lostApi', 'lostSubs', 'segments', 'consumers', 'enterprise', 'developers', 'trainings', 'nextRunNum',
-  'techs', 'distill', 'moe', 'codetrain', 'instruct', 'cot', 'quant', 'multimodal', 'synthetic',
+  'queue', 'techs', 'distill', 'moe', 'codetrain', 'instruct', 'cot', 'quant', 'multimodal', 'synthetic',
 ]);
 /** Необязательные поля по полному пути: имя поля (modelId, price) в других местах обязательно. */
 const OPTIONAL_PATHS = new Set(['tenders[].application.work', 'contracts[].tender.application.work', 'rivalry.pending[].modelId', 'rivalry.choice.modelId']);

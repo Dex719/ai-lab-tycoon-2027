@@ -46,6 +46,8 @@ export const PARAMS_B_MAX = 2000;
 export const TOKENS_B_MIN = 0.5;
 
 // Исследования
+/** Сколько технологий можно поставить в очередь исследований после текущей. */
+export const RESEARCH_QUEUE_MAX = 3;
 export const RP_BASE = 20; // было 10: в 2017-2018 годах первые исследования шли по 4-6 месяцев; на поздние почти не влияет. Больше 24 нельзя: одной базой команды «Механизм внимания» успевался бы до 12.06.2017
 export const RP_K = 25;
 export const TECH_COST: Record<Exclude<TechId, ChainTech>, number> = {

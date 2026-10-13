@@ -16,7 +16,8 @@ import {
 } from '../../sim/constants';
 import { awaitingEvent } from '../../sim/events';
 import { contextLabel } from '../../sim/research';
-import { arenaRank, benchRank } from '../../sim/leaderboard';
+import { benchRank } from '../../sim/leaderboard';
+import { ARENA_PLACE_TITLE, modelArenaPlace } from '../arena';
 import { minPrice, playerSales, refPrice, subsOpen } from '../../sim/market';
 import { formatDateShort } from '../../sim/time';
 import {
@@ -43,6 +44,7 @@ import { Cards } from '../components/Cards';
 import { Alert, ConfirmDialog, DenyNote, ErrorText, GuardButton, ProgressBar, useFlash } from '../components/common';
 import { TierBadge } from '../components/TierBadge';
 import { fmtDays, fmtElo, fmtH100e, fmtMoney, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare, fmtTokens } from '../format';
+import { tokensWord } from '../../sim/text';
 import { IconChevronLeft, IconModels } from '../icons';
 import { fmtRank } from '../labels';
 import { actions, store } from '../store';
@@ -715,15 +717,15 @@ interface Kpi {
 /** Крупные показатели под заголовком: на них взгляд падает первым. */
 function Kpis({ s, m }: { s: GameState; m: PlayerModel }) {
   const released = m.releasedDay !== null;
-  const rank = released ? arenaRank(s, { kind: 'player', id: m.id }) : null;
+  const rank = modelArenaPlace(s, m);
   const { share, revenue, apiRevenue, subsRevenue } = salesOf(s, m);
   const items: Kpi[] = released
     ? [
         {
           label: 'Место на «Арене»',
           value: fmtRank(rank),
-          sub: `Эло ${fmtElo(m.arenaElo)}`,
-          title: 'Рейтинг на «Арене». Подгонка под бенчмарки его не повышает.',
+          sub: rank === null ? `Не в продаже, Эло ${fmtElo(m.arenaElo)}` : `Эло ${fmtElo(m.arenaElo)}`,
+          title: `${ARENA_PLACE_TITLE} Подгонка под бенчмарки Эло не повышает.`,
         },
         {
           label: 'Доля рынка',
@@ -787,7 +789,7 @@ function Specs(props: { arch: 'lstm' | 'transformer'; plan: TrainingPlan; dates:
         <dt>Параметры</dt>
         <dd>{fmtParams(plan.paramsB)}</dd>
         <dt>Контекст</dt>
-        <dd>{contextLabel(plan.context)} токенов</dd>
+        <dd>{contextLabel(plan.context)} {tokensWord(plan.context)}</dd>
         <dt>Данные</dt>
         <dd>
           {fmtTokens(plan.tokensB)} токенов

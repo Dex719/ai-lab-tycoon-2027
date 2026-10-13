@@ -6,14 +6,11 @@ import {
   IconAnalytics,
   IconCompute,
   IconContracts,
-  IconDatacenters,
   IconInvestors,
   IconMail,
   IconModels,
   IconNewModel,
   IconResearch,
-  IconSafety,
-  IconTeam,
 } from '../icons';
 import AnalyticsWindow from './AnalyticsWindow';
 import ComputeWindow from './ComputeWindow';
@@ -61,11 +58,4 @@ export const WINDOWS: WindowDef[] = [
   { id: 'models', title: 'Модели', icon: IconModels, side: 'right', w: 900, h: 620, Component: ModelsWindow },
   { id: 'mail', title: 'Почта', icon: IconMail, side: 'right', w: 820, h: 520, Component: MailWindow },
   { id: 'analytics', title: 'Аналитика', icon: IconAnalytics, side: 'right', w: 1100, h: 660, Component: AnalyticsWindow },
-];
-
-/** Разделы следующих версий: показаны серыми, как закрытые иконки в Processor Tycoon. */
-export const LOCKED: { title: string; icon: IconComponent }[] = [
-  { title: 'Дата-центры', icon: IconDatacenters },
-  { title: 'Команда', icon: IconTeam },
-  { title: 'Безопасность', icon: IconSafety },
 ];

@@ -7,6 +7,7 @@ import {
   ARCH_MULT,
   ARENA_OPEN_DATE,
   ARENA_WEIGHTS,
+  CHAT_MOMENT_DATE,
   BENCH_DATA_PENALTY,
   BENCH_SHARE_MAX,
   CONTEXT_FLOP_PER_DOUBLING,
@@ -64,7 +65,7 @@ import { codeLevel, rivalCodeFrontier, rivalFrontierElo } from './leaderboard';
 import { contextLabel, maxContext } from './research';
 import { EXPOSE_CAP_WITH_RIVALS, exposureMultIn } from './rivalry';
 import { chance, randRange } from './rng';
-import { endSentence } from './text';
+import { daysWord, endSentence, pointsWord } from './text';
 import { byYear, dateToDay, formatDate, lerpByDate, yearOf } from './time';
 import { DOMAINS, TIER_NAMES } from './types';
 import type { BenchmarkId, DomainId, GameState, PlayerModel, Result, TechId, Tier, TrainingPlan, TrainingRun } from './types';
@@ -108,24 +109,6 @@ function fmtMoney(v: number): string {
   if (a >= 1e6 - 500) return `${sign}$${dec(a / 1e6)} млн`;
   if (a >= 1e3) return `${sign}$${Math.round(a / 1e3)} тыс.`;
   return `${sign}$${Math.round(a)}`;
-}
-
-/** «очко / очка / очков» по числу. */
-function pointsWord(n: number): string {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return 'очко';
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'очка';
-  return 'очков';
-}
-
-/** «1 день», «3 дня», «45 дней». */
-function daysWord(n: number): string {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return `${n} день`;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return `${n} дня`;
-  return `${n} дней`;
 }
 
 /** Размер в млрд параметров для ошибок: 0,05 → «0,05», 61,25 → «61,3», 1800 → «1 800». */
@@ -591,6 +574,22 @@ export function startReview(s: GameState, modelId: string): Result {
 
 /** Ежедневно (после обучения): проверки, чей срок наступил, пройдены; важное письмо. */
 export function reviewDay(s: GameState): void {
+  // В день открытия подписок сильные модели, выпущенные раньше, тоже должны пройти проверку.
+  if (s.day === dateToDay(CHAT_MOMENT_DATE)) {
+    for (const m of s.models) {
+      if (m.releasedDay === null || m.review !== 'none' || !m.onApi) continue;
+      const reason = reviewReason(s, m);
+      if (reason === null) continue;
+      m.review = 'required';
+      addMail(s, {
+        kind: 'training',
+        title: `Нужна внешняя проверка: «${m.name}»`,
+        body:
+          `Открылись подписки. Модель заметно сильнее переднего края (${reason}), поэтому подписку на неё можно включить только после проверки. ` +
+          `${reviewTerms(s, m)}; начать её можно в окне «Модели».`,
+      });
+    }
+  }
   for (const m of s.models) {
     if (m.review !== 'pending' || m.reviewEndDay === null || s.day < m.reviewEndDay) continue;
     m.review = 'passed';

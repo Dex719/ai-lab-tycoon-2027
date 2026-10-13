@@ -11,6 +11,7 @@ import { byYear, dateToDay, lerpByDate, START_DAY, yearOf } from './time';
 import { tierOf } from './training';
 import { DOMAINS, LAB_IDS } from './types';
 import type { BenchmarkId, Channel, DomainId, GameState, LabId, RivalModelDef, Tier } from './types';
+import { daysWord } from './text';
 
 // ---------- Каталог ----------
 
@@ -226,15 +227,6 @@ function fmtSize(paramsB: number): string {
 /** «$60», «$0,14», «$13,95». */
 function fmtPrice(x: number): string {
   return `$${String(Number(x.toFixed(2))).replace('.', ',')}`;
-}
-
-/** «1 день», «3 дня», «45 дней». */
-function daysWord(n: number): string {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return `${n} день`;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return `${n} дня`;
-  return `${n} дней`;
 }
 
 /**

@@ -4,7 +4,7 @@
 
 /* Заголовок блока */
 .rs-head {
-  flex: none; display: flex; align-items: center; gap: 16px; min-height: 46px; padding: 4px 14px;
+  flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; min-height: 46px; padding: 4px 14px;
   background: var(--panel); border-bottom: 1px solid var(--line);
 }
 .rs-title { margin: 0; font-size: 20px; font-weight: 300; color: #2a2c30; }
@@ -146,3 +146,21 @@
 .rs-d-h b { color: #6244c0; }
 .rs-d-result b { color: #6244c0; }
 .rs-stat .l { color: var(--text-dim); }
+
+/* Очередь исследований и простой мощности */
+.rs-queue {
+  flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 5px 14px;
+  background: var(--panel); border-bottom: 1px solid var(--line); font-size: 13px; color: var(--text-body);
+}
+.rs-queue .l { font-weight: 600; color: var(--text); }
+.rs-queue .muted { color: var(--text-dim); }
+.rs-queue.idle { background: #fff1d6; color: #7a4a00; font-weight: 600; border-bottom-color: #e3bf62; }
+.rs-qchip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 8px; background: #ece6fb; border: 1px solid #b9a8ee; border-radius: 3px; }
+.rs-qchip b { color: #6244c0; }
+.rs-qchip button { width: 20px; height: 20px; padding: 0; line-height: 18px; font-size: 16px; color: #50545b; background: none; border: none; cursor: pointer; border-radius: 2px; }
+.rs-qchip button:hover { background: rgba(0, 0, 0, 0.08); color: #b32f2f; }
+.rs-node.queued { outline: 2px dashed var(--br); outline-offset: 2px; }
+.rs-q { color: #6244c0; }
+
+/* Диалог: место под подписи постоянное (две строки), чтобы он не рос при движении ползунка. */
+.rs-d-slot { min-height: 40px; display: flex; flex-direction: column; gap: 2px; }

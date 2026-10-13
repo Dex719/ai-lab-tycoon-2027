@@ -7,7 +7,8 @@ vi.mock('./training', () => ({ applyFailChoice: vi.fn() }));
 // marketArenaRank нужен оценке инвесторов (письмо совета директоров называет цену выкупа): моделей на рынке нет.
 vi.mock('./leaderboard', () => ({ bestElo: vi.fn(() => 1000), marketArenaRank: vi.fn(() => null) }));
 
-import { EVENTS, findEvent, money, pointsWord } from '../data/events';
+import { EVENTS, findEvent, money } from '../data/events';
+import { pointsWord } from './text';
 import { LABS } from '../data/labs';
 import { rentCapFor, rentPerGpuDay } from './compute';
 import {

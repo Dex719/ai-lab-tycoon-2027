@@ -100,6 +100,7 @@ import { byYear, dateToDay, dayToDate, END_DAY, formatDate, yearOf } from './tim
 import { modelScore } from './training';
 import { LAB_IDS } from './types';
 import type { BenchmarkId, GameState, HypeOwner, LabId, Modifier, ModifierKind, PlayerModel, RivalModelDef, SegmentId, Tier } from './types';
+import { daysWord } from './text';
 
 // ---------- Типы ----------
 
@@ -245,7 +246,7 @@ export interface DifficultyDef {
 export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
   easy: {
     name: 'Лёгкая',
-    description: 'Соперники отвечают редко: слухи за 60 дней, не больше одного хода сразу, соперники не учатся. Аренда дешевле на 20 %, разоблачение реже.',
+    description: 'Соперники отвечают на ваши успехи редко. Аренда дешевле на 20 %, подгонку раскрывают реже.',
     gain: 0.6,
     threshold: 70,
     delay: 60,
@@ -268,7 +269,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
   },
   normal: {
     name: 'Обычная',
-    description: 'Слухи за 30 дней, до двух ходов сразу, соперники бьют по вашему сильному месту и не повторяют неудачных ходов.',
+    description: 'Соперники отвечают на ваши успехи. Аренда по обычной цене.',
     gain: 1.0,
     threshold: 50,
     delay: 30,
@@ -291,7 +292,7 @@ export const DIFFICULTY: Record<Difficulty, DifficultyDef> = {
   },
   hard: {
     name: 'Сложная',
-    description: 'Слухи за 14 дней, до трёх ходов сразу, соперники помнят, что сработало, и действуют вдвоём. Аренда дороже на 60 %, разоблачение вероятнее.',
+    description: 'Соперники отвечают на ваши успехи быстро и часто. Аренда дороже на 60 %, подгонку раскрывают чаще.',
     gain: 1.4,
     threshold: 35,
     delay: 14,
@@ -419,15 +420,6 @@ function fmtMoney(n: number): string {
 /** «$0,14», «$2», «$13,95». */
 function fmtPrice(x: number): string {
   return `$${String(Number(x.toFixed(3))).replace('.', ',')}`;
-}
-
-/** «1 день», «14 дней», «21 день». */
-function daysWord(n: number): string {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return `${n} день`;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return `${n} дня`;
-  return `${n} дней`;
 }
 
 export function yearMult(day: number): number {

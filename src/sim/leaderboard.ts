@@ -166,6 +166,11 @@ export function marketArenaRank(s: GameState, ref: ModelRef): number | null {
   return rankIn(onApiOnly(entries(s)), ref, (e) => e.elo);
 }
 
+/** Есть ли сейчас хотя бы одна модель соперника, доступная по API: пока нет, «первое место» ничего не значит. */
+export function rivalsSellByApi(s: GameState): boolean {
+  return onApiOnly(entries(s)).some((e) => e.rival !== null);
+}
+
 /**
  * Планка победы: наибольшее Эло среди моделей соперников с API (не announcedOnly), которые выйдут
  * до конца игры включительно. Столько нужно обойти к 31.12.2024; от текущего состояния не зависит.

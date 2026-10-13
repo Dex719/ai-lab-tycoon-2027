@@ -2,6 +2,7 @@
 
 import { GPUS } from '../data/gpus';
 import { availableGpus } from '../sim/compute';
+import { ruPlural } from '../sim/text';
 import type { GameState } from '../sim/types';
 
 // Форматтеры создаются один раз на число знаков: toLocaleString с параметрами строит новый на каждый вызов,
@@ -116,15 +117,7 @@ export function fmtElo(elo: number): string {
   return Number.isFinite(elo) ? String(Math.round(elo)) : '-';
 }
 
-/** Форма слова по числу: ruPlural(1, 'карта', 'карты', 'карт') → «карта», 3 → «карты», 5 и 11 → «карт», 21 → «карта». */
-export function ruPlural(n: number, one: string, few: string, many: string): string {
-  const a = Math.abs(Math.trunc(n));
-  const m10 = a % 10;
-  const m100 = a % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-  return many;
-}
+export { ruPlural };
 
 /** «1 день», «3 дня», «45 дней». */
 export function fmtDays(n: number): string {

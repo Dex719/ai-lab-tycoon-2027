@@ -38,6 +38,9 @@ import {
 import { Cards } from '../components/Cards';
 import { Alert, ConfirmDialog, Dialog, ErrorText, NewBadge, Range } from '../components/common';
 import { fmtH100e as fmtH, fmtInt, fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
+import { idleCompute } from '../../sim/idle';
+import { IconAlert } from '../icons';
+import { timesWord } from '../../sim/text';
 import { actions, store } from '../store';
 import './ComputeWindow.css';
 
@@ -319,7 +322,7 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
           <div className="cw-qty-legend">
             <span className={capFrac === null ? 'cw-hide' : undefined}>
               <span className="cw-sw over" />
-              Сверх лимита - в {fmtMult(RENT_OVER_CAP_MULT)} раза дороже.
+              Сверх лимита - {timesWord(RENT_OVER_CAP_MULT)} дороже.
             </span>
             <span className={`cw-qty-max${atMax ? '' : ' cw-hide'}`} aria-hidden={!atMax}>
               Максимум {fmtInt(max)} шт.
@@ -444,6 +447,8 @@ function AllocPanel({ s }: { s: GameState }) {
   // Ошибка показывается только после «Распределить»; любое изменение долей её убирает.
   const [error, setError] = useState<string | null>(null);
   const [zero, setZero] = useState<(keyof SoldChannels)[] | null>(null);
+  // Доля упёрлась в остаток: вместо молчаливого обнуления говорим, сколько можно.
+  const [limit, setLimit] = useState<number | null>(null);
   const current = percentsOf(s.compute.alloc);
   const shown = draft ?? current;
   const changed = draft !== null && !samePercents(draft, current);
@@ -454,6 +459,8 @@ function AllocPanel({ s }: { s: GameState }) {
 
   const edit = (key: AllocKey, value: number) => {
     setError(null);
+    const cap = maxPercent(shown, key);
+    setLimit(Math.round(value) > cap ? cap : null);
     setDraft(setPercent(shown, key, value));
   };
 
@@ -461,7 +468,10 @@ function AllocPanel({ s }: { s: GameState }) {
     if (!draft) return;
     const r = store.dispatch(actions.setAllocation, toAllocation(draft));
     setError(r.ok ? null : r.error);
-    if (r.ok) setDraft(null);
+    if (r.ok) {
+      setDraft(null);
+      setLimit(null);
+    }
   };
 
   // «Распределить»: сумма не больше 100 % (остаток простаивает); нулевую долю API или подписок при продажах в канале игрок подтверждает.
@@ -537,7 +547,11 @@ function AllocPanel({ s }: { s: GameState }) {
       })}
       <div className="cw-panel-foot">
         <div className="cw-alloc-msg" title={error ?? undefined}>
-            {error && <Alert tone="bad">{error}</Alert>}
+            {error ? (
+              <Alert tone="bad">{error}</Alert>
+            ) : (
+              limit !== null && <Alert tone="warn">Максимум {limit} %: сначала уменьшите другую долю.</Alert>
+            )}
           </div>
         <div className="cw-alloc-foot">
           {changed ? (
@@ -546,6 +560,7 @@ function AllocPanel({ s }: { s: GameState }) {
               onClick={() => {
                 setDraft(null);
                 setError(null);
+                setLimit(null);
               }}
             >
               Сбросить
@@ -586,13 +601,42 @@ function defaultRentId(s: GameState): GpuId {
   return cheapestGpuId(s) ?? availableGpus(s)[0]?.id ?? GPUS[0].id;
 }
 
-export default function ComputeWindow({ s }: WindowProps) {
+/** Простой мощности: доля выделена, а работы для неё нет. Одна рамка, в ней строки с кнопкой, которая ведёт к исправлению. */
+function IdleStrip({ s, open }: { s: GameState; open: WindowProps['open'] }) {
+  const items = idleCompute(s);
+  if (items.length === 0) return null;
+  const shown = items.slice(0, 2);
+  const rest = items.length - shown.length;
+  return (
+    <div className="cw-idle" role="alert">
+      <IconAlert size={18} />
+      <div className="cw-idle-rows">
+        {shown.map((i) => (
+          <div className="cw-idle-row" key={i.kind}>
+            <span>
+              Простаивает <b>{fmtH(i.h100e)} H100e</b>: {i.reason}
+            </span>
+            {i.fix !== 'compute' && (
+              <button type="button" className="btn small" onClick={() => open(i.fix)}>
+                {i.fixLabel}
+              </button>
+            )}
+          </div>
+        ))}
+        {rest > 0 && <div className="cw-idle-more">Ещё {rest}: {items.slice(2).map((i) => i.reason).join(', ')}</div>}
+      </div>
+    </div>
+  );
+}
+
+export default function ComputeWindow({ s, open }: WindowProps) {
   const [dialog, setDialog] = useState<RentTarget | null>(null);
   const rentedGpus = GPUS.filter((g) => s.compute.rented[g.id] > 0);
 
   return (
     <div className="cw">
       <Summary s={s} onRent={() => setDialog({ id: defaultRentId(s) })} />
+      <IdleStrip s={s} open={open} />
       <div className="cw-scroll">
         <div className="cw-main">
           <section className="cw-rented">

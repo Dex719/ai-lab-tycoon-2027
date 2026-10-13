@@ -182,3 +182,11 @@
 @media (prefers-reduced-motion: reduce) {
   .nm-die { transition: none; }
 }
+
+/* Окно подтверждения старта обучения (выводится в document.body). */
+.nm-confirm-name { margin: 0 0 10px; font-weight: 600; }
+.nm-confirm { display: grid; grid-template-columns: auto 1fr; gap: 6px 20px; margin: 0; font-variant-numeric: tabular-nums; }
+.nm-confirm dt { color: var(--text-dim); }
+.nm-confirm dd { margin: 0; text-align: right; }
+.nm-confirm dd.cost { color: #b32f2f; font-weight: 600; font-size: 18px; }
+.nm-confirm-note { margin: 10px 0 0; font-size: 13px; color: var(--text-dim); }

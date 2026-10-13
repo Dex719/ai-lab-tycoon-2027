@@ -328,7 +328,15 @@ export interface GameState {
   monthsFirst: number;
   hype: Record<HypeOwner, number>; // 0..100
   compute: { rented: Record<GpuId, number>; alloc: Allocation };
-  research: { current: TechId | null; points: Record<TechId, number>; done: TechId[]; algoLevel: number; contextLevel: number };
+  research: {
+    current: TechId | null;
+    points: Record<TechId, number>;
+    done: TechId[];
+    algoLevel: number;
+    contextLevel: number;
+    /** Очередь: что исследовать дальше (до RESEARCH_QUEUE_MAX), когда текущее закончится. */
+    queue: TechId[];
+  };
   /** Идущие проекты обучения (не больше MAX_TRAININGS); доля «Обучение» делится между ними поровну. */
   trainings: TrainingRun[];
   nextRunNum: number; // номер следующего проекта: id `t${n}`

@@ -20,6 +20,7 @@ import { dayToDate, formatDateShort } from '../../sim/time';
 import { SEGMENT_IDS, type Channel, type GameState, type HypeOwner, type SegmentId, type Tier } from '../../sim/types';
 import { Alert } from '../components/common';
 import { TierBadge } from '../components/TierBadge';
+import { tokensWord } from '../../sim/text';
 import { fmtElo, fmtNum, fmtPrice, fmtShare, ruPlural } from '../format';
 import {
   buildChartData,
@@ -72,7 +73,7 @@ export function usersLabel(n: number): string {
 
 /** Спрос сегмента с единицей: «7 млн пользователей» или «1,2 млрд токенов в день». */
 export function demandLabel(channel: Channel, n: number): string {
-  return channel === 'subs' ? usersLabel(n) : `${fmtNum(n)} токенов в день`;
+  return channel === 'subs' ? usersLabel(n) : `${fmtNum(n)} ${tokensWord(Math.round(n))} в день`;
 }
 
 // Доли сегмента: берём записанные в s.market.segments (после ограничения мощностью); пока их нет (первый день игры) -
@@ -250,7 +251,7 @@ function ShareBars({ s, snap }: { s: GameState; snap: MarketSnapshot | null }) {
       <div className="bars-meta">
         <div className="r">
           <span>Спрос по API</span>
-          <span>{fmtNum(api)} токенов в день</span>
+          <span>{fmtNum(api)} {tokensWord(Math.round(api))} в день</span>
         </div>
         {open && (
           <div className="r">

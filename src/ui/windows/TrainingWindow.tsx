@@ -52,6 +52,7 @@ import {
   endSentence,
   fmtCardDays,
   fmtElo,
+  fmtDays,
   fmtH100e,
   fmtMoney,
   fmtNum,
@@ -60,6 +61,7 @@ import {
   fmtPrice,
   fmtTokens,
 } from '../format';
+import { timesWord, tokensWord } from '../../sim/text';
 import { IconLock } from '../icons';
 import { actions, store } from '../store';
 import './TrainingWindow.css';
@@ -211,11 +213,6 @@ function rescaleMix(mix: Record<DomainId, number>, id: DomainId, v: number): Rec
   return out;
 }
 
-/** Накладные раннего обучения для подписи: «300», «12», «1,8». */
-function fmtOverhead(x: number): string {
-  return x >= 10 ? String(Math.round(x)) : String(Math.round(x * 10) / 10).replace('.', ',');
-}
-
 function archName(arch: 'lstm' | 'transformer'): string {
   return arch === 'transformer' ? 'Трансформер' : 'LSTM';
 }
@@ -326,7 +323,7 @@ function ContextBlock(props: { s: GameState; value: number; onChange: (v: number
       </div>
       <div className="nm-ctx-foot">
         <span title="Модели с контекстом длиннее обычного покупают охотнее, с коротким - реже.">
-          Обычный контекст на рынке: <b>{contextLabel(market)}</b> токенов
+          Обычный контекст на рынке: <b>{contextLabel(market)}</b> {tokensWord(market)}
         </span>
         {level < CONTEXT_MAX_LEVEL && (
           <button className="nm-link" onClick={() => open('research')}>
@@ -441,18 +438,24 @@ function monthsText(days: number): string {
   return String(Math.max(0.1, Math.round((days / DAYS_IN_MONTH) * 10) / 10)).replace('.', ',');
 }
 
-function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; open: OpenFn }) {
-  const { s, plan, est, open } = props;
-  if (!est) return <div className="error">Оценка проекта недоступна.</div>;
-
+/** Срок, мощность и стоимость нового проекта: одни и те же числа в левой колонке и в окне подтверждения. */
+function projectNumbers(s: GameState, est: Est) {
   const days = est.days;
-  const overhead = trainOverhead(s.day);
   const share = s.compute.alloc.training;
   // Новый проект делит долю «Обучение» с идущими: его аренда - соответствующая часть аренды доли.
   const power = trainingPoolPerRun(s, 1);
   const rentDay = (rentPerDay(s) * share) / (s.trainings.length + 1);
   const rent = days !== null ? days * rentDay : null;
   const cost = rent !== null ? rent + est.labelers : null;
+  return { days, power, rentDay, rent, cost };
+}
+
+function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; open: OpenFn }) {
+  const { s, plan, est, open } = props;
+  if (!est) return <div className="error">Оценка проекта недоступна.</div>;
+
+  const overhead = trainOverhead(s.day);
+  const { days, power, rentDay, rent, cost } = projectNumbers(s, est);
   const late = days !== null && s.day + days > END_DAY;
   const dayText = days !== null ? daysText(days) : null;
   const fc = est.forecast;
@@ -526,7 +529,7 @@ function Summary(props: { s: GameState; plan: TrainingPlan; est: Est | null; ope
       <Item
         label="Объём вычислений"
         title="Сколько дней одна карта H100 считала бы это обучение. Срок зависит от мощности на обучение."
-        sub={overhead >= 1.05 ? `Ранние фреймворки и сети: обучение в ${fmtOverhead(overhead)} раз дольше, к середине 2020 года - как на зрелом стеке.` : undefined}
+        sub={overhead >= 1.05 ? `Ранние фреймворки и сети: обучение дольше ${timesWord(overhead >= 10 ? Math.round(overhead) : overhead)}, к середине 2020 года - как на зрелом стеке.` : undefined}
       >
         {fmtCardDays(est.flop / TRAIN_FLOP_PER_H100E_DAY)} H100e-дн.
       </Item>
@@ -622,6 +625,44 @@ function TierBlock(props: { s: GameState; value: Tier; onChange: (t: Tier) => vo
   );
 }
 
+// ---------- Подтверждение ----------
+
+/** Окно перед стартом: стоимость, срок и мощность проекта, кнопка-глагол. */
+function StartConfirm(props: { s: GameState; plan: TrainingPlan; est: Est; onConfirm: () => void; onClose: () => void }) {
+  const { s, plan, est } = props;
+  const { days, power, cost, rent } = projectNumbers(s, est);
+  return (
+    <ConfirmDialog title="Начать обучение" confirmLabel="Начать обучение" onConfirm={props.onConfirm} onClose={props.onClose}>
+      <p className="nm-confirm-name">
+        «{plan.name}», {fmtParams(plan.paramsB)} параметров, уровень «{TIER_NAMES[plan.tier]}»
+      </p>
+      <dl className="nm-confirm">
+        <dt>Стоимость</dt>
+        <dd className="cost">{cost !== null ? `≈ ${fmtMoney(cost)}` : '-'}</dd>
+        {est.labelers > 0 && (
+          <>
+            <dt>Из них разметчики</dt>
+            <dd>{fmtMoney(est.labelers)}</dd>
+          </>
+        )}
+        {rent !== null && (
+          <>
+            <dt>Аренда за весь срок</dt>
+            <dd>{fmtMoney(rent)}</dd>
+          </>
+        )}
+        <dt>Срок</dt>
+        <dd>{days !== null ? `${fmtDays(Math.ceil(days))}, готово ${formatDateShort(s.day + days)}` : 'нет мощности на обучение'}</dd>
+        <dt>Мощность</dt>
+        <dd>
+          {fmtH100e(power)} H100e <Cards s={s} h100e={power} />
+        </dd>
+      </dl>
+      {s.trainings.length > 0 && <p className="nm-confirm-note">Доля «Обучение» разделится поровну между проектами: идущий станет медленнее.</p>}
+    </ConfirmDialog>
+  );
+}
+
 // ---------- Окно ----------
 
 export default function TrainingWindow({ s, open }: WindowProps) {
@@ -705,7 +746,10 @@ export default function TrainingWindow({ s, open }: WindowProps) {
     patch({ tier: next, ...presetOf(s, next) });
   }
 
+  const [confirmStart, setConfirmStart] = useState(false);
+
   function start() {
+    setConfirmStart(false);
     const r = store.dispatch(actions.startTraining, plan);
     if (r.ok) {
       setErr(null);
@@ -755,7 +799,7 @@ export default function TrainingWindow({ s, open }: WindowProps) {
               className="btn primary wide nm-start"
               data-tutorial="train-start"
               reason={canStart ? null : (reason ?? 'Обучение сейчас начать нельзя.')}
-              onClick={start}
+              onClick={() => setConfirmStart(true)}
             >
               Начать обучение
             </GuardButton>
@@ -955,6 +999,7 @@ export default function TrainingWindow({ s, open }: WindowProps) {
           </fieldset>
         </div>
       </div>
+      {confirmStart && est && <StartConfirm s={s} plan={plan} est={est} onConfirm={start} onClose={() => setConfirmStart(false)} />}
     </div>
   );
 }

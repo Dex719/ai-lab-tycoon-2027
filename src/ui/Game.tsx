@@ -1,6 +1,6 @@
 // Экран партии (как в Processor Tycoon): верхняя панель, рабочий стол с иконками и окнами, боковая панель, панель задач.
 
-import { memo, useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ComponentType } from 'react';
 import { openChoices, pendingChoice, unreadCount } from '../sim/events';
 import type { GameState } from '../sim/types';
 import { ChoiceModal } from './ChoiceModal';
@@ -15,7 +15,7 @@ import { TopBar } from './TopBar';
 import { TutorialPanel } from './Tutorial';
 import { useViewport } from './viewport';
 import { clampPos, deskAreaOf, Window, type WinGeom } from './Window';
-import { LOCKED, resolveWindow, WINDOWS, type WindowAlias, type WindowId, type WindowProps } from './windows';
+import { resolveWindow, WINDOWS, type WindowAlias, type WindowId, type WindowProps } from './windows';
 
 interface OpenWin extends WinGeom {
   id: WindowId;
@@ -114,6 +114,7 @@ export function Game({ s }: { s: GameState }) {
   const phone = vp === 'phone';
   const [sheet, setSheet] = useState(false); // телефон: боковая панель как нижний лист
   const [tutorOpen, setTutorOpen] = useState(false); // телефон: подсказка обучения развёрнута
+  const dockRef = useRef<HTMLDivElement>(null);
   const open = useCallback(
     (id: WindowId | WindowAlias) => {
       setSheet(false);
@@ -125,6 +126,25 @@ export function Game({ s }: { s: GameState }) {
     if (!phone) setSheet(false);
   }, [phone]);
   const speed = useSpeed();
+  // Телефон: окна на весь стол заканчиваются над подсказкой обучения, а не под ней (иначе она закрывает нижние кнопки).
+  const dockShown = phone && s.tutorial.active && !s.outcome;
+  useLayoutEffect(() => {
+    const desk = deskRef.current;
+    const dock = dockRef.current;
+    if (!desk) return;
+    if (!dockShown || !dock) {
+      desk.style.removeProperty('--dock-h');
+      return;
+    }
+    const apply = () => desk.style.setProperty('--dock-h', `${dock.offsetHeight}px`);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(dock);
+    return () => {
+      ro.disconnect();
+      desk.style.removeProperty('--dock-h');
+    };
+  }, [dockShown]);
   const clock = useClock();
   const [startOpen, setStartOpen] = useState(false);
   const [dialog, setDialog] = useState<GameDialog>(null);
@@ -172,14 +192,6 @@ export function Game({ s }: { s: GameState }) {
           {WINDOWS.filter((d) => d.side === 'left').map((d) => (
             <DeskIcon key={d.id} def={d} count={iconCount(d.id)} selected={openIds.has(d.id)} onOpen={() => open(d.id)} />
           ))}
-          {LOCKED.map((l) => (
-            <span key={l.title} className="desk-icon-wrap" title="Появится в следующих версиях">
-              <button className="desk-icon" disabled>
-                <l.icon size={56} disabled />
-                <span className="icon-label">{l.title}</span>
-              </button>
-            </span>
-          ))}
         </div>
         <div className="icon-col right">
           {WINDOWS.filter((d) => d.side === 'right').map((d) => (
@@ -209,7 +221,7 @@ export function Game({ s }: { s: GameState }) {
           );
         })}
         {phone && s.tutorial.active && !s.outcome && (
-          <div className={`tutor-dock${tutorOpen ? ' open' : ''}`}>
+          <div ref={dockRef} className={`tutor-dock${tutorOpen ? ' open' : ''}`}>
             <TutorialPanel s={s} open={openIds} speed={speed} />
             <button className="tutor-toggle" onClick={() => setTutorOpen((v) => !v)} aria-expanded={tutorOpen}>
               {tutorOpen ? 'Свернуть подсказку' : 'Показать подсказку'}

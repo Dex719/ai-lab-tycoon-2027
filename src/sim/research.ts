@@ -16,6 +16,7 @@ import {
   INSTRUCT_ELO,
   MOE_SERVING_MULT,
   QUANT_SERVING_COST,
+  RESEARCH_QUEUE_MAX,
   RP_BASE,
   RP_K,
   SYNTHETIC_TOKENS_MULT,
@@ -235,6 +236,29 @@ export function techCost(s: GameState, tech: TechId): number {
   return base * modValue(s, 'researchCost', tech).mult * earlyPenalty(s, tech);
 }
 
+/** Дальше этого срока (дней) прогноз не считаем: в интерфейсе «больше 10 лет». */
+export const RESEARCH_FORECAST_MAX_DAYS = 3650;
+
+/**
+ * Сколько дней до конца технологии при скорости rp очков в день. Цена падает каждый день, пока игра приближается
+ * к исторической дате, поэтому прогноз считает её по дням, а не по сегодняшней цене. Infinity - дольше
+ * RESEARCH_FORECAST_MAX_DAYS или очки не копятся.
+ */
+export function researchDaysLeft(s: GameState, tech: TechId, rp: number): number {
+  if (!(rp > 0)) return Infinity;
+  const penaltyNow = earlyPenalty(s, tech);
+  const base = techCost(s, tech) / penaltyNow;
+  const k = EARLY_PENALTY_PER_YEAR[tech] ?? 0;
+  const histDay = techHistoryDay(s, tech);
+  let points = s.research.points[tech] ?? 0;
+  for (let d = 0; d <= RESEARCH_FORECAST_MAX_DAYS; d++) {
+    points += rp;
+    const cost = base * (1 + k * Math.max(0, (histDay - (s.day + d)) / 365));
+    if (points >= cost) return d + 1;
+  }
+  return Infinity;
+}
+
 /** Почему сейчас нельзя исследовать (null - можно). Текст готов для показа игроку. */
 export function researchBlockReason(s: GameState, tech: TechId): string | null {
   if (!TECH_IDS.includes(tech)) return 'Нет такого исследования';
@@ -266,7 +290,76 @@ export function setResearch(s: GameState, tech: TechId | null): Result {
   const reason = researchBlockReason(s, tech);
   if (reason) return { ok: false, error: reason };
   s.research.current = tech;
+  // Выбранное сейчас в очереди не нужно.
+  s.research.queue = s.research.queue.filter((t) => t !== tech);
   return { ok: true };
+}
+
+/**
+ * Почему технологию нельзя поставить в очередь (null - можно). Требования могут быть выполнены позже,
+ * чем технология попадёт в очередь: достаточно, чтобы они были изучены, идут сейчас или стоят в очереди раньше.
+ */
+export function queueBlockReason(s: GameState, tech: TechId): string | null {
+  if (!TECH_IDS.includes(tech)) return 'Нет такого исследования';
+  if (tech === 'context' && s.research.contextLevel >= CONTEXT_MAX_LEVEL) return 'Достигнут наибольший контекст';
+  if (tech !== 'algo' && s.research.done.includes(tech)) return 'Это исследование уже завершено';
+  if (s.research.current === tech) return 'Это исследование уже идёт';
+  if (s.research.queue.includes(tech)) return 'Уже в очереди';
+  if (s.research.queue.length >= RESEARCH_QUEUE_MAX) return `В очереди уже ${RESEARCH_QUEUE_MAX} исследования`;
+  const ahead = new Set<TechId>([...s.research.done, ...s.research.queue]);
+  if (s.research.current) ahead.add(s.research.current);
+  const missing = techRequires(tech).filter((t) => !ahead.has(t));
+  if (missing.length > 0) return `Требуется исследование: ${missing.map(techName).join(', ')}`;
+  return null;
+}
+
+/** Действие: поставить технологию в конец очереди. */
+export function queueResearch(s: GameState, tech: TechId): Result {
+  const reason = queueBlockReason(s, tech);
+  if (reason) return { ok: false, error: reason };
+  s.research.queue.push(tech);
+  return { ok: true };
+}
+
+/** Действие: убрать технологию из очереди вместе с теми, что ждут её (они без неё не откроются). */
+export function unqueueResearch(s: GameState, tech: TechId): Result {
+  const at = s.research.queue.indexOf(tech);
+  if (at < 0) return { ok: false, error: 'Этого исследования нет в очереди' };
+  s.research.queue.splice(at, 1);
+  pruneQueue(s);
+  return { ok: true };
+}
+
+/** Убрать из очереди то, что уже нельзя исследовать или чьи требования больше не выполняются. */
+function pruneQueue(s: GameState): void {
+  const have = new Set<TechId>(s.research.done);
+  if (s.research.current) have.add(s.research.current);
+  const kept: TechId[] = [];
+  for (const t of s.research.queue) {
+    const dead = (t !== 'algo' && s.research.done.includes(t)) || (t === 'context' && s.research.contextLevel >= CONTEXT_MAX_LEVEL);
+    if (dead || t === s.research.current || kept.includes(t) || techRequires(t).some((r) => !have.has(r))) continue;
+    kept.push(t);
+    have.add(t);
+  }
+  s.research.queue = kept;
+}
+
+/** Включить следующее исследование из очереди (current должен быть свободен). Возвращает его или null. */
+function startNext(s: GameState): TechId | null {
+  pruneQueue(s);
+  while (s.research.queue.length > 0) {
+    const next = s.research.queue.shift() as TechId;
+    if (canResearch(s, next)) {
+      s.research.current = next;
+      return next;
+    }
+  }
+  return null;
+}
+
+/** Фраза в письмо о завершении: что пойдёт дальше по очереди (пусто, если очередь не сработала). */
+function nextLine(next: TechId | null): string {
+  return next ? ` Дальше по очереди: «${techName(next)}».` : '';
 }
 
 /**
@@ -274,11 +367,13 @@ export function setResearch(s: GameState, tech: TechId | null): Result {
  * algo: algoLevel += 1, points.algo = 0, current остаётся 'algo'. Остальные: в done, current = null.
  */
 export function progressDay(s: GameState): void {
+  if (s.research.current === null) startNext(s);
   const tech = s.research.current;
   if (tech === null) return;
   // Защита от кривого состояния: нельзя вести то, что уже изучено или ещё не открыто.
   if (!canResearch(s, tech)) {
     s.research.current = null;
+    startNext(s);
     return;
   }
   s.research.points[tech] += rpPerDay(s);
@@ -291,12 +386,13 @@ export function progressDay(s: GameState): void {
     const level = s.research.contextLevel;
     const last = level >= CONTEXT_MAX_LEVEL;
     if (last) s.research.done.push('context');
+    const next = startNext(s);
     addMail(s, {
       kind: 'research',
       title: `Исследование завершено: ${techName(tech)}, ${contextLabel(maxContext(s))} токенов`,
       body:
         `Новые модели можно обучать с контекстом до ${contextLabel(maxContext(s))} токенов. Контекст выбирается в окне «Новая модель».` +
-        (last ? '' : ' Следующий уровень можно начать в окне «Исследования».'),
+        (next ? nextLine(next) : last ? '' : ' Следующий уровень можно начать в окне «Исследования».'),
     });
     return;
   }
@@ -304,18 +400,27 @@ export function progressDay(s: GameState): void {
     s.research.algoLevel += 1;
     s.research.points.algo = 0;
     const level = s.research.algoLevel;
+    // Следующий уровень «Алгоритмических улучшений» идёт сам; очередь передвигается, только если в ней что-то есть.
+    pruneQueue(s);
+    let next: TechId | null = null;
+    if (s.research.queue.length > 0) {
+      s.research.current = null;
+      next = startNext(s);
+      if (next === null) s.research.current = 'algo';
+    }
     addMail(s, {
       kind: 'research',
       title: `Исследование завершено: ${techName(tech)}, уровень ${level}`,
-      body: `Эффективность обучения новых проектов выросла в ${fmtMult(ALGO_MULT ** level)} раза по сравнению с исходной.`,
+      body: `Эффективность обучения новых проектов выросла в ${fmtMult(ALGO_MULT ** level)} раза по сравнению с исходной.${nextLine(next)}`,
     });
     return;
   }
   s.research.done.push(tech);
   s.research.current = null;
+  const next = startNext(s);
   addMail(s, {
     kind: 'research',
     title: `Исследование завершено: ${techName(tech)}`,
-    body: EFFECT_LINE[tech],
+    body: EFFECT_LINE[tech] + nextLine(next),
   });
 }

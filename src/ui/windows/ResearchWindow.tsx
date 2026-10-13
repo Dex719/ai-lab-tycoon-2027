@@ -6,10 +6,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
-import { pointsWord } from '../../data/events';
+import { pointsWord, tokensWord } from '../../sim/text';
 import { GPUS } from '../../data/gpus';
 import { pool, rentPerDay, totalH100e } from '../../sim/compute';
-import { ALGO_MULT, CONTEXT_LEVELS, RP_BASE, RP_K } from '../../sim/constants';
+import { ALGO_MULT, CONTEXT_LEVELS, RESEARCH_QUEUE_MAX, RP_BASE, RP_K } from '../../sim/constants';
 import {
   BRANCH_NAMES,
   CONTEXT_MAX_LEVEL,
@@ -17,7 +17,9 @@ import {
   earlyPenalty,
   maxContext,
   missingRequirements,
+  queueBlockReason,
   researchBlockReason,
+  researchDaysLeft,
   rpPerDay,
   TECHS,
   techCost,
@@ -26,9 +28,10 @@ import {
 } from '../../sim/research';
 import type { TechBranch } from '../../sim/research';
 import { formatDateShort } from '../../sim/time';
+import type { ReactNode } from 'react';
 import type { GameState, TechId } from '../../sim/types';
-import { percentsOf, toAllocation, withPercent } from '../alloc';
-import { Alert, Dialog, ErrorText, Range } from '../components/common';
+import { checkAllocation, percentsOf, soldChannels, toAllocation, withPercent, ZERO_SHARE_WARNING } from '../alloc';
+import { Alert, ConfirmDialog, Dialog, ErrorText, Range } from '../components/common';
 import { fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
 import { IconCheck, IconLock } from '../icons';
 import { actions, store } from '../store';
@@ -139,10 +142,21 @@ function lockText(s: GameState, id: TechId, reason: string | null): string {
   return reason ?? 'Исследование недоступно';
 }
 
-/** Дней до конца технологии при текущей скорости очков; null, если очки не копятся. */
-function daysLeft(s: GameState, id: TechId, rp: number): number | null {
-  if (rp <= 0) return null;
-  return Math.ceil(Math.max(0, techCost(s, id) - (s.research.points[id] ?? 0)) / rp);
+/** Дней до конца технологии при текущей скорости очков с учётом падения цены; Infinity - очень долго или очки не копятся. */
+function daysLeft(s: GameState, id: TechId, rp: number): number {
+  return researchDaysLeft(s, id, rp);
+}
+
+/** Срок: «45 дн.», «≈ 2,5 г.», «больше 10 лет». */
+function termText(days: number): string {
+  if (!Number.isFinite(days)) return 'больше 10 лет';
+  if (days < 1000) return `${fmtNum(days)} дн.`;
+  return `≈ ${fmtNum(Math.round((days / 365) * 10) / 10)} г.`;
+}
+
+/** Дата выхода показывается только для прошедшего: будущие даты игрок знать не должен. */
+function pastHistory(s: GameState, id: TechId): boolean {
+  return techHistoryDay(s, id) <= s.day;
 }
 
 interface Chip {
@@ -163,7 +177,7 @@ function algoChips(level: number): Chip[] {
 function contextChips(level: number): Chip[] {
   return Array.from({ length: level }, (_, i) => {
     const label = contextLabel(CONTEXT_LEVELS[i + 1][0]);
-    return { label, title: `Уровень ${i + 1}: контекст до ${label} токенов` };
+    return { label, title: `Уровень ${i + 1}: контекст до ${label} ${tokensWord(CONTEXT_LEVELS[i + 1][0])}` };
   });
 }
 
@@ -190,6 +204,8 @@ function TechNode({ s, id, label, code, rp, x, y, onPick }: NodeProps) {
   const cost = techCost(s, id);
   const days = daysLeft(s, id, rp);
   const penalty = earlyPenalty(s, id);
+  const past = pastHistory(s, id);
+  const queuePos = s.research.queue.indexOf(id) + 1;
   const share = status === 'done' ? 1 : cost > 0 ? Math.min(1, points / cost) : 0;
   const color = BRANCH_COLOR[info.branch];
   const branch = BRANCH_NAMES[info.branch];
@@ -203,7 +219,7 @@ function TechNode({ s, id, label, code, rp, x, y, onPick }: NodeProps) {
     <div className="rs-slot" style={{ left: x, top: y, width: NW, height: NH }}>
       <button
         type="button"
-        className={`rs-node ${status}`}
+        className={`rs-node ${status}${queuePos > 0 ? ' queued' : ''}`}
         style={{ '--br': color.line, '--br-fill': color.fill } as CSSProperties}
         data-tutorial={id === 'attention' ? 'tech-attention' : undefined}
         data-tech={id}
@@ -218,8 +234,12 @@ function TechNode({ s, id, label, code, rp, x, y, onPick }: NodeProps) {
             <span>{code ?? info.code}</span>
           </span>
           <span className="rs-kv">
-            <span>Дата</span>
-            <span>{formatDateShort(techHistoryDay(s, id))}</span>
+            {past && (
+              <>
+                <span>Вышла</span>
+                <span>{formatDateShort(techHistoryDay(s, id))}</span>
+              </>
+            )}
             {status === 'done' ? (
               <span className="rs-done">
                 <IconCheck size={14} />
@@ -228,7 +248,7 @@ function TechNode({ s, id, label, code, rp, x, y, onPick }: NodeProps) {
             ) : (
               <>
                 <span>Срок</span>
-                <span>{days === null ? '-' : `${fmtNum(days)} дн.`}</span>
+                <span>{termText(days)}</span>
               </>
             )}
           </span>
@@ -242,9 +262,11 @@ function TechNode({ s, id, label, code, rp, x, y, onPick }: NodeProps) {
           </span>
         )}
       </button>
-      {status !== 'done' && penalty > 1 && (
-        <span className="rs-caption" title="Цена снижается по мере приближения к дате появления в истории">
-          Раньше истории: цена ×{fmtMult(penalty)}
+      {status !== 'done' && (queuePos > 0 || penalty > 1) && (
+        <span className="rs-caption" title={penalty > 1 ? 'Цена снижается по мере приближения к дате появления в истории' : undefined}>
+          {queuePos > 0 && <b className="rs-q">В очереди: {queuePos}</b>}
+          {queuePos > 0 && penalty > 1 && ' · '}
+          {penalty > 1 && `Раньше истории: цена ×${fmtMult(penalty)}`}
         </span>
       )}
     </div>
@@ -271,6 +293,12 @@ export default function ResearchWindow({ s, open }: WindowProps) {
   const pick = (id: TechId, status: Status, reason: string | null) => {
     if (status === 'done') return;
     if (status === 'blocked') {
+      // Технологию, которая откроется после текущей или очередной, можно поставить в очередь.
+      if (queueBlockReason(s, id) === null || s.research.queue.includes(id)) {
+        setNote(null);
+        setDialog(id);
+        return;
+      }
       setNote(lockText(s, id, reason));
       return;
     }
@@ -307,6 +335,8 @@ export default function ResearchWindow({ s, open }: WindowProps) {
   const height = ctxY + NH + ROW_GAP + PAD / 2;
 
   const currentDays = current ? daysLeft(s, current, rp) : null;
+  const queue = s.research.queue;
+  const idle = current === null && queue.length === 0 && power > 0;
 
   // ---------- Масштаб и перемещение ----------
   const viewRef = useRef<HTMLDivElement>(null);
@@ -545,7 +575,7 @@ export default function ResearchWindow({ s, open }: WindowProps) {
             <>
               <span>
                 Изучается: <b>{techName(current)}</b>
-                {currentDays !== null && <span className="num"> · {fmtNum(currentDays)} дн.</span>}
+                {currentDays !== null && <span className="num"> · {termText(currentDays)}</span>}
               </span>
               <button type="button" className="btn small" onClick={stop}>
                 Остановить
@@ -556,6 +586,38 @@ export default function ResearchWindow({ s, open }: WindowProps) {
           )}
         </div>
       </div>
+
+      {(current !== null || queue.length > 0 || idle) && (
+        <div className={`rs-queue${idle ? ' idle' : ''}`}>
+          {idle ? (
+            <span>
+              Простаивает {fmtNum(power)} H100e: выберите исследование. Очки не копятся, аренда идёт.
+            </span>
+          ) : (
+            <>
+              <span className="l">Очередь:</span>
+              {queue.map((id, i) => (
+                <span className="rs-qchip" key={id}>
+                  <b className="num">{i + 1}</b> {techName(id)}
+                  <button
+                    type="button"
+                    aria-label={`Убрать «${techName(id)}» из очереди`}
+                    title="Убрать из очереди"
+                    onClick={() => {
+                      const r = store.dispatch(actions.unqueueResearch, id);
+                      setNote(r.ok ? null : r.error);
+                    }}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+              {queue.length === 0 && <span className="muted">пуста. Нажмите технологию и выберите «В очередь»: после текущей она начнётся сама.</span>}
+              {queue.length > 0 && queue.length < RESEARCH_QUEUE_MAX && <span className="muted">Ещё можно добавить: {RESEARCH_QUEUE_MAX - queue.length}</span>}
+            </>
+          )}
+        </div>
+      )}
 
       <div className="rs-legend">
         {BRANCH_ORDER.map((b) => (
@@ -631,7 +693,7 @@ export default function ResearchWindow({ s, open }: WindowProps) {
             <TechNode s={s} id="algo" code={`ALG ${level + 1}`} rp={rp} x={algoX} y={algoY} onPick={pick} />
 
             <span className="rs-caption free" style={{ left: PAD, top: ctxCy - CHIP_H / 2 - 22 }}>
-              {`Наибольший контекст: ${contextLabel(CONTEXT_LEVELS[ctxLevel][0])} токенов`}
+              {`Наибольший контекст: ${contextLabel(CONTEXT_LEVELS[ctxLevel][0])} ${tokensWord(CONTEXT_LEVELS[ctxLevel][0])}`}
             </span>
             {ctxChips.map((c, i) => (
               <span
@@ -700,10 +762,16 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
   const info = TECHS.find((t) => t.id === id)!;
   const current = percentsOf(s.compute.alloc);
   const isCurrent = s.research.current === id;
+  const queued = s.research.queue.includes(id);
+  const startable = researchBlockReason(s, id) === null;
   const other = s.research.current && !isCurrent ? techName(s.research.current) : null;
+  // «В очередь» имеет смысл, когда что-то уже идёт или стоит в очереди.
+  const canQueue = !isCurrent && !queued && (s.research.current !== null || s.research.queue.length > 0) && queueBlockReason(s, id) === null;
   // Пока на исследования ничего не выделено, предлагаем половину мощности.
   const [pct, setPct] = useState(() => (current.experiments > 0 || isCurrent ? current.experiments : 50));
   const [error, setError] = useState<string | null>(null);
+  // Каналы, которые останутся без мощности, если принять выбранную долю: игрок подтверждает это отдельно.
+  const [zero, setZero] = useState<{ keys: ('api' | 'subs')[]; then: 'start' | 'save' } | null>(null);
 
   const total = totalH100e(s);
   const cards = GPUS.reduce((sum, g) => sum + s.compute.rented[g.id], 0);
@@ -711,11 +779,20 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
   const rp = RP_BASE + RP_K * Math.sqrt(power);
   const cost = techCost(s, id);
   const points = s.research.points[id] ?? 0;
-  const days = Math.max(1, Math.ceil(Math.max(0, cost - points) / rp));
+  const left = researchDaysLeft(s, id, rp);
+  const days = Number.isFinite(left) ? Math.max(1, left) : left;
   const penalty = earlyPenalty(s, id);
   const rentMonth = rentPerDay(s) * (pct / 100) * DAYS_IN_MONTH;
   const changed = pct !== current.experiments;
   const noCards = total <= 0;
+  const past = pastHistory(s, id);
+
+  /** Подтверждение нужно, если канал, где идут продажи, теряет всю мощность из-за новой доли. */
+  function zeroed(): ('api' | 'subs')[] {
+    if (!changed || noCards) return [];
+    const next = withPercent(current, 'experiments', pct);
+    return checkAllocation(next, soldChannels(s.models)).zero.filter((k) => current[k] > 0);
+  }
 
   function applyShare(): boolean {
     if (!changed || noCards) return true;
@@ -724,19 +801,37 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
     return r.ok;
   }
 
-  function start() {
+  function run(kind: 'start' | 'save') {
     if (!applyShare()) return;
+    if (kind === 'save') {
+      onClose();
+      return;
+    }
     const r = store.dispatch(actions.setResearch, id);
     if (r.ok) onClose();
     else setError(r.error);
   }
 
-  function save() {
-    if (applyShare()) onClose();
+  function ask(kind: 'start' | 'save') {
+    const keys = zeroed();
+    if (keys.length > 0) setZero({ keys, then: kind });
+    else run(kind);
   }
 
   function stop() {
     const r = store.dispatch(actions.setResearch, null);
+    if (r.ok) onClose();
+    else setError(r.error);
+  }
+
+  function enqueue() {
+    const r = store.dispatch(actions.queueResearch, id);
+    if (r.ok) onClose();
+    else setError(r.error);
+  }
+
+  function unqueue() {
+    const r = store.dispatch(actions.unqueueResearch, id);
     if (r.ok) onClose();
     else setError(r.error);
   }
@@ -749,20 +844,39 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
       <button className="btn" onClick={onClose}>
         Закрыть
       </button>
-      <button className="btn primary" disabled={!changed || noCards} onClick={save}>
+      <button className="btn primary" disabled={!changed || noCards} onClick={() => ask('save')}>
         Применить
       </button>
     </>
   ) : (
     <>
+      {queued && (
+        <button className="btn danger rs-d-left" onClick={unqueue}>
+          Убрать из очереди
+        </button>
+      )}
       <button className="btn" onClick={onClose}>
-        Отмена
+        {queued && !startable ? 'Закрыть' : 'Отмена'}
       </button>
-      <button className="btn primary" data-tutorial="research-start" onClick={start}>
-        Начать исследование
-      </button>
+      {canQueue && (
+        <button className="btn" data-tutorial="research-queue" onClick={enqueue}>
+          В очередь
+        </button>
+      )}
+      {startable && (
+        <button className="btn primary" data-tutorial="research-start" onClick={() => ask('start')}>
+          Начать исследование
+        </button>
+      )}
     </>
   );
+
+  // Место под подписи постоянное (две строки): ползунок меняет текст, но не размер диалога.
+  const lines: ReactNode[] = [];
+  if (startable || isCurrent) {
+    if (!noCards && changed) lines.push(<div key="rest" className="rs-d-note">Остальным задачам останется {fmtPct(100 - pct, 0)} мощности.</div>);
+    if (other) lines.push(<div key="other" className="rs-d-note">Сейчас изучается «{other}». Его очки сохранятся.</div>);
+  }
 
   return (
     <Dialog title="Исследование" onClose={onClose} footer={footer}>
@@ -775,8 +889,12 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
         <dl className="rs-d-kv">
           <dt>Направление</dt>
           <dd>{BRANCH_NAMES[info.branch]}</dd>
-          <dt>Дата в истории</dt>
-          <dd>{formatDateShort(techHistoryDay(s, id))}</dd>
+          {past && (
+            <>
+              <dt>Вышла в истории</dt>
+              <dd>{formatDateShort(techHistoryDay(s, id))}</dd>
+            </>
+          )}
           {techRequires(id).length > 0 && (
             <>
               <dt>Требуется</dt>
@@ -796,7 +914,8 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
             <>
               <dt>Контекст</dt>
               <dd>
-                {contextLabel(maxContext(s))} → {contextLabel(CONTEXT_LEVELS[s.research.contextLevel + 1][0])} токенов
+                {contextLabel(maxContext(s))} → {contextLabel(CONTEXT_LEVELS[s.research.contextLevel + 1][0])}{' '}
+                {tokensWord(CONTEXT_LEVELS[s.research.contextLevel + 1][0])}
               </dd>
             </>
           )}
@@ -810,59 +929,81 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
           )}
         </dl>
 
-        <section className="rs-d-power">
-          <div className="rs-d-h">
-            <span>Мощность на исследование</span>
-            <b className="num">{fmtPct(pct, 0)}</b>
-          </div>
-          {noCards ? (
-            <div className="rs-d-empty">
-              <span>Карты не арендованы. Исследование идёт медленно.</span>
-              <button className="btn small" onClick={onRent}>
-                Открыть «Мощности»
-              </button>
-            </div>
-          ) : (
-            <>
-              <Range value={pct} min={0} max={100} color="#7b5cd6" label="Мощность на исследование" valueText={fmtPct(pct, 0)} onChange={setPct} />
-              <div className="rs-d-ends">
-                <span>Медленнее</span>
-                <span>Быстрее</span>
+        {startable || isCurrent ? (
+          <>
+            <section className="rs-d-power">
+              <div className="rs-d-h">
+                <span>Мощность на исследование</span>
+                <b className="num">{fmtPct(pct, 0)}</b>
               </div>
-              <dl className="rs-d-kv">
-                <dt>Карт</dt>
-                <dd>
-                  {fmtNum(Math.round((cards * pct) / 100))} из {fmtNum(cards)}
-                </dd>
-                <dt>Мощность</dt>
-                <dd>{fmtNum(power)} H100e</dd>
-                <dt>Аренда этих карт</dt>
-                <dd>{fmtMoney(rentMonth)} в месяц</dd>
-              </dl>
-            </>
-          )}
-        </section>
+              {noCards ? (
+                <div className="rs-d-empty">
+                  <span>Карты не арендованы. Исследование идёт медленно.</span>
+                  <button className="btn small" onClick={onRent}>
+                    Открыть «Мощности»
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Range value={pct} min={0} max={100} color="#7b5cd6" label="Мощность на исследование" valueText={fmtPct(pct, 0)} onChange={setPct} />
+                  <div className="rs-d-ends">
+                    <span>Медленнее</span>
+                    <span>Быстрее</span>
+                  </div>
+                  <dl className="rs-d-kv">
+                    <dt>Карт</dt>
+                    <dd>
+                      {fmtNum(Math.round((cards * pct) / 100))} из {fmtNum(cards)}
+                    </dd>
+                    <dt>Мощность</dt>
+                    <dd>{fmtNum(power)} H100e</dd>
+                    <dt>Аренда этих карт</dt>
+                    <dd>{fmtMoney(rentMonth)} в месяц</dd>
+                  </dl>
+                </>
+              )}
+            </section>
 
-        <div className="rs-d-result">
-          <div>
-            <span className="l">Срок</span>
-            <b className="num">{fmtNum(days)} дн.</b>
-          </div>
-          <div>
-            <span className="l">Готово</span>
-            <b className="num">{formatDateShort(s.day + days)}</b>
-          </div>
-        </div>
+            <div className="rs-d-result">
+              <div>
+                <span className="l">Срок</span>
+                <b className="num">{termText(days)}</b>
+              </div>
+              <div>
+                <span className="l">Готово</span>
+                <b className="num">{Number.isFinite(days) ? formatDateShort(s.day + days) : '-'}</b>
+              </div>
+            </div>
 
-        <div className="rs-d-note" title={RP_HINT}>
-          Скорость: {fmtNum(rp)} {pointsNoun(rp)} в день, до конца исследования {fmtNum(days)} дн.
-        </div>
-        {!noCards && changed && <div className="rs-d-note">Остальным задачам останется {fmtPct(100 - pct, 0)} мощности.</div>}
-        {other && <div className="rs-d-note">Сейчас изучается «{other}». Его очки сохранятся.</div>}
-        <ErrorText error={error} />
+            <div className="rs-d-note" title={RP_HINT}>
+              Скорость: {fmtNum(rp)} {pointsNoun(rp)} в день.
+            </div>
+          </>
+        ) : (
+          <div className="rs-d-note">
+            {queued ? 'Эта технология уже в очереди: она начнётся сама, когда откроется.' : 'Эту технологию можно поставить в очередь: она начнётся сама, когда откроется.'}
+          </div>
+        )}
+        <div className="rs-d-slot">{error ? <ErrorText error={error} /> : lines}</div>
       </div>
+      {zero && (
+        <ConfirmDialog
+          title="Продажи остановятся"
+          confirmLabel="Продолжить"
+          onConfirm={() => {
+            const then = zero.then;
+            setZero(null);
+            run(then);
+          }}
+          onClose={() => setZero(null)}
+        >
+          {zero.keys.map((k) => (
+            <p key={k} className="cw-confirm-line">
+              {ZERO_SHARE_WARNING[k]}
+            </p>
+          ))}
+        </ConfirmDialog>
+      )}
     </Dialog>
   );
 }
-
-

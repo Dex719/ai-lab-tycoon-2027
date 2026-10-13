@@ -5,7 +5,7 @@ import { generateMonthly, progressDay as contractsDay } from './contracts';
 import { introduceDue } from './benchmarks';
 import { expireChoices, fireDue, pendingChoice, pruneModifiers } from './events';
 import { beginDay, closeMonth, dayStep as financeDay } from './finance';
-import { marketArenaRank, updateSaturation } from './leaderboard';
+import { marketArenaRank, rivalsSellByApi, updateSaturation } from './leaderboard';
 import { dayStep as marketDay } from './market';
 import { progressDay as researchDay } from './research';
 import { releaseDue } from './rivals';
@@ -59,7 +59,8 @@ export function advanceDay(s: GameState): void {
   if (monthEnd) {
     closeMonth(s);
     // Месяц закрыт на 1-м месте среди моделей по API: считается до разоблачений месяца, по состоянию рынка на его конец.
-    if (playerBestArenaRank(s) === 1) s.monthsFirst += 1;
+    // Месяц считается, только когда соперники уже продают модели по API: до этого первое место ничего не значит.
+    if (playerBestArenaRank(s) === 1 && rivalsSellByApi(s)) s.monthsFirst += 1;
     for (const o of HYPE_OWNERS) s.hype[o] *= HYPE_MONTHLY_DECAY;
     monthlyExposure(s);
     // Рычаг игрока, накал и планирование ходов соперников: единственное место модуля со случайностью (с 2021 года).

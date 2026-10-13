@@ -3,10 +3,11 @@
 // или битый файл отклоняются понятной ошибкой, а не роняют тик и отрисовку позже (например, нет нового бенчмарка).
 
 import { findEvent } from '../data/events';
-import { CHOICE_DAYS, FAIL_CHOICE_DAYS, HYPE_OWNERS, TIER_SUBS_PRICE } from './constants';
+import { CHAT_MOMENT_DATE, CHOICE_DAYS, FAIL_CHOICE_DAYS, HYPE_OWNERS, TIER_SUBS_PRICE } from './constants';
 import { DIFFICULTY_IDS, emptyRivalry, LEVERS, MOVE_IDS } from './rivalry';
 import type { ActiveMove, HistoryRow, LabMemory, PendingMove, RivalOverride, RivalryState } from './rivalry';
 import { emptyMarket, emptySegmentShares } from './state';
+import { dateToDay } from './time';
 import { tierOf } from './training';
 import type {
   Contract,
@@ -347,6 +348,7 @@ const STATE: Record<keyof GameState, Check> = {
     done: arrayOf(oneOf(TECH_IDS)),
     algoLevel: num,
     contextLevel: num,
+    queue: arrayOf(oneOf(TECH_IDS)),
   }),
   trainings: arrayOf(trainingRun),
   nextRunNum: posInt,
@@ -420,6 +422,8 @@ function migrateContext(data: Record<string, unknown>): void {
   const research = data.research;
   if (isRec(research)) {
     if (research.contextLevel === undefined) research.contextLevel = 0;
+    // Очередь исследований появилась позже: в старом сохранении она пуста.
+    if (research.queue === undefined) research.queue = [];
     // Контекст и новые технологии появились позже: очков по ним в старом сохранении нет - 0.
     if (isRec(research.points)) for (const id of LATER_TECHS) if (research.points[id] === undefined) research.points[id] = 0;
   }
@@ -504,6 +508,8 @@ function migrateMarketV2(data: Record<string, unknown>): void {
         m.subsPrice = tier !== undefined && tier in TIER_SUBS_PRICE ? TIER_SUBS_PRICE[tier] : TIER_SUBS_PRICE.mid;
       }
       if (m.review === undefined) m.review = 'none';
+      // Проверка нужна только для подписок: до их открытия метки быть не должно.
+      if (m.review === 'required' && typeof data.day === 'number' && data.day < dateToDay(CHAT_MOMENT_DATE)) m.review = 'none';
       if (m.reviewEndDay === undefined) m.reviewEndDay = null;
       if (m.earnedSubs === undefined) m.earnedSubs = 0;
     }

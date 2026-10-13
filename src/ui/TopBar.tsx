@@ -4,7 +4,7 @@ import { useEffect, useState , type ReactElement } from 'react';
 import { pendingChoice } from '../sim/events';
 import { overheadPerDay } from '../sim/finance';
 import { rentPerDay } from '../sim/compute';
-import { playerBestArenaRank } from '../sim/tick';
+import { ARENA_PLACE_TITLE, bestArenaPlace } from './arena';
 import { formatDateShort } from '../sim/time';
 import type { GameState, Speed } from '../sim/types';
 import { fmtMoney, fmtShare } from './format';
@@ -86,12 +86,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
   }, [pinned]);
 
   const rate = monthlyRate(s);
-  let rank: number | null = null;
-  try {
-    rank = playerBestArenaRank(s);
-  } catch {
-    rank = null;
-  }
+  const rank = bestArenaPlace(s);
   const locked = !!s.outcome || pendingChoice(s) !== null;
   const negative = s.finance.negativeDays > 0;
 
@@ -158,7 +153,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
       )}
       <div className="topbar-right">
         <span>Доля рынка: {fmtShare(s.market.labShares.player ?? 0, 2)}</span>
-        <span title="Место лучшей модели по Эло среди моделей, доступных по API. Цель: 1-е место на 31.12.2024">«Арена»: {fmtRank(rank)}</span>
+        <span title={ARENA_PLACE_TITLE}>«Арена»: {fmtRank(rank)}</span>
       </div>
       {(store.pauseReason || negative) && speed === 0 && (
         <div className="pause-note">

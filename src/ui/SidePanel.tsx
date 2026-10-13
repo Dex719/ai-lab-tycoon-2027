@@ -2,18 +2,19 @@
 
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { pool } from '../sim/compute';
+import { idleCompute, type IdleItem } from '../sim/idle';
 import { TRAIN_FLOP_PER_H100E_DAY } from '../sim/constants';
 import { playerSales, subsOpen } from '../sim/market';
 import { rpPerDay, TECHS, techCost } from '../sim/research';
 import { CLIENTS } from '../data/clients';
 import { benchDef } from '../sim/benchmarks';
 import { openChoices } from '../sim/events';
-import { playerBestArenaRank } from '../sim/tick';
+import { ARENA_PLACE_TITLE, bestArenaPlace } from './arena';
 import { formatDateShort } from '../sim/time';
 import { trainingPoolPerRun } from '../sim/training';
 import type { GameState } from '../sim/types';
 import { ProgressBar } from './components/common';
-import { fmtMoney, fmtNum, fmtPrice, fmtShare } from './format';
+import { fmtH100e, fmtMoney, fmtNum, fmtPrice, fmtShare } from './format';
 import { IconChevronLeft, IconChevronRight } from './icons';
 import { fmtRank, reviewNote } from './labels';
 import type { Viewport } from './viewport';
@@ -186,23 +187,18 @@ function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) 
 
 /** Строка цели: место среди моделей в продаже и сколько закрытых месяцев лаборатория была первой. */
 function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
-  let rank: number | null = null;
-  try {
-    rank = playerBestArenaRank(s);
-  } catch {
-    rank = null;
-  }
+  const rank = bestArenaPlace(s);
   const months = Number.isFinite(s.monthsFirst) ? s.monthsFirst : 0;
   const showSubs = subsOpen(s.day) || s.market.playerSubs > 0;
   return (
     <div
       className="side-item"
       style={{ padding: '0 12px 8px', border: 'none', cursor: 'pointer' }}
-      title="Цель: 1-е место по Эло среди моделей, доступных по API, на 31.12.2024"
+      title={ARENA_PLACE_TITLE}
       onClick={() => open('analytics')}
     >
       <div className="r">
-        <span>В продаже: {rank !== null ? fmtRank(rank) : 'нет моделей'}</span>
+        <span>«Арена»: {rank !== null ? fmtRank(rank) : 'нет моделей'}</span>
         <span className="v">На 1-м: {fmtNum(months)} мес.</span>
       </div>
       {showSubs && (
@@ -212,6 +208,32 @@ function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) =>
             {fmtNum(Math.round(finite(s.market.playerSubs)))}
           </span>
         </div>
+      )}
+    </div>
+  );
+}
+
+/** Простой мощности: оранжевые строки с кнопкой, которая ведёт туда, где это исправить. */
+function Idle({ items, open }: { items: IdleItem[]; open: (id: WindowId | WindowAlias) => void }) {
+  if (items.length === 0) return null;
+  const shown = items.slice(0, 2);
+  const rest = items.length - shown.length;
+  return (
+    <div className="side-idle" role="alert">
+      {shown.map((i) => (
+        <div className="row" key={i.kind}>
+          <span>
+            Простаивает <b className="num">{fmtH100e(i.h100e)} H100e</b>: {i.reason}
+          </span>
+          <button type="button" className="btn small" title="Мощность оплачивается, но не работает" onClick={() => open(i.fix)}>
+            {i.fixLabel}
+          </button>
+        </div>
+      ))}
+      {rest > 0 && (
+        <button type="button" className="side-idle-more" onClick={() => open('compute')}>
+          Ещё {rest}: открыть «Мощности»
+        </button>
       )}
     </div>
   );
@@ -245,6 +267,7 @@ export function SidePanel({
       {top}
       <div className="side-head">Сводка</div>
       <Goal s={s} open={open} />
+      <Idle items={idleCompute(s)} open={open} />
       <div className="side-tabs">
         <button className={tab === 'projects' ? 'on' : undefined} onClick={() => setTab('projects')}>
           Проекты: {projects}
