@@ -1,0 +1,226 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 660" width="1280" height="660">
+  <title>Graphics card, GTX 1080 Founders Edition style</title>
+  <defs>
+    <!-- metals -->
+    <linearGradient id="silver" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e4e7ea"/>
+      <stop offset="0.45" stop-color="#b9bec4"/>
+      <stop offset="1" stop-color="#8d939a"/>
+    </linearGradient>
+    <linearGradient id="silverDiag" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d7dbdf"/>
+      <stop offset="1" stop-color="#9aa0a7"/>
+    </linearGradient>
+    <linearGradient id="silverHi" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#f3f5f7"/>
+      <stop offset="1" stop-color="#c9cdd2"/>
+    </linearGradient>
+    <linearGradient id="darkMetal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4b5057"/>
+      <stop offset="1" stop-color="#2a2d32"/>
+    </linearGradient>
+    <linearGradient id="topFace" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#9da3aa"/>
+      <stop offset="1" stop-color="#6c7279"/>
+    </linearGradient>
+    <linearGradient id="acrylic" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#2a2e34"/>
+      <stop offset="0.5" stop-color="#101215"/>
+      <stop offset="1" stop-color="#050607"/>
+    </linearGradient>
+    <linearGradient id="bracketGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c8ccd0"/>
+      <stop offset="1" stop-color="#8e949a"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f1d27a"/>
+      <stop offset="1" stop-color="#b88a2c"/>
+    </linearGradient>
+    <radialGradient id="fanWell" cx="0.5" cy="0.45" r="0.55">
+      <stop offset="0" stop-color="#2b2e33"/>
+      <stop offset="1" stop-color="#0b0c0e"/>
+    </radialGradient>
+    <radialGradient id="hubCap" cx="0.38" cy="0.32" r="0.7">
+      <stop offset="0" stop-color="#f2f4f6"/>
+      <stop offset="0.6" stop-color="#a9afb6"/>
+      <stop offset="1" stop-color="#6d737a"/>
+    </radialGradient>
+    <radialGradient id="shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#000" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-20%" y="-60%" width="140%" height="220%">
+      <feGaussianBlur stdDeviation="0.45" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="winClip">
+      <polygon points="14,20 160,20 174,34 174,68 160,82 14,82"/>
+    </clipPath>
+    <!-- one fan blade, fan-local coordinates (mm) -->
+    <path id="blade" d="M -1.5 -10.6 C 4 -14 7.5 -21 5.5 -29.4 L 1.2 -30 C 2.6 -22.5 0.6 -15.5 -4.6 -10.2 Z"/>
+    <!-- DisplayPort opening, bracket-local (u = depth mm, v = height mm) -->
+    <path id="dp" d="M 0 0 H 6 V 13 L 4.4 16 H 0 Z"/>
+  </defs>
+
+  <!-- ground shadow -->
+  <ellipse cx="660" cy="600" rx="560" ry="26" fill="url(#shadow)"/>
+
+  <!-- ============ TOP EDGE (oblique) : P(t,y) = (260+3.5t+2.5y, 190+1.375y), y = -depth ============ -->
+  <g transform="matrix(3.5 0 2.5 1.375 260 190)">
+    <!-- shroud top surface -->
+    <polygon points="0,0 268.6,0 268.6,-33 0,-33" fill="url(#topFace)"/>
+    <!-- front chamfer line and facet breaks on the top -->
+    <polygon points="0,0 268.6,0 268.6,-3 0,-3" fill="#c6cbd0"/>
+    <polygon points="190,-3 268.6,-3 268.6,-33 205,-33" fill="#7d838a"/>
+    <polygon points="0,-3 60,-3 52,-33 0,-33" fill="#80868d"/>
+    <!-- recessed black logo strip -->
+    <polygon points="72,-7 180,-7 178,-27 74,-27" fill="#141518"/>
+    <!-- GEFORCE GTX, lit green -->
+    <g filter="url(#glow)">
+      <text x="126" y="-11" text-anchor="middle" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" font-size="10" letter-spacing="0.9" fill="#a6e83a">GEFORCE GTX</text>
+    </g>
+    <!-- PCB edge and backplate -->
+    <polygon points="0,-33 268.6,-33 268.6,-35 0,-35" fill="#1d2a22"/>
+    <polygon points="0,-35 268.6,-35 268.6,-40 0,-40" fill="#202225"/>
+    <line x1="134" y1="-35" x2="134" y2="-40" stroke="#0b0b0c" stroke-width="0.5"/>
+    <!-- SLI fingers -->
+    <rect x="30" y="-36" width="14" height="2" fill="url(#gold)"/>
+    <rect x="47" y="-36" width="14" height="2" fill="url(#gold)"/>
+  </g>
+
+  <!-- 8-pin power connector on top edge (near the fan end, PCB side) -->
+  <g>
+    <polygon points="1001,143.25 1031,159.75 1031,131.75 1001,115.25" fill="#1a1b1e"/>
+    <polygon points="1031,159.75 1094,159.75 1094,131.75 1031,131.75" fill="#2b2d31"/>
+    <polygon points="1031,131.75 1094,131.75 1064,115.25 1001,115.25" fill="#3a3d42"/>
+    <g transform="matrix(3.5 0 2.5 1.375 260 162)" fill="#0c0c0d">
+      <rect x="237.6" y="-25" width="3" height="3.4" rx="0.4"/>
+      <rect x="241.8" y="-25" width="3" height="3.4" rx="0.4"/>
+      <rect x="246.0" y="-25" width="3" height="3.4" rx="0.4"/>
+      <rect x="250.2" y="-25" width="3" height="3.4" rx="0.4"/>
+      <rect x="237.6" y="-31" width="3" height="3.4" rx="0.4"/>
+      <rect x="241.8" y="-31" width="3" height="3.4" rx="0.4"/>
+      <rect x="246.0" y="-31" width="3" height="3.4" rx="0.4"/>
+      <rect x="250.2" y="-31" width="3" height="3.4" rx="0.4"/>
+    </g>
+  </g>
+
+  <!-- ============ FRONT (fan side), mm coordinates, 268.6 x 100 shroud ============ -->
+  <g transform="translate(260 190) scale(3.5)" stroke-linejoin="round">
+    <!-- PCB edge + PCIe x16 fingers -->
+    <rect x="1" y="99" width="266" height="4.5" fill="#1d2a22"/>
+    <path d="M 38 103.5 H 127 V 111 H 49.5 V 106.5 H 47.5 V 111 H 38 Z" fill="url(#gold)"/>
+    <g stroke="#9c7424" stroke-width="0.35">
+      <path d="M 40 104.5 V 110.5 M 42 104.5 V 110.5 M 44 104.5 V 110.5 M 46 104.5 V 110.5 M 52 107 V 110.5 M 54 107 V 110.5 M 56 107 V 110.5 M 58 107 V 110.5 M 60 107 V 110.5 M 62 107 V 110.5 M 64 107 V 110.5 M 66 107 V 110.5 M 68 107 V 110.5 M 70 107 V 110.5 M 72 107 V 110.5 M 74 107 V 110.5 M 76 107 V 110.5 M 78 107 V 110.5 M 80 107 V 110.5 M 82 107 V 110.5 M 84 107 V 110.5 M 86 107 V 110.5 M 88 107 V 110.5 M 90 107 V 110.5 M 92 107 V 110.5 M 94 107 V 110.5 M 96 107 V 110.5 M 98 107 V 110.5 M 100 107 V 110.5 M 102 107 V 110.5 M 104 107 V 110.5 M 106 107 V 110.5 M 108 107 V 110.5 M 110 107 V 110.5 M 112 107 V 110.5 M 114 107 V 110.5 M 116 107 V 110.5 M 118 107 V 110.5 M 120 107 V 110.5 M 122 107 V 110.5 M 124 107 V 110.5"/>
+    </g>
+
+    <!-- shroud body -->
+    <polygon points="0,0 268.6,0 268.6,100 0,100" fill="url(#silver)"/>
+    <!-- top & bottom chamfers -->
+    <polygon points="0,0 268.6,0 266,3.5 2.5,3.5" fill="#eef0f2"/>
+    <polygon points="2.5,96.5 266,96.5 268.6,100 0,100" fill="#7b8188"/>
+
+    <!-- large faceted plates (silver tones) -->
+    <polygon points="2.5,3.5 192,3.5 184,14 8,14" fill="#d9dde1"/>
+    <polygon points="8,88 184,88 192,96.5 2.5,96.5" fill="#979da4"/>
+    <polygon points="184,14 192,3.5 206,3.5 194,24" fill="url(#silverHi)"/>
+    <polygon points="184,88 194,78 206,96.5 192,96.5" fill="#8b9198"/>
+    <polygon points="266,3.5 266,96.5 259,84 259,18" fill="#a4aab1"/>
+    <!-- extra facet breaks at the bracket end -->
+    <polygon points="2.5,3.5 34,3.5 8,14" fill="#eceef0"/>
+    <polygon points="2.5,96.5 34,96.5 8,88" fill="#868c93"/>
+    <polygon points="2.5,3.5 8,14 8,88 2.5,96.5" fill="#a9afb5"/>
+
+    <!-- dark recessed frame around the window -->
+    <polygon points="8,14 168,14 184,30 184,72 168,88 8,88" fill="url(#darkMetal)"/>
+    <!-- dark wedges running from window toward the fan -->
+    <polygon points="184,30 194,24 206,3.5 214,3.5 197,30 184,38" fill="#33373c"/>
+    <polygon points="184,72 197,72 214,96.5 206,96.5 194,78" fill="#2c3035"/>
+
+    <!-- acrylic window with visible heatsink fins -->
+    <polygon points="14,20 160,20 174,34 174,68 160,82 14,82" fill="url(#acrylic)"/>
+    <g clip-path="url(#winClip)">
+      <g stroke="#3d4248" stroke-width="0.7">
+        <path d="M 22 24 V 78 M 26 24 V 78 M 30 24 V 78 M 34 24 V 78 M 38 24 V 78 M 42 24 V 78 M 46 24 V 78 M 50 24 V 78 M 54 24 V 78 M 58 24 V 78 M 62 24 V 78 M 66 24 V 78 M 70 24 V 78 M 74 24 V 78 M 78 24 V 78 M 82 24 V 78 M 86 24 V 78 M 90 24 V 78 M 94 24 V 78 M 98 24 V 78 M 102 24 V 78 M 106 24 V 78 M 110 24 V 78 M 114 24 V 78 M 118 24 V 78 M 122 24 V 78 M 126 24 V 78 M 130 24 V 78 M 134 24 V 78 M 138 24 V 78 M 142 24 V 78 M 146 24 V 78 M 150 24 V 78 M 154 24 V 78 M 158 24 V 78 M 162 24 V 78 M 166 24 V 78"/>
+      </g>
+      <rect x="14" y="20" width="160" height="62" fill="#08090b" opacity="0.55"/>
+      <!-- reflections on the acrylic -->
+      <polygon points="40,20 70,20 30,82 0,82" fill="#ffffff" opacity="0.07"/>
+      <polygon points="78,20 88,20 48,82 38,82" fill="#ffffff" opacity="0.05"/>
+      <polygon points="14,20 174,20 174,23 14,23" fill="#ffffff" opacity="0.06"/>
+    </g>
+    <polygon points="14,20 160,20 174,34 174,68 160,82 14,82" fill="none" stroke="#5b6168" stroke-width="0.6"/>
+    <!-- engraved model name on acrylic -->
+    <text x="22" y="77" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="5" letter-spacing="0.6" fill="#7a8087">GTX 1080</text>
+
+    <!-- polygonal collar around the fan -->
+    <polygon points="210,10 240,10 258,22 262,51 258,80 240,92 210,92 194,80 190,51 194,22" fill="#3a3e44"/>
+    <polygon points="210,10 240,10 258,22 226,16" fill="#565b62"/>
+    <polygon points="194,80 210,92 240,92 226,86" fill="#24272b"/>
+    <!-- fan well -->
+    <circle cx="226" cy="51" r="33" fill="#15171a"/>
+    <circle cx="226" cy="51" r="31.6" fill="url(#fanWell)"/>
+    <!-- fan blades -->
+    <g transform="translate(226 51)" fill="#1f2226" stroke="#4a4f56" stroke-width="0.35">
+      <use href="#blade"/>
+      <use href="#blade" transform="rotate(36)"/>
+      <use href="#blade" transform="rotate(72)"/>
+      <use href="#blade" transform="rotate(108)"/>
+      <use href="#blade" transform="rotate(144)"/>
+      <use href="#blade" transform="rotate(180)"/>
+      <use href="#blade" transform="rotate(216)"/>
+      <use href="#blade" transform="rotate(252)"/>
+      <use href="#blade" transform="rotate(288)"/>
+      <use href="#blade" transform="rotate(324)"/>
+      <!-- hub -->
+      <circle r="11" fill="#141517" stroke="#2c2f33"/>
+      <circle r="7.2" fill="url(#hubCap)" stroke="#5c6168" stroke-width="0.3"/>
+      <circle r="2" fill="#8a9097" stroke="none"/>
+    </g>
+
+    <!-- screws -->
+    <g fill="#5d636a" stroke="#2c2f33" stroke-width="0.3">
+      <circle cx="11" cy="8.5" r="1.4"/>
+      <circle cx="11" cy="92" r="1.4"/>
+      <circle cx="263" cy="8.5" r="1.4"/>
+      <circle cx="263" cy="92" r="1.4"/>
+    </g>
+    <!-- facet edge highlights -->
+    <g stroke="#f6f7f8" stroke-width="0.35" opacity="0.8" fill="none">
+      <path d="M 2.5 3.5 H 192 L 206 3.5"/>
+      <path d="M 184 14 L 192 3.5"/>
+      <path d="M 194 24 L 206 3.5"/>
+    </g>
+  </g>
+
+  <!-- ============ PCIe BRACKET : B(u,v) = (250-2.5u, 190-1.375u+3.5v) ============ -->
+  <g transform="matrix(-2.5 -1.375 0 3.5 250 190)">
+    <!-- plate with slot tongue -->
+    <path d="M -1 -3 H 41 V 104 H 36 V 117 H 30 V 104 H -1 Z" fill="url(#bracketGrad)" stroke="#6e747b" stroke-width="0.3"/>
+    <!-- exhaust vents (triangles) in the shroud row -->
+    <g fill="#16181b">
+      <path d="M 3 6 L 9 6 L 6 11 Z M 10 11 L 16 11 L 13 6 Z M 3 13 L 9 13 L 6 18 Z M 10 18 L 16 18 L 13 13 Z M 3 20 L 9 20 L 6 25 Z M 10 25 L 16 25 L 13 20 Z M 3 27 L 9 27 L 6 32 Z M 10 32 L 16 32 L 13 27 Z M 3 34 L 9 34 L 6 39 Z M 10 39 L 16 39 L 13 34 Z M 3 41 L 9 41 L 6 46 Z M 10 46 L 16 46 L 13 41 Z M 3 48 L 9 48 L 6 53 Z M 10 53 L 16 53 L 13 48 Z"/>
+    </g>
+    <!-- DVI-D (shroud row) -->
+    <path d="M 4.5 58 H 16 V 95 L 14 97 H 6.5 L 4.5 95 Z" fill="#e8e8e8" stroke="#2a2c30" stroke-width="0.4"/>
+    <rect x="7.5" y="61" width="5.5" height="33" fill="#1a1b1e"/>
+    <circle cx="10.25" cy="55" r="1.1" fill="#3a3d42"/>
+    <circle cx="10.25" cy="100" r="1.1" fill="#3a3d42"/>
+    <!-- DP, DP, HDMI, DP (PCB row) -->
+    <g fill="#141518" stroke="#3c4046" stroke-width="0.4">
+      <use href="#dp" x="23" y="6"/>
+      <use href="#dp" x="23" y="27"/>
+      <path d="M 23 49 H 29.5 V 66 L 27.8 64.5 H 24.7 L 23 66 Z" transform="translate(0 0)"/>
+      <use href="#dp" x="23" y="76"/>
+    </g>
+    <g fill="#c9a24a">
+      <rect x="25" y="8" width="1.4" height="10"/>
+      <rect x="25" y="29" width="1.4" height="10"/>
+      <rect x="25.5" y="52" width="1.4" height="10"/>
+      <rect x="25" y="78" width="1.4" height="10"/>
+    </g>
+  </g>
+  <!-- bracket tab folded outward (top) -->
+  <polygon points="252.5,179.5 149.5,123.1 114.5,123.1 217.5,179.5" fill="#d4d8dc" stroke="#7a8087" stroke-width="1"/>
+  <ellipse cx="171" cy="146" rx="9" ry="4" fill="#5a6066"/>
+</svg>

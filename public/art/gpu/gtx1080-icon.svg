@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Graphics card icon</title>
+  <defs>
+    <linearGradient id="s" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e2e5e8"/>
+      <stop offset="1" stop-color="#8f959c"/>
+    </linearGradient>
+  </defs>
+  <!-- top edge -->
+  <polygon points="10,21 61,21 57,16 6,16" fill="#7a8087"/>
+  <polygon points="22,20 44,20 42,17.4 20,17.4" fill="#151619"/>
+  <polygon points="23.5,19.4 42.6,19.4 41.4,18 22.3,18" fill="#8fdc1a"/>
+  <rect x="50" y="13" width="6" height="4" fill="#25272b"/>
+  <!-- PCIe fingers -->
+  <rect x="14" y="47" width="18" height="3.5" fill="#d6ad4c"/>
+  <rect x="10" y="46" width="51" height="1.6" fill="#1d2a22"/>
+  <!-- front shroud -->
+  <rect x="10" y="21" width="51" height="25.5" fill="url(#s)"/>
+  <polygon points="11.5,24 40,24 43.5,27.5 43.5,40 40,43.5 11.5,43.5" fill="#33373c"/>
+  <polygon points="13,25.5 39,25.5 42,28.5 42,39 39,42 13,42" fill="#0d0e10"/>
+  <polygon points="20,25.5 25,25.5 18,42 13,42" fill="#fff" opacity="0.08"/>
+  <polygon points="43.5,27.5 46,21 48,21 45,30" fill="#3a3e44"/>
+  <polygon points="43.5,40 45,37.5 48,46.5 46,46.5" fill="#2c3035"/>
+  <!-- fan -->
+  <circle cx="52" cy="33.7" r="8.4" fill="#2f3338"/>
+  <circle cx="52" cy="33.7" r="7.2" fill="#121315"/>
+  <g transform="translate(52 33.7)" stroke="#5a6067" stroke-width="1.1" stroke-linecap="round" fill="none">
+    <path d="M0 -2.6 Q3 -4 2 -6.6"/>
+    <path d="M0 -2.6 Q3 -4 2 -6.6" transform="rotate(72)"/>
+    <path d="M0 -2.6 Q3 -4 2 -6.6" transform="rotate(144)"/>
+    <path d="M0 -2.6 Q3 -4 2 -6.6" transform="rotate(216)"/>
+    <path d="M0 -2.6 Q3 -4 2 -6.6" transform="rotate(288)"/>
+  </g>
+  <circle cx="52" cy="33.7" r="2.4" fill="#b8bec4"/>
+  <!-- bracket -->
+  <polygon points="10,19 5,14 5,46 10,51" fill="#b3b8be" stroke="#6e747b" stroke-width="0.6"/>
+  <polygon points="6.5,47 6.5,52 8.5,54 8.5,49" fill="#b3b8be"/>
+  <polygon points="10,19 5,14 2,14 7,19" fill="#d6dade"/>
+  <g fill="#17181b">
+    <polygon points="8.6,22 7,20.4 7,24.4 8.6,26"/>
+    <polygon points="8.6,28 7,26.4 7,30.4 8.6,32"/>
+    <polygon points="8.6,34 7,32.4 7,36.4 8.6,38"/>
+    <polygon points="8.6,40 7,38.4 7,42.4 8.6,44"/>
+  </g>
+</svg>

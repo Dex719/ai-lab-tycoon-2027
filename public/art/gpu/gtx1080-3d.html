@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GTX 1080 FE Model</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #2b2d30; overflow: hidden; font-family: system-ui, sans-serif; }
+  canvas { display: block; }
+  #hint { position: fixed; left: 16px; bottom: 12px; color: #8a8f96; font-size: 12px; letter-spacing: .02em; user-select: none; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="hint">Drag to orbit, scroll to zoom</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// ---------- renderer / scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2b2d30);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(32, innerWidth / innerHeight, 0.1, 200);
+camera.position.set(-21, 15, 33);
+
+const key = new THREE.DirectionalLight(0xffffff, 1.6);
+key.position.set(-8, 18, 14);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20 });
+key.shadow.radius = 6;
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xdfe6ff, 0.7);
+rim.position.set(12, 6, -16);
+scene.add(rim);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x303236, 0.35));
+
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.ShadowMaterial({ opacity: 0.32 }));
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = -6.45;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// ---------- materials ----------
+const M = {
+  silver:  new THREE.MeshStandardMaterial({ color: 0xa9aeb4, metalness: 0.9, roughness: 0.36, flatShading: true }),
+  silverHi:new THREE.MeshStandardMaterial({ color: 0xc9ced3, metalness: 0.85, roughness: 0.28, flatShading: true }),
+  dark:    new THREE.MeshStandardMaterial({ color: 0x3a3e44, metalness: 0.75, roughness: 0.4, flatShading: true }),
+  darker:  new THREE.MeshStandardMaterial({ color: 0x1c1e21, metalness: 0.5, roughness: 0.55, flatShading: true }),
+  black:   new THREE.MeshStandardMaterial({ color: 0x0d0e10, metalness: 0.2, roughness: 0.6 }),
+  fin:     new THREE.MeshStandardMaterial({ color: 0x4c5157, metalness: 0.8, roughness: 0.45 }),
+  pcb:     new THREE.MeshStandardMaterial({ color: 0x18241d, metalness: 0.1, roughness: 0.7 }),
+  gold:    new THREE.MeshStandardMaterial({ color: 0xd9ac4a, metalness: 1.0, roughness: 0.3 }),
+  back:    new THREE.MeshStandardMaterial({ color: 0x1d1f22, metalness: 0.65, roughness: 0.45 }),
+  bracket: new THREE.MeshStandardMaterial({ color: 0xb8bdc2, metalness: 0.95, roughness: 0.28 }),
+  blade:   new THREE.MeshStandardMaterial({ color: 0x1b1d20, metalness: 0.1, roughness: 0.55, side: THREE.DoubleSide, flatShading: true }),
+  white:   new THREE.MeshStandardMaterial({ color: 0xe6e6e3, metalness: 0.0, roughness: 0.6 }),
+  acrylic: new THREE.MeshPhysicalMaterial({ color: 0x0c0d0f, metalness: 0, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.05, transparent: true, opacity: 0.86 }),
+};
+
+// ---------- helpers ----------
+// Front-face coordinates in mm (as on the SVG): x 0..268.6 from bracket end, y 0..100 from top edge.
+const L = 26.86, TOP = 5.55;
+const fx = mm => -L / 2 + mm / 10;
+const fy = mm => TOP - mm / 10;
+const shapeFrom = pts => { const s = new THREE.Shape(); pts.forEach(([x, y], i) => i ? s.lineTo(fx(x), fy(y)) : s.moveTo(fx(x), fy(y))); s.closePath(); return s; };
+const pathFrom  = pts => { const p = new THREE.Path(); pts.forEach(([x, y], i) => i ? p.lineTo(fx(x), fy(y)) : p.moveTo(fx(x), fy(y))); p.closePath(); return p; };
+const circlePath = (cx, cy, r, seg = 24) => { const p = new THREE.Path(); p.absarc(fx(cx), fy(cy), r / 10, 0, Math.PI * 2, true); return p; };
+const add = (mesh, parent = card) => { mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh; };
+const box = (w, h, d, mat, x, y, z, parent) => { const m = add(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat), parent); m.position.set(x, y, z); return m; };
+const plate = (pts, mat, z, depth = 0.06, bevel = 0.12, holes = []) => {
+  const s = shapeFrom(pts); holes.forEach(h => s.holes.push(h));
+  const g = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 1, curveSegments: 20 });
+  const m = add(new THREE.Mesh(g, mat)); m.position.z = z; return m;
+};
+const canvasTex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+
+const card = new THREE.Group();
+scene.add(card);
+
+// ---------- shroud body (faceted aluminium, holes for window and fan) ----------
+const WIN = [[14, 20], [160, 20], [174, 34], [174, 68], [160, 82], [14, 82]];
+const WIN_HOLE = [[12, 18], [161, 18], [176, 33], [176, 69], [161, 84], [12, 84]];
+{
+  const s = shapeFrom([[2, 2], [266.6, 2], [266.6, 98], [2, 98]]);
+  s.holes.push(pathFrom(WIN_HOLE));
+  s.holes.push(circlePath(226, 51, 33.5));
+  const g = new THREE.ExtrudeGeometry(s, { depth: 2.9, bevelEnabled: true, bevelThickness: 0.22, bevelSize: 0.2, bevelSegments: 1, curveSegments: 22 });
+  const body = M.silver.clone(); body.side = THREE.DoubleSide; // inner hole walls stay opaque from any angle
+  const m = add(new THREE.Mesh(g, body));
+  m.position.z = -1.12; // front face at z = 2.0
+}
+const FZ = 2.0; // front surface z
+
+// raised faceted plates on the front
+plate([[6, 3.5], [190, 3.5], [182, 12.5], [10, 12.5]], M.silverHi, FZ, 0.04, 0.14);
+plate([[10, 89.5], [182, 89.5], [190, 96.5], [6, 96.5]], M.silver, FZ, 0.04, 0.14);
+plate([[8, 14], [168, 14], [184, 30], [184, 72], [168, 88], [8, 88]], M.dark, FZ, 0.03, 0.1, [pathFrom(WIN_HOLE)]);
+plate([[184, 30], [194, 24], [206, 4], [214, 4], [197, 30], [186, 37]], M.darker, FZ, 0.03, 0.1);
+plate([[186, 65], [197, 72], [214, 96], [206, 96], [194, 78], [184, 72]], M.darker, FZ, 0.03, 0.1);
+plate([[210, 10], [240, 10], [258, 22], [262, 51], [258, 80], [240, 92], [210, 92], [194, 80], [190, 51], [194, 22]], M.dark, FZ, 0.08, 0.16, [circlePath(226, 51, 35)]);
+plate([[192, 3.5], [204, 3.5], [192, 22], [186, 27]], M.silverHi, FZ, 0.02, 0.1);
+plate([[260, 18], [265, 6], [265, 94], [260, 84]], M.silverHi, FZ, 0.02, 0.1);
+
+// window: backing, heatsink fins, acrylic, engraved model name
+box(17.4, 7.6, 1.0, M.black, fx(94), fy(51), -0.95);
+for (let x = 16; x <= 172; x += 2.6) box(0.05, 6.3, 2.6, M.fin, fx(x), fy(51), 0.1);
+{
+  const acr = add(new THREE.Mesh(new THREE.ShapeGeometry(shapeFrom(WIN)), M.acrylic));
+  acr.position.z = FZ - 0.05; acr.castShadow = false;
+  const t = canvasTex(512, 64, c => { c.fillStyle = '#80868d'; c.font = 'bold 44px Arial, Helvetica, sans-serif'; c.fillText('GTX 1080', 8, 50); });
+  const label = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 0.5), new THREE.MeshStandardMaterial({ map: t, transparent: true, metalness: 0.5, roughness: 0.4 }));
+  label.position.set(fx(22) + 2.0, fy(77) + 0.18, FZ - 0.03);
+  card.add(label);
+}
+
+// ---------- blower fan ----------
+const fan = new THREE.Group();
+fan.position.set(fx(226), fy(51), 0);
+card.add(fan);
+add(new THREE.Mesh(new THREE.CircleGeometry(3.4, 32), M.black), fan).position.z = -1.0;
+{ const liner = add(new THREE.Mesh(new THREE.CylinderGeometry(3.32, 3.32, 3.0, 32, 1, true), new THREE.MeshStandardMaterial({ color: 0x141518, roughness: 0.7, side: THREE.BackSide })), fan); liner.rotation.x = Math.PI / 2; liner.position.z = 0.45; }
+{
+  const hub = add(new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 2.3, 20), M.blade), fan);
+  hub.rotation.x = Math.PI / 2; hub.position.z = 0.6;
+  const cap = add(new THREE.Mesh(new THREE.CylinderGeometry(0.72, 0.76, 0.12, 24), M.silverHi), fan);
+  cap.rotation.x = Math.PI / 2; cap.position.z = 1.8;
+  const s = new THREE.Shape();
+  s.moveTo(-0.15, -1.06); s.bezierCurveTo(0.4, -1.4, 0.75, -2.1, 0.55, -2.94);
+  s.lineTo(0.12, -3.0); s.bezierCurveTo(0.26, -2.25, 0.06, -1.55, -0.46, -1.02); s.closePath();
+  const bg = new THREE.ExtrudeGeometry(s, { depth: 2.4, bevelEnabled: false, curveSegments: 6 });
+  for (let i = 0; i < 11; i++) {
+    const b = add(new THREE.Mesh(bg, M.blade), fan);
+    b.rotation.z = i * Math.PI * 2 / 11; b.position.z = -0.6;
+  }
+}
+
+// ---------- PCB, backplate, PCIe fingers ----------
+box(26.6, 10.25, 0.16, M.pcb, 0, 0.45, -1.52);
+box(26.86, 9.95, 0.25, M.back, 0, 0.55, -1.76);
+box(0.06, 9.4, 0.02, M.black, 0.4, 0.55, -1.89);
+box(8.9, 0.85, 0.17, M.gold, (fx(38) + fx(127)) / 2, -5.1, -1.52);
+box(0.25, 0.86, 0.2, M.black, fx(48.5), -5.1, -1.52); // key notch
+box(1.6, 0.12, 0.08, M.gold, fx(37), 5.66, -1.5);       // SLI fingers
+box(1.6, 0.12, 0.08, M.gold, fx(55), 5.66, -1.5);
+
+// ---------- top edge: lit GEFORCE GTX logo + 8-pin ----------
+box(10.8, 0.06, 2.0, M.black, fx(126), TOP + 0.24, 0.55);
+{
+  const t = canvasTex(1024, 128, c => {
+    c.fillStyle = '#000'; c.fillRect(0, 0, 1024, 128);
+    c.fillStyle = '#9be22a'; c.font = '900 92px "Arial Black", Arial, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText('GEFORCE GTX', 512, 66);
+  });
+  const mat = new THREE.MeshStandardMaterial({ color: 0x000000, metalness: 0, emissive: 0x76b900, emissiveMap: t, emissiveIntensity: 3.2, roughness: 0.9 });
+  const logo = new THREE.Mesh(new THREE.PlaneGeometry(10.2, 1.27), mat);
+  logo.rotation.x = -Math.PI / 2;
+  logo.position.set(fx(126), TOP + 0.28, 0.55);
+  card.add(logo);
+  const glow = new THREE.PointLight(0x76b900, 6, 6, 2);
+  glow.position.set(fx(126), TOP + 1.2, 0.8);
+  card.add(glow);
+}
+{
+  const px = fx(246), pz = -0.95;
+  box(2.0, 0.85, 1.05, M.darker, px, TOP + 0.42, pz);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 2; j++) box(0.32, 0.02, 0.32, M.black, px - 0.66 + i * 0.44, TOP + 0.86, pz - 0.22 + j * 0.44);
+}
+
+// ---------- PCIe bracket with ports (outer face at -x) ----------
+const BX = -L / 2 - 0.12;
+box(0.1, 11.15, 4.1, M.bracket, BX, 0.27, 0.0);
+box(0.1, 1.2, 0.7, M.bracket, BX, -5.9, -1.05);   // slot tongue
+box(1.05, 0.1, 4.1, M.bracket, BX - 0.5, 5.8, 0.0); // folded tab
+{
+  const face = BX - 0.06;
+  const port = (h, w, y, z, shell = M.bracket) => {
+    box(0.08, h + 0.12, w + 0.12, M.darker, face, y, z);
+    box(0.1, h, w, M.black, face - 0.01, y, z);
+  };
+  // DP, DP, HDMI, DP in the PCB row
+  port(1.55, 0.58, 4.15, -0.95);
+  port(1.55, 0.58, 2.05, -0.95);
+  port(1.65, 0.62, -0.15, -0.95);
+  port(1.55, 0.58, -2.65, -0.95);
+  [4.15, 2.05, -0.15, -2.65].forEach(y => box(0.11, 1.0, 0.12, M.gold, face - 0.02, y, -1.0));
+  // DVI-D in the shroud row
+  box(0.1, 3.9, 1.18, M.white, face, -2.2, 0.95);
+  box(0.12, 3.2, 0.5, M.black, face - 0.01, -2.2, 0.95);
+  // triangular exhaust vents
+  const tri = new THREE.CircleGeometry(0.3, 3);
+  for (let r = 0; r < 7; r++) for (let c = 0; c < 2; c++) {
+    const v = new THREE.Mesh(tri, M.black);
+    v.rotation.y = -Math.PI / 2;
+    v.rotation.x = ((r + c) % 2 ? Math.PI / 2 : -Math.PI / 2);
+    v.position.set(face - 0.02, 4.7 - r * 0.68, 0.55 + c * 0.75);
+    card.add(v);
+  }
+}
+
+// ---------- controls / animation ----------
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, -0.3, 0);
+controls.enableDamping = true;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.7;
+controls.minDistance = 14; controls.maxDistance = 60;
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  fan.rotation.z -= dt * 7;
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>
