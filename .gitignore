@@ -6,3 +6,7 @@ coverage/
 Thumbs.db
 src-tauri/target/
 tsconfig.tsbuildinfo
+
+# Локальные документы: не для GitHub
+docs/
+.kiro/specs/ui-redesign-v2/
