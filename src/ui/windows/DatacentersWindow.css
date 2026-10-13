@@ -1,0 +1,104 @@
+/* Окно «Дата-центры»: сверху светлая сводка с крупными цифрами, ниже серое поле с карточками площадок
+   (как «Мощности»). Цвета: своя мощность - синим, расходы - красным, экономия - зелёным. */
+
+.dc {
+  --dc-well: #d3d5d9;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  font-variant-numeric: tabular-nums;
+}
+.dc-h { margin: 0; font-size: 20px; font-weight: 300; line-height: 1.2; color: #2a2c30; }
+
+.dc-info { flex: none; padding: 10px 16px 14px; background: var(--win-body); border-bottom: 1px solid var(--line); }
+.dc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 8px; margin-top: 8px; }
+.dc-kpi {
+  display: flex; flex-direction: column; gap: 2px; padding: 6px 10px; background: #fff;
+  border: 1px solid var(--line-soft); border-top: 3px solid var(--c-teal); border-radius: 4px; min-width: 0;
+}
+.dc-kpi-l { font-size: 13px; color: var(--text-dim); }
+.dc-kpi-v { font-size: 20px; font-weight: 600; line-height: 1.2; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dc-kpi-v.blue, .dc-kv dd.blue { color: #1f62b8; }
+.dc-kpi-v.red, .dc-kv dd.red { color: #b32f2f; }
+.dc-kpi-v.green { color: #1d6b36; }
+.dc-kpi-s { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.dc-scroll { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px 16px; background: var(--dc-well); }
+.dc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; align-items: start; }
+
+.dc-site {
+  display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 12px; background: var(--panel);
+  border: 1px solid var(--line-soft); border-top: 4px solid #9aa0a8; border-radius: 4px; min-width: 0;
+}
+.dc-site.building { border-top-color: var(--c-orange); }
+.dc-site.ready { border-top-color: var(--c-green); }
+.dc-site-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dc-site-name { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.2; }
+.dc-tag { flex: none; padding: 1px 8px; border-radius: 9px; font-size: 12px; font-weight: 700; color: #fff; background: #7a7f87; }
+.dc-tag.building { background: var(--c-orange); }
+.dc-tag.ready { background: var(--c-green); }
+.dc-note { margin: 0; min-height: 34px; font-size: 13px; line-height: 1.3; color: var(--text-dim); }
+
+.dc-kv { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; margin: 0; }
+.dc-kv dt { color: #3a3c40; }
+.dc-kv dd { margin: 0; text-align: right; white-space: nowrap; color: var(--text); }
+.dc-kv dd.warn { color: #a85a00; font-weight: 600; }
+.dc-risk { font-weight: 600; }
+.dc-risk.low { color: #1d6b36 !important; }
+.dc-risk.mid { color: #a85a00 !important; }
+.dc-risk.high { color: #b32f2f !important; }
+
+.dc-actions { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.dc-actions .btn { min-width: 132px; }
+
+/* Этапы стройки: номер в кружке, сделанные - зелёные, текущий - оранжевый с полосой. */
+.dc-stages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.dc-stages li { display: grid; grid-template-columns: 22px auto 1fr; align-items: center; gap: 8px; color: var(--text-dim); }
+.dc-stage-mark {
+  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 12px; font-weight: 700;
+  background: #e3e5e9; color: #5f636a;
+}
+.dc-stages li.done { color: var(--text); }
+.dc-stages li.done .dc-stage-mark { background: var(--c-green); color: #fff; }
+.dc-stages li.now { color: var(--text); font-weight: 600; }
+.dc-stages li.now .dc-stage-mark { background: var(--c-orange); color: #fff; }
+.dc-stage-bar .progress > div { background: var(--c-orange); }
+
+.dc-power-t { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-dim); margin-bottom: 3px; }
+.dc-power-t b { color: var(--text); }
+.dc-empty { padding: 12px; color: var(--text-dim); border: 1px dashed #aeb2b9; border-radius: 4px; font-size: 13px; }
+.dc-gpus { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dc-gpus td { padding: 3px 0; border-bottom: 1px solid var(--line-soft); }
+.dc-gpus td + td { padding-left: 8px; }
+.dc-order td { color: #1f62b8; }
+
+/* Диалоги (выводятся в document.body). */
+.dc-dialog { display: flex; flex-direction: column; gap: 12px; font-variant-numeric: tabular-nums; }
+.dc-sizes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.dc-size {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; background: #fff;
+  border: 1px solid var(--line); border-radius: 2px; cursor: pointer; color: var(--text);
+}
+.dc-size span { font-size: 12px; color: #b32f2f; }
+.dc-size.is-selected, .dc-gpu-row.is-selected { border-color: var(--accent); background: #e3eefc; }
+.dc-sum { padding: 10px 12px; background: #fff; border: 1px solid var(--line-soft); border-radius: 4px; }
+.dc-hint { margin: 0; font-size: 13px; color: var(--text-dim); }
+/* Место под ошибку занято всегда: окно не меняет размер. */
+.dc-err { min-height: 22px; }
+.dc-err .error { margin: 0; }
+.dc-gpu-list { display: flex; flex-direction: column; gap: 4px; }
+.dc-gpu-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) 64px 84px 84px; gap: 8px; align-items: center; padding: 6px 10px;
+  background: #fff; border: 1px solid var(--line); border-radius: 2px; text-align: left; color: var(--text); cursor: pointer;
+}
+.dc-gpu-row span:not(:first-child) { text-align: right; }
+.dc-gpu-row.head { background: none; border: none; padding: 0 10px; font-size: 12px; color: var(--text-dim); cursor: default; }
+.dc-qty { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.dc-qty > label { color: var(--text-dim); }
+.dc-qty .range { width: 100%; }
+.dc-qty-note { min-height: 19px; font-size: 13px; color: var(--text-dim); }
+.dc-confirm { margin: 0; max-width: 460px; }
+
+/* Значок «Новое» на ярлыке рабочего стола. */
+.desk-icon .desk-new { position: absolute; top: 4px; right: 4px; margin: 0; }

@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type C
 import { openChoices, pendingChoice, unreadCount } from '../sim/events';
 import type { GameState } from '../sim/types';
 import { ChoiceModal } from './ChoiceModal';
-import { Dialog } from './components/common';
+import { Dialog, isFresh } from './components/common';
 import { EndDialog } from './EndDialog';
 import { IconLogo } from './icons';
 import { SettingsDialog, SlotsDialog } from './MainMenu';
@@ -103,6 +103,7 @@ const WIN_ACCENT: Record<WindowId, string> = {
   models: 'var(--c-teal)',
   mail: 'var(--c-amber)',
   analytics: 'var(--c-indigo)',
+  datacenters: 'var(--c-teal)',
 };
 
 type GameDialog = null | 'save' | 'load' | 'settings' | 'quit';
@@ -189,8 +190,8 @@ export function Game({ s }: { s: GameState }) {
         </div>
         <div className="icons">
         <div className="icon-col left">
-          {WINDOWS.filter((d) => d.side === 'left').map((d) => (
-            <DeskIcon key={d.id} def={d} count={iconCount(d.id)} selected={openIds.has(d.id)} onOpen={() => open(d.id)} />
+          {WINDOWS.filter((d) => d.side === 'left' && (!d.openedDay || d.openedDay(s) !== null)).map((d) => (
+            <DeskIcon key={d.id} def={d} count={iconCount(d.id)} selected={openIds.has(d.id)} onOpen={() => open(d.id)} newSince={d.openedDay?.(s) ?? null} day={s.day} />
           ))}
         </div>
         <div className="icon-col right">
@@ -289,12 +290,21 @@ export function Game({ s }: { s: GameState }) {
   );
 }
 
-function DeskIcon(props: { def: (typeof WINDOWS)[number]; count: number; selected: boolean; onOpen: () => void }) {
-  const { def, count, selected, onOpen } = props;
+function DeskIcon(props: {
+  def: (typeof WINDOWS)[number];
+  count: number;
+  selected: boolean;
+  onOpen: () => void;
+  /** День открытия раздела: первые дни у ярлыка значок «Новое». */
+  newSince?: number | null;
+  day?: number;
+}) {
+  const { def, count, selected, onOpen, newSince, day } = props;
   return (
     <button className={`desk-icon${selected ? ' selected' : ''}`} onClick={onOpen} data-tutorial={`icon-${def.id}`}>
       <def.icon size={56} />
       {count > 0 && <span className="count">{count}</span>}
+      {newSince != null && day !== undefined && isFresh(day, newSince) && <span className="new-badge desk-new">Новое</span>}
       <span className="icon-label">{def.title}</span>
     </button>
   );

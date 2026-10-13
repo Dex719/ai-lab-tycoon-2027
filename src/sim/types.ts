@@ -3,6 +3,7 @@
 
 // Сложность и состояние соперников живут в rivalry.ts; импорт только типов, чтобы не было цикла модулей.
 import type { Difficulty, RivalryState } from './rivalry';
+import type { DcSiteId } from '../data/datacenters';
 
 export type DomainId = 'language' | 'code' | 'reasoning';
 export const DOMAINS: readonly DomainId[] = ['language', 'code', 'reasoning'];
@@ -296,7 +297,8 @@ export interface Modifier {
 }
 
 export type IncomeKind = 'api' | 'subs' | 'contracts' | 'investors';
-export type ExpenseKind = 'rent' | 'overhead' | 'labelers' | 'penalties' | 'review';
+/** capex - стройка дата-центров и покупка карт; power - электричество и обслуживание своих дата-центров. */
+export type ExpenseKind = 'rent' | 'overhead' | 'labelers' | 'penalties' | 'review' | 'capex' | 'power';
 
 export interface MonthLedger {
   income: Record<IncomeKind, number>;
@@ -310,6 +312,27 @@ export interface MonthRecord extends MonthLedger {
   marketShare: number; // общая доля игрока (взвешенная по сегментам) за последний день месяца
   tokensPerDay: number; // обслуженные токены API игрока в последний день
   subscribers: number; // обслуженные подписчики игрока в последний день
+}
+
+/** Заказ карт в свой дата-центр: приедут в день arriveDay. */
+export interface DcOrder {
+  gpu: GpuId;
+  count: number;
+  arriveDay: number;
+}
+
+/** Свой дата-центр (datacenters.ts). stage 0..3 - идёт этап стройки, 4 - готов. */
+export interface Datacenter {
+  site: DcSiteId;
+  mw: number;
+  startedDay: number;
+  stage: number;
+  stageEndDay: number; // день окончания текущего этапа (для готового - день готовности)
+  delayDays: number; // сколько дней задержки за всю стройку
+  stageDelay: number; // из них - задержка текущего этапа (входит в stageEndDay)
+  paid: number; // уплачено за стройку, $
+  gpus: Record<GpuId, number>;
+  orders: DcOrder[];
 }
 
 export interface GameState {
@@ -328,6 +351,8 @@ export interface GameState {
   monthsFirst: number;
   hype: Record<HypeOwner, number>; // 0..100
   compute: { rented: Record<GpuId, number>; alloc: Allocation };
+  /** Свои дата-центры: день открытия функции (null - ещё закрыта) и список построек. */
+  datacenters: { unlockedDay: number | null; list: Datacenter[] };
   research: {
     current: TechId | null;
     points: Record<TechId, number>;

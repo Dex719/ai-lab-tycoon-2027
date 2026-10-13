@@ -62,11 +62,23 @@ export function rentMaxFor(s: GameState, id: GpuId): number {
   return rentCapFor(s, id) * RENT_HARD_CAP_MULT;
 }
 
-/** Σ count × h100e. */
-export function totalH100e(s: GameState): number {
+/** Арендованная мощность: Σ count × h100e. */
+export function rentedH100e(s: GameState): number {
   let sum = 0;
   for (const g of GPUS) sum += s.compute.rented[g.id] * g.h100e;
   return sum;
+}
+
+/** Своя мощность: карты в своих дата-центрах (они есть только в готовых). */
+export function ownedH100e(s: GameState): number {
+  let sum = 0;
+  for (const dc of s.datacenters?.list ?? []) for (const g of GPUS) sum += (dc.gpus[g.id] ?? 0) * g.h100e;
+  return sum;
+}
+
+/** Вся мощность: аренда плюс свои дата-центры. */
+export function totalH100e(s: GameState): number {
+  return rentedH100e(s) + ownedH100e(s);
 }
 
 /** Мощность доли: totalH100e × alloc[kind]. */

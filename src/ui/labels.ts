@@ -18,11 +18,13 @@ export const EXPENSE_LABELS: Record<ExpenseKind, string> = {
   labelers: 'Разметчики',
   penalties: 'Штрафы',
   review: 'Проверки',
+  capex: 'Дата-центры',
+  power: 'Электричество',
 };
 
 /** Порядок статей в таблицах и подсказках. */
 export const INCOME_KINDS: IncomeKind[] = ['api', 'subs', 'contracts', 'investors'];
-export const EXPENSE_KINDS: ExpenseKind[] = ['rent', 'overhead', 'labelers', 'penalties', 'review'];
+export const EXPENSE_KINDS: ExpenseKind[] = ['rent', 'overhead', 'labelers', 'penalties', 'review', 'capex', 'power'];
 
 /** 3 → «3-е место», 12 → «12-е место». Для отсутствующего места - «-». */
 export function fmtRank(n: number | null | undefined): string {

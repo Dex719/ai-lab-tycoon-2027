@@ -50,6 +50,7 @@
 .cw-kv dd.warn { color: #a85a00; }
 .cw-kv dd.good { color: #1d6b36; }
 .cw-kv dd.bad, .cw-cost { color: #b32f2f; }
+.cw-kv dd.cw-own { color: #1f62b8; font-weight: 600; }
 
 /* ---------- Поле с карточками ---------- */
 .cw-scroll {

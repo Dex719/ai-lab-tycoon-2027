@@ -3,6 +3,7 @@
 import { HYPE_MONTHLY_DECAY, HYPE_OWNERS } from './constants';
 import { generateMonthly, progressDay as contractsDay } from './contracts';
 import { introduceDue } from './benchmarks';
+import { datacentersDay } from './datacenters';
 import { expireChoices, fireDue, pendingChoice, pruneModifiers } from './events';
 import { beginDay, closeMonth, dayStep as financeDay } from './finance';
 import { marketArenaRank, rivalsSellByApi, updateSaturation } from './leaderboard';
@@ -45,6 +46,7 @@ export function advanceDay(s: GameState): void {
   rivalryDay(s); // ходы соперников по слухам, память, истечение ходов; ответные модели попадают в rivalsReleased
   expireChoices(s);
   fireDue(s);
+  datacentersDay(s); // свои дата-центры: этапы стройки, доставка карт (мощность нужна уже сегодня), электричество
 
   researchDay(s);
   trainingDay(s);

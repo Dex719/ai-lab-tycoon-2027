@@ -24,6 +24,8 @@ const EXPENSE_TITLES: Record<ExpenseKind, string> = {
   labelers: 'Оплата разметки ответов при обучении с RLHF',
   penalties: 'Штрафы за сорванные контракты',
   review: 'Оплата внешней проверки сильных моделей',
+  capex: 'Стройка своих дата-центров и покупка карт',
+  power: 'Электричество и обслуживание своих дата-центров',
 };
 const EXPENSE_COLS: { kind: ExpenseKind; label: string; title: string }[] = EXPENSE_KINDS.map((kind) => ({
   kind,

@@ -8,6 +8,7 @@ import { GPUS } from '../../data/gpus';
 import {
   availableGpus,
   isGpuAvailable,
+  ownedH100e,
   pool,
   rentCapFor,
   rentCostPerDay,
@@ -17,6 +18,7 @@ import {
   totalH100e,
 } from '../../sim/compute';
 import { RENT_HARD_CAP_MULT, RENT_OVER_CAP_MULT } from '../../sim/constants';
+import { ownedCards } from '../../sim/datacenters';
 import { CHAT_MOMENT_DAY, inferenceNeed, marketSnapshot, subsOpen } from '../../sim/market';
 import { dateToDay } from '../../sim/time';
 import type { GameState, GpuDef, GpuId } from '../../sim/types';
@@ -125,6 +127,14 @@ function Summary({ s, onRent }: { s: GameState; onRent: () => void }) {
           </dd>
           <dt>Арендовано карт</dt>
           <dd>{fmtNum(cards)}</dd>
+          {s.datacenters.unlockedDay !== null && (
+            <>
+              <dt title="Карты в своих дата-центрах: входят во «Всего мощности», лимит аренды на них не действует">Свои карты</dt>
+              <dd className="cw-own">
+                {fmtNum(ownedCards(s))} шт., {fmtH(ownedH100e(s))} H100e
+              </dd>
+            </>
+          )}
           <dt title="Аренда за сутки × 30, с надбавкой за карты сверх лимита">Аренда в месяц</dt>
           <dd className="cw-cost">{fmtMoney(rentPerDay(s) * DAYS_IN_MONTH)}</dd>
           <dt title={CAP_HINT}>Лимит по обычной цене</dt>

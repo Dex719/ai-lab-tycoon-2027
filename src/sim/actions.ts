@@ -4,6 +4,7 @@ import { BENCHMARKS } from '../data/benchmarks';
 import { setAllocation, setRent } from './compute';
 import { SUBS_PRICE_MAX, SUBS_PRICE_MIN, TIER_SUBS_PRICE } from './constants';
 import { applyTender, cancelContract, setAutoApply } from './contracts';
+import { buildDatacenter, buyDcGpus, writeOffDcGpus } from './datacenters';
 import { addMail, applyChoice, deferChoice, markRead } from './events';
 import { raiseRound } from './investors';
 import { releaseHypeBonus, updateSaturation } from './leaderboard';
@@ -171,6 +172,8 @@ export function markAllRead(s: GameState): Result {
 
 export {
   applyTender,
+  buildDatacenter,
+  buyDcGpus,
   cancelContract,
   cancelTraining,
   applyChoice as chooseOption,
@@ -184,4 +187,5 @@ export {
   startReview,
   startTraining,
   unqueueResearch,
+  writeOffDcGpus,
 };
