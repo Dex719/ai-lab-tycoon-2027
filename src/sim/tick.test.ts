@@ -1,7 +1,7 @@
 // Тесты дня игры: автосохранение, конец игры, письма за всю партию.
 
 import { describe, expect, it } from 'vitest';
-import { EVENTS } from '../data/events';
+import { EVENTS, EXTRA_EVENTS } from '../data/events';
 import { RIVAL_MODELS } from '../data/rivalModels';
 import { newGame } from './actions';
 import { botAct, runBot } from './bots';
@@ -50,7 +50,8 @@ function stateOn(day: number): GameState {
   const s = newGame('Тест', 1);
   s.day = day;
   s.rivalsReleased = RIVAL_MODELS.filter((m) => D(m.released) <= day).map((m) => m.id);
-  s.firedEvents = EVENTS.map((e) => e.id); // иначе письма с выбором за прошлые годы остановили бы день
+  s.firedEvents = [...EVENTS, ...EXTRA_EVENTS].map((e) => e.id); // иначе письма с выбором за прошлые годы остановили бы день
+  s.yearly.nextEventDay = Number.MAX_SAFE_INTEGER; // и случайное письмо тоже
   return s;
 }
 

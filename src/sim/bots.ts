@@ -1,6 +1,7 @@
 // Боты для проверки баланса (NFR-2): играют через те же действия, что и игрок.
 
 import { newGame, releaseModel, setOnApi, setOnSubs, startReview } from './actions';
+import { EXTRA_EVENTS } from '../data/events';
 import { activeBenchmarks } from './benchmarks';
 import { availableGpus, pool, rentCapFor, rentMaxFor, rentPerGpuDay, setAllocation, setRent, totalH100e } from './compute';
 import { FAIL_ROLLBACK, RENT_OVER_CAP_MULT, ROUND_COOLDOWN_DAYS, TIER_API_PRICE_MULT, TRAIN_FLOP_PER_H100E_DAY } from './constants';
@@ -337,6 +338,10 @@ export interface BotResult {
  * до конца игры, - тогда «Продолжить» (модель слабее, но она выйдет).
  */
 export function botChoice(s: GameState, eventId: string | undefined): number {
+  // Новые письма (ранние заказы, история, случайные события) бот не разбирает: отвечает вариантом по умолчанию, как
+  // занятой игрок, - иначе поток небольших выгод сдвигал бы опоры баланса. Что они не ломают игру, проверяет random-events.test.ts.
+  const extra = EXTRA_EVENTS.find((e) => e.id === eventId);
+  if (extra?.choices) return extra.defaultChoice ?? extra.choices.length - 1;
   const t = s.trainings.find((r) => r.failed);
   if (eventId !== 'training-fail' || !t) return 0;
   const perDay = trainingPoolPerRun(s) * TRAIN_FLOP_PER_H100E_DAY;

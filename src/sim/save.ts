@@ -6,7 +6,7 @@ import { findEvent } from '../data/events';
 import { CHOICE_DAYS, FAIL_CHOICE_DAYS, HYPE_OWNERS, TIER_SUBS_PRICE } from './constants';
 import { DIFFICULTY_IDS, emptyRivalry, LEVERS, MOVE_IDS } from './rivalry';
 import type { ActiveMove, HistoryRow, LabMemory, PendingMove, RivalOverride, RivalryState } from './rivalry';
-import { emptyMarket, emptySegmentShares } from './state';
+import { emptyMarket, emptySegmentShares, emptyYearly } from './state';
 import { tierOf } from './training';
 import type {
   Contract,
@@ -26,6 +26,9 @@ import type {
   Tier,
   TrainingPlan,
   TrainingRun,
+  YearGoalState,
+  YearlyState,
+  YearReview,
 } from './types';
 import { BENCHMARK_IDS, DOMAINS, GPU_IDS, LAB_IDS, REVIEW_STATES, SEGMENT_IDS, TECH_IDS, TIER_IDS } from './types';
 
@@ -322,6 +325,33 @@ const rivalry = shapeOf<RivalryState>({
   shareHigh: record(LAB_IDS, num),
 });
 
+// Цели года, итоги и расписание случайных событий (sim/goals.ts, sim/randomEvents.ts).
+const yearGoal = shapeOf<YearGoalState>({ id: str, done: bool, doneDay: nullable(num), base: num });
+
+const yearReview = shapeOf<YearReview>({
+  year: int,
+  revenue: num,
+  expense: num,
+  models: int,
+  bestRank: nullable(num),
+  share: num,
+  goalsDone: int,
+  goalsTotal: int,
+  cash: num,
+  comment: str,
+  seen: bool,
+});
+
+const yearly = shapeOf<YearlyState>({
+  year: int,
+  goals: arrayOf(yearGoal),
+  reviews: arrayOf(yearReview),
+  rng: int,
+  nextEventDay: num,
+  eventUnit: nonNeg,
+  lastFired: dict(num),
+});
+
 /** Каждое поле GameState обязано быть здесь: добавили поле в тип, не добавили проверку - tsc не даст собрать. */
 const STATE: Record<keyof GameState, Check> = {
   version: literal(1),
@@ -373,6 +403,7 @@ const STATE: Record<keyof GameState, Check> = {
   tutorial: shapeOf<GameState['tutorial']>({ step: int, active: bool }),
   difficulty: oneOf(DIFFICULTY_IDS),
   rivalry,
+  yearly,
   market: shapeOf<GameState['market']>({
     shares: dict(num),
     labShares,
@@ -555,6 +586,9 @@ export function deserialize(json: string): { ok: true; state: GameState } | { ok
   // Сложность и соперники с характерами появились позже: старые сохранения идут на Обычной, соперники спокойны, накал 0.
   if (data.difficulty === undefined) data.difficulty = 'normal';
   if (data.rivalry === undefined) data.rivalry = emptyRivalry();
+  // Цели года и случайные события появились позже: старое сохранение получает цели текущего года на ближайшем тике
+  // и первое случайное письмо через 75 дней; свой поток случайных чисел берётся от зерна.
+  if (data.yearly === undefined && typeof data.seed === 'number') data.yearly = emptyYearly(data.seed, typeof data.day === 'number' ? data.day : 0);
   migrateContext(data);
   migrateMarketV2(data);
   migrateChoices(data);

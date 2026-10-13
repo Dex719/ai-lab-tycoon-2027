@@ -5,6 +5,7 @@ import { setAllocation, setRent } from './compute';
 import { SUBS_PRICE_MAX, SUBS_PRICE_MIN, TIER_SUBS_PRICE } from './constants';
 import { applyTender, cancelContract, setAutoApply } from './contracts';
 import { addMail, applyChoice, deferChoice, markRead } from './events';
+import { ackYearReview } from './goals';
 import { raiseRound } from './investors';
 import { releaseHypeBonus, updateSaturation } from './leaderboard';
 import { minPrice, subsOpen } from './market';
@@ -169,6 +170,7 @@ export function markAllRead(s: GameState): Result {
 }
 
 export {
+  ackYearReview,
   applyTender,
   cancelContract,
   cancelTraining,

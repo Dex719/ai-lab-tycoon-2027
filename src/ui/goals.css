@@ -1,0 +1,27 @@
+/* Цели года в боковой панели и окно «Итоги года». Отдельный файл: общие стили темы не трогаем. */
+.goal-head { padding: 8px 12px 6px; font-size: 16px; border-top: 3px solid var(--c-amber); display: flex; justify-content: space-between; align-items: baseline; }
+.goal-head .n { font-size: 13px; color: #a9acb2; font-variant-numeric: tabular-nums; }
+.goal-list { padding: 0 0 6px; border-bottom: 1px solid #36373c; }
+.goal-row { padding: 7px 12px 8px; border-left: 3px solid var(--c-amber); border-bottom: 1px solid #333439; font-size: 12px; color: #c4c7cc; cursor: pointer; }
+.goal-row:last-child { border-bottom: none; }
+.goal-row .gt { color: #fff; font-size: 14px; line-height: 1.3; }
+.goal-row .gp { margin-top: 2px; }
+.goal-row .gr { margin-top: 2px; color: var(--c-amber); }
+.goal-row .gr.ok { color: var(--good-on-dark); }
+.goal-row.done { border-left-color: var(--c-green); }
+.goal-row.done .gt::before { content: '✓ '; color: var(--good-on-dark); font-weight: 700; }
+.goal-row .goal-bar { height: 4px; background: #3a3b40; margin-top: 5px; border-radius: 2px; overflow: hidden; }
+.goal-row .goal-bar > div { height: 100%; background: var(--c-amber); }
+.goal-row.done .goal-bar > div { background: var(--c-green); }
+
+.year-dialog { width: min(540px, calc(100vw - 32px)); }
+.year-dialog .titlebar { border-top: 3px solid var(--c-amber); }
+.year-comment { margin: 0 0 14px; padding: 9px 12px; background: #fff5dc; border-left: 4px solid var(--c-amber); color: #4a3a10; font-size: 14px; }
+.year-kv { margin-bottom: 14px; }
+.year-kv .good { color: #17803d; font-weight: 600; }
+.year-kv .bad { color: #b3261e; font-weight: 600; }
+.year-next { margin: 4px 0 6px; font-size: 15px; font-weight: 600; }
+.year-goal { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid #e2e4e8; font-size: 13px; }
+.year-goal:last-child { border-bottom: none; }
+.year-goal .rw { color: var(--text-dim); white-space: nowrap; }
+.year-done { color: #17803d; font-weight: 600; }

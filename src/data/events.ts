@@ -32,10 +32,15 @@ import { applyFailChoice } from '../sim/training';
 import type { GameState, GpuDef, HypeOwner, Mail, PlayerModel } from '../sim/types';
 import { GPUS } from './gpus';
 import { LABS } from './labs';
+import { EARLY_EVENTS } from './earlyEvents';
+import { HISTORY_EVENTS } from './historyEvents';
+import { RANDOM_EVENTS } from './randomEvents';
 
 export interface EventChoiceDef {
   label: string;
   hint: string; // коротко, что будет: «+15 репутации, −$200 тыс.»
+  /** Подсказка для сумм, которые зависят от года: считается при отправке письма и заменяет hint (тогда hint пустой). */
+  hintFn?: (s: GameState) => string;
   apply: (s: GameState) => void;
 }
 
@@ -48,6 +53,11 @@ export interface EventDef {
   mail: (s: GameState) => { title: string; body: string; kind: Mail['kind'] };
   onFire?: (s: GameState) => void;
   choices?: EventChoiceDef[];
+  /**
+   * Случайное событие с выбором: письмо приходит само (sim/randomEvents.ts), а не по дате. weight - вес в жребии
+   * (0 - сейчас не подходит); cooldown - сколько дней до повтора (по умолчанию RANDOM_COOLDOWN_DAYS); once - только раз за игру.
+   */
+  random?: { weight: (s: GameState) => number; cooldown?: number; once?: boolean };
   /** Сколько дней можно отложить ответ (по умолчанию CHOICE_DAYS). */
   choiceDays?: number;
   /** Вариант, который выберется сам по истечении срока (по умолчанию последний). */
@@ -550,10 +560,16 @@ export const EVENTS: EventDef[] = [
 ];
 
 /**
+ * Ранние заказы и гранты 2017-2019, ещё события 2017-2024 и случайные письма с выбором (отдельные файлы).
+ * Их запускает sim/randomEvents.ts (в окне своей даты или по жребию), а не fireDue: EVENTS остаётся прежним набором.
+ */
+export const EXTRA_EVENTS: EventDef[] = [...EARLY_EVENTS, ...HISTORY_EVENTS, ...RANDOM_EVENTS];
+
+/**
  * Событие по id: сначала EVENTS, затем письма с выбором соперников (RIVALRY_EVENTS из sim/rivalry.ts).
  * В EVENTS их не вписываем: модули зациклены (sim/events → data/events → sim/rivalry → sim/events), и на верхнем
  * уровне массив соперников ещё не создан. Запускает такие письма сам rivalry.ts; fireDue их не трогает.
  */
 export function findEvent(id: string | undefined): EventDef | undefined {
-  return EVENTS.find((e) => e.id === id) ?? RIVALRY_EVENTS.find((e) => e.id === id);
+  return EVENTS.find((e) => e.id === id) ?? EXTRA_EVENTS.find((e) => e.id === id) ?? RIVALRY_EVENTS.find((e) => e.id === id);
 }

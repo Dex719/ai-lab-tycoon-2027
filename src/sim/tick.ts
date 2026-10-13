@@ -5,12 +5,14 @@ import { generateMonthly, progressDay as contractsDay } from './contracts';
 import { introduceDue } from './benchmarks';
 import { expireChoices, fireDue, pendingChoice, pruneModifiers } from './events';
 import { beginDay, closeMonth, dayStep as financeDay } from './finance';
+import { goalsDay, yearEnd } from './goals';
 import { marketArenaRank, updateSaturation } from './leaderboard';
 import { dayStep as marketDay } from './market';
+import { randomEventDay } from './randomEvents';
 import { progressDay as researchDay } from './research';
 import { releaseDue } from './rivals';
 import { rivalryDay, rivalryMonth } from './rivalry';
-import { END_DAY, isMonthStart } from './time';
+import { dayToDate, END_DAY, isMonthStart } from './time';
 import { monthlyExposure, progressDay as trainingDay, reviewDay } from './training';
 import type { GameState } from './types';
 
@@ -45,6 +47,8 @@ export function advanceDay(s: GameState): void {
   rivalryDay(s); // ходы соперников по слухам, память, истечение ходов; ответные модели попадают в rivalsReleased
   expireChoices(s);
   fireDue(s);
+  randomEventDay(s); // случайное письмо с выбором: своё расписание и свой поток случайных чисел
+  goalsDay(s); // цели года: выдача в начале года и проверка выполнения
 
   researchDay(s);
   trainingDay(s);
@@ -66,6 +70,7 @@ export function advanceDay(s: GameState): void {
     rivalryMonth(s);
     updateSaturation(s);
     pruneModifiers(s);
+    if (dayToDate(s.day).month === 12) yearEnd(s); // 31 декабря: итоги года и цели следующего
   }
 
   if (s.outcome) return; // банкротство

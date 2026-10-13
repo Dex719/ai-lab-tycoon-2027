@@ -598,14 +598,14 @@ const OPTIONAL_FIELDS = new Set([
   'deferred', 'autoChosen', 'context', 'contextLevel', 'earned', 'monthsFirst', 'autoApply', 'difficulty', 'rivalry',
   'tier', 'onSubs', 'subsPrice', 'review', 'reviewEndDay', 'earnedSubs', 'subs', 'subscribers', 'playerSubs', 'totalSubs',
   'lostApi', 'lostSubs', 'segments', 'consumers', 'enterprise', 'developers', 'trainings', 'nextRunNum',
-  'techs', 'distill', 'moe', 'codetrain', 'instruct', 'cot', 'quant', 'multimodal', 'synthetic',
+  'techs', 'distill', 'moe', 'codetrain', 'instruct', 'cot', 'quant', 'multimodal', 'synthetic', 'yearly',
 ]);
 /** Необязательные поля по полному пути: имя поля (modelId, price) в других местах обязательно. */
 const OPTIONAL_PATHS = new Set(['tenders[].application.work', 'contracts[].tender.application.work', 'rivalry.pending[].modelId', 'rivalry.choice.modelId']);
 /** Поправки к модели соперника (rivalry.overrides.<id>.*) все необязательные. */
 const optionalPath = (norm: string): boolean => OPTIONAL_PATHS.has(norm) || /^rivalry\.overrides\.[^.]+\.[^.]+$/.test(norm);
 const DICTS = new Set([
-  'flags', 'market.shares', 'models[].overfit', 'rivalry.moveCooldown', 'rivalry.overrides', 'rivalry.extra',
+  'flags', 'yearly.lastFired', 'market.shares', 'models[].overfit', 'rivalry.moveCooldown', 'rivalry.overrides', 'rivalry.extra',
   'market.segments.consumers.shares', 'market.segments.enterprise.shares', 'market.segments.developers.shares',
 ]);
 
