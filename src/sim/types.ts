@@ -335,6 +335,41 @@ export interface Datacenter {
   orders: DcOrder[];
 }
 
+/** Цель года: состояние (описание, награда и проверка - в data/goals.ts). */
+export interface YearGoalState {
+  id: string;
+  done: boolean;
+  doneDay: number | null;
+  /** Значение показателя на начало года (число выпущенных моделей и т. п.), от него считается «за год». */
+  base: number;
+}
+
+/** Итоги года: цифры считаются в последний день года, окно показывается один раз. */
+export interface YearReview {
+  year: number;
+  revenue: number; // API + подписки + контракты за год, $
+  expense: number; // все расходы за год, $
+  models: number; // моделей выпущено за год
+  bestRank: number | null; // лучшее место среди моделей в продаже на конец года
+  share: number; // общая доля рынка игрока на конец года, 0..1
+  goalsDone: number;
+  goalsTotal: number;
+  cash: number;
+  comment: string;
+  seen: boolean;
+}
+
+/** Цели года, итоги и случайные события с выбором. Свой поток случайных чисел: основной поток игры не сдвигается. */
+export interface YearlyState {
+  year: number; // год текущих целей; 0 - целей ещё нет
+  goals: YearGoalState[];
+  reviews: YearReview[];
+  rng: number; // состояние mulberry32 случайных событий
+  nextEventDay: number; // день, начиная с которого может прийти следующее случайное письмо с выбором
+  eventUnit: number; // денежная единица последнего случайного письма: $ за 1 «u» в подсказках и эффектах
+  lastFired: Record<string, number>; // id случайного события -> день последнего письма
+}
+
 export interface GameState {
   version: 1;
   seed: number;
@@ -392,6 +427,8 @@ export interface GameState {
   difficulty: Difficulty;
   /** Соперники с характерами: накал, ходы, поправки к моделям, память (rivalry.ts). */
   rivalry: RivalryState;
+  /** Цели года, итоги года и расписание случайных событий (sim/goals.ts, sim/randomEvents.ts). */
+  yearly: YearlyState;
   market: {
     shares: Record<string, number>; // ключ: 'player:<id>' | 'rival:<id>' | 'none'; общие доли (взвешенные по выручке сегментов), после ограничения мощностью
     labShares: Record<HypeOwner | 'none', number>; // общие, после ограничения мощностью

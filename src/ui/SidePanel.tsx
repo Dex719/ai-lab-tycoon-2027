@@ -16,6 +16,7 @@ import type { GameState } from '../sim/types';
 import { ProgressBar } from './components/common';
 import { fmtH100e, fmtMoney, fmtNum, fmtPrice, fmtShare } from './format';
 import { IconChevronLeft, IconChevronRight } from './icons';
+import { GoalsPanel } from './GoalsPanel';
 import { fmtRank, reviewNote } from './labels';
 import type { Viewport } from './viewport';
 import type { WindowAlias, WindowId } from './windows';
@@ -268,6 +269,7 @@ export function SidePanel({
       <div className="side-head">Сводка</div>
       <Goal s={s} open={open} />
       <Idle items={idleCompute(s)} open={open} />
+      <GoalsPanel s={s} open={open} />
       <div className="side-tabs">
         <button className={tab === 'projects' ? 'on' : undefined} onClick={() => setTab('projects')}>
           Проекты: {projects}

@@ -73,7 +73,7 @@ export function triggerEvent(s: GameState, id: string): void {
   const added = addMail(s, {
     ...mail,
     eventId: def.choices ? id : undefined,
-    choices: def.choices?.map((c) => ({ label: c.label, hint: c.hint })),
+    choices: def.choices?.map((c) => ({ label: c.label, hint: c.hintFn ? c.hintFn(s) : c.hint })),
   });
   if (def.choices) {
     added.replyByDay = s.day + (def.choiceDays ?? CHOICE_DAYS);

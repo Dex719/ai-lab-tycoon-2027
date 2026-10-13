@@ -48,6 +48,12 @@ export function emptyMarket(): GameState['market'] {
   };
 }
 
+/** Цели и случайные события: свой поток случайных чисел, производный от зерна (основной поток не трогаем). */
+export function emptyYearly(seed: number, day = 0): GameState['yearly'] {
+  const rng = (seed ^ 0x9e3779b9) >>> 0;
+  return { year: 0, goals: [], reviews: [], rng, nextEventDay: day + 75, eventUnit: 0, lastFired: {} };
+}
+
 export function createInitialState(labName: string, seed: number, difficulty: Difficulty = 'normal'): GameState {
   const hype = Object.fromEntries(HYPE_OWNERS.map((o) => [o, 0])) as Record<HypeOwner, number>;
   const benchmarks = Object.fromEntries(
@@ -90,6 +96,7 @@ export function createInitialState(labName: string, seed: number, difficulty: Di
     tutorial: { step: 0, active: false },
     difficulty,
     rivalry: emptyRivalry(),
+    yearly: emptyYearly(seed),
     market: emptyMarket(),
   };
 }

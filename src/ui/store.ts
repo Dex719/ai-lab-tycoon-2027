@@ -5,6 +5,7 @@ import { useSyncExternalStore } from 'react';
 import * as actions from '../sim/actions';
 import { TICK_MS } from '../sim/constants';
 import type { Difficulty } from '../sim/rivalry';
+import { unseenReview } from '../sim/goals';
 import { advanceDay, advanceDays, blockedByChoice } from '../sim/tick';
 import type { GameState, Result, Speed } from '../sim/types';
 import { readSlot, writeSlot, type SlotId } from './saves';
@@ -105,7 +106,7 @@ export class GameStore {
   /** Пауза/продолжение. В законченной игре и пока в почте ждёт выбор, часы не трогаем. */
   togglePause(): void {
     const s = this.state;
-    if (!s || s.outcome || blockedByChoice(s)) return;
+    if (!s || s.outcome || blockedByChoice(s) || unseenReview(s)) return;
     this.setSpeed(this.speed === 0 ? this.lastSpeed : 0);
   }
 
@@ -123,7 +124,7 @@ export class GameStore {
       this.setSpeed(0);
       return;
     }
-    if (blockedByChoice(s)) return; // ждём выбора в почте, скорость сохраняется
+    if (blockedByChoice(s) || unseenReview(s)) return; // ждём выбора в почте или закрытия итогов года, скорость сохраняется
     const mark = this.markAdvance(s);
     advanceDay(s);
     this.afterAdvance(mark);
@@ -169,6 +170,9 @@ export class GameStore {
     }
     if (s.outcome) {
       this.setSpeed(0);
+    } else if (this.speed !== 0 && unseenReview(s)) {
+      this.pauseReason = 'Итоги года';
+      this.setSpeed(0); // окно итогов года показывается один раз; lastSpeed сохраняется
     } else if (mark && this.speed !== 0 && getSettings().pauseOnImportant) {
       const reason = this.alertReason(s, mark);
       if (reason !== null) {
