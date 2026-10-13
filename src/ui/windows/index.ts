@@ -18,13 +18,14 @@ import {
 import AnalyticsWindow from './AnalyticsWindow';
 import ComputeWindow from './ComputeWindow';
 import ContractsWindow from './ContractsWindow';
+import DatacentersWindow from './DatacentersWindow';
 import InvestorsWindow from './InvestorsWindow';
 import MailWindow from './MailWindow';
 import ModelsWindow from './ModelsWindow';
 import ResearchWindow from './ResearchWindow';
 import TrainingWindow from './TrainingWindow';
 
-export type WindowId = 'research' | 'compute' | 'newModel' | 'contracts' | 'investors' | 'models' | 'mail' | 'analytics';
+export type WindowId = 'research' | 'compute' | 'newModel' | 'contracts' | 'investors' | 'models' | 'mail' | 'analytics' | 'datacenters';
 
 /** Старые имена окон (до редизайна) - чтобы ссылки open('training') и т. п. продолжали работать. */
 export type WindowAlias = 'training' | 'market' | 'finance' | 'ratings';
@@ -50,6 +51,11 @@ export interface WindowDef {
   w: number;
   h: number;
   Component: ComponentType<WindowProps>;
+  /**
+   * Раздел, который открывается по ходу игры: день открытия или null - ярлыка ещё нет (будущее не раскрываем).
+   * Первые дни после открытия у ярлыка значок «Новое».
+   */
+  openedDay?: (s: GameState) => number | null;
 }
 
 export const WINDOWS: WindowDef[] = [
@@ -58,6 +64,16 @@ export const WINDOWS: WindowDef[] = [
   { id: 'newModel', title: 'Новая модель', icon: IconNewModel, side: 'left', w: 1000, h: 640, Component: TrainingWindow },
   { id: 'contracts', title: 'Контракты', icon: IconContracts, side: 'left', w: 1000, h: 620, Component: ContractsWindow },
   { id: 'investors', title: 'Инвесторы', icon: IconInvestors, side: 'left', w: 720, h: 560, Component: InvestorsWindow },
+  {
+    id: 'datacenters',
+    title: 'Дата-центры',
+    icon: IconDatacenters,
+    side: 'left',
+    w: 1000,
+    h: 640,
+    Component: DatacentersWindow,
+    openedDay: (s) => s.datacenters.unlockedDay,
+  },
   { id: 'models', title: 'Модели', icon: IconModels, side: 'right', w: 900, h: 620, Component: ModelsWindow },
   { id: 'mail', title: 'Почта', icon: IconMail, side: 'right', w: 820, h: 520, Component: MailWindow },
   { id: 'analytics', title: 'Аналитика', icon: IconAnalytics, side: 'right', w: 1100, h: 660, Component: AnalyticsWindow },
@@ -65,7 +81,6 @@ export const WINDOWS: WindowDef[] = [
 
 /** Разделы следующих версий: показаны серыми, как закрытые иконки в Processor Tycoon. */
 export const LOCKED: { title: string; icon: IconComponent }[] = [
-  { title: 'Дата-центры', icon: IconDatacenters },
   { title: 'Команда', icon: IconTeam },
   { title: 'Безопасность', icon: IconSafety },
 ];

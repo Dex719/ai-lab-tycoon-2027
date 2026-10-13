@@ -2,6 +2,7 @@
 // При загрузке форма состояния проверяется целиком, до самых вложенных полей: сохранение от старой версии игры
 // или битый файл отклоняются понятной ошибкой, а не роняют тик и отрисовку позже (например, нет нового бенчмарка).
 
+import { DC_SITE_IDS } from '../data/datacenters';
 import { findEvent } from '../data/events';
 import { CHOICE_DAYS, FAIL_CHOICE_DAYS, HYPE_OWNERS, TIER_SUBS_PRICE } from './constants';
 import { DIFFICULTY_IDS, emptyRivalry, LEVERS, MOVE_IDS } from './rivalry';
@@ -10,6 +11,8 @@ import { emptyMarket, emptySegmentShares } from './state';
 import { tierOf } from './training';
 import type {
   Contract,
+  Datacenter,
+  DcOrder,
   ExpenseKind,
   GameState,
   IncomeKind,
@@ -258,7 +261,15 @@ const modifier = shapeOf<Modifier>({
 });
 
 const income = shapeOf<Record<IncomeKind, number>>({ api: num, subs: num, contracts: num, investors: num });
-const expense = shapeOf<Record<ExpenseKind, number>>({ rent: num, overhead: num, labelers: num, penalties: num, review: num });
+const expense = shapeOf<Record<ExpenseKind, number>>({
+  rent: num,
+  overhead: num,
+  labelers: num,
+  penalties: num,
+  review: num,
+  capex: num,
+  power: num,
+});
 
 const ledger = shapeOf<MonthLedger>({ income, expense });
 
@@ -322,6 +333,22 @@ const rivalry = shapeOf<RivalryState>({
   shareHigh: record(LAB_IDS, num),
 });
 
+// Свои дата-центры (datacenters.ts).
+const dcOrder = shapeOf<DcOrder>({ gpu: oneOf(GPU_IDS), count: int, arriveDay: num });
+
+const datacenter = shapeOf<Datacenter>({
+  site: oneOf(DC_SITE_IDS),
+  mw: num,
+  startedDay: num,
+  stage: int,
+  stageEndDay: num,
+  delayDays: num,
+  stageDelay: num,
+  paid: num,
+  gpus: record(GPU_IDS, int),
+  orders: arrayOf(dcOrder),
+});
+
 /** Каждое поле GameState обязано быть здесь: добавили поле в тип, не добавили проверку - tsc не даст собрать. */
 const STATE: Record<keyof GameState, Check> = {
   version: literal(1),
@@ -341,6 +368,7 @@ const STATE: Record<keyof GameState, Check> = {
     rented: record(GPU_IDS, nonNeg),
     alloc: shapeOf<GameState['compute']['alloc']>({ training: nonNeg, contracts: nonNeg, experiments: nonNeg, api: nonNeg, subs: nonNeg }),
   }),
+  datacenters: shapeOf<GameState['datacenters']>({ unlockedDay: nullable(num), list: arrayOf(datacenter) }),
   research: shapeOf<GameState['research']>({
     current: nullable(oneOf(TECH_IDS)),
     points: record(TECH_IDS, num),
@@ -513,6 +541,9 @@ function migrateMarketV2(data: Record<string, unknown>): void {
     if (!isRec(l)) return;
     if (isRec(l.income) && l.income.subs === undefined) l.income.subs = 0;
     if (isRec(l.expense) && l.expense.review === undefined) l.expense.review = 0;
+    // Дата-центры появились позже: статьи стройки и электричества - нулями.
+    if (isRec(l.expense) && l.expense.capex === undefined) l.expense.capex = 0;
+    if (isRec(l.expense) && l.expense.power === undefined) l.expense.power = 0;
   };
   const finance = data.finance;
   if (isRec(finance)) {
@@ -555,6 +586,8 @@ export function deserialize(json: string): { ok: true; state: GameState } | { ok
   // Сложность и соперники с характерами появились позже: старые сохранения идут на Обычной, соперники спокойны, накал 0.
   if (data.difficulty === undefined) data.difficulty = 'normal';
   if (data.rivalry === undefined) data.rivalry = emptyRivalry();
+  // Свои дата-центры появились позже: функция откроется по обычному правилу (datacenters.checkUnlock), построек нет.
+  if (data.datacenters === undefined) data.datacenters = { unlockedDay: null, list: [] };
   migrateContext(data);
   migrateMarketV2(data);
   migrateChoices(data);

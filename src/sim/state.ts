@@ -9,7 +9,7 @@ import { BENCHMARK_IDS, SEGMENT_IDS, TECH_IDS } from './types';
 export function emptyLedger(): MonthLedger {
   return {
     income: { api: 0, subs: 0, contracts: 0, investors: 0 },
-    expense: { rent: 0, overhead: 0, labelers: 0, penalties: 0, review: 0 },
+    expense: { rent: 0, overhead: 0, labelers: 0, penalties: 0, review: 0, capex: 0, power: 0 },
   };
 }
 
@@ -68,6 +68,7 @@ export function createInitialState(labName: string, seed: number, difficulty: Di
     monthsFirst: 0,
     hype,
     compute: { rented: { p100: 0, v100: 0, a100: 0, h100: 0, h200: 0 }, alloc: { ...DEFAULT_ALLOC } },
+    datacenters: { unlockedDay: null, list: [] },
     research: { current: null, points: emptyTechPoints(), done: [], algoLevel: 0, contextLevel: 0 },
     trainings: [],
     nextRunNum: 1,

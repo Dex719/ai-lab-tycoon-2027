@@ -2,6 +2,7 @@
 
 import { newGame, releaseModel, setOnApi, setOnSubs, startReview } from './actions';
 import { activeBenchmarks } from './benchmarks';
+import { botDatacenters } from './botsDatacenters';
 import { availableGpus, pool, rentCapFor, rentMaxFor, rentPerGpuDay, setAllocation, setRent, totalH100e } from './compute';
 import { FAIL_ROLLBACK, RENT_OVER_CAP_MULT, ROUND_COOLDOWN_DAYS, TIER_API_PRICE_MULT, TRAIN_FLOP_PER_H100E_DAY } from './constants';
 import { applyTender, canApply, contractWorkFor } from './contracts';
@@ -319,6 +320,7 @@ export function botAct(s: GameState, kind: BotKind): void {
   botPriceReflex(s);
   const tech = nextTech(s);
   if (s.research.current !== tech && canResearch(s, tech)) setResearch(s, tech);
+  if (kind !== 'benchmaxx') botDatacenters(s, kind); // свои дата-центры: стройка и карты до аренды, аренда считается от остатка денег
   manageRent(s, p);
   manageTraining(s, p);
   manageModels(s);

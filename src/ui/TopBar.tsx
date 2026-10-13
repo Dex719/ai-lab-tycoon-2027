@@ -4,6 +4,7 @@ import { useEffect, useState , type ReactElement } from 'react';
 import { pendingChoice } from '../sim/events';
 import { overheadPerDay } from '../sim/finance';
 import { rentPerDay } from '../sim/compute';
+import { dcCostPerDay } from '../sim/datacenters';
 import { playerBestArenaRank } from '../sim/tick';
 import { formatDateShort } from '../sim/time';
 import type { GameState, Speed } from '../sim/types';
@@ -25,10 +26,10 @@ function monthlyRate(s: GameState): number {
   const h = s.finance.history.at(-1);
   if (h) {
     const inc = h.income.api + h.income.subs + h.income.contracts;
-    const exp = h.expense.rent + h.expense.overhead + h.expense.labelers + h.expense.penalties + h.expense.review;
+    const exp = EXPENSE_KINDS.reduce((sum, k) => sum + (h.expense[k] ?? 0), 0);
     return inc - exp;
   }
-  return -(rentPerDay(s) + overheadPerDay(s)) * 30;
+  return -(rentPerDay(s) + overheadPerDay(s) + dcCostPerDay(s)) * 30;
 }
 
 function MoneyPopup({ s }: { s: GameState }) {
