@@ -390,7 +390,7 @@ function Hero(props: {
       <div className="rs-kpi rs-kpi-main">
         {focus ? <Ring id={focus} share={current ? progressOf(s, current) : 0} dim={!current} /> : null}
         <div className="rs-kpi-body">
-          <div className={`rs-kpi-l${current ? '' : ' warn'}`}>{current ? 'Изучается' : 'Исследование не выбрано'}</div>
+          <div className={`rs-kpi-l${current ? '' : ' warn'}`}>{current ? 'Текущее исследование' : 'Исследование не выбрано'}</div>
           {focus ? (
             <>
               <div className="rs-hero-name">{techName(focus)}</div>
@@ -412,7 +412,7 @@ function Hero(props: {
         )}
       </div>
       <div className="rs-kpi">
-        <div className="rs-kpi-l">{current ? 'Готово через' : 'Займёт'}</div>
+        <div className="rs-kpi-l">{current ? 'До готовности' : 'Срок'}</div>
         <div className="rs-kpi-v">{focus ? termText(days) : '-'}</div>
         <div className="rs-kpi-s">{focus && Number.isFinite(days) ? `к ${formatDateShort(s.day + Math.max(1, days))}` : ' '}</div>
       </div>

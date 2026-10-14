@@ -77,7 +77,7 @@ function ControlBar({ share, sell }: { share: number; sell: number | null }) {
         <i className="inv-ctl-mark" style={{ left: pct(FOUNDER_WARN_SHARE) }} />
         <i className="inv-ctl-mark" style={{ left: pct(FOUNDER_BOARD_SHARE) }} />
         <span className="inv-ctl-inv" style={{ left: pct(share) }}>
-          {share < 0.97 ? `инвесторы ${fmtShare(1 - share, 0)}` : ''}
+          {share >= 0.97 ? '' : share > 0.7 ? fmtShare(1 - share, 0) : `инвесторы ${fmtShare(1 - share, 0)}`}
         </span>
       </div>
       <div className="inv-zones">

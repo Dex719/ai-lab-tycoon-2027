@@ -12,7 +12,7 @@ import { modelScore } from '../../sim/training';
 import type { Contract, GameState, PlayerModel, Tender } from '../../sim/types';
 import { Cards } from '../components/Cards';
 import { Alert, ConfirmDialog, ErrorText, GuardButton, ProgressBar } from '../components/common';
-import { endSentence, fmtDays, fmtH100e, fmtMoney, fmtNum, fmtPct, fmtShare } from '../format';
+import { endSentence, fmtDays, fmtH100e, fmtMoney, fmtPct, fmtShare } from '../format';
 import { IconAlert, IconCheck, IconChevronLeft } from '../icons';
 import { ClientEmblem, clientColor } from '../icons/clients';
 import { actions, store } from '../store';
@@ -40,11 +40,6 @@ function typeLabel(t: Tender): string {
   return t.type === 'rlhf' ? 'RLHF' : 'Дообучение';
 }
 
-/** Объём работы: «20 H100e-дн.», «12,5 тыс. H100e-дн.» */
-function workDays(n: number): string {
-  return `${fmtNum(n)} H100e-дн.`;
-}
-
 /** Мощность: «0,33 H100e в день», «1,2 тыс. H100e в день» */
 function perDay(n: number): string {
   return `${fmtH100e(n)} H100e в день`;
@@ -55,11 +50,19 @@ function isTrap(m: PlayerModel, t: Tender): boolean {
   return modelScore(m, t.benchmark, false) >= t.requirement && modelScore(m, t.benchmark, true) < t.requirement;
 }
 
-/** Модели, которыми можно подать заявку: сначала с честным баллом выше требования, затем по шансу. */
+/**
+ * Модели, которыми можно подать заявку: сначала с честным баллом выше требования, затем с большим шансом,
+ * при равном шансе - с меньшим объёмом работы (меньше нужно мощности).
+ */
 function suitableModels(s: GameState, t: Tender, released: PlayerModel[]): PlayerModel[] {
   return released
     .filter((m) => canApply(s, t, m) === null)
-    .sort((a, b) => Number(isTrap(a, t)) - Number(isTrap(b, t)) || applyChance(s, t, b) - applyChance(s, t, a));
+    .sort(
+      (a, b) =>
+        Number(isTrap(a, t)) - Number(isTrap(b, t)) ||
+        applyChance(s, t, b) - applyChance(s, t, a) ||
+        contractWorkFor(s, t, a) - contractWorkFor(s, t, b),
+    );
 }
 
 /** Выпущенная модель с наибольшим показанным баллом: её показываем, если ни одна не подходит. */
@@ -74,24 +77,16 @@ interface Best {
   lightId: string | null; // у модели меньше всего работы
 }
 
-/** Лучшие среди подходящих моделей: с наибольшим шансом победы и с наименьшим объёмом работы. */
+/** Лучшие среди подходящих моделей: с наибольшим шансом победы и с наименьшим объёмом работы (только если лучшая одна). */
 function bestPicks(s: GameState, t: Tender, suitable: PlayerModel[]): Best {
   const best: Best = { chanceId: null, lightId: null };
   if (suitable.length < 2) return best;
-  let bestChance = -Infinity;
-  let bestWork = Infinity;
-  for (const m of suitable) {
-    const c = applyChance(s, t, m);
-    const w = contractWorkFor(s, t, m);
-    if (c > bestChance) {
-      bestChance = c;
-      best.chanceId = m.id;
-    }
-    if (w < bestWork) {
-      bestWork = w;
-      best.lightId = m.id;
-    }
-  }
+  const unique = (key: (m: PlayerModel) => number): string | null => {
+    const vals = suitable.map((m) => ({ id: m.id, v: key(m) })).sort((a, b) => b.v - a.v);
+    return vals[0].v - vals[1].v > 1e-9 ? vals[0].id : null;
+  };
+  best.chanceId = unique((m) => applyChance(s, t, m));
+  best.lightId = unique((m) => -contractWorkFor(s, t, m));
   return best;
 }
 
@@ -178,7 +173,7 @@ function TenderItem({ s, t, released, on, onPick }: { s: GameState; t: Tender; r
         <span className="ct-ticket-name">{clientName(t.clientId)}</span>
         <span className="ct-ticket-sub">
           {t.type === 'rlhf' && <span className="ct-rlhf">RLHF</span>}
-          {benchDef(t.benchmark).name} от {fmtPct(t.requirement, 0)} · {fmtDays(left)}
+          {benchDef(t.benchmark).name} от {fmtPct(t.requirement, 0)} · ещё {fmtDays(left)}
         </span>
       </span>
       <span className="ct-ticket-end">
@@ -248,6 +243,11 @@ function Kpi({ label, value, sub, tone }: { label: string; value: ReactNode; sub
   );
 }
 
+/** Подпись над точкой шкалы: у краёв прижимается внутрь, чтобы не вылезать за шкалу. */
+function edgeShift(pct: number): string {
+  return pct > 88 ? 'translateX(-100%)' : pct < 12 ? 'none' : 'translateX(-50%)';
+}
+
 /** Шкала 0-100 %: заливка до балла модели, отметка требования, полая отметка балла без подгонки. */
 function ScoreGauge({ req, shown, honest }: { req: number; shown: number | null; honest: number | null }) {
   const clamp = (x: number) => Math.max(0, Math.min(100, x));
@@ -255,7 +255,7 @@ function ScoreGauge({ req, shown, honest }: { req: number; shown: number | null;
   const gap = shown !== null && honest !== null && Math.abs(shown - honest) > 0.05;
   return (
     <div className="ct-gauge" role="img" aria-label={`Требование ${fmtPct(req, 0)}${shown !== null ? `, балл модели ${fmtPct(shown)}` : ''}`}>
-      <div className="ct-g-req" style={{ left: `${clamp(req)}%` }}>
+      <div className="ct-g-req" style={{ left: `${clamp(req)}%`, transform: edgeShift(clamp(req)) }}>
         <span>нужно {fmtPct(req, 0)}</span>
       </div>
       <div className="ct-g-track">
@@ -265,7 +265,7 @@ function ScoreGauge({ req, shown, honest }: { req: number; shown: number | null;
       </div>
       <div className="ct-g-labels">
         {shown !== null && (
-          <span className={`ct-g-shown ${pass ? 'pass' : 'fail'}`} style={{ left: `${clamp(shown)}%` }}>
+          <span className={`ct-g-shown ${pass ? 'pass' : 'fail'}`} style={{ left: `${clamp(shown)}%`, transform: edgeShift(clamp(shown)) }}>
             {fmtPct(shown)}
           </span>
         )}
@@ -452,9 +452,7 @@ function TenderCard(props: {
               <dd>{fmtMoney(labelers)}</dd>
             </>
           )}
-          <dt title="Зависит от размера модели: у маленькой работы меньше, у большой больше">Объём работы</dt>
-          <dd>{workDays(work)}</dd>
-          <dt title={`Объём работы, делённый на срок. Сейчас на контракты выделено ${perDay(contractsPool)}`}>Мощность в день</dt>
+          <dt title={`Зависит от размера модели: маленькой нужно меньше. Сейчас на контракты выделено ${perDay(contractsPool)}`}>Нужно мощности</dt>
           <dd className={needed > contractsPool ? 'warn' : ''}>
             {perDay(needed)}
             <Cards s={s} h100e={needed} />
@@ -528,7 +526,7 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
       >
         <Kpi label="Оплата после сдачи" value={fmtMoney(t.payment)} tone="gold" sub={<span className="down">штраф {fmtMoney(t.penalty)}</span>} />
         <Kpi
-          label="Готово"
+          label="Готовность"
           value={fmtPct(info.progress * 100, 0)}
           sub={
             <span className="ct-kpi-bar">
@@ -553,14 +551,12 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
         </section>
 
         <dl className="ct-terms">
-          <dt>Осталось работы</dt>
-          <dd>{workDays(info.remaining)}</dd>
-          <dt title="Столько мощности в день нужно, чтобы закончить работу к сроку">Нужно в день</dt>
+          <dt title="Столько мощности в день нужно, чтобы закончить работу к сроку">Нужно</dt>
           <dd>
             {perDay(info.need)}
             <Cards s={s} h100e={info.need} />
           </dd>
-          <dt title="Доля «Контракты» из окна «Мощности», поровну между контрактами">Выделено в день</dt>
+          <dt title="Доля «Контракты» из окна «Мощности», поровну между контрактами">Выделено</dt>
           <dd className={supplyTone(info.share, info.need)}>
             {perDay(info.share)}
             <Cards s={s} h100e={info.share} />

@@ -234,11 +234,15 @@
 }
 @container (max-width: 640px) {
   .rs-body { flex-direction: column; overflow: auto; }
-  .rs-side { flex: none; border-left: none; border-top: 1px solid var(--line); }
+  .rs-side { order: -1; flex: none; border-left: none; border-bottom: 1px solid var(--line); }
   .rs-side-list { overflow: visible; }
   .rs-mapwrap { flex: none; }
   .rs-mapscroll { flex: none; overflow-x: auto; overflow-y: hidden; }
   .rs-kpi-main { flex-wrap: wrap; }
+  .rs-kpi { padding: 10px 12px; }
+  .rs-kpi-v { font-size: 20px; white-space: normal; }
+  .rs-hero-name { font-size: 18px; white-space: normal; }
+  .rs-hero-btns { flex-wrap: wrap; }
 }
 
 @media (prefers-reduced-motion: reduce) {
