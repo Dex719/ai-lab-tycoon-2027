@@ -182,19 +182,8 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   /* ----- Окна: общее ----- */
   .m-back { display: inline-flex; flex: none; align-self: flex-start; margin: 8px 10px 0; background: #fff; }
 
-  /* Исследования */
-  .rs-head { flex-wrap: wrap; gap: 2px 10px; padding: 4px 10px; min-height: 0; }
-  .rs-title { display: none; }
-  .rs-zoom { flex: 1 1 100%; }
-  .rs-zoom .btn.small { min-width: 40px; }
-  .rs-zoom .btn.small:last-child { margin-left: auto; }
-  .rs-state { flex: 1 1 100%; margin-left: 0; justify-content: space-between; }
-  .rs-rp { flex: 1 1 100%; margin-left: 0; }
-  .rs-hints { display: none; }
-  .rs-legend { display: none; }
-  .rs-bar { height: auto; flex-wrap: wrap; gap: 0 14px; padding: 4px 10px; }
-  .rs-bar .btn { flex: 1 1 100%; margin-left: 0; }
-  .rs-alerts { padding: 6px 10px; }
+  /* Исследования: окно прокручивается целиком (раскладка - в ResearchWindow.css) */
+  .rs { height: auto; min-height: 100%; }
 
   /* Мощности: окно прокручивается целиком */
   .cw { height: auto; min-height: 100%; }
