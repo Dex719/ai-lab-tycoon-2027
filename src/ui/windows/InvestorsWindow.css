@@ -1,63 +1,130 @@
-/* Окно «Инвесторы»: белая верхняя полоса с оценкой и долей основателя, ниже серое поле с разбором оценки и раундами. */
+/* Окно «Инвесторы»: тёмная полоса с оценкой, долей и шкалой контроля; ниже столбик оценки из частей и раунды-сделки. */
 
-.inv { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.inv { display: flex; flex-direction: column; height: 100%; min-height: 0; container-type: inline-size; font-variant-numeric: tabular-nums; }
 
-/* Верхняя полоса: два больших числа (оценка и доля), полоса доли, предупреждение о совете директоров */
-.inv-top { flex: none; padding: 16px 22px 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
-.inv-top-grid { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 32px; }
-.inv-stat { min-width: 0; }
-.inv-stat + .inv-stat { padding-left: 32px; border-left: 1px solid var(--line); }
-.inv .inv-value {
-  margin: 2px 0 4px; font-size: 44px; font-weight: 300; line-height: 1.1; letter-spacing: -0.01em;
-  text-align: left; font-variant-numeric: tabular-nums;
+/* ---------- Тёмная полоса ---------- */
+.inv-hero { flex: none; padding: 14px 20px 12px; background: #1d2433; color: #fff; }
+.inv-kpis { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.inv-kpi { min-width: 0; }
+.inv-kpi + .inv-kpi { padding-left: 20px; border-left: 1px solid #2f3a52; }
+.inv-kpi-l { font-size: 12px; color: #a9b3c7; }
+.inv-kpi-v { margin-top: 2px; font: 700 34px var(--mono); line-height: 1.1; text-align: left; white-space: nowrap; }
+.inv-kpi-v.gold { color: #ffd34d; text-shadow: 0 0 14px rgba(255, 211, 77, 0.35); }
+.inv-kpi-s { margin-top: 3px; font-size: 13px; color: #c9d1e0; }
+.inv-kpi.inv-own.ok .inv-kpi-v { color: var(--good-on-dark); }
+.inv-kpi.inv-own.warn .inv-kpi-v, .inv-kpi.inv-own.warn .inv-kpi-s { color: #ffc46b; }
+.inv-kpi.inv-own.bad .inv-kpi-v, .inv-kpi.inv-own.bad .inv-kpi-s { color: var(--bad-on-dark); }
+
+/* Шкала контроля */
+.inv-ctl { margin-top: 12px; }
+.inv-ctl-bar { position: relative; height: 18px; background: #3a4258; border-radius: 4px; overflow: hidden; }
+.inv-ctl-fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #2e9b4f, #5ed37f); transition: width 250ms ease-out; }
+.inv-ctl-bar.warn .inv-ctl-fill { background: linear-gradient(90deg, #b8860b, #ffc46b); }
+.inv-ctl-bar.bad .inv-ctl-fill { background: linear-gradient(90deg, #a12a2a, #ff6b6b); }
+.inv-ctl-sold {
+  position: absolute; top: 0; bottom: 0;
+  background: repeating-linear-gradient(135deg, #ffd34d 0 5px, rgba(255, 211, 77, 0.35) 5px 10px);
+  box-shadow: inset 0 0 0 1px #ffd34d;
 }
-.inv-sub { font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
-/* Доля ниже порогов - число окрашено как предупреждение */
-.inv-own.warn .inv-value { color: var(--warn); }
-.inv-own.bad .inv-value { color: var(--bad); }
-
-.inv-bar { position: relative; height: 8px; margin-top: 12px; background: var(--line); border-radius: 2px; overflow: hidden; }
-.inv-bar > div { height: 100%; background: var(--accent); }
-.inv-bar.warn > div { background: var(--warn); }
-.inv-bar.bad > div { background: var(--bad); }
-/* Отметки порогов 50 % и 25 % */
-.inv-bar-mark { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #fff; opacity: 0.9; }
-.inv-top .alert { margin-top: 10px; }
-
-/* Серое поле с прокруткой */
-.inv-body { flex: 1; min-height: 0; overflow: auto; padding: 14px 22px 22px; }
-.inv-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.inv-section + .inv-section { margin-top: 18px; }
-
-/* Разбор оценки */
-.inv-bd { background: var(--panel); border: 1px solid var(--line-soft); border-radius: 4px; }
-.inv-bd-row {
-  display: grid; grid-template-columns: minmax(160px, 1.2fr) minmax(0, 1fr) minmax(84px, auto); gap: 2px 16px;
-  align-items: baseline; padding: 9px 14px; border-bottom: 1px solid var(--line-soft);
+.inv-ctl-mark { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #1d2433; }
+.inv-ctl-inv { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; padding-left: 8px; font-size: 11.5px; color: #c9d1e0; white-space: nowrap; }
+.inv-zones { display: flex; margin-top: 4px; }
+.inv-zones .z {
+  position: relative; padding: 3px 6px 0; font-size: 11.5px; line-height: 1.25; color: #7d879b; border-top: 3px solid; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.inv-bd-row:last-child { border-bottom: none; }
-.inv-bd-row .calc { font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
-.inv-bd-row .val { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.inv-bd-row.sub { background: #f1f2f4; }
-.inv-bd-row.sub .lab, .inv-bd-row.sub .val { font-weight: 500; }
-.inv-bd-row.total { background: #fff; padding-top: 12px; padding-bottom: 12px; border-radius: 0 0 4px 4px; }
-.inv-bd-row.total .lab, .inv-bd-row.total .val { font-size: 18px; font-weight: 600; }
+.inv-zones .z.bad { border-color: #8a2f2f; }
+.inv-zones .z.warn { border-color: #8a6a1a; }
+.inv-zones .z.ok { border-color: #1f6e38; }
+.inv-zones .z.on { color: #fff; font-weight: 700; }
+.inv-zones .z.bad.on { border-color: var(--bad-on-dark); }
+.inv-zones .z.warn.on { border-color: #ffc46b; }
+.inv-zones .z.ok.on { border-color: var(--good-on-dark); }
+
+/* ---------- Тело ---------- */
+.inv-body { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 0; }
+.inv-col { min-width: 0; padding: 14px 18px 18px; }
+.inv-val { background: var(--panel); border-right: 1px solid var(--line); }
+.inv-h { margin: 0 0 12px; font-size: 15px; font-weight: 600; color: var(--text-title); }
+
+/* Столбик оценки */
+.inv-vt { display: flex; align-items: flex-start; gap: 16px; }
+.inv-tower {
+  position: relative; flex: none; width: 58px; border-radius: 4px 4px 2px 2px; background: #e6e8ec;
+  box-shadow: inset 0 0 0 1px #d3d7dd;
+}
+.inv-seg { position: absolute; left: 0; right: 0; border-top: 1px solid rgba(255, 255, 255, 0.7); }
+.inv-seg.minus { background: repeating-linear-gradient(135deg, #d64545 0 4px, #f3b5b5 4px 8px); border-top: none; opacity: 0.9; }
+.inv-total-line { position: absolute; left: -6px; right: -6px; height: 3px; margin-bottom: -1.5px; background: #1f2023; border-radius: 2px; }
+.inv-seg.rev, .inv-sw.rev { background: #2e9b4f; }
+.inv-seg.tech, .inv-sw.tech { background: #2f80e4; }
+.inv-seg.floor, .inv-sw.floor { background: #9aa3ae; }
+.inv-seg.hype, .inv-sw.hype { background: #d9822b; }
+.inv-seg.rep, .inv-sw.rep { background: #7b5cd6; }
+.inv-sw.minus { background: repeating-linear-gradient(135deg, #d64545 0 3px, #f3b5b5 3px 6px); }
+.inv-sw.line { height: 3px !important; margin-top: 7px; background: #1f2023; }
+.inv-legend { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 9px; }
+.inv-lg { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: start; gap: 2px 9px; }
+.inv-sw { width: 12px; height: 12px; margin-top: 3px; border-radius: 2px; }
+.inv-lg-t { min-width: 0; display: flex; flex-direction: column; }
+.inv-lg-l { font-size: 13.5px; font-weight: 600; color: #1f2023; }
+.inv-lg-s { font-size: 12px; color: var(--text-dim); }
+.inv-lg-v { font-size: 14px; font-weight: 600; color: #1f2023; }
+.inv-lg.neg .inv-lg-v { color: #b32f2f; }
+.inv-lg.total { margin-top: 2px; padding-top: 8px; border-top: 1px solid var(--line); }
+.inv-lg.total .inv-lg-l { font-size: 14px; }
+.inv-lg.total .inv-lg-v { font-size: 17px; color: #8a5f00; }
 
 /* Раунды */
-.inv-rounds { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
-.inv-round { display: flex; flex-direction: column; gap: 12px; padding: 14px; background: var(--panel); border: 1px solid var(--line-soft); border-radius: 4px; }
-.inv-round-head { display: flex; align-items: center; gap: 12px; }
-.inv-round-pct { font-size: 30px; font-weight: 300; line-height: 1; font-variant-numeric: tabular-nums; }
+.inv-cd { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 12px; border-radius: 4px; font-size: 13px; }
+.inv-cd.wait { background: #fff4dc; border: 1px solid #e3bf62; color: #6b4300; }
+.inv-cd.ready { background: #e3f6e8; border: 1px solid #9fd5b0; color: #1d6b37; font-weight: 600; }
+.inv-cd small { font-weight: 400; color: inherit; opacity: 0.85; font-size: 12.5px; }
+.inv-cd-t { flex: 1; min-width: 0; }
+.inv-cd-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c-green); box-shadow: 0 0 0 3px rgba(46, 155, 79, 0.25); }
+.inv-cd-bar { flex: 1 1 100%; height: 5px; background: #f0dcae; border-radius: 3px; overflow: hidden; }
+.inv-cd-bar i { display: block; height: 100%; background: #c99a1a; }
+
+.inv-deals { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.inv-deal {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #fff; border: 1px solid #d3d7dd; border-radius: 5px;
+  transition: border-color 100ms ease-out, box-shadow 100ms ease-out;
+}
+.inv-deal:hover, .inv-deal:focus-within { border-color: #c79a12; box-shadow: 0 0 0 2px rgba(255, 211, 77, 0.45); }
+.inv-deal-pct {
+  flex: none; width: 54px; height: 54px; display: grid; place-items: center; border-radius: 8px;
+  background: #1d2433; color: #ffd34d; font: 700 19px var(--mono);
+}
+.inv-deal.locked .inv-deal-pct { background: #4a5163; color: #d6dae2; }
+.inv-deal-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.inv-deal-money { font: 700 20px var(--mono); color: #1f7a3b; }
+.inv-deal.locked .inv-deal-money { color: #4a4f57; }
+.inv-deal-share { font-size: 12.5px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inv-deal-share b { color: #1f2023; }
+.inv-deal-share b.warn { color: var(--warn); }
+.inv-deal-share b.bad { color: #b32f2f; }
+.inv-deal-warn { min-height: 16px; font-size: 12px; font-weight: 600; line-height: 16px; }
+.inv-deal-warn.warn { color: var(--warn); }
+.inv-deal-warn.bad { color: #b32f2f; }
+.btn.inv-sell { flex: none; min-width: 112px; }
 
 /* Подтверждение */
 .inv-confirm { font-size: 15px; row-gap: 6px; }
 
-/* ---------- Цвет ---------- */
-.inv-top { border-top: 0; }
-.inv .inv-value { color: var(--text-title); }
-.inv-own:not(.warn):not(.bad) .inv-value { color: #1f7a3b; }
-.inv-bar > div { background: var(--c-green); }
-.inv-round-pct { color: var(--c-blue); font-weight: 400; }
-.inv-round { border-top: 3px solid var(--c-green); }
-.inv-bd-row.total .val { color: #1f7a3b; }
-.inv-sub { color: var(--text-dim); }
+/* ---------- Узкое окно ---------- */
+@container (max-width: 640px) {
+  .inv-body { grid-template-columns: minmax(0, 1fr); overflow: visible; }
+  .inv-val { border-right: none; border-bottom: 1px solid var(--line); }
+  .inv-kpi-v { font-size: 26px; }
+  .inv-zones .z { font-size: 10.5px; }
+}
+@container (max-width: 420px) {
+  .inv-kpis { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .inv-kpi + .inv-kpi { padding-left: 0; border-left: none; }
+  .inv-deal { flex-wrap: wrap; }
+  .btn.inv-sell { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inv-ctl-fill { transition: none; }
+}

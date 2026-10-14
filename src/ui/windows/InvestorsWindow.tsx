@@ -1,22 +1,16 @@
-// Окно «Инвесторы» (FR-10): оценка компании, её разбор, доля основателя и раунды инвестиций.
+// Окно «Инвесторы» (FR-10): тёмная полоса с оценкой и долей основателя, под ней шкала контроля с порогами;
+// ниже слева столбик оценки из частей, справа раунды-сделки. Наведение на сделку показывает на шкале, какая часть уйдёт.
 
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import type { WindowProps } from '.';
-import {
-  FOUNDER_BOARD_SHARE,
-  FOUNDER_WARN_SHARE,
-  MANIA,
-  REV_MULT,
-  ROUND_COOLDOWN_DAYS,
-  ROUND_FRACTIONS,
-  VALUATION_FLOOR,
-} from '../../sim/constants';
+import { FOUNDER_BOARD_SHARE, FOUNDER_WARN_SHARE, MANIA, ROUND_COOLDOWN_DAYS, ROUND_FRACTIONS, VALUATION_FLOOR } from '../../sim/constants';
 import { canRaise, valuation } from '../../sim/investors';
 import type { Valuation } from '../../sim/investors';
-import { byYear, formatDateShort, lerpByDate, yearOf } from '../../sim/time';
+import { formatDateShort, lerpByDate } from '../../sim/time';
 import type { GameState } from '../../sim/types';
 import { Alert, ConfirmDialog, ErrorText, GuardButton } from '../components/common';
-import { fmtDays, fmtMoney, fmtMult, fmtNum, fmtShare } from '../format';
+import { fmtDays, fmtMoney, fmtNum, fmtShare } from '../format';
+import { IconLock } from '../icons';
 import { fmtRank } from '../labels';
 import { actions, store } from '../store';
 import './InvestorsWindow.css';
@@ -29,11 +23,16 @@ function safeValuation(s: GameState): Valuation | null {
   }
 }
 
-/** Причина недоступности раунда в виде «Следующий раунд через N дн.» или null. */
+/** Дней до следующего раунда (0 - можно сейчас). */
+function cooldownLeft(s: GameState): number {
+  if (s.lastRoundDay === null) return 0;
+  return Math.max(0, s.lastRoundDay + ROUND_COOLDOWN_DAYS - s.day);
+}
+
+/** Причина недоступности раунда в виде «Следующий раунд через N дней» или null. */
 function cooldownText(s: GameState, blocked: string | null): string | null {
   if (blocked === null) return null;
-  if (s.lastRoundDay === null) return blocked;
-  const left = s.lastRoundDay + ROUND_COOLDOWN_DAYS - s.day;
+  const left = cooldownLeft(s);
   return left > 0 ? `Следующий раунд через ${fmtDays(left)}` : blocked;
 }
 
@@ -54,125 +53,172 @@ function toneClass(share: number): string | undefined {
   return t === 'ok' ? undefined : t;
 }
 
-/** Предупреждение о доле под долей основателя; при доле не ниже порога - ничего. */
-function ShareAlert({ share }: { share: number }) {
-  const t = shareTone(share);
-  if (t === 'ok') return null;
-  if (t === 'bad') {
-    return (
-      <Alert tone="bad">
-        Доля ниже {fmtShare(FOUNDER_WARN_SHARE, 0)}: контроль над компанией у совета директоров
-      </Alert>
-    );
-  }
-  return (
-    <Alert tone="warn">
-      Доля ниже {fmtShare(FOUNDER_BOARD_SHARE, 0)}: совет директоров влияет на решения
-    </Alert>
-  );
-}
+/** Что означает доля: подпись зоны на шкале контроля. */
+const ZONE_TEXT: Record<ShareTone, string> = {
+  ok: 'Решения за вами',
+  warn: 'Совет директоров влияет на решения',
+  bad: 'Контроль у совета директоров',
+};
 
-// ---------- Разбор оценки ----------
-
-function Row(props: { label: string; calc?: ReactNode; value: ReactNode; kind?: 'sub' | 'total'; title?: string }) {
+/**
+ * Шкала контроля: заливка - доля основателя, под ней три зоны (контроль у совета, совет влияет, решения за вами).
+ * sell - доля компании, которую предлагают продать: эта часть заливки заштрихована.
+ */
+function ControlBar({ share, sell }: { share: number; sell: number | null }) {
+  const tone = shareTone(share);
+  const after = sell === null ? share : share * (1 - sell);
+  const pct = (x: number) => `${Math.max(0, Math.min(1, x)) * 100}%`;
+  const afterTone = shareTone(after);
   return (
-    <div className={`inv-bd-row${props.kind ? ` ${props.kind}` : ''}`} title={props.title}>
-      <span className="lab">{props.label}</span>
-      <span className="calc">{props.calc}</span>
-      <span className="val">{props.value}</span>
+    <div className="inv-ctl">
+      <div className={`inv-ctl-bar ${tone}`}>
+        <div className="inv-ctl-fill" style={{ width: pct(after) }} />
+        {sell !== null && <div className="inv-ctl-sold" style={{ left: pct(after), width: pct(share - after) }} />}
+        <i className="inv-ctl-mark" style={{ left: pct(FOUNDER_WARN_SHARE) }} />
+        <i className="inv-ctl-mark" style={{ left: pct(FOUNDER_BOARD_SHARE) }} />
+        <span className="inv-ctl-inv" style={{ left: pct(share) }}>
+          {share < 0.97 ? `инвесторы ${fmtShare(1 - share, 0)}` : ''}
+        </span>
+      </div>
+      <div className="inv-zones">
+        <span className={`z bad${(sell === null ? tone : afterTone) === 'bad' ? ' on' : ''}`} style={{ width: pct(FOUNDER_WARN_SHARE) }}>
+          Контроль у совета
+        </span>
+        <span className={`z warn${(sell === null ? tone : afterTone) === 'warn' ? ' on' : ''}`} style={{ width: pct(FOUNDER_BOARD_SHARE - FOUNDER_WARN_SHARE) }}>
+          Совет влияет
+        </span>
+        <span className={`z ok${(sell === null ? tone : afterTone) === 'ok' ? ' on' : ''}`} style={{ width: pct(1 - FOUNDER_BOARD_SHARE) }}>
+          Решения за вами
+        </span>
+      </div>
     </div>
   );
 }
 
-function Breakdown({ s, v }: { s: GameState; v: Valuation }) {
-  const revMult = byYear(REV_MULT, yearOf(s.day));
-  const mania = lerpByDate(MANIA, s.day, true);
-  const sum = v.revenuePart + v.techPart;
+// ---------- Оценка из частей ----------
 
+interface Part {
+  key: string;
+  label: string;
+  sub: string;
+  value: number;
+}
+
+/** Части оценки в деньгах: база (продажи, модель, добавка до минимума) и поправки за шумиху, репутацию и план совета. */
+export function valuationParts(s: GameState, v: Valuation): Part[] {
+  const mania = lerpByDate(MANIA, s.day, true);
+  const floorFill = Math.max(0, VALUATION_FLOOR - v.revenuePart - v.techPart);
+  const base = v.revenuePart + v.techPart + floorFill;
+  const hype = base * (v.hypeMult - 1);
+  const rep = base * v.hypeMult * (v.repMult - 1);
+  const board = base * v.hypeMult * v.repMult * (v.boardMult - 1);
+  const rank =
+    v.bestRank === null
+      ? 'нет моделей в продаже'
+      : `${fmtRank(v.bestRank)} среди моделей в продаже${v.bestRank > 1 ? ` · на 1-м: ${fmtMoney(mania)}` : ''}`;
+  const parts: Part[] = [
+    { key: 'rev', label: 'Продажи', sub: v.annualRevenue > 0 ? `выручка ${fmtMoney(v.annualRevenue)} в год` : 'продаж пока нет', value: v.revenuePart },
+    { key: 'tech', label: 'Лучшая модель', sub: rank, value: v.techPart },
+    { key: 'floor', label: 'Минимальная оценка', sub: `оценка не ниже ${fmtMoney(VALUATION_FLOOR)}`, value: floorFill },
+    { key: 'hype', label: 'Шумиха', sub: `уровень ${fmtNum(s.hype.player)} из 100`, value: hype },
+    { key: 'rep', label: 'Репутация', sub: `уровень ${fmtNum(s.reputation)} из 100`, value: rep },
+    { key: 'board', label: 'План совета директоров', sub: 'скидка до следующего раунда', value: board },
+  ];
+  return parts.filter((p) => Math.abs(p.value) >= 1);
+}
+
+function signed(x: number): string {
+  return x < 0 ? fmtMoney(x) : `+${fmtMoney(x)}`;
+}
+
+/** Столбик оценки: снизу вверх части оценки; минусы - красная штриховка сверху, черта - итог. */
+function ValueTower({ s, v }: { s: GameState; v: Valuation }) {
+  const parts = valuationParts(s, v);
+  const plus = parts.filter((p) => p.value > 0);
+  const gross = plus.reduce((a, p) => a + p.value, 0);
+  const net = v.total;
+  const H = 230;
+  const k = gross > 0 ? H / gross : 0;
+  let y = 0;
+  const minus = Math.max(0, gross - net);
+  // Подписи - сверху вниз, как части лежат в столбике; минусы - над итогом.
+  const legend = [...plus].reverse().concat(parts.filter((p) => p.value < 0));
   return (
-    <div className="inv-bd">
-      <Row
-        label="Годовая выручка × множитель года"
-        calc={`${fmtMoney(v.annualRevenue)} × ${fmtMult(revMult)}`}
-        value={fmtMoney(v.revenuePart)}
-        title="Выручка за последние 90 дней в пересчёте на год"
-      />
-      <Row
-        label="Место на «Арене» × «ИИ-лихорадка» года"
-        calc={v.bestRank === null ? 'Нет моделей на рынке' : `${fmtRank(v.bestRank)}: ×${fmtMult(v.rankFactor)} от ${fmtMoney(mania)}`}
-        value={fmtMoney(v.techPart)}
-        title="Учитывается лучшая модель, которая продаётся по API"
-      />
-      <Row
-        kind="sub"
-        label="База оценки"
-        calc={sum < VALUATION_FLOOR ? `Применён минимум ${fmtMoney(VALUATION_FLOOR)}` : `Минимум ${fmtMoney(VALUATION_FLOOR)}`}
-        value={fmtMoney(Math.max(VALUATION_FLOOR, sum))}
-      />
-      <Row
-        label="Шумиха"
-        calc={`Уровень ${fmtNum(s.hype.player)} из 100`}
-        value={`×${fmtMult(v.hypeMult)}`}
-        title="Множитель оценки: чем выше шумиха, тем выше оценка"
-      />
-      <Row
-        label="Репутация"
-        calc={`Уровень ${fmtNum(s.reputation)} из 100`}
-        value={`×${fmtMult(v.repMult)}`}
-        title="Множитель оценки: чем выше репутация, тем выше оценка"
-      />
-      <Row kind="total" label="Итого" value={fmtMoney(v.total)} />
+    <div className="inv-vt">
+      <div className="inv-tower" style={{ height: H }} aria-hidden="true">
+        {plus.map((p) => {
+          const h = Math.max(2, p.value * k);
+          const seg = <div key={p.key} className={`inv-seg ${p.key}`} style={{ bottom: y, height: h }} />;
+          y += p.value * k;
+          return seg;
+        })}
+        {minus > 0 && <div className="inv-seg minus" style={{ bottom: net * k, height: minus * k }} />}
+        <div className="inv-total-line" style={{ bottom: net * k }} />
+      </div>
+      <div className="inv-legend">
+        {legend.map((p) => (
+          <div key={p.key} className={`inv-lg${p.value < 0 ? ' neg' : ''}`}>
+            <i className={`inv-sw ${p.value < 0 ? 'minus' : p.key}`} />
+            <span className="inv-lg-t">
+              <span className="inv-lg-l">{p.label}</span>
+              <span className="inv-lg-s">{p.sub}</span>
+            </span>
+            <b className="inv-lg-v num">{p.value < 0 || p.key === 'hype' || p.key === 'rep' || p.key === 'board' ? signed(p.value) : fmtMoney(p.value)}</b>
+          </div>
+        ))}
+        <div className="inv-lg total">
+          <i className="inv-sw line" />
+          <span className="inv-lg-t">
+            <span className="inv-lg-l">Оценка компании</span>
+          </span>
+          <b className="inv-lg-v num">{fmtMoney(v.total)}</b>
+        </div>
+      </div>
     </div>
   );
 }
 
 // ---------- Раунды ----------
 
-/** Кольцо с долей компании, которая уходит инвесторам. */
-function ShareRing({ fraction }: { fraction: number }) {
-  const r = 14;
-  const c = 2 * Math.PI * r;
-  return (
-    <svg width="38" height="38" viewBox="0 0 36 36" aria-hidden="true">
-      <circle cx="18" cy="18" r={r} fill="none" stroke="var(--line)" strokeWidth="5" />
-      <circle
-        cx="18"
-        cy="18"
-        r={r}
-        fill="none"
-        stroke="var(--accent)"
-        strokeWidth="5"
-        strokeDasharray={`${c * fraction} ${c}`}
-        transform="rotate(-90 18 18)"
-      />
-    </svg>
-  );
-}
-
-function RoundCard(props: { fraction: number; v: Valuation | null; share: number; blocked: string | null; onSell: () => void }) {
-  const { fraction, v, share, blocked } = props;
+function Deal(props: {
+  fraction: number;
+  v: Valuation | null;
+  share: number;
+  blocked: string | null;
+  onSell: () => void;
+  onHover: (f: number | null) => void;
+}) {
+  const { fraction, v, share, blocked, onHover } = props;
   const money = v ? v.total * fraction : null;
   const after = share * (1 - fraction);
   const why = blocked ?? (v ? null : 'Оценка недоступна');
+  const crossControl = share >= FOUNDER_WARN_SHARE && after < FOUNDER_WARN_SHARE;
+  const crossBoard = share >= FOUNDER_BOARD_SHARE && after < FOUNDER_BOARD_SHARE;
   return (
-    <div className="inv-round">
-      <div className="inv-round-head">
-        <ShareRing fraction={fraction} />
-        <span className="inv-round-pct">{fmtShare(fraction, 0)}</span>
-      </div>
-      <div className="kv">
-        <span>Сумма</span>
-        <span className="good">{money === null ? '-' : `+${fmtMoney(money)}`}</span>
-        <span>Доля после</span>
-        <span className={toneClass(after)}>{fmtShare(after)}</span>
-      </div>
+    <div
+      className={`inv-deal${why ? ' locked' : ''}`}
+      onMouseEnter={() => onHover(fraction)}
+      onMouseLeave={() => onHover(null)}
+      onFocus={() => onHover(fraction)}
+      onBlur={() => onHover(null)}
+    >
+      <span className="inv-deal-pct">{fmtShare(fraction, 0)}</span>
+      <span className="inv-deal-t">
+        <b className="inv-deal-money">{money === null ? '-' : `+${fmtMoney(money)}`}</b>
+        <span className="inv-deal-share">
+          ваша доля {fmtShare(share)} → <b className={toneClass(after)}>{fmtShare(after)}</b>
+        </span>
+        <span className={`inv-deal-warn ${crossControl ? 'bad' : crossBoard ? 'warn' : ''}`}>
+          {crossControl ? 'Контроль перейдёт к совету директоров' : crossBoard ? 'Совет директоров получит влияние' : ' '}
+        </span>
+      </span>
       <GuardButton
-        className="btn primary wide"
+        className="btn primary inv-sell"
         reason={why}
         title={why === null ? `Продать ${fmtShare(fraction, 0)} компании за ${fmtMoney(money ?? 0)}` : undefined}
         onClick={props.onSell}
       >
-        Продать долю
+        Продать {fmtShare(fraction, 0)}
       </GuardButton>
     </div>
   );
@@ -195,13 +241,7 @@ function SellConfirm(props: { fraction: number; v: Valuation; share: number; onC
   }
 
   return (
-    <ConfirmDialog
-      title="Продажа доли"
-      confirmLabel="Продать долю"
-      danger={crossesBoard || crossesControl}
-      onConfirm={confirm}
-      onClose={props.onClose}
-    >
+    <ConfirmDialog title="Продажа доли" confirmLabel="Продать долю" danger={crossesBoard || crossesControl} onConfirm={confirm} onClose={props.onClose}>
       <div className="kv inv-confirm">
         <span>Оценка компании</span>
         <span>{fmtMoney(v.total)}</span>
@@ -217,13 +257,9 @@ function SellConfirm(props: { fraction: number; v: Valuation; share: number; onC
         <span>через {fmtDays(ROUND_COOLDOWN_DAYS)}</span>
       </div>
       {crossesControl ? (
-        <Alert tone="bad">
-          После продажи доля ниже {fmtShare(FOUNDER_WARN_SHARE, 0)}: контроль над компанией перейдёт к совету директоров
-        </Alert>
+        <Alert tone="bad">После продажи доля ниже {fmtShare(FOUNDER_WARN_SHARE, 0)}: контроль над компанией перейдёт к совету директоров</Alert>
       ) : crossesBoard ? (
-        <Alert tone="warn">
-          После продажи доля ниже {fmtShare(FOUNDER_BOARD_SHARE, 0)}: совет директоров будет влиять на решения
-        </Alert>
+        <Alert tone="warn">После продажи доля ниже {fmtShare(FOUNDER_BOARD_SHARE, 0)}: совет директоров будет влиять на решения</Alert>
       ) : null}
       <ErrorText error={err} />
     </ConfirmDialog>
@@ -237,64 +273,57 @@ export default function InvestorsWindow({ s }: WindowProps) {
   const blocked = canRaise(s);
   const reason = cooldownText(s, blocked);
   const [selling, setSelling] = useState<number | null>(null);
+  const [hover, setHover] = useState<number | null>(null);
 
   const share = s.founderShare;
   const tone = shareTone(share);
-  const ownPct = Math.max(0, Math.min(100, share * 100));
+  const left = cooldownLeft(s);
+  const waited = left > 0 ? 1 - left / ROUND_COOLDOWN_DAYS : 1;
 
   return (
     <div className="inv">
-      <div className="inv-top">
-        <div className="inv-top-grid">
-          <div className="inv-stat">
-            <div className="label">Оценка компании</div>
-            <div className="inv-value num">{v ? fmtMoney(v.total) : '-'}</div>
-            <div className="inv-sub" title="Оценка компании × доля основателя">
-              Ваша часть: {v ? fmtMoney(v.total * share) : '-'}
-            </div>
+      <div className="inv-hero">
+        <div className="inv-kpis">
+          <div className="inv-kpi">
+            <div className="inv-kpi-l">Оценка компании</div>
+            <div className="inv-kpi-v gold">{v ? fmtMoney(v.total) : '-'}</div>
+            <div className="inv-kpi-s">Ваша часть: {v ? fmtMoney(v.total * share) : '-'}</div>
           </div>
-          <div className={`inv-stat inv-own${tone === 'ok' ? '' : ` ${tone}`}`}>
-            <div className="label">Доля основателя</div>
-            <div className="inv-value num">{fmtShare(share)}</div>
-            <div className="inv-sub">Продано инвесторам: {fmtShare(1 - share)}</div>
+          <div className={`inv-kpi inv-own ${tone}`}>
+            <div className="inv-kpi-l">Доля основателя</div>
+            <div className="inv-kpi-v">{fmtShare(share)}</div>
+            <div className="inv-kpi-s">{ZONE_TEXT[tone]}</div>
           </div>
         </div>
-        <div className={`inv-bar${tone === 'ok' ? '' : ` ${tone}`}`} title="Цветом показана доля основателя">
-          <div style={{ width: `${ownPct}%` }} />
-          <span
-            className="inv-bar-mark"
-            style={{ left: `${FOUNDER_BOARD_SHARE * 100}%` }}
-            title={`${fmtShare(FOUNDER_BOARD_SHARE, 0)}: ниже совет директоров влияет на решения`}
-          />
-          <span
-            className="inv-bar-mark"
-            style={{ left: `${FOUNDER_WARN_SHARE * 100}%` }}
-            title={`${fmtShare(FOUNDER_WARN_SHARE, 0)}: ниже контроль у совета директоров`}
-          />
-        </div>
-        <ShareAlert share={share} />
+        <ControlBar share={share} sell={hover} />
       </div>
 
       <div className="inv-body">
-        <section className="inv-section">
-          <div className="inv-head">
-            <div className="section-title">Раунд инвестиций</div>
-            {reason ? (
-              <span className="small warn">{reason}</span>
-            ) : (
-              s.lastRoundDay !== null && <span className="small muted">Последний раунд: {formatDateShort(s.lastRoundDay)}</span>
-            )}
-          </div>
-          <div className="inv-rounds">
-            {ROUND_FRACTIONS.map((f) => (
-              <RoundCard key={f} fraction={f} v={v} share={share} blocked={reason} onSell={() => setSelling(f)} />
-            ))}
-          </div>
+        <section className="inv-col inv-val">
+          <h3 className="inv-h">Из чего складывается оценка</h3>
+          {v ? <ValueTower s={s} v={v} /> : <div className="muted">Оценка недоступна.</div>}
         </section>
 
-        <section className="inv-section">
-          <div className="section-title">Из чего складывается оценка</div>
-          {v ? <Breakdown s={s} v={v} /> : <div className="muted">Оценка недоступна.</div>}
+        <section className="inv-col inv-rounds">
+          <h3 className="inv-h">Раунд инвестиций</h3>
+          <div className={`inv-cd${reason ? ' wait' : ' ready'}`}>
+            {reason ? <IconLock size={14} /> : <i className="inv-cd-dot" />}
+            <span className="inv-cd-t">
+              {reason ?? 'Раунд можно провести сейчас'}
+              {left > 0 && <small> · {formatDateShort(s.day + left)}</small>}
+              {!reason && s.lastRoundDay !== null && <small> · прошлый {formatDateShort(s.lastRoundDay)}</small>}
+            </span>
+            {left > 0 && (
+              <span className="inv-cd-bar" aria-hidden="true">
+                <i style={{ width: `${waited * 100}%` }} />
+              </span>
+            )}
+          </div>
+          <div className="inv-deals">
+            {ROUND_FRACTIONS.map((f) => (
+              <Deal key={f} fraction={f} v={v} share={share} blocked={reason} onSell={() => setSelling(f)} onHover={setHover} />
+            ))}
+          </div>
         </section>
       </div>
 

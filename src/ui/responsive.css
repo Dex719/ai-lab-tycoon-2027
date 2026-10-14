@@ -249,14 +249,8 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
 
   /* Инвесторы: окно прокручивается целиком */
   .inv { height: auto; min-height: 100%; }
-  .inv-top { padding: 12px; }
-  .inv-top-grid { gap: 8px 20px; }
-  .inv-stat + .inv-stat { padding-left: 0; border-left: none; }
-  .inv .inv-value { font-size: 34px; }
-  .inv-body { flex: none; overflow: visible; padding: 12px; }
-  .inv-bd-row { grid-template-columns: minmax(0, 1fr) auto; padding: 9px 10px; }
-  .inv-bd-row .calc { grid-column: 1 / -1; grid-row: 2; }
-  .inv-rounds { grid-template-columns: minmax(0, 1fr); }
+  .inv-hero { padding: 12px; }
+  .inv-body { flex: none; overflow: visible; }
 
   /* Аналитика */
   .an-body { padding: 10px; }

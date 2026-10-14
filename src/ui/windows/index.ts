@@ -61,7 +61,7 @@ export const WINDOWS: WindowDef[] = [
   { id: 'compute', title: 'Мощности', icon: IconCompute, side: 'left', w: 760, h: 600, Component: ComputeWindow },
   { id: 'newModel', title: 'Новая модель', icon: IconNewModel, side: 'left', w: 1000, h: 680, Component: TrainingWindow },
   { id: 'contracts', title: 'Контракты', icon: IconContracts, side: 'left', w: 1000, h: 620, Component: ContractsWindow },
-  { id: 'investors', title: 'Инвесторы', icon: IconInvestors, side: 'left', w: 720, h: 560, Component: InvestorsWindow },
+  { id: 'investors', title: 'Инвесторы', icon: IconInvestors, side: 'left', w: 820, h: 600, Component: InvestorsWindow },
   {
     id: 'datacenters',
     title: 'Дата-центры',
