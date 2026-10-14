@@ -6,10 +6,11 @@ import { overheadPerDay } from '../sim/finance';
 import { rentPerDay } from '../sim/compute';
 import { ArenaStrip } from './ArenaFeedback';
 import { MoneyFlies, useCountUp } from './Juice';
+import { LabStats } from './LabStats';
 import { dcCostPerDay } from '../sim/datacenters';
 import { formatDateShort } from '../sim/time';
 import type { GameState, Speed } from '../sim/types';
-import { fmtMoney, fmtShare } from './format';
+import { fmtMoney } from './format';
 import { IconAlert, IconArrowUpDown, IconBank, IconCalendar, IconFast, IconFaster, IconPause, IconPlay } from './icons';
 import { EXPENSE_KINDS, EXPENSE_LABELS, INCOME_KINDS, INCOME_LABELS } from './labels';
 import { store, useSpeed } from './store';
@@ -161,7 +162,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
         </button>
       )}
       <div className="topbar-right">
-        <span>Доля рынка: {fmtShare(s.market.labShares.player ?? 0, 2)}</span>
+        <LabStats s={s} />
         <ArenaStrip s={s} />
       </div>
       {(store.pauseReason || negative) && speed === 0 && (

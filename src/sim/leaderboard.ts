@@ -387,3 +387,18 @@ export function updateSaturation(s: GameState): void {
 export function raceValue(metric: RaceMetric, m: PlayerModel): number {
   return metric.kind === 'arena' ? m.arenaElo : modelScore(m, metric.bid, false);
 }
+
+/**
+ * Сколько Эло не хватает лучшей модели игрока в продаже до места top на «Арене» (среди моделей в продаже).
+ * 0 - уже там; null - у игрока нет моделей в продаже или моделей меньше, чем top.
+ */
+export function arenaEloGapToTop(s: GameState, top: number): number | null {
+  const list = onApiOnly(entries(s)).sort((a, b) => b.elo - a.elo);
+  const mine = list.filter((e) => e.owner === 'player');
+  if (mine.length === 0 || list.length < top) return null;
+  const others = list.filter((e) => e.owner !== 'player');
+  // Чтобы стать top-м, нужно обойти top-1-ю модель среди чужих (свои модели место не занимают у лучшей своей).
+  const target = others[top - 1];
+  if (!target) return 0;
+  return Math.max(0, target.elo - mine[0].elo);
+}

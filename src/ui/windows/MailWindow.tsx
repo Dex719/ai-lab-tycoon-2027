@@ -168,6 +168,11 @@ function MailView({ mail }: { mail: Mail }) {
                 Решение: <b>{choice?.label ?? '-'}</b>
               </div>
               {choice && <div className="mail-decision-hint">{choice.hint}</div>}
+              {mail.outcome && (
+                <div className={`mail-outcome ${mail.outcome.lucky ? 'good' : 'bad'}`}>
+                  {mail.outcome.lucky ? 'Повезло' : 'Не повезло'}: {mail.outcome.text}
+                </div>
+              )}
               {mail.autoChosen && <div className="mail-decision-hint">Срок ответа истёк, вариант выбран по умолчанию.</div>}
             </>
           ) : (

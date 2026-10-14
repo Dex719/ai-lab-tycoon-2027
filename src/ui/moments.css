@@ -1,0 +1,40 @@
+/* «Ваши моменты»: газетная полоса. */
+
+.mo-backdrop { z-index: 10050; background: rgba(0, 0, 0, 0.72); }
+.mo-paper {
+  width: 640px; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow: auto; outline: none;
+  padding: 22px 28px 20px; background: #f4efe2; color: #1e1b16; border-radius: 3px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7), inset 0 0 60px rgba(120, 100, 60, 0.18);
+  font-family: Georgia, 'Times New Roman', serif;
+  animation: mo-spin 700ms cubic-bezier(0.2, 1.1, 0.3, 1) both;
+}
+.mo-mast {
+  display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 6px;
+  border-bottom: 3px double #1e1b16; font: 700 26px Georgia, 'Times New Roman', serif; letter-spacing: 0.02em;
+}
+.mo-date { font: 14px var(--font); color: #5a5246; }
+.mo-kicker { margin-top: 12px; font: 700 12px var(--font); letter-spacing: 0.14em; text-transform: uppercase; color: #a3262a; }
+.mo-headline { margin: 4px 0 12px; font: 700 38px/1.08 Georgia, 'Times New Roman', serif; }
+.mo-cols { display: grid; grid-template-columns: 200px 1fr; gap: 18px; padding-top: 12px; border-top: 1px solid #b9ae98; }
+.mo-art {
+  height: 150px; display: grid; place-items: center; border: 1px solid #8f8471; background: #d9d1bf;
+  filter: grayscale(1) contrast(1.1);
+  background-image: radial-gradient(rgba(0, 0, 0, 0.22) 1px, transparent 1.4px); background-size: 5px 5px;
+}
+.mo-glyph { font: 700 44px var(--mono); color: #1e1b16; text-shadow: 2px 2px 0 #f4efe2; }
+.art-trophy .mo-glyph, .art-arena .mo-glyph { font-size: 72px; }
+.mo-sub { margin: 0 0 10px; font-size: 18px; line-height: 1.35; font-style: italic; }
+.mo-body { margin: 0; font-size: 15px; line-height: 1.5; color: #3a342b; }
+.mo-foot { display: flex; justify-content: flex-end; margin-top: 18px; }
+
+@keyframes mo-spin {
+  0% { opacity: 0; transform: scale(0.15) rotate(-540deg); }
+  70% { opacity: 1; transform: scale(1.04) rotate(4deg); }
+  100% { transform: none; }
+}
+@media (max-width: 560px) {
+  .mo-cols { grid-template-columns: 1fr; }
+  .mo-art { height: 100px; }
+  .mo-headline { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) { .mo-paper { animation: none; } }

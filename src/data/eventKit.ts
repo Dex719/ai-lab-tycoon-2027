@@ -86,9 +86,30 @@ export function grant(s: GameState, sum: number): void {
   earn(s, 'investors', sum);
 }
 
-/** Бросок в потоке случайных событий: основной поток игры (s.rng) не трогаем. */
-export function roll(s: GameState, p: number): boolean {
-  return nextRandom(s.yearly) < p;
+/** Броски, сделанные во время выбора в письме: по ним письмо узнаёт исход («повезло» или «не повезло»). */
+let rollLog: { hit: boolean; good: boolean }[] | null = null;
+
+/** Начать запись бросков (перед выбором в письме). */
+export function startRollLog(): void {
+  rollLog = [];
+}
+
+/** Закончить запись: null - бросков не было. lucky - все броски легли в пользу лаборатории. */
+export function finishRollLog(): { lucky: boolean } | null {
+  const log = rollLog;
+  rollLog = null;
+  if (!log || log.length === 0) return null;
+  return { lucky: log.every((r) => r.hit === r.good) };
+}
+
+/**
+ * Бросок в потоке случайных событий: основной поток игры (s.rng) не трогаем.
+ * good - выпадение (true) хорошо для лаборатории: грант одобрен. false - выпадение плохо: утечку заметили.
+ */
+export function roll(s: GameState, p: number, good: boolean): boolean {
+  const hit = nextRandom(s.yearly) < p;
+  rollLog?.push({ hit, good });
+  return hit;
 }
 
 export const pct = (p: number): string => `${Math.round(p * 100)} %`;

@@ -256,3 +256,7 @@
 .mail-unread { color: var(--c-red); font-weight: 600; }
 .mail-meta { align-items: center; }
 .mail-row.is-selected { border-left: 4px solid var(--kc); }
+
+.mail-outcome { margin-top: 6px; padding: 4px 8px; border-radius: 3px; font-weight: 600; display: inline-block; }
+.mail-outcome.good { background: #e3f6e8; color: #1d6b37; }
+.mail-outcome.bad { background: #fbe5e5; color: #a12a2a; }

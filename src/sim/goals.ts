@@ -58,12 +58,13 @@ export function goalProgress(s: GameState, g: YearGoalState): { def: GoalDef; pr
 
 function award(s: GameState, def: GoalDef, year: number): void {
   const money = rewardMoney(def.reward, year);
-  if (money > 0) earn(s, 'investors', money); // не выручка: на накладные расходы и итог без инвесторов не влияет
+  if (money > 0) earn(s, 'investors', money, 'Награда'); // не выручка: на накладные расходы и итог без инвесторов не влияет
   if (def.reward.reputation) s.reputation = clamp100(s.reputation + def.reward.reputation);
   if (def.reward.hype) s.hype.player = clamp100(s.hype.player + def.reward.hype);
   addMail(s, {
     kind: 'event',
     title: `Цель выполнена: ${def.title(year)}`,
+    reward: true,
     body: `Цель года выполнена. Награда: ${endSentence(rewardText(def.reward, year))}`,
   });
 }

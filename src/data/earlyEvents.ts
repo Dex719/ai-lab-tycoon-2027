@@ -35,7 +35,7 @@ function orderEvent(opts: {
       label: 'Попросить цену выше',
       hint: `+${usd(opts.ask)} с шансом ${Math.round(p * 100)} %, иначе клиент уйдёт к другим`,
       apply: (s) => {
-        if (roll(s, p)) order(s, opts.ask!);
+        if (roll(s, p, true)) order(s, opts.ask!);
       },
     });
   }
@@ -225,7 +225,7 @@ export const EARLY_EVENTS: EventDef[] = [
         label: 'Подать заявку на большую сумму',
         hint: `+${usd(350_000)} с шансом 40 %, иначе -${usd(10_000)} на подготовку заявки`,
         apply: (s) => {
-          if (roll(s, 0.4)) grant(s, 350_000);
+          if (roll(s, 0.4, true)) grant(s, 350_000);
           else pay(s, 10_000);
         },
       },

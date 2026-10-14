@@ -16,6 +16,7 @@ import { Toasts } from './Toasts';
 import { ArenaBanner } from './ArenaFeedback';
 import { Juice } from './Juice';
 import { ReleaseCard } from './ReleaseCard';
+import { Moments } from './Moments';
 import { TopBar } from './TopBar';
 import { TutorialPanel } from './Tutorial';
 import { useViewport } from './viewport';
@@ -291,6 +292,7 @@ export function Game({ s }: { s: GameState }) {
       <Juice s={s} onRelease={setReleased} />
       {released && <ReleaseCard s={s} modelId={released} onClose={closeReleased} />}
       <ChoiceModal s={s} />
+      <Moments s={s} />
       {!s.outcome && !pendingChoice(s) && <YearReviewModal s={s} />}
       {showEnd && <EndDialog s={s} onWatch={() => setWatched(s)} />}
       {dialog === 'save' && <SlotsDialog mode="save" onClose={() => setDialog(null)} />}

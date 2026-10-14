@@ -253,6 +253,8 @@ const mail = shapeOf<Mail>({
   defaultChoice: optional(int),
   deferred: optional(bool),
   autoChosen: optional(bool),
+  outcome: optional(shapeOf<NonNullable<Mail['outcome']>>({ lucky: bool, text: str })),
+  reward: optional(bool),
 });
 
 const modifier = shapeOf<Modifier>({

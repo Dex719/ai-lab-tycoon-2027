@@ -64,7 +64,7 @@ export const RANDOM_EVENTS: EventDef[] = [
         label: 'Промолчать',
         hint: '-8 репутации и -15 шумихи с шансом 40 %',
         apply: (s) => {
-          if (roll(s, 0.4)) {
+          if (roll(s, 0.4, false)) {
             addRep(s, -8);
             addHype(s, 'player', -15);
           }
@@ -147,7 +147,7 @@ export const RANDOM_EVENTS: EventDef[] = [
         hint: '+10 шумихи, -5 репутации с шансом 30 %',
         apply: (s) => {
           addHype(s, 'player', 10);
-          if (roll(s, 0.3)) addRep(s, -5);
+          if (roll(s, 0.3, false)) addRep(s, -5);
         },
       },
       { label: 'Ограничиться коротким комментарием', hint: '+4 шумихи', apply: (s) => addHype(s, 'player', 4) },
@@ -174,7 +174,7 @@ export const RANDOM_EVENTS: EventDef[] = [
         label: 'Идти в суд',
         hint: '', hintFn: (s) => `+5 репутации с шансом 50 %, -${usd(amount(s, 4))} и -6 репутации с шансом 50 %`,
         apply: (s) => {
-          if (roll(s, 0.5)) addRep(s, 5);
+          if (roll(s, 0.5, true)) addRep(s, 5);
           else {
             pay(s, amount(s, 4));
             addRep(s, -6);
@@ -230,7 +230,7 @@ export const RANDOM_EVENTS: EventDef[] = [
         label: 'Подать заявку на грант',
         hint: '', hintFn: (s) => `+${usd(amount(s, 2))} с шансом 60 %, иначе -${usd(amount(s, 0.1))}`,
         apply: (s) => {
-          if (roll(s, 0.6)) grant(s, amount(s, 2));
+          if (roll(s, 0.6, true)) grant(s, amount(s, 2));
           else pay(s, amount(s, 0.1));
         },
       },
@@ -307,7 +307,7 @@ export const RANDOM_EVENTS: EventDef[] = [
         label: 'Исправить в плановом обновлении',
         hint: '-6 репутации с шансом 40 %',
         apply: (s) => {
-          if (roll(s, 0.4)) addRep(s, -6);
+          if (roll(s, 0.4, false)) addRep(s, -6);
         },
       },
     ],
@@ -466,7 +466,7 @@ export const RANDOM_EVENTS: EventDef[] = [
         label: 'Ответить формально',
         hint: '-6 репутации с шансом 50 %',
         apply: (s) => {
-          if (roll(s, 0.5)) addRep(s, -6);
+          if (roll(s, 0.5, false)) addRep(s, -6);
         },
       },
     ],
@@ -587,7 +587,7 @@ export const RANDOM_EVENTS: EventDef[] = [
         label: 'Ответить публично, что всё в порядке',
         hint: '-2 репутации с шансом 50 %',
         apply: (s) => {
-          if (roll(s, 0.5)) addRep(s, -2);
+          if (roll(s, 0.5, false)) addRep(s, -2);
         },
       },
     ],
@@ -608,7 +608,7 @@ export const RANDOM_EVENTS: EventDef[] = [
         hint: '+8 шумихи, -3 репутации с шансом 30 %',
         apply: (s) => {
           addHype(s, 'player', 8);
-          if (roll(s, 0.3)) addRep(s, -3);
+          if (roll(s, 0.3, false)) addRep(s, -3);
         },
       },
       NO,

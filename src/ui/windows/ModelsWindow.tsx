@@ -23,6 +23,7 @@ import { formatDateShort } from '../../sim/time';
 import {
   arenaElo as forecastElo,
   capsFromPlan,
+  exposureChance,
   modelScore,
   reviewCost,
   reviewDays,
@@ -682,6 +683,7 @@ function ScoresBlock({ s, m, benches }: { s: GameState; m: PlayerModel; benches:
   const released = m.releasedDay !== null;
   const ref: ModelRef = { kind: 'player', id: m.id };
   const showHonest = benches.some((b) => (m.overfit[b] ?? 0) > 0);
+  const expose = exposureChance(s, m);
 
   return (
     <section>
@@ -717,6 +719,11 @@ function ScoresBlock({ s, m, benches }: { s: GameState; m: PlayerModel; benches:
           })}
         </tbody>
       </table>
+      {expose > 0 && (
+        <div className="mw-expose">
+          Шанс, что подгонку раскроют: <b>{fmtPct(expose * 100, 0)} в месяц</b>
+        </div>
+      )}
     </section>
   );
 }

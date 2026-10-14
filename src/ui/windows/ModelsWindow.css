@@ -203,3 +203,5 @@ table.grid.mw-scores th { position: static; }
   .mw-channels { grid-template-columns: minmax(0, 1fr); }
   .mw-release-row { grid-template-columns: minmax(0, 1fr); }
 }
+
+.mw-expose { margin-top: 6px; padding: 4px 8px; border-radius: 3px; background: #fdf0de; color: #8a4a00; font-size: 13px; display: inline-block; }

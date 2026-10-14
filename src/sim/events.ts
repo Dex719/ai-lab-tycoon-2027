@@ -5,6 +5,7 @@
 // constants.ts (без TDZ); в vitest (vite-node) она готова, только если импорт constants завершён до входа в цикл.
 import { CHOICE_DAYS, FOREVER } from './constants';
 import { EVENTS, findEvent } from '../data/events';
+import { finishRollLog, hypeText, repText, startRollLog, sumText } from '../data/eventKit';
 import { dateToDay } from './time';
 import type { GameState, Mail, MailChoice, Modifier, ModifierKind, Result } from './types';
 
@@ -15,6 +16,7 @@ export interface NewMail {
   eventId?: string;
   choices?: MailChoice[];
   important?: boolean;
+  reward?: boolean;
 }
 
 export function addMail(s: GameState, m: NewMail): Mail {
@@ -150,6 +152,18 @@ export function dropChoices(s: GameState, eventId: string, note: string): void {
   }
 }
 
+/** «+$350 тыс., -5 репутации» по разнице до и после выбора; без изменений - «без последствий». */
+function changesText(before: { cash: number; rep: number; hype: number }, s: GameState): string {
+  const parts: string[] = [];
+  const money = Math.round(s.cash - before.cash);
+  const rep = Math.round(s.reputation - before.rep);
+  const hype = Math.round(s.hype.player - before.hype);
+  if (money !== 0) parts.push(sumText(money));
+  if (rep !== 0) parts.push(repText(rep));
+  if (hype !== 0) parts.push(hypeText(hype));
+  return parts.length > 0 ? parts.join(', ') : 'без последствий';
+}
+
 export function applyChoice(s: GameState, mailId: string, idx: number): Result {
   const mail = s.mail.find((m) => m.id === mailId);
   if (!mail || !mail.choices || !mail.eventId) return { ok: false, error: 'Письмо без выбора' };
@@ -159,6 +173,13 @@ export function applyChoice(s: GameState, mailId: string, idx: number): Result {
   if (!def || !choice) return { ok: false, error: 'Нет такого варианта' };
   mail.chosen = idx;
   mail.read = true;
-  choice.apply(s);
+  const before = { cash: s.cash, rep: s.reputation, hype: s.hype.player };
+  startRollLog();
+  try {
+    choice.apply(s);
+  } finally {
+    const luck = finishRollLog();
+    if (luck) mail.outcome = { lucky: luck.lucky, text: changesText(before, s) };
+  }
   return { ok: true };
 }

@@ -147,6 +147,7 @@ export function raiseRound(s: GameState, fraction: number): Result {
   addMail(s, {
     kind: 'finance',
     title: `Раунд инвестиций закрыт: ${fmtMoney(money)}`,
+    reward: true,
     body:
       `При оценке лаборатории в ${fmtMoney(value)} инвесторы вложили ${fmtMoney(money)} ` +
       `за ${Math.round(f * 100)} % компании. Доля основателя - ${fmtShare(s.founderShare)} %. ` +

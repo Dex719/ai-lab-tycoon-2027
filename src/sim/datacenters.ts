@@ -347,6 +347,7 @@ export function datacentersDay(s: GameState): void {
           kind: 'finance',
           important: true,
           title: `Дата-центр в ${placeName(def)} готов`,
+          reward: true,
           body:
             `Дата-центр на ${dc.mw} МВт построен. Он пока пустой: купите карты в окне «Дата-центры». ` +
             `Помещается до ${fmtCount(perMw * dc.mw)} карт H100. Обслуживание - ${fmtMoney(dc.mw * DC_UPKEEP_PER_MW_MONTH)} в месяц.`,

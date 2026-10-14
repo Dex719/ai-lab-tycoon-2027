@@ -298,6 +298,7 @@ function finishContract(s: GameState, c: Contract): void {
     addMail(s, {
       kind: 'contract',
       title: `Контракт выполнен: ${clientName(t.clientId)}`,
+      reward: true,
       body:
         `Работа сдана. Модель показала ${fmtScore(honest)} % на ${bench} ` +
         `при требовании ${t.requirement} %. Оплата ${fmtMoney(t.payment)}, репутация +${REP_CONTRACT_OK}.`,
@@ -359,6 +360,7 @@ function resolveApplication(s: GameState, t: Tender): void {
   addMail(s, {
     kind: 'contract',
     title: `Тендер выигран: ${client}`,
+    reward: true,
     important: noCompute,
     body:
       `Исполнитель - модель «${model.name}». ` +

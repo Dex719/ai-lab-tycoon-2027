@@ -5,11 +5,15 @@ import { useCallback, useEffect, useRef, useState, type ComponentType } from 're
 import type { GameState, Mail } from '../sim/types';
 import { IconAlert, IconArrowUpDown, IconBank, IconCalendar, IconClose, IconFast, IconInfo, IconMail, IconTrophy, type LineIconProps } from './icons';
 import { getSettings } from './settings';
+import { playSound } from './sound';
 import { store } from './store';
 import type { WindowAlias, WindowId } from './windows';
 import { lettersWord } from '../sim/text';
 
 const SHOW_MS = 6000;
+/** Награды и исход риска живут дольше: их не должны вытеснять новости. */
+const REWARD_MS = 10000;
+const OUTCOME_MS = 8000;
 const MAX_VISIBLE = 4;
 /** Если за один шаг пришло больше писем, первые показываем по отдельности, остальные одной строкой. */
 const SINGLE_LIMIT = 3;
@@ -34,6 +38,10 @@ interface ToastData {
   title: string;
   important: boolean;
   group: boolean;
+  /** reward - награда (золотая), good / bad - исход выбора со случайностью. */
+  tone?: 'reward' | 'good' | 'bad';
+  /** Подпись над заголовком вместо вида письма. */
+  label?: string;
 }
 
 function mailNum(m: Mail): number {
@@ -42,7 +50,7 @@ function mailNum(m: Mail): number {
 
 function ToastItem({ t, onOpen, onClose }: { t: ToastData; onOpen: (t: ToastData) => void; onClose: (key: number) => void }) {
   const [hover, setHover] = useState(false);
-  const left = useRef(SHOW_MS);
+  const left = useRef(t.tone === 'reward' ? REWARD_MS : t.tone ? OUTCOME_MS : SHOW_MS);
   useEffect(() => {
     if (hover) return;
     const started = Date.now();
@@ -55,7 +63,7 @@ function ToastItem({ t, onOpen, onClose }: { t: ToastData; onOpen: (t: ToastData
   const { name, Icon } = KIND[t.kind];
   return (
     <div
-      className={`toast k-${t.kind}${t.important ? ' important' : ''}`}
+      className={`toast k-${t.kind}${t.important ? ' important' : ''}${t.tone ? ` tone-${t.tone}` : ''}`}
       role="status"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -63,7 +71,7 @@ function ToastItem({ t, onOpen, onClose }: { t: ToastData; onOpen: (t: ToastData
       <span className="ti" aria-hidden="true">
         <Icon size={16} />
       </span>
-      <span className="tk">{t.group ? 'Новые письма' : t.important ? `${name}, важное` : name}</span>
+      <span className="tk">{t.label ?? (t.group ? 'Новые письма' : t.important ? `${name}, важное` : name)}</span>
       <span className="tt">{t.title}</span>
       <span className="ta">
         <button type="button" onClick={() => onOpen(t)} title="Открыть письмо в «Почте»">
@@ -80,7 +88,35 @@ function ToastItem({ t, onOpen, onClose }: { t: ToastData; onOpen: (t: ToastData
 export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
   const [items, setItems] = useState<ToastData[]>([]);
   const seen = useRef<{ state: GameState; num: number }>({ state: s, num: s.nextMailNum });
+  /** Письма, исход которых уже показан (или был до начала сессии). */
+  const outcomes = useRef<{ state: GameState; ids: Set<string> }>({ state: s, ids: outcomeIds(s) });
   const keyRef = useRef(0);
+
+  // Исход выбора со случайностью: письмо старое, новым становится только его поле outcome.
+  useEffect(() => {
+    const o = outcomes.current;
+    if (o.state !== s) {
+      outcomes.current = { state: s, ids: outcomeIds(s) };
+      return;
+    }
+    const fresh = s.mail.filter((m) => m.outcome && !o.ids.has(m.id));
+    if (fresh.length === 0) return;
+    for (const m of fresh) o.ids.add(m.id);
+    const next = fresh.map(
+      (m): ToastData => ({
+        key: ++keyRef.current,
+        mailId: m.id,
+        kind: m.kind,
+        title: `${m.outcome!.lucky ? 'Повезло' : 'Не повезло'}: ${m.outcome!.text}`,
+        important: false,
+        group: false,
+        tone: m.outcome!.lucky ? 'good' : 'bad',
+        label: m.title,
+      }),
+    );
+    playSound(fresh[fresh.length - 1].outcome!.lucky ? 'coin' : 'spend');
+    setItems((cur) => [...cur, ...next].slice(-MAX_VISIBLE));
+  });
 
   // Состояние меняется на месте: сравниваем номер следующего письма с тем, что видели в прошлый раз.
   useEffect(() => {
@@ -101,8 +137,6 @@ export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | Window
       if (!m.choices) fresh.unshift(m);
     }
     if (fresh.length === 0) return;
-    // Важные письма показываем первыми.
-    const ordered = [...fresh.filter((m) => m.important), ...fresh.filter((m) => !m.important)];
     const toToast = (m: Mail, group = false, title = m.title): ToastData => ({
       key: ++keyRef.current,
       mailId: m.id,
@@ -110,11 +144,30 @@ export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | Window
       title,
       important: !!m.important,
       group,
+      tone: !group && m.reward ? 'reward' : undefined,
+      label: !group && m.reward ? 'Награда' : undefined,
     });
-    const next: ToastData[] = ordered.slice(0, SINGLE_LIMIT).map((m) => toToast(m));
-    const rest = ordered.slice(SINGLE_LIMIT);
+    // Награды - каждая отдельной карточкой, их не сворачиваем. Затем важные письма, затем новости.
+    const rewards = fresh.filter((m) => m.reward);
+    const important = fresh.filter((m) => !m.reward && m.important);
+    // На ×4 новости не всплывают: копятся в «Почте», чтобы не вытеснять награды.
+    const news = store.speed === 4 ? [] : fresh.filter((m) => !m.reward && !m.important);
+    const others = [...important, ...news];
+    const next: ToastData[] = [...rewards.slice(-MAX_VISIBLE).map((m) => toToast(m))];
+    const room = Math.max(0, SINGLE_LIMIT - next.length);
+    next.push(...others.slice(0, room).map((m) => toToast(m)));
+    const rest = others.slice(room);
     if (rest.length > 0) next.push(toToast(rest[0], true, `Ещё ${rest.length} ${lettersWord(rest.length)}`));
-    setItems((cur) => [...cur, ...next].slice(-MAX_VISIBLE));
+    if (next.length === 0) return;
+    // Вытесняем сначала обычные уведомления, награды держим.
+    setItems((cur) => {
+      const all = [...cur, ...next];
+      while (all.length > MAX_VISIBLE) {
+        const i = all.findIndex((x) => x.tone !== 'reward');
+        all.splice(i >= 0 ? i : 0, 1);
+      }
+      return all;
+    });
   });
 
   const close = useCallback((key: number) => setItems((cur) => cur.filter((t) => t.key !== key)), []);
@@ -135,4 +188,8 @@ export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | Window
       ))}
     </div>
   );
+}
+
+function outcomeIds(s: GameState): Set<string> {
+  return new Set(s.mail.filter((m) => m.outcome).map((m) => m.id));
 }

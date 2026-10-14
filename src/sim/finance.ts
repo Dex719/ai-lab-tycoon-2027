@@ -16,16 +16,17 @@ export function beginDay(s: GameState): void {
 }
 
 /** Слушатель движения денег для интерфейса (летящие суммы, звук). Симуляция от него не зависит и в сохранение он не попадает. */
-type MoneyListener = (kind: IncomeKind | ExpenseKind, amount: number) => void;
+type MoneyListener = (kind: IncomeKind | ExpenseKind, amount: number, tag?: string) => void;
 let moneyListener: MoneyListener | null = null;
 
 export function setMoneyListener(f: MoneyListener | null): void {
   moneyListener = f;
 }
 
-export function earn(s: GameState, kind: IncomeKind, amount: number): void {
+/** tag - подпись для интерфейса («Награда»), на учёт не влияет. */
+export function earn(s: GameState, kind: IncomeKind, amount: number, tag?: string): void {
   if (!(amount > 0)) return;
-  moneyListener?.(kind, amount);
+  moneyListener?.(kind, amount, tag);
   s.cash += amount;
   s.finance.month.income[kind] += amount;
   if (kind !== 'investors') {

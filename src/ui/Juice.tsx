@@ -131,9 +131,10 @@ export function Juice({ s, onRelease }: { s: GameState; onRelease: ReleaseHandle
 
   // Деньги копятся между перерисовками и показываются одной суммой на статью.
   useEffect(() => {
-    setMoneyListener((kind, amount) => {
-      if (!FLY_LABEL[kind]) return;
-      pending.current.set(kind, (pending.current.get(kind) ?? 0) + amount);
+    setMoneyListener((kind, amount, tag) => {
+      const label = tag ?? FLY_LABEL[kind];
+      if (!label) return;
+      pending.current.set(label, (pending.current.get(label) ?? 0) + amount);
     });
     return () => setMoneyListener(null);
   }, []);
@@ -148,9 +149,9 @@ export function Juice({ s, onRelease }: { s: GameState; onRelease: ReleaseHandle
     if (!p || p.state !== s || s.day < p.day) return;
 
     const sounds: Parameters<typeof playSound>[0][] = [];
-    for (const [kind, amount] of money) {
+    for (const [label, amount] of money) {
       if (Math.abs(amount) < 1) continue;
-      pushFly(amount, FLY_LABEL[kind as IncomeKind] ?? '');
+      pushFly(amount, label);
       sounds.push(amount < 0 ? 'spend' : amount >= BIG_INCOME ? 'cash' : 'coin');
     }
 
