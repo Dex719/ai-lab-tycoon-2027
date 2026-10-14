@@ -251,6 +251,8 @@ export interface Contract {
 export interface MailChoice {
   label: string;
   hint: string;
+  /** Что будет, словами: «Он остаётся, команда видит, что её ценят». Числа - в hint. */
+  story?: string;
 }
 
 export interface Mail {

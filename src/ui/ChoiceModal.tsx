@@ -7,6 +7,7 @@ import type { GameState, Mail } from '../sim/types';
 import { useModalFocus } from './components/common';
 import { IconClose } from './icons';
 import { actions, store } from './store';
+import './choice.css';
 
 /** «Ответить до 12.07.2017. Без ответа: «Оставить в секрете».» */
 export function replyLine(mail: Mail): string | null {
@@ -58,6 +59,7 @@ export function ChoiceList({ mail }: { mail: Mail }) {
         >
           <span className="choice-main">
             <span className="choice-l">{c.label}</span>
+            {c.story && <span className="choice-s">{c.story}</span>}
             <HintLine hint={c.hint} />
           </span>
           <span className="choice-go" aria-hidden="true">

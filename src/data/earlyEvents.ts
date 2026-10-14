@@ -5,7 +5,8 @@
 import type { EventDef } from './events';
 import { addRep, grant, hasReleased, order, pay, roll, usd, windowFrom } from './eventKit';
 
-const DECLINE = { label: 'Отказаться', hint: 'без изменений', apply: () => {} };
+/** Отказ без последствий; последствие словами своё у каждого письма. */
+const decline = (story: string) => ({ label: 'Отказаться', hint: 'без изменений', story, apply: () => {} });
 
 /** Обычный заказ: взять за фиксированную плату или попросить больше (шанс не угадать). */
 function orderEvent(opts: {
@@ -17,11 +18,15 @@ function orderEvent(opts: {
   rep?: number;
   ask?: number; // сколько запросить, если торговаться
   askChance?: number;
+  /** Последствия словами: взять заказ, отказаться. */
+  takeStory: string;
+  declineStory: string;
 }): EventDef {
   const rep = opts.rep ?? 0;
   const choices: NonNullable<EventDef['choices']> = [
     {
       label: 'Взять заказ',
+      story: opts.takeStory,
       hint: rep ? `+${usd(opts.pay)}, +${rep} репутации` : `+${usd(opts.pay)}`,
       apply: (s) => {
         order(s, opts.pay);
@@ -33,13 +38,15 @@ function orderEvent(opts: {
     const p = opts.askChance ?? 0.5;
     choices.push({
       label: 'Попросить цену выше',
+      story: 'Клиент может согласиться, а может найти исполнителя дешевле',
       hint: `+${usd(opts.ask)} с шансом ${Math.round(p * 100)} %, иначе клиент уйдёт к другим`,
+      luck: { good: 'клиент согласился на цену выше', bad: 'клиент ушёл к другим' },
       apply: (s) => {
         if (roll(s, p, true)) order(s, opts.ask!);
       },
     });
   }
-  choices.push(DECLINE);
+  choices.push(decline(opts.declineStory));
   return {
     id: opts.id,
     when: windowFrom(opts.date),
@@ -57,6 +64,7 @@ function contestEvent(opts: { id: string; date: string; title: string; body: str
     choices: [
       {
         label: 'Участвовать в конкурсе',
+        story: 'Выпущенную модель проверят на открытом наборе, без модели взнос пропадёт',
         hint: `-${usd(opts.fee)} взнос, +${usd(opts.prize)} и +${opts.rep} репутации, если есть выпущенная модель`,
         apply: (s) => {
           pay(s, opts.fee);
@@ -66,7 +74,7 @@ function contestEvent(opts: { id: string; date: string; title: string; body: str
           }
         },
       },
-      DECLINE,
+      decline('Конкурс пройдёт без лаборатории'),
     ],
   };
 }
@@ -81,6 +89,8 @@ export const EARLY_EVENTS: EventDef[] = [
       'готовых методов и пары недель работы. Банк готов заплатить небольшую сумму сразу после сдачи.',
     pay: 40_000,
     ask: 85_000,
+    takeStory: 'Две недели работы, банк платит сразу после сдачи',
+    declineStory: 'Бланки распознает другая команда',
   }),
   orderEvent({
     id: 'early-translate-site',
@@ -91,6 +101,8 @@ export const EARLY_EVENTS: EventDef[] = [
       'Работа небольшая, оплата скромная, зато клиент запомнит лабораторию.',
     pay: 30_000,
     rep: 1,
+    takeStory: 'Работа небольшая, зато маркетплейс запомнит лабораторию',
+    declineStory: 'Карточки переведёт другая команда',
   }),
   {
     id: 'early-grant-university',
@@ -105,6 +117,7 @@ export const EARLY_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Принять грант и опубликовать результаты',
+        story: 'Результаты увидят все, университет будет доволен',
         hint: `+${usd(140_000)}, +2 репутации`,
         apply: (s) => {
           grant(s, 140_000);
@@ -113,13 +126,14 @@ export const EARLY_EVENTS: EventDef[] = [
       },
       {
         label: 'Принять грант, результаты не публиковать',
+        story: 'Денег больше, но в университете сочтут лабораторию закрытой',
         hint: `+${usd(175_000)}, -2 репутации`,
         apply: (s) => {
           grant(s, 175_000);
           addRep(s, -2);
         },
       },
-      DECLINE,
+      decline('Университет отдаст грант другой лаборатории'),
     ],
   },
   orderEvent({
@@ -132,6 +146,8 @@ export const EARLY_EVENTS: EventDef[] = [
     pay: 65_000,
     ask: 105_000,
     askChance: 0.4,
+    takeStory: 'Простой бот на правилах, оплата после сдачи',
+    declineStory: 'Бота сделает другая команда',
   }),
   orderEvent({
     id: 'early-gov-requests',
@@ -142,6 +158,8 @@ export const EARLY_EVENTS: EventDef[] = [
       'Заказ небольшой, но государственный клиент хорошо влияет на репутацию.',
     pay: 50_000,
     rep: 1,
+    takeStory: 'Государственный клиент появится в списке заказчиков',
+    declineStory: 'Обращения разберёт другой подрядчик',
   }),
   contestEvent({
     id: 'early-contest-squat',
@@ -167,6 +185,7 @@ export const EARLY_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Принять грант и открыть набор данных',
+        story: 'Набор данных станет общим, фонд упомянет лабораторию',
         hint: `+${usd(125_000)}, +2 репутации`,
         apply: (s) => {
           grant(s, 125_000);
@@ -175,10 +194,11 @@ export const EARLY_EVENTS: EventDef[] = [
       },
       {
         label: 'Принять меньший грант на закрытую работу',
+        story: 'Денег меньше, зато данные останутся вашими',
         hint: `+${usd(85_000)}`,
         apply: (s) => grant(s, 85_000),
       },
-      DECLINE,
+      decline('Фонд разделит гранты между другими'),
     ],
   },
   orderEvent({
@@ -191,6 +211,8 @@ export const EARLY_EVENTS: EventDef[] = [
     pay: 75_000,
     ask: 135_000,
     askChance: 0.45,
+    takeStory: 'Через месяц под товарами появятся подсказки от лаборатории',
+    declineStory: 'Подсказки сделает другая команда',
   }),
   orderEvent({
     id: 'early-reviews',
@@ -201,6 +223,8 @@ export const EARLY_EVENTS: EventDef[] = [
       'Отчёт нужен раз в месяц, оплата разовая.',
     pay: 100_000,
     rep: 1,
+    takeStory: 'Редакция получит разбор комментариев, лаборатория - оплату сразу',
+    declineStory: 'Отзывы разберёт другая команда',
   }),
   {
     id: 'early-grant-state',
@@ -215,6 +239,7 @@ export const EARLY_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Принять грант с отчётностью',
+        story: 'Деньги придут сразу, раз в квартал нужен короткий отчёт',
         hint: `+${usd(210_000)}, +2 репутации`,
         apply: (s) => {
           grant(s, 210_000);
@@ -223,13 +248,15 @@ export const EARLY_EVENTS: EventDef[] = [
       },
       {
         label: 'Подать заявку на большую сумму',
+        story: 'Фонд может одобрить большую сумму, а может отказать',
+        luck: { good: 'фонд одобрил большую сумму', bad: 'фонд отказал в гранте' },
         hint: `+${usd(350_000)} с шансом 40 %, иначе -${usd(10_000)} на подготовку заявки`,
         apply: (s) => {
           if (roll(s, 0.4, true)) grant(s, 350_000);
           else pay(s, 10_000);
         },
       },
-      DECLINE,
+      decline('Государственный грант достанется другим'),
     ],
   },
   contestEvent({
@@ -253,5 +280,7 @@ export const EARLY_EVENTS: EventDef[] = [
     pay: 125_000,
     ask: 195_000,
     askChance: 0.4,
+    takeStory: 'Юристы получат поиск по договорам, лаборатория - оплату',
+    declineStory: 'Поиск сделает другая команда',
   }),
 ];
