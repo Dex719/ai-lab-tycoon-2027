@@ -288,7 +288,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         <div className="settings-h">Пауза, когда</div>
         <label className="row">
           <input type="checkbox" checked={settings.pauseOnImportant} onChange={() => toggle('pauseOnImportant')} />
-          <span>приходит важное письмо (решение, деньги кончились, провал)</span>
+          <span title="Решение в почте, деньги кончились, провал контракта">пришло важное письмо</span>
         </label>
         <label className="row">
           <input type="checkbox" checked={settings.pauseOnReady} onChange={() => toggle('pauseOnReady')} />
