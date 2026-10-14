@@ -15,8 +15,9 @@
 
 /* ---------- Сегменты: три карточки, цвет сегмента - верхняя полоса и значок канала ---------- */
 .seg-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.seg-grid.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @container (max-width: 860px) {
-  .seg-grid { grid-template-columns: minmax(0, 1fr); }
+  .seg-grid, .seg-grid.n2 { grid-template-columns: minmax(0, 1fr); }
 }
 .seg-card {
   display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px 14px;

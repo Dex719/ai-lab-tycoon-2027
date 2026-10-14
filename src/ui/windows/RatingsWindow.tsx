@@ -1,18 +1,20 @@
 // Вкладки «Бенчмарки» (баллы моделей по бенчмаркам) и «Арена» (рейтинг по Эло).
 
 import { useState, type ReactNode } from 'react';
+import { ModelEmblem } from '../components/ModelEmblem';
+import { fmtGap } from '../ArenaFeedback';
+import { raceMetricOf, raceRows, type RaceRow } from '../race';
 import type { WindowProps } from '.';
 import { BENCHMARKS } from '../../data/benchmarks';
-import { expectedLeaderElo, leaderboard, marketArenaRank, type BoardRow } from '../../sim/leaderboard';
+import { expectedLeaderElo, leaderboard, marketArenaRank, type BoardRow, type RaceMetric } from '../../sim/leaderboard';
 import { contextLabel } from '../../sim/research';
 import { findRivalDefIn, rivalContextIn } from '../../sim/rivalry';
-import { ARENA_PLACE_TITLE, bestArenaPlace } from '../arena';
+import { ARENA_PLACE_TITLE } from '../arena';
 import { END_DAY, formatDateShort, yearOf } from '../../sim/time';
-import type { BenchmarkDef, BenchmarkId, GameState } from '../../sim/types';
-import { fmtElo, fmtNum, fmtPct } from '../format';
+import type { BenchmarkDef, BenchmarkId, GameState, HypeOwner } from '../../sim/types';
+import { fmtElo, fmtNum, fmtPct, ruPlural } from '../format';
 import { IconAlert, IconLock } from '../icons';
-import { fmtRank } from '../labels';
-import { finite, ownerColor, ownerName, OwnerTag, safe, StatStrip } from './analyticsShared';
+import { finite, ownerColor, ownerName, OwnerTag, safe } from './analyticsShared';
 
 type SortKey = 'name' | 'owner' | 'date' | 'context' | BenchmarkId;
 type SortDir = 'asc' | 'desc';
@@ -334,36 +336,183 @@ export function expectedLeaderElo10(s: GameState): number | null {
   return elo !== null && Number.isFinite(elo) ? Math.round(elo / 10) * 10 : null;
 }
 
+/** Значок лаборатории соперника: круг её цвета с первой буквой. */
+function LabBadge({ s, owner, size = 34 }: { s: GameState; owner: HypeOwner; size?: number }) {
+  return (
+    <span className="arn-lab" style={{ width: size, height: size, background: ownerColor(owner, true), fontSize: size * 0.45 }} aria-hidden="true">
+      {ownerName(s, owner).slice(0, 1)}
+    </span>
+  );
+}
+
+/** Эмблема модели игрока по строке рейтинга; у соперника - значок лаборатории. */
+function RowBadge({ s, x, size }: { s: GameState; x: RaceRow; size: number }) {
+  const m = x.row.ref.kind === 'player' ? s.models.find((pm) => pm.id === x.row.ref.id) : undefined;
+  return m ? <ModelEmblem m={m} size={size} exposed={m.exposed} /> : <LabBadge s={s} owner={x.owner} size={size} />;
+}
+
+function gapText(metric: RaceMetric, gap: number): string {
+  return metric.kind === 'arena' ? `${fmtGap(metric, gap)} Эло` : `${fmtGap(metric, gap)} балла`;
+}
+
+function valueText(metric: RaceMetric, v: number): string {
+  return metric.kind === 'arena' ? fmtElo(v) : fmtPct(v, 1);
+}
+
+const MEDAL = ['gold', 'silver', 'bronze'] as const;
+
+function Podium({ s, top, metric }: { s: GameState; top: RaceRow[]; metric: RaceMetric }) {
+  // Порядок на пьедестале: второе, первое, третье.
+  const order = [top[1], top[0], top[2]];
+  return (
+    <div className="arn-podium">
+      {order.map((x, i) =>
+        x ? (
+          <div key={x.key} className={`arn-step p${x.rank}${x.owner === 'player' ? ' me' : ''}`}>
+            <RowBadge s={s} x={x} size={x.rank === 1 ? 56 : 46} />
+            <span className="arn-step-name" title={x.row.name}>
+              {x.row.name}
+            </span>
+            <span className="arn-step-lab">
+              <i className="own-dot" style={{ background: ownerColor(x.owner) }} />
+              {ownerName(s, x.owner)}
+            </span>
+            <span className="arn-step-v">
+              {x.estimated ? '≈' : ''}
+              {valueText(metric, x.value)}
+            </span>
+            <span className={`arn-step-block ${MEDAL[(x.rank ?? 1) - 1]}`}>{x.rank}</span>
+          </div>
+        ) : (
+          <div key={`empty-${i}`} className="arn-step empty" />
+        ),
+      )}
+    </div>
+  );
+}
+
 export function ArenaTab({ s }: WindowProps) {
-  const rows = safe(() => leaderboard(s));
-
-  const ranked = arenaRows(s, rows ?? []);
-  const onSale = ranked.filter((x) => x.inSale).length;
-  const mine = ranked.find((x) => x.row.owner === 'player') ?? null;
-  const myRank = bestArenaPlace(s);
-  const expected = expectedLeaderElo10(s);
+  const [showAll, setShowAll] = useState(false);
+  const metric = raceMetricOf(s);
+  const rows = metric ? raceRows(s, metric) : [];
+  const counted = rows.filter((x) => x.counted);
+  const shownRows = showAll ? rows : counted;
+  const leader = counted[0] ?? null;
+  const mine = counted.find((x) => x.owner === 'player') ?? null;
+  const myRank = mine?.rank ?? null;
+  const first = myRank === 1;
+  const rival = counted.find((x) => x.owner !== 'player') ?? null; // лучший соперник
+  const runner = first ? rival : leader;
+  const gap = mine && runner ? Math.abs(mine.value - runner.value) : null;
   const monthsFirst = finite(s.monthsFirst);
+  const expected = yearOf(s.day) >= 2024 && metric?.kind === 'arena' ? expectedLeaderElo10(s) : null;
+  const hi = shownRows.length > 0 ? Math.max(...shownRows.map((x) => x.value)) : 0;
+  const lo = shownRows.length > 0 ? Math.min(...shownRows.map((x) => x.value)) : 0;
+  const barWidth = (v: number): number => (hi > lo ? 8 + (92 * (v - lo)) / (hi - lo) : 100);
+  const date = dateHeader(shownRows.map((x) => x.row));
+  const arena = metric?.kind === 'arena';
+  const mineModel = mine ? s.models.find((m) => m.id === mine.row.ref.id) : undefined;
+  const hidden = rows.length - counted.length;
 
-  const hi = ranked.length > 0 ? ranked[0].row.elo : 0;
-  const lo = ranked.length > 0 ? ranked[ranked.length - 1].row.elo : 0;
-  const barWidth = (elo: number): number => (hi > lo ? 8 + (92 * (elo - lo)) / (hi - lo) : 100);
-  const date = dateHeader(ranked.map((x) => x.row));
+  if (!metric) {
+    return (
+      <div className="an-page fill">
+        <div className="an-empty">Гонка начнётся, когда выйдет первый тест.</div>
+      </div>
+    );
+  }
 
-  let body: ReactNode;
-  if (rows === null) body = <div className="an-empty">Не удалось построить рейтинг.</div>;
-  else if (ranked.length === 0) body = <div className="an-empty">Выпущенных моделей нет.</div>;
-  else
-    body = (
-      <div className="an-scroll">
-        <table className="grid an-grid">
+  return (
+    <div className="an-page arn">
+      <div
+        className={`arn-hero${first ? ' first' : ''}`}
+        title={arena ? TIP_RANK : `Пока соперники не продают модели по API, гонка идёт по тесту ${metric.name} среди всех вышедших моделей.`}
+      >
+        <div className="arn-cell arn-place">
+          <span className="arn-k">{arena ? 'Место на «Арене»' : `Место по тесту ${metric.name}`}</span>
+          <span className="arn-big">{myRank !== null ? `${fmtNum(myRank)}-е` : '-'}</span>
+          <span className="arn-s">
+            {myRank !== null
+              ? `из ${fmtNum(counted.length)} ${arena ? ruPlural(counted.length, 'модели в продаже', 'моделей в продаже', 'моделей в продаже') : ruPlural(counted.length, 'модели', 'моделей', 'моделей')}`
+              : arena
+                ? 'Ваших моделей в продаже нет'
+                : 'Ваших моделей с этим тестом нет'}
+          </span>
+        </div>
+        <div className="arn-cell">
+          <span className="arn-k">{first ? 'Отрыв от второго места' : 'До лидера'}</span>
+          <span className={`arn-mid ${first ? 'good' : 'bad'}`}>{gap !== null ? `${first ? '+' : '−'}${gapText(metric, gap)}` : '-'}</span>
+          <span className="arn-s">
+            {runner ? (
+              <>
+                <i className="own-dot" style={{ background: ownerColor(runner.owner, true) }} />
+                {runner.row.name}, {ownerName(s, runner.owner)}
+              </>
+            ) : (
+              'Соперников пока нет'
+            )}
+          </span>
+        </div>
+        <div className="arn-cell arn-best">
+          {mineModel && <ModelEmblem m={mineModel} size={52} gold={first} />}
+          <span className="arn-best-t">
+            <span className="arn-k">Ваша лучшая модель</span>
+            <span className="arn-best-n">{mine ? mine.row.name : '-'}</span>
+            <span className="arn-s">{mine ? `${arena ? 'Эло' : metric.name} ${valueText(metric, mine.value)}` : 'Выпустите модель'}</span>
+          </span>
+        </div>
+        {arena ? (
+          <div className="arn-cell arn-meta">
+            <span className="arn-k" title={TIP_MONTHS}>
+              Месяцев на 1-м месте
+            </span>
+            <span className="arn-mid">{fmtNum(monthsFirst)}</span>
+            <span className="arn-s" title={expected !== null ? TIP_EXPECTED : TIP_GOAL}>
+              {expected !== null ? `Ожидаемый лидер к концу 2024: ≈ ${fmtElo(expected)} Эло` : `Цель: 1-е место на ${formatDateShort(END_DAY)}`}
+            </span>
+          </div>
+        ) : (
+          <div className="arn-cell arn-meta" title={TIP_GOAL}>
+            <span className="arn-k">Цель партии</span>
+            <span className="arn-mid">1-е место</span>
+            <span className="arn-s">на «Арене» {formatDateShort(END_DAY)}</span>
+          </div>
+        )}
+      </div>
+
+      {counted.length > 0 && <Podium s={s} top={counted.slice(0, 3)} metric={metric} />}
+
+      <div className="an-toolbar">
+        <span className="arn-board-t">{arena ? 'Таблица «Арены»' : `Таблица по тесту ${metric.name}`}</span>
+        <span className="muted">В зачёте: {fmtNum(counted.length)}</span>
+        {hidden > 0 && (
+          <label className="an-check">
+            <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
+            {arena ? `Модели не в продаже (${fmtNum(hidden)})` : `Только показанные модели (${fmtNum(hidden)})`}
+          </label>
+        )}
+        <span className="grow" />
+        <span className="an-key" title="Оценка: точный результат неизвестен или модель усилена под давлением">
+          <b>≈</b> оценка
+        </span>
+      </div>
+      {shownRows.length === 0 ? (
+        <div className="an-empty">{arena ? 'Моделей в продаже нет.' : 'Выпущенных моделей нет.'}</div>
+      ) : (
+        <table className="grid an-grid arn-grid">
           <thead>
             <tr>
-              <th className="num" title={TIP_RANK}>
+              <th className="num" title={arena ? TIP_RANK : undefined}>
                 №
               </th>
               <th>Модель</th>
               <th>Лаборатория</th>
-              <th title="Рейтинг Эло: чем выше, тем чаще пользователи выбирают ответы модели">Эло</th>
+              <th title={arena ? 'Рейтинг Эло: чем выше, тем чаще пользователи выбирают ответы модели' : `Балл теста ${metric.name}`}>
+                {arena ? 'Эло' : metric.name}
+              </th>
+              <th className="num" title="Насколько модель отстаёт от лидера">
+                Разрыв
+              </th>
               <th title={date.title}>{date.label}</th>
               <th className="num" title={TIP_CONTEXT}>
                 Контекст
@@ -371,20 +520,33 @@ export function ArenaTab({ s }: WindowProps) {
             </tr>
           </thead>
           <tbody>
-            {ranked.map(({ row: r, rank, inSale }) => {
+            {shownRows.map((x) => {
+              const r = x.row;
               const boosted = isEloBoosted(s, r);
+              const est = arena ? boosted || r.eloEstimated : x.estimated;
+              const me = x.owner === 'player';
+              const behind = leader && x !== leader ? leader.value - x.value : null;
               return (
-                <tr key={rowKey(r)} className={r.owner === 'player' ? 'player' : undefined}>
-                  <td className={`num${rank === null ? ' muted' : ''}`}>{rank !== null ? fmtNum(rank) : '-'}</td>
-                  <td>
-                    <Flag row={r} />
-                    {r.name}
-                    {!inSale && (
-                      <span className="est" title={TIP_NOT_SALE}>
-                        {' '}
-                        не в продаже
-                      </span>
+                <tr key={x.key} className={`${me ? 'player' : ''}${x.counted ? '' : ' arn-out'}${x.rank === 1 ? ' arn-lead' : ''}`}>
+                  <td className="num arn-rank">
+                    {x.rank !== null ? (
+                      <span className={`arn-medal${x.rank <= 3 ? ` ${MEDAL[x.rank - 1]}` : ''}`}>{fmtNum(x.rank)}</span>
+                    ) : (
+                      <span className="muted">-</span>
                     )}
+                  </td>
+                  <td>
+                    <span className="arn-model">
+                      <RowBadge s={s} x={x} size={22} />
+                      <Flag row={r} />
+                      <span className="arn-model-n">{r.name}</span>
+                      {me && <span className="arn-you">Вы</span>}
+                      {!x.counted && (
+                        <span className="est" title={arena ? TIP_NOT_SALE : TIP_ANNOUNCED}>
+                          {arena ? 'не в продаже' : 'показана'}
+                        </span>
+                      )}
+                    </span>
                   </td>
                   <td>
                     <OwnerTag s={s} owner={r.owner} />
@@ -392,16 +554,19 @@ export function ArenaTab({ s }: WindowProps) {
                   <td>
                     <div className="elo-cell">
                       <span className="elo-track">
-                        <span className="elo-fill" style={{ width: `${barWidth(r.elo)}%`, background: ownerColor(r.owner) }} />
+                        <span className="elo-fill" style={{ width: `${barWidth(x.value)}%`, background: ownerColor(r.owner) }} />
                       </span>
-                      {boosted || r.eloEstimated ? (
-                        <span className="est elo-val" title={boosted ? TIP_ELO_BOOSTED : TIP_ELO_UNKNOWN}>
-                          ≈{fmtElo(r.elo)}
+                      {est ? (
+                        <span className="est elo-val" title={arena ? (boosted ? TIP_ELO_BOOSTED : TIP_ELO_UNKNOWN) : TIP_ESTIMATE}>
+                          ≈{valueText(metric, x.value)}
                         </span>
                       ) : (
-                        <span className="elo-val">{fmtElo(r.elo)}</span>
+                        <span className="elo-val">{valueText(metric, x.value)}</span>
                       )}
                     </div>
+                  </td>
+                  <td className={`num arn-gap${x === leader ? ' lead' : ''}`}>
+                    {x === leader ? 'лидер' : behind !== null ? `−${fmtGap(metric, Math.max(0, behind))}` : '-'}
                   </td>
                   <DateCell row={r} />
                   <td className="num">{ctxLabel(rowContext(s, r))}</td>
@@ -410,49 +575,7 @@ export function ArenaTab({ s }: WindowProps) {
             })}
           </tbody>
         </table>
-      </div>
-    );
-
-  return (
-    <div className="an-page fill">
-      <StatStrip
-        items={[
-          {
-            value: myRank !== null ? fmtRank(myRank) : '-',
-            label: myRank !== null ? `Сейчас среди ${fmtNum(onSale)} моделей в продаже` : 'Ваших моделей в продаже нет',
-            title: TIP_RANK,
-          },
-          { value: fmtRank(1), label: `Цель: среди моделей в продаже на ${formatDateShort(END_DAY)}`, title: TIP_GOAL },
-          // Планка победы раскрывает будущее: показываем её только в последний год партии.
-          ...(yearOf(s.day) >= 2024
-            ? [
-                {
-                  value: expected !== null ? `≈ ${fmtElo(expected)}` : '-',
-                  label: 'Ожидаемый лидер к концу 2024, Эло',
-                  title: TIP_EXPECTED,
-                },
-              ]
-            : []),
-          {
-            value: mine ? fmtElo(mine.row.elo) : '-',
-            label: mine ? `Ваша лучшая: ${mine.row.name}` : 'Ваша лучшая модель, Эло',
-          },
-          { value: fmtNum(monthsFirst), label: 'Месяцев на 1-м месте', title: TIP_MONTHS },
-        ]}
-      />
-      <div className="an-toolbar">
-        <span className="muted">Моделей: {fmtNum(ranked.length)}</span>
-        <span className="muted">В продаже: {fmtNum(onSale)}</span>
-        <span className="grow" />
-        <span className="an-key" title="Оценка: точный рейтинг неизвестен или модель усилена под давлением">
-          <b>≈</b> оценка
-        </span>
-        <span className="an-key">
-          <span className="est">не в продаже</span>
-          <span className="an-key-s">нет API: не в зачёт цели</span>
-        </span>
-      </div>
-      {body}
+      )}
     </div>
   );
 }

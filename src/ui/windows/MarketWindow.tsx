@@ -38,7 +38,7 @@ import './MarketWindow.css';
 
 // ---------- Рынок ----------
 
-const SHARE_SERIES: SeriesDef[] = [{ id: 'player', label: 'Ваша доля', color: '#4ea1ff', pick: (r) => r.marketShare }];
+const SHARE_SERIES: SeriesDef[] = [{ id: 'player', label: 'Ваша доля', color: '#2f80e4', pick: (r) => r.marketShare }];
 
 const fmtAxisShare = (v: number): string => fmtShare(v, 1);
 
@@ -232,13 +232,13 @@ function ShareBars({ s, snap }: { s: GameState; snap: MarketSnapshot | null }) {
       {rows.map(({ owner, share }) => (
         <div key={owner} className={`bar-row${owner === 'player' ? ' me' : ''}`}>
           <span className="bar-name" title={ownerName(s, owner)}>
-            <i className={`own-dot${owner === 'player' ? ' me' : ''}`} style={{ background: ownerColor(owner, true) }} />
+            <i className={`own-dot${owner === 'player' ? ' me' : ''}`} style={{ background: ownerColor(owner) }} />
             {ownerName(s, owner)}
           </span>
           <span className="bar-track">
             <span
               className="bar-fill"
-              style={{ width: `${share > 0 ? Math.max(1, (share / maxShare) * 100) : 0}%`, background: ownerColor(owner, true) }}
+              style={{ width: `${share > 0 ? Math.max(1, (share / maxShare) * 100) : 0}%`, background: ownerColor(owner) }}
             />
           </span>
           <span className="bar-val">{fmtShare(share)}</span>
@@ -350,9 +350,11 @@ function SegmentCard({ s, v }: { s: GameState; v: SegmentView }) {
 
 function Segments({ s, views }: { s: GameState; views: SegmentView[] | null }) {
   if (views === null) return <div className="an-empty">Не удалось рассчитать сегменты.</div>;
+  // Сегмент закрытого канала (подписки до чат-момента) не показываем: будущее не раскрываем.
+  const open = views.filter((v) => v.open);
   return (
-    <div className="seg-grid">
-      {views.map((v) => (
+    <div className={`seg-grid n${open.length}`}>
+      {open.map((v) => (
         <SegmentCard key={v.id} s={s} v={v} />
       ))}
     </div>
@@ -366,6 +368,9 @@ const Dash = () => <span className="muted">-</span>;
 function MarketTable({ s, rows }: { s: GameState; rows: MarketRow[] | null }) {
   if (rows === null) return <div className="an-empty">Не удалось рассчитать список моделей.</div>;
   if (rows.length === 0) return <div className="an-empty">На рынке нет моделей.</div>;
+  // До открытия подписок их колонок нет: будущее не показываем.
+  const subs = subsOpen(s.day) || rows.some((r) => r.subsPrice !== null);
+  const segs = SEGMENT_IDS.filter((id) => subs || SEGMENT_DEF[id].channel === 'api');
   return (
     <table className="grid an-grid flat mk-grid">
       <thead>
@@ -380,16 +385,16 @@ function MarketTable({ s, rows }: { s: GameState; rows: MarketRow[] | null }) {
           <th rowSpan={2} className="num" title="Длина контекста, токенов">
             Контекст
           </th>
-          <th colSpan={2} className="gh" title="У соперников цена API - средняя: (3 × входные + выходные) / 4">
+          <th colSpan={subs ? 2 : 1} className="gh" title="У соперников цена API - средняя: (3 × входные + выходные) / 4">
             Цена
           </th>
-          <th colSpan={3} className="gh" title="Доля модели в спросе сегмента после ограничения мощностью">
+          <th colSpan={segs.length} className="gh" title="Доля модели в спросе сегмента после ограничения мощностью">
             Доля в сегменте
           </th>
           <th rowSpan={2} className="num" title="По всем сегментам, с весом по выручке сегментов">
             Общая доля
           </th>
-          <th colSpan={2} className="gh" title="Спрос на модель до ограничения мощностью">
+          <th colSpan={subs ? 2 : 1} className="gh" title="Спрос на модель до ограничения мощностью">
             Спрос
           </th>
         </tr>
@@ -397,16 +402,18 @@ function MarketTable({ s, rows }: { s: GameState; rows: MarketRow[] | null }) {
           <th className="num" title="Доллары за 1 млн токенов">
             API
           </th>
-          <th className="num" title="Доллары в месяц за пользователя">
-            Подписка
-          </th>
-          {SEGMENT_IDS.map((id) => (
+          {subs && (
+            <th className="num" title="Доллары в месяц за пользователя">
+              Подписка
+            </th>
+          )}
+          {segs.map((id) => (
             <th key={id} className="num mk-seg" style={{ color: SEGMENT_ACCENT[id].text }}>
               {SEGMENT_DEF[id].name}
             </th>
           ))}
           <th className="num">Токенов в день</th>
-          <th className="num">Пользователей</th>
+          {subs && <th className="num">Пользователей</th>}
         </tr>
       </thead>
       <tbody>
@@ -425,15 +432,15 @@ function MarketTable({ s, rows }: { s: GameState; rows: MarketRow[] | null }) {
             <td className="num">{fmtElo(r.elo)}</td>
             <td className="num">{ctxLabel(r.context)}</td>
             <td className="num">{r.apiPrice !== null ? fmtPrice(r.apiPrice) : <Dash />}</td>
-            <td className="num">{r.subsPrice !== null ? fmtPrice(r.subsPrice) : <Dash />}</td>
-            {SEGMENT_IDS.map((id) => (
+            {subs && <td className="num">{r.subsPrice !== null ? fmtPrice(r.subsPrice) : <Dash />}</td>}
+            {segs.map((id) => (
               <td key={id} className="num">
                 {r.seg[id] !== null ? fmtShare(r.seg[id] as number) : <Dash />}
               </td>
             ))}
             <td className="num">{fmtShare(r.share)}</td>
             <td className="num">{r.apiTokens !== null ? fmtNum(r.apiTokens) : <Dash />}</td>
-            <td className="num">{r.subsUsers !== null ? fmtNum(r.subsUsers) : <Dash />}</td>
+            {subs && <td className="num">{r.subsUsers !== null ? fmtNum(r.subsUsers) : <Dash />}</td>}
           </tr>
         ))}
       </tbody>
@@ -449,7 +456,7 @@ function PriceChart({ s }: { s: GameState }) {
   const defs: SeriesDef[] = owners.map((o) => ({
     id: o,
     label: ownerName(s, o),
-    color: ownerColor(o, true),
+    color: ownerColor(o),
     pick: (r) => r.prices?.[o] ?? 0,
   }));
   const data = useMemo(() => buildChartData(history, defs), [history, history.length, owners.join()]); // eslint-disable-line react-hooks/exhaustive-deps
