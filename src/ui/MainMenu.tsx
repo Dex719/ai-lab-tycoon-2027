@@ -8,6 +8,7 @@ import { ConfirmDialog, Dialog, ErrorText } from './components/common';
 import { fmtMoney } from './format';
 import { fmtRank } from './labels';
 import { deleteSlot, formatSavedAt, latestSlot, listSlots, MANUAL_SLOTS, type SlotId, type SlotInfo } from './saves';
+import { AchievementsDialog } from './Achievements';
 import { applyRealNames } from './realNamesDom';
 import { playSound } from './sound';
 import { getSettings, setSettings } from './settings';
@@ -17,7 +18,7 @@ export const VERSION = 'v0.2';
 const NAME_MAX = 22;
 const FOUNDER_MAX = 24;
 
-type MenuDialog = null | 'new' | 'load' | 'settings';
+type MenuDialog = null | 'new' | 'load' | 'settings' | 'achievements';
 
 export function MainMenu() {
   const [dialog, setDialog] = useState<MenuDialog>(null);
@@ -45,6 +46,9 @@ export function MainMenu() {
         <button className="menu-item" onClick={() => setDialog('load')}>
           Загрузить
         </button>
+        <button className="menu-item" onClick={() => setDialog('achievements')}>
+          Достижения
+        </button>
         <button className="menu-item" onClick={() => setDialog('settings')}>
           Настройки
         </button>
@@ -54,6 +58,7 @@ export function MainMenu() {
       {dialog === 'new' && <NewGameDialog onClose={() => setDialog(null)} />}
       {dialog === 'load' && <SlotsDialog mode="load" onClose={() => setDialog(null)} />}
       {dialog === 'settings' && <SettingsDialog onClose={() => setDialog(null)} />}
+      {dialog === 'achievements' && <AchievementsDialog onClose={() => setDialog(null)} />}
     </div>
   );
 }

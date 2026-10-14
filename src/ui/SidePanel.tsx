@@ -10,7 +10,7 @@ import { rpPerDay, TECHS, techCost } from '../sim/research';
 import { CLIENTS } from '../data/clients';
 import { benchDef } from '../sim/benchmarks';
 import { openChoices } from '../sim/events';
-import { ARENA_PLACE_TITLE, bestArenaPlace } from './arena';
+import { ARENA_PLACE_TITLE } from './arena';
 import { formatDateShort } from '../sim/time';
 import { trainingPoolPerRun } from '../sim/training';
 import type { GameState } from '../sim/types';
@@ -189,7 +189,6 @@ function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) 
 
 /** Строка цели: место среди моделей в продаже и сколько закрытых месяцев лаборатория была первой. */
 function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
-  const rank = bestArenaPlace(s);
   const race = standingOf(s);
   const months = Number.isFinite(s.monthsFirst) ? s.monthsFirst : 0;
   const showSubs = subsOpen(s.day) || s.market.playerSubs > 0;
@@ -206,7 +205,7 @@ function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) =>
             {raceName(race.metric)}: {fmtRank(race.rank)}
           </span>
         ) : (
-          <span>Гонка: {rank !== null ? fmtRank(rank) : 'соперников пока нет'}</span>
+          <span>Гонка: {s.models.some((m) => m.releasedDay !== null) ? 'соперников пока нет' : 'выпустите первую модель'}</span>
         )}
         {(!race || race.metric.kind === 'arena') && <span className="v">На 1-м: {fmtNum(months)} мес.</span>}
       </div>

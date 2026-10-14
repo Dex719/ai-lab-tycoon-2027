@@ -18,6 +18,7 @@ import { Juice } from './Juice';
 import { ReleaseCard } from './ReleaseCard';
 import { Moments } from './Moments';
 import { MonthStrip } from './MonthStrip';
+import { AchievementsDialog, AchievementToasts } from './Achievements';
 import { TopBar } from './TopBar';
 import { TutorialPanel } from './Tutorial';
 import { useViewport } from './viewport';
@@ -113,7 +114,7 @@ const WIN_ACCENT: Record<WindowId, string> = {
   datacenters: 'var(--c-teal)',
 };
 
-type GameDialog = null | 'save' | 'load' | 'settings' | 'quit';
+type GameDialog = null | 'save' | 'load' | 'settings' | 'achievements' | 'quit';
 
 export function Game({ s }: { s: GameState }) {
   const deskRef = useRef<HTMLDivElement>(null);
@@ -185,7 +186,7 @@ export function Game({ s }: { s: GameState }) {
 
   function startAction(d: GameDialog) {
     setStartOpen(false);
-    if (d === 'save' || d === 'load' || d === 'settings') store.setSpeed(0);
+    if (d === 'save' || d === 'load' || d === 'settings' || d === 'achievements') store.setSpeed(0);
     setDialog(d);
   }
 
@@ -262,6 +263,9 @@ export function Game({ s }: { s: GameState }) {
             <button role="menuitem" onClick={() => startAction('settings')}>
               Настройки
             </button>
+            <button role="menuitem" onClick={() => startAction('achievements')}>
+              Достижения
+            </button>
             <hr />
             <button role="menuitem" onClick={() => startAction('quit')}>
               Выйти в главное меню
@@ -291,6 +295,7 @@ export function Game({ s }: { s: GameState }) {
       <Toasts s={s} open={open} />
       <ArenaBanner s={s} />
       <MonthStrip s={s} />
+      <AchievementToasts s={s} />
       <Juice s={s} onRelease={setReleased} />
       {released && <ReleaseCard s={s} modelId={released} onClose={closeReleased} />}
       <ChoiceModal s={s} />
@@ -300,6 +305,7 @@ export function Game({ s }: { s: GameState }) {
       {dialog === 'save' && <SlotsDialog mode="save" onClose={() => setDialog(null)} />}
       {dialog === 'load' && <SlotsDialog mode="load" onClose={() => setDialog(null)} />}
       {dialog === 'settings' && <SettingsDialog onClose={() => setDialog(null)} />}
+      {dialog === 'achievements' && <AchievementsDialog onClose={() => setDialog(null)} />}
       {dialog === 'quit' && <QuitDialog onClose={() => setDialog(null)} />}
     </>
   );

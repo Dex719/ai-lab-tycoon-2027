@@ -95,6 +95,7 @@ export function releaseModel(s: GameState, modelId: string, price: number, opts:
   s.hype.player = Math.min(100, s.hype.player + bonus);
   addMail(s, {
     kind: 'news',
+    read: true, // выпуск показывает карточка модели
     title: `Модель «${m.name}» выпущена`,
     body: `Модель доступна клиентам по API${m.onSubs ? ' и по подписке' : ''}. Шумиха от выпуска: +${Math.round(bonus)}.`,
   });

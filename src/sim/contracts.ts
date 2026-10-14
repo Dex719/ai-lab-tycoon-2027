@@ -22,7 +22,7 @@ import { addMail } from './events';
 import { earn, spend } from './finance';
 import { chance, pick, randInt, randRange } from './rng';
 import { endSentence } from './text';
-import { byYear, dateToDay, lerpByDate, yearOf } from './time';
+import { byYear, dateToDay, dayToDate, lerpByDate, yearOf } from './time';
 import { frontierParams, modelScore } from './training';
 import type { BenchmarkId, Contract, GameState, PlayerModel, Result, Tender } from './types';
 
@@ -285,6 +285,27 @@ function failContract(s: GameState, c: Contract, title: string, reason: string, 
   });
 }
 
+const MONTHS_NOM = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+const DONE_MARK = 'Выполнен: ';
+const WON_MARK = 'Выигран: ';
+
+/**
+ * Итог контрактов за месяц: одно письмо на месяц вместо письма на каждое событие. Строка дописывается в непрочитанное
+ * письмо этого месяца, заголовок пересчитывается; если письма нет или его уже прочитали - заводится новое.
+ */
+function contractDigest(s: GameState, line: string): void {
+  const d = dayToDate(s.day);
+  const prefix = `Контракты за ${MONTHS_NOM[d.month - 1]} ${d.year}`;
+  let m = [...s.mail].reverse().find((x) => x.kind === 'contract' && !x.read && x.title.startsWith(prefix));
+  if (!m) m = addMail(s, { kind: 'contract', title: prefix, body: '', reward: true });
+  m.body = m.body ? `${m.body}\n${line}` : line;
+  const lines = m.body.split('\n');
+  const done = lines.filter((l) => l.startsWith(DONE_MARK)).length;
+  const won = lines.filter((l) => l.startsWith(WON_MARK)).length;
+  const parts = [done > 0 ? `выполнено ${done}` : '', won > 0 ? `выиграно тендеров ${won}` : ''].filter(Boolean);
+  m.title = `${prefix}: ${parts.join(', ')}`;
+}
+
 /** Работа сделана: проверяем настоящий балл модели, без подгонки. */
 function finishContract(s: GameState, c: Contract): void {
   const t = c.tender;
@@ -295,14 +316,11 @@ function finishContract(s: GameState, c: Contract): void {
     earn(s, 'contracts', t.payment);
     addReputation(s, REP_CONTRACT_OK);
     removeById(s.contracts, c.id);
-    addMail(s, {
-      kind: 'contract',
-      title: `Контракт выполнен: ${clientName(t.clientId)}`,
-      reward: true,
-      body:
-        `Работа сдана. Модель показала ${fmtScore(honest)} % на ${bench} ` +
-        `при требовании ${t.requirement} %. Оплата ${fmtMoney(t.payment)}, репутация +${REP_CONTRACT_OK}.`,
-    });
+    contractDigest(
+      s,
+      `${DONE_MARK}${clientName(t.clientId)}. ${bench}: ${fmtScore(honest)} % при требовании ${t.requirement} %. ` +
+        `Оплата ${fmtMoney(t.payment)}, репутация +${REP_CONTRACT_OK}.`,
+    );
     return;
   }
   failContract(
@@ -357,6 +375,15 @@ function resolveApplication(s: GameState, t: Tender): void {
   }
   // Пауза нужна, только если работать нечем: тендеры выигрываются часто, и пауза на каждом мешала бы.
   const noCompute = s.compute.alloc.contracts <= 0;
+  // Автозаявку игрок не подавал сам: победа идёт строкой в итог месяца, если работать есть чем.
+  if (a.auto && !noCompute) {
+    contractDigest(
+      s,
+      `${WON_MARK}${client}. Модель «${model.name}», срок ${t.durationDays} дн., оплата после сдачи ${endSentence(fmtMoney(t.payment))}` +
+        labelersNote,
+    );
+    return;
+  }
   addMail(s, {
     kind: 'contract',
     title: `Тендер выигран: ${client}`,

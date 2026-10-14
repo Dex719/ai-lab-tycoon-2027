@@ -1088,7 +1088,9 @@ describe('progressDay: несколько контрактов', () => {
     expect(s.contracts).toHaveLength(0);
     expect(s.cash).toBeCloseTo(cash + 100_000 - 30_000, 6);
     expect(s.reputation).toBe(50 + REP_CONTRACT_OK + REP_CONTRACT_FAIL);
-    expect(s.mail.map((x) => x.title.replace(/:.*/, ''))).toEqual(['Контракт выполнен', 'Контракт просрочен']);
+    // Выполненный контракт идёт строкой в итог месяца, просрочка - отдельным важным письмом.
+    expect(s.mail.map((x) => x.title.replace(/:.*/, ''))).toEqual(['Контракты за январь 2017', 'Контракт просрочен']);
+    expect(s.mail[0].body).toMatch(/^Выполнен: /);
   });
 
   it('после сдачи одного весь пул достаётся оставшемуся', () => {
@@ -1260,7 +1262,7 @@ describe('письма контрактов: точка после суммы и
     poolValue = 10;
     done.day = 3;
     progressDay(done);
-    expect(lastMail(done).title).toMatch(/^Контракт выполнен: /);
+    expect(lastMail(done).title).toMatch(/^Контракты за .*: выполнено 1$/);
     expect(lastMail(done).important).toBeFalsy();
   });
 });
@@ -1475,12 +1477,31 @@ describe('progressDay: исход автозаявки', () => {
     expect(lastMail(s).title).toMatch(/^Тендер проигран: /);
   });
 
-  it('победа автозаявки: контракт и письмо «Тендер выигран»', () => {
+  it('победа автозаявки: контракт и строка в итоге контрактов месяца', () => {
     const s = applied(true, 1);
     progressDay(s);
     expect(s.contracts).toHaveLength(1);
     expect(s.mail).toHaveLength(1);
-    expect(lastMail(s).title).toMatch(/^Тендер выигран: /);
+    expect(lastMail(s).title).toMatch(/^Контракты за .*: выиграно тендеров 1$/);
+    expect(lastMail(s).reward).toBe(true);
+  });
+
+  it('итог месяца: события дописываются в одно непрочитанное письмо, прочитанное не трогается', () => {
+    const s = applied(true, 1);
+    progressDay(s);
+    const first = lastMail(s);
+    const s2 = applied(true, 1);
+    s2.mail = s.mail;
+    s2.nextMailNum = s.nextMailNum;
+    progressDay(s2);
+    expect(s2.mail).toHaveLength(1);
+    expect(lastMail(s2).title).toMatch(/выиграно тендеров 2$/);
+    first.read = true;
+    const s3 = applied(true, 1);
+    s3.mail = s2.mail;
+    s3.nextMailNum = s2.nextMailNum;
+    progressDay(s3);
+    expect(s3.mail).toHaveLength(2);
   });
 });
 

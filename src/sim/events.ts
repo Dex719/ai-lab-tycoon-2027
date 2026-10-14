@@ -17,6 +17,8 @@ export interface NewMail {
   choices?: MailChoice[];
   important?: boolean;
   reward?: boolean;
+  /** Письмо приходит прочитанным и без уведомления: событие игрок уже видел на экране. */
+  read?: boolean;
 }
 
 export function addMail(s: GameState, m: NewMail): Mail {

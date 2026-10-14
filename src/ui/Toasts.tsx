@@ -134,7 +134,7 @@ export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | Window
     for (let i = s.mail.length - 1; i >= 0; i--) {
       const m = s.mail[i];
       if (mailNum(m) < from) break;
-      if (!m.choices) fresh.unshift(m);
+      if (!m.choices && !m.read) fresh.unshift(m); // прочитанные сразу (выпуск модели) не всплывают
     }
     if (fresh.length === 0) return;
     const toToast = (m: Mail, group = false, title = m.title): ToastData => ({

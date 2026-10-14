@@ -1081,13 +1081,13 @@ function rumourBody(s: RivalryGame, lab: LabId, move: MoveId, days: number, mode
   const when = `Ожидается примерно через ${daysWord(days)}.`;
   switch (move) {
     case 'priceCut':
-      return `По данным клиентов, ${name} обсуждает с партнёрами новые, более низкие цены на API. ${when} Решите заранее: снижать цену вслед, держать её ради Эло и контекста или расти вместе с рынком.`;
+      return `По данным клиентов, ${name} обсуждает с партнёрами новые, более низкие цены на API. ${when}`;
     case 'priceWar':
-      return `${name} заметила, что вы снизили цены вслед за ней, и готовит ещё одно снижение. ${when} Опускаться ниже себестоимости инференса не стоит: война съедает шумиху самой ${name}.`;
+      return `${name} заметила, что вы снизили цены вслед за ней, и готовит ещё одно снижение. ${when} Каждый месяц ценовой войны отнимает шумиху у самой ${name}.`;
     case 'flagship': {
       const def = modelId ? findRivalDef(modelId) : undefined;
       const what = def ? `выход ${def.gameName}` : 'выход новой модели';
-      return `Сотрудники ${name} сообщают, что ${what} перенесён на более ранний срок, а планка качества поднята. ${when} Выпустить свою модель раньше - значит забрать бонус шумихи за первое место.`;
+      return `Сотрудники ${name} сообщают, что ${what} перенесён на более ранний срок, а планка качества поднята. ${when} Модель, которая на выпуске займёт первое место, получит больше шумихи.`;
     }
     case 'cheapShock':
       return `${name} испытывает облегчённую модель с ценой в несколько раз ниже рынка. ${when} Ответить можно своей дешёвой моделью или уйти в дорогой сегмент.`;
@@ -1237,7 +1237,7 @@ function execPriceCut(s: RivalryGame, lab: LabId): string | null {
     title: `${labName(lab)} снизила цены на API`,
     body:
       `Цены на модели ${labName(lab)} ниже на ${pct} % в течение ${MOVES.priceCut.activeDays} дней (не ниже ${fmtPrice(Math.max(minPrice(s.day), PRICE_FLOOR_SHARE * refPrice(s.day)))} за 1 млн токенов). ` +
-      'Спрос на рынке вырос на 5 %. Можно снизить цену в окне «Модели», удержать её ради Эло и контекста или забрать часть выросшего спроса.',
+      'Спрос на рынке вырос на 5 %. Цены своих моделей меняются в окне «Модели».',
   });
   return `снизила цены на API на ${pct} %`;
 }
@@ -1255,7 +1255,7 @@ function execPriceWar(s: RivalryGame, lab: LabId): string | null {
     title: `${labName(lab)}: цены ещё ниже`,
     body:
       `${labName(lab)} снизила цены вдвое от прежних и держит их ${MOVES.priceWar.activeDays} дней, но не ниже ${fmtPrice(floor)} за 1 млн токенов. ` +
-      `Каждый месяц войны стоит ${labName(lab)} ${WAR_HYPE_PER_MONTH} шумихи. Опускать свою цену ниже себестоимости инференса не стоит.`,
+      `Каждый месяц войны стоит ${labName(lab)} ${WAR_HYPE_PER_MONTH} шумихи.`,
   });
   return 'снизила цены вдвое';
 }
@@ -1280,7 +1280,7 @@ function execFlagship(s: RivalryGame, lab: LabId, modelId?: string): string | nu
   addMail(s, {
     kind: 'rival',
     title: `${labName(lab)} ускорила выпуск ${def.gameName}`,
-    body: `${def.gameName} ${parts.join(' и ')}. Успеть выпустить свою модель раньше - значит забрать бонус шумихи за первое место.`,
+    body: `${def.gameName} ${parts.join(' и ')}. Модель, которая на выпуске займёт первое место, получит больше шумихи.`,
   });
   return `ускорила ${def.gameName}${shift > 0 ? ` на ${daysWord(shift)}` : ''}`;
 }
@@ -1331,7 +1331,7 @@ function execOpenWeights(s: RivalryGame, lab: LabId): string | null {
     title: `${labName(lab)} открыла веса ${def.gameName}`,
     body:
       `${def.gameName}: Эло на «Арене» около ${Math.round(elo)}, веса открыты. Бренд ${labName(lab)} сильнее на год. ` +
-      'Исследования лаборатории дешевле на 10 % в течение 90 дней: открытые веса помогают всем. Соревнуйтесь по Эло, а не по цене.',
+      'Ваши исследования дешевле на 10 % в течение 90 дней: открытые веса помогают всем.',
   });
   return `открыла веса ${def.gameName}`;
 }
