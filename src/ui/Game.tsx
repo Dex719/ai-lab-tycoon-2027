@@ -8,7 +8,8 @@ import { ChoiceModal } from './ChoiceModal';
 import { Dialog, isFresh } from './components/common';
 import { EndDialog } from './EndDialog';
 import { YearReviewModal } from './YearReviewModal';
-import { IconLogo } from './icons';
+import { IconExit, IconFolder, IconGear, IconLogo, IconSave, IconTrophy } from './icons';
+import { formatDateShort } from '../sim/time';
 import { SettingsDialog, SlotsDialog } from './MainMenu';
 import { SidePanel } from './SidePanel';
 import { store, useSpeed } from './store';
@@ -17,6 +18,8 @@ import { ArenaBanner } from './ArenaFeedback';
 import { Juice } from './Juice';
 import { ReleaseCard } from './ReleaseCard';
 import { Moments } from './Moments';
+import { DeskScene } from './DeskScene';
+import './shell.css';
 import { MonthStrip } from './MonthStrip';
 import { AchievementsDialog, AchievementToasts } from './Achievements';
 import { TopBar } from './TopBar';
@@ -195,9 +198,7 @@ export function Game({ s }: { s: GameState }) {
     <div className="game" inert={blocked}>
       <TopBar s={s} phone={phone} sheetOpen={sheet} onToggleSheet={() => setSheet((v) => !v)} />
       <div className="desk" ref={deskRef} onPointerDown={() => setStartOpen(false)}>
-        <div className="desk-logo">
-          <IconLogo size={180} />
-        </div>
+        {!phone && <DeskScene s={s} running={speed > 0 && !s.outcome} open={open} />}
         <div className="icons">
         <div className="icon-col left">
           {WINDOWS.filter((d) => d.side === 'left' && (!d.openedDay || d.openedDay(s) !== null)).map((d) => (
@@ -254,20 +255,32 @@ export function Game({ s }: { s: GameState }) {
         </button>
         {startOpen && (
           <div className="start-menu" role="menu">
+            <div className="start-head">
+              <IconLogo size={30} />
+              <span>
+                <b>{s.labName}</b>
+                <small>{formatDateShort(s.day)}</small>
+              </span>
+            </div>
             <button role="menuitem" onClick={() => startAction('save')}>
+              <IconSave size={18} />
               Сохранить
             </button>
             <button role="menuitem" onClick={() => startAction('load')}>
+              <IconFolder size={18} />
               Загрузить
             </button>
             <button role="menuitem" onClick={() => startAction('settings')}>
+              <IconGear size={18} />
               Настройки
             </button>
             <button role="menuitem" onClick={() => startAction('achievements')}>
+              <IconTrophy size={18} />
               Достижения
             </button>
             <hr />
-            <button role="menuitem" onClick={() => startAction('quit')}>
+            <button role="menuitem" className="start-exit" onClick={() => startAction('quit')}>
+              <IconExit size={18} />
               Выйти в главное меню
             </button>
           </div>
@@ -280,6 +293,7 @@ export function Game({ s }: { s: GameState }) {
             <button
               key={w.id}
               className={`task-win${active ? ' active' : ''}${w.min ? ' min' : ''}`}
+              style={{ ['--wa' as string]: WIN_ACCENT[w.id] }}
               title={def.title}
               onClick={() => (active ? (phone ? minimizeAll() : minimize(w.id)) : focus(w.id))}
             >
