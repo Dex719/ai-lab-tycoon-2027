@@ -4,6 +4,7 @@ import { newGame, releaseModel, setOnApi, setOnSubs, startReview } from './actio
 import { EXTRA_EVENTS } from '../data/events';
 import { activeBenchmarks } from './benchmarks';
 import { botDatacenters } from './botsDatacenters';
+import { botFinale } from './finale';
 import { availableGpus, pool, rentCapFor, rentMaxFor, rentPerGpuDay, setAllocation, setRent, totalH100e } from './compute';
 import { FAIL_ROLLBACK, RENT_OVER_CAP_MULT, ROUND_COOLDOWN_DAYS, TIER_API_PRICE_MULT, TRAIN_FLOP_PER_H100E_DAY } from './constants';
 import { applyTender, canApply, contractWorkFor } from './contracts';
@@ -328,6 +329,8 @@ export function botAct(s: GameState, kind: BotKind): void {
   manageTenders(s, p);
   manageInvestors(s, p);
   manageAlloc(s);
+  // Финальный квартал: на объявленную угрозу выше своей лучшей модели разумный и сильный отвечают доработкой.
+  if (kind !== 'benchmaxx') botFinale(s);
 }
 
 export interface BotResult {
