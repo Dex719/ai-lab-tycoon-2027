@@ -340,7 +340,7 @@ const rivalry = shapeOf<RivalryState>({
   extraCount: record(LAB_IDS, num),
   memory: record(LAB_IDS, labMemory),
   lever: nullable(oneOf(LEVERS)),
-  choice: nullable(shape({ lab: oneOf(LAB_IDS), modelId: optional(str) })),
+  choice: nullable(shape({ lab: oneOf(LAB_IDS), modelId: optional(str), team: optional(oneOf(TEAM_IDS)) })),
   history: arrayOf(historyRow),
   shareHigh: record(LAB_IDS, num),
 });

@@ -101,6 +101,9 @@ import { modelScore } from './training';
 import { LAB_IDS } from './types';
 import type { BenchmarkId, GameState, HypeOwner, LabId, Modifier, ModifierKind, PlayerModel, RivalModelDef, SegmentId, Tier } from './types';
 import { daysWord } from './text';
+import { TEAM_RETAIN_MONTHS, teamDef } from '../data/deals';
+import { dropTeam } from './deals';
+import type { TeamId } from './lateState';
 
 // ---------- Типы ----------
 
@@ -183,7 +186,7 @@ export interface RivalryState {
   extraCount: Record<LabId, number>;
   memory: Record<LabId, LabMemory>;
   lever: Lever | null; // сильная сторона игрока по итогам месяца
-  choice: { lab: LabId; modelId?: string } | null; // контекст последнего письма с выбором
+  choice: { lab: LabId; modelId?: string; team?: TeamId } | null; // контекст последнего письма с выбором (team - кого переманивают)
   history: HistoryRow[]; // последние HISTORY_MAX ходов
   shareHigh: Record<LabId, number>; // наибольшая доля лаборатории (для условия «доля упала»)
 }
@@ -988,6 +991,8 @@ export function triggerHolds(s: RivalryGame, lab: LabId, move: MoveId): boolean 
     case 'audit':
       return auditTarget(s) !== null;
     case 'poach': {
+      // Звёздную команду (сделки 2023-2024) переманивают всегда, когда лаборатория готова к ходу.
+      if (poachTeam(s) !== null) return true;
       const done = (t: 'rlhf' | 'scaling') => s.research.done.includes(t);
       const early = (done('rlhf') && yearsEarly(s, 'rlhf') > 1) || (done('scaling') && yearsEarly(s, 'scaling') > 1);
       return early || s.research.algoLevel >= 1.5 * Math.max(1, historicAlgoLevel(s.day));
@@ -1104,8 +1109,11 @@ function rumourBody(s: RivalryGame, lab: LabId, move: MoveId, days: number, mode
       const what = m ? `модели «${m.name}»` : 'вашей модели';
       return `Исследователи ${name} перепроверяют баллы ${what} на свежих вопросах. Результаты ожидаются примерно через ${daysWord(days)}.`;
     }
-    case 'poach':
-      return `Рекрутеры ${name} пишут вашим исследователям. Предложения ожидаются примерно через ${daysWord(days)}.`;
+    case 'poach': {
+      const team = poachTeam(s);
+      const who = team ? `команде ${teamDef(team).leader}` : 'вашим исследователям';
+      return `Рекрутеры ${name} пишут ${who}. Предложения ожидаются примерно через ${daysWord(days)}.`;
+    }
   }
 }
 
@@ -1383,7 +1391,7 @@ function fireChoiceEvent(s: RivalryGame, def: EventDef): void {
   const added = addMail(s, {
     ...mail,
     eventId: def.id,
-    choices: choices.map((c) => ({ label: c.label, hint: c.hint })),
+    choices: choices.map((c) => ({ label: c.label, hint: c.hintFn ? c.hintFn(s) : c.hint })),
     important: true,
   });
   added.replyByDay = s.day + (def.choiceDays ?? CHOICE_DAYS);
@@ -1427,7 +1435,21 @@ function execAudit(s: RivalryGame, lab: LabId, modelId?: string): string | null 
   return `усомнилась в баллах «${model.name}»`;
 }
 
+/** Команду с самой большой зарплатой переманивают первой; null - звёздных команд нет. */
+function poachTeam(s: GameState): TeamId | null {
+  let best: TeamId | null = null;
+  for (const t of s.late?.teams ?? []) if (best === null || teamDef(t.id).salary > teamDef(best).salary) best = t.id;
+  return best;
+}
+
 function execPoach(s: RivalryGame, lab: LabId): string | null {
+  const team = poachTeam(s);
+  if (team) {
+    s.rivalry.choice = { lab, modelId: s.rivalry.choice?.modelId, team };
+    fireChoiceEvent(s, TEAM_POACH_EVENT);
+    pushActive(s, lab, 'poach');
+    return `переманивает: ${teamDef(team).name.toLowerCase()}`;
+  }
   s.rivalry.choice = { lab, modelId: s.rivalry.choice?.modelId };
   fireChoiceEvent(s, POACH_EVENT);
   pushActive(s, lab, 'poach');
@@ -1652,8 +1674,56 @@ const POACH_EVENT: EventDef = {
   ],
 };
 
+function choiceTeam(s: GameState): TeamId | null {
+  const team = (s as RivalryGame).rivalry.choice?.team;
+  return team && s.late?.teams.some((t) => t.id === team) ? team : null;
+}
+
+function retainCost(team: TeamId | null): number {
+  return team ? TEAM_RETAIN_MONTHS * teamDef(team).salary : 0;
+}
+
+/** Переманивают звёздную команду: удержать за полгода зарплаты или отпустить вместе с её эффектом. */
+const TEAM_POACH_EVENT: EventDef = {
+  id: 'rival-poach-team',
+  repeatable: true,
+  when: { check: () => false },
+  defaultChoice: 1,
+  mail: (s) => {
+    const lab = labName(choiceLab(s));
+    const team = choiceTeam(s);
+    if (!team) return { kind: 'rival', title: `${lab} переманивает команду`, body: 'Команды уже нет в лаборатории.' };
+    const def = teamDef(team);
+    return {
+      kind: 'rival',
+      title: `${lab} переманивает команду: ${def.leader}`,
+      body:
+        `${lab} предлагает команде ${def.leader} («${def.name}») вдвое больше денег. Удержать команду стоит ${fmtMoney(retainCost(team))} ` +
+        `(зарплата за ${TEAM_RETAIN_MONTHS} месяцев). Если отпустить, пропадёт эффект: ${def.effect.charAt(0).toLowerCase()}${def.effect.slice(1)}.`,
+    };
+  },
+  choices: [
+    {
+      label: 'Удержать команду',
+      hint: 'полгода зарплаты команды',
+      hintFn: (s) => `${fmtMoney(retainCost(choiceTeam(s)))}, команда остаётся`,
+      apply: (s) => {
+        spend(s, 'overhead', retainCost(choiceTeam(s)));
+      },
+    },
+    {
+      label: 'Отпустить',
+      hint: 'команда уходит, её эффект пропадает',
+      apply: (s) => {
+        const team = choiceTeam(s);
+        if (team) dropTeam(s, team);
+      },
+    },
+  ],
+};
+
 /** Письма с выбором соперников. Вариант 0 - умеренный (боты выбирают его), defaultChoice - пассивный. */
-export const RIVALRY_EVENTS: EventDef[] = [HYPE_EVENT, AUDIT_EVENT, POACH_EVENT];
+export const RIVALRY_EVENTS: EventDef[] = [HYPE_EVENT, AUDIT_EVENT, POACH_EVENT, TEAM_POACH_EVENT];
 
 // ---------- Боты ----------
 
