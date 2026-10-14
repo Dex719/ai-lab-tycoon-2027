@@ -4,7 +4,10 @@ import { useState } from 'react';
 import { START_CASH } from '../sim/constants';
 import { DIFFICULTY, DIFFICULTY_IDS, type Difficulty } from '../sim/rivalry';
 import { formatDateShort } from '../sim/time';
-import { ConfirmDialog, Dialog, ErrorText } from './components/common';
+import { ConfirmDialog, DenyNote, Dialog, ErrorText, useFlash, useModalFocus } from './components/common';
+import { LABS } from '../data/labs';
+import { IconClose, IconLogo, IconTrophy } from './icons';
+import './menu.css';
 import { fmtMoney } from './format';
 import { fmtRank } from './labels';
 import { deleteSlot, exportCode, formatSavedAt, importCode, latestSlot, listSlots, MANUAL_SLOTS, type SlotId, type SlotInfo } from './saves';
@@ -24,6 +27,7 @@ export function MainMenu() {
   const [dialog, setDialog] = useState<MenuDialog>(null);
   const [error, setError] = useState<string | null>(null);
   const last = latestSlot();
+  const lastMeta = last !== null ? (listSlots().find((x) => x.id === last)?.meta ?? null) : null;
 
   function cont() {
     if (last === null) return;
@@ -31,28 +35,41 @@ export function MainMenu() {
   }
 
   return (
-    <div className="menu-screen">
-      <div className="menu-title">AI Lab Tycoon</div>
-      <div className="menu-sub-title">2017-2024</div>
-      <nav className="menu-items" aria-label="Главное меню">
+    <div className="menu-screen mm">
+      <MenuBackdrop />
+      <header className="mm-head">
+        <span className="mm-logo" aria-hidden="true">
+          <IconLogo size={64} />
+        </span>
+        <h1 className="mm-title">AI Lab Tycoon</h1>
+        <div className="mm-years">2017 - 2024</div>
+      </header>
+      <nav className="mm-items" aria-label="Главное меню">
         {last !== null && (
-          <button className="menu-item" onClick={cont}>
-            Продолжить
+          <button className="mm-item main" onClick={cont}>
+            <span className="mm-item-t">Продолжить</span>
+            {lastMeta && (
+              <span className="mm-item-s">
+                {lastMeta.labName} · {formatDateShort(lastMeta.day)}
+              </span>
+            )}
           </button>
         )}
-        <button className="menu-item" onClick={() => setDialog('new')}>
-          Новая игра
+        <button className={`mm-item${last === null ? ' main' : ''}`} onClick={() => setDialog('new')}>
+          <span className="mm-item-t">Новая игра</span>
         </button>
-        <button className="menu-item" onClick={() => setDialog('load')}>
-          Загрузить
+        <button className="mm-item" onClick={() => setDialog('load')}>
+          <span className="mm-item-t">Загрузить</span>
         </button>
-        <button className="menu-item" onClick={() => setDialog('achievements')}>
-          Достижения
+        <button className="mm-item" onClick={() => setDialog('achievements')}>
+          <span className="mm-item-t">Достижения</span>
         </button>
-        <button className="menu-item" onClick={() => setDialog('settings')}>
-          Настройки
+        <button className="mm-item" onClick={() => setDialog('settings')}>
+          <span className="mm-item-t">Настройки</span>
         </button>
-        {error && <div className="menu-sub" style={{ color: '#ff8a8a' }}>{error}</div>}
+        <div className="mm-error" role="alert">
+          {error}
+        </div>
       </nav>
       <div className="version">{VERSION}</div>
       {dialog === 'new' && <NewGameDialog onClose={() => setDialog(null)} />}
@@ -63,82 +80,163 @@ export function MainMenu() {
   );
 }
 
+/** Заставка: ряд серверных стоек с огоньками внизу экрана и сеть узлов за названием. Всё неподвижное. */
+function MenuBackdrop() {
+  return (
+    <div className="mm-backdrop" aria-hidden="true">
+      <svg className="mm-net" viewBox="0 0 1200 500" preserveAspectRatio="xMidYMid slice">
+        {NET_LINKS.map(([a, b], i) => (
+          <line key={i} x1={NET[a][0]} y1={NET[a][1]} x2={NET[b][0]} y2={NET[b][1]} />
+        ))}
+        {NET.map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r={i % 4 === 0 ? 4 : 2.6} />
+        ))}
+      </svg>
+      <div className="mm-racks">
+        {Array.from({ length: RACKS }, (_, i) => (
+          <span key={i} className={`mm-rack h${i % 3}`} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const RACKS = 26;
+/** Узлы сети за названием (координаты в рамке 1200×500). */
+const NET: [number, number][] = [
+  [80, 120], [210, 60], [330, 150], [180, 230], [420, 70], [520, 190], [640, 90], [760, 170], [880, 60], [990, 150],
+  [1110, 90], [1040, 260], [900, 240], [300, 300], [120, 330], [700, 290], [560, 330], [1150, 320],
+];
+const NET_LINKS: [number, number][] = [
+  [0, 1], [1, 2], [0, 3], [2, 3], [1, 4], [4, 5], [2, 5], [5, 6], [6, 7], [4, 6], [7, 8], [8, 9], [9, 10], [9, 11], [7, 12],
+  [12, 11], [3, 13], [13, 14], [5, 15], [15, 16], [13, 16], [12, 15], [11, 17], [10, 17],
+];
+
+/** Сколько «делений» сложности: лёгкая - одно, сложная - три. */
+const DIFF_PIPS: Record<Difficulty, number> = { easy: 1, normal: 2, hard: 3 };
+
 function NewGameDialog({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('Нейрон');
   const [founder, setFounder] = useState('');
   const [tutorial, setTutorial] = useState(true);
   const [difficulty, setDifficulty] = useState<Difficulty>('normal');
+  const [note, flash] = useFlash();
   const valid = name.trim().length > 0;
+  const { ref, onKeyDown } = useModalFocus<HTMLDivElement>('new-game');
 
   function start() {
-    if (!valid) return;
+    if (!valid) {
+      flash('Введите название лаборатории.');
+      return;
+    }
     store.newGame(name, { founderName: founder, tutorial, difficulty });
   }
 
   return (
-    <Dialog title="Настройка игры" onClose={onClose}>
-      <form
-        className="col"
-        style={{ gap: 14 }}
-        onSubmit={(e) => {
-          e.preventDefault();
-          start();
-        }}
-      >
-        <label className="col" style={{ gap: 4 }}>
-          <span>Название лаборатории</span>
-          <input type="text" value={name} maxLength={NAME_MAX} onChange={(e) => setName(e.target.value)} autoFocus />
-          <span className="small muted num">
-            {name.length}/{NAME_MAX}
-          </span>
-        </label>
-        <label className="col" style={{ gap: 4 }}>
-          <span>Имя основателя</span>
-          <input type="text" value={founder} maxLength={FOUNDER_MAX} onChange={(e) => setFounder(e.target.value)} />
-          <span className="small muted num">
-            {founder.length}/{FOUNDER_MAX}
-          </span>
-        </label>
-        <div className="kv">
-          <span>Дата начала</span>
-          <span>01.01.2017</span>
-          <span>Стартовый капитал</span>
-          <span className="good">{fmtMoney(START_CASH)}</span>
-          <span>Конец партии</span>
-          <span>31.12.2024</span>
-          <span title="Победа: ваша модель первая по Эло среди моделей, которые продаются через API, 31.12.2024">Цель</span>
-          <span>{fmtRank(1)} среди моделей в продаже</span>
-          <span>Соперники</span>
-          <span>7 лабораторий</span>
-        </div>
-        <fieldset className="col" style={{ gap: 6, margin: 0, padding: 0, border: 0 }}>
-          <legend style={{ padding: 0, marginBottom: 4 }}>Сложность</legend>
-          <div className="row" role="radiogroup" aria-label="Сложность" style={{ gap: 18 }}>
-            {DIFFICULTY_IDS.map((d) => (
-              <label key={d} className="row" style={{ gap: 8 }} title={DIFFICULTY[d].description}>
-                <input
-                  type="radio"
-                  name="difficulty"
-                  value={d}
-                  checked={difficulty === d}
-                  onChange={() => setDifficulty(d)}
-                  style={{ accentColor: 'var(--accent)', width: 16, height: 16, margin: 0 }}
-                />
-                <span>{DIFFICULTY[d].name}</span>
+    <div className="modal-backdrop ng-backdrop" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <div ref={ref} tabIndex={-1} className="ng" role="dialog" aria-modal="true" aria-label="Настройка игры" onKeyDown={onKeyDown}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            start();
+          }}
+        >
+          <header className="ng-head">
+            <span className="ng-kicker">Новая игра</span>
+            <h2 className="ng-title">Настройка игры</h2>
+            <button type="button" className="ng-x" onClick={onClose} aria-label="Закрыть" title="Закрыть">
+              <IconClose size={14} />
+            </button>
+          </header>
+          <div className="ng-body">
+            <div className="ng-col">
+              <label className="ng-field">
+                <span className="ng-l">Название лаборатории</span>
+                <input className="ng-input big" type="text" value={name} maxLength={NAME_MAX} onChange={(e) => setName(e.target.value)} autoFocus />
+                <span className="ng-count">
+                  {name.length}/{NAME_MAX}
+                </span>
               </label>
-            ))}
+              <label className="ng-field">
+                <span className="ng-l">Имя основателя</span>
+                <input className="ng-input" type="text" value={founder} maxLength={FOUNDER_MAX} onChange={(e) => setFounder(e.target.value)} />
+                <span className="ng-count">
+                  {founder.length}/{FOUNDER_MAX}
+                </span>
+              </label>
+              <div className="ng-l">Сложность</div>
+              <div className="ng-diffs" role="radiogroup" aria-label="Сложность">
+                {DIFFICULTY_IDS.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    role="radio"
+                    aria-checked={difficulty === d}
+                    className={`ng-diff d-${d}${difficulty === d ? ' on' : ''}`}
+                    onClick={() => setDifficulty(d)}
+                  >
+                    <span className="ng-pips" aria-hidden="true">
+                      {[1, 2, 3].map((i) => (
+                        <i key={i} className={i <= DIFF_PIPS[d] ? 'on' : undefined} />
+                      ))}
+                    </span>
+                    <b>{DIFFICULTY[d].name}</b>
+                  </button>
+                ))}
+              </div>
+              <div className="ng-diff-desc">{DIFFICULTY[difficulty].description}</div>
+            </div>
+            <div className="ng-col ng-dossier">
+              <div className="ng-goal">
+                <IconTrophy size={22} />
+                <span>
+                  <span className="ng-l">Цель</span>
+                  <b>Лучшая модель на «Арене» 31.12.2024</b>
+                </span>
+              </div>
+              <div className="ng-tiles">
+                <div className="ng-tile">
+                  <span className="ng-l">Начало</span>
+                  <b>01.01.2017</b>
+                </div>
+                <div className="ng-tile">
+                  <span className="ng-l">Капитал</span>
+                  <b className="good">{fmtMoney(START_CASH)}</b>
+                </div>
+                <div className="ng-tile">
+                  <span className="ng-l">Финал</span>
+                  <b>31.12.2024</b>
+                </div>
+                <div className="ng-tile">
+                  <span className="ng-l">Соперники</span>
+                  <b>{LABS.length} лабораторий</b>
+                  <span className="ng-labs" aria-hidden="true">
+                    {LABS.map((l) => (
+                      <i key={l.id} style={{ background: l.color }} />
+                    ))}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
-          <span className="small muted">{DIFFICULTY[difficulty].description}</span>
-        </fieldset>
-        <label className="row" style={{ gap: 8 }}>
-          <input type="checkbox" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />
-          <span>Обучение игре</span>
-        </label>
-        <button type="submit" className="btn primary wide" disabled={!valid}>
-          Начать
-        </button>
-      </form>
-    </Dialog>
+          <footer className="ng-foot">
+            <label className={`ng-switch${tutorial ? ' on' : ''}`}>
+              <input type="checkbox" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />
+              <span className="ng-switch-track" aria-hidden="true">
+                <span />
+              </span>
+              Обучение игре
+            </label>
+            <span className="guard">
+              <button type="submit" className="ng-start" aria-disabled={!valid || undefined}>
+                Начать
+              </button>
+              <DenyNote text={note} />
+            </span>
+          </footer>
+        </form>
+      </div>
+    </div>
   );
 }
 
