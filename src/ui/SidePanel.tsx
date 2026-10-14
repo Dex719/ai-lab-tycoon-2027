@@ -1,5 +1,6 @@
 // Боковая панель справа (как «Боковое окно» в Processor Tycoon): текущие проекты и модели в продаже.
 
+import { raceName, standingOf } from './ArenaFeedback';
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { pool } from '../sim/compute';
 import { idleWarnings, type IdleItem } from '../sim/idle';
@@ -189,6 +190,7 @@ function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) 
 /** Строка цели: место среди моделей в продаже и сколько закрытых месяцев лаборатория была первой. */
 function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
   const rank = bestArenaPlace(s);
+  const race = standingOf(s);
   const months = Number.isFinite(s.monthsFirst) ? s.monthsFirst : 0;
   const showSubs = subsOpen(s.day) || s.market.playerSubs > 0;
   return (
@@ -199,8 +201,14 @@ function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) =>
       onClick={() => open('analytics')}
     >
       <div className="r">
-        <span>«Арена»: {rank !== null ? fmtRank(rank) : 'нет моделей'}</span>
-        <span className="v">На 1-м: {fmtNum(months)} мес.</span>
+        {race ? (
+          <span>
+            {raceName(race.metric)}: {fmtRank(race.rank)}
+          </span>
+        ) : (
+          <span>Гонка: {rank !== null ? fmtRank(rank) : 'соперников пока нет'}</span>
+        )}
+        {(!race || race.metric.kind === 'arena') && <span className="v">На 1-м: {fmtNum(months)} мес.</span>}
       </div>
       {showSubs && (
         <div className="r" title="Пользователи подписки, обслуженные вчера">

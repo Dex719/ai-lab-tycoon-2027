@@ -11,7 +11,7 @@ import { modelScore } from '../../sim/training';
 import type { Contract, GameState, PlayerModel, Tender } from '../../sim/types';
 import { Cards } from '../components/Cards';
 import { Alert, ConfirmDialog, ErrorText, GuardButton, ProgressBar } from '../components/common';
-import { endSentence, fmtH100e, fmtMoney, fmtNum, fmtPct, fmtShare } from '../format';
+import { endSentence, fmtDays, fmtH100e, fmtMoney, fmtNum, fmtPct, fmtShare } from '../format';
 import { IconAlert, IconCheck, IconChevronLeft, IconCompute, IconContracts, IconModels } from '../icons';
 import { actions, store } from '../store';
 import './ContractsWindow.css';
@@ -445,11 +445,11 @@ function TenderCard(props: {
         {app ? (
           <span className="ct-state">
             <IconCheck size={16} />
-            Заявка подана. Решение через {days(Math.max(0, app.resolveDay - s.day))}, шанс {fmtShare(app.chance, 0)}
+            Заявка подана. Решение через {fmtDays(Math.max(0, app.resolveDay - s.day))}, шанс {fmtShare(app.chance, 0)}
           </span>
         ) : (
           <>
-            {model && <span className="ct-why">{reason ?? `Решение при закрытии тендера, через ${days(left)}`}</span>}
+            {model && <span className="ct-why">{reason ?? `Решение при закрытии тендера, через ${fmtDays(left)}`}</span>}
             <GuardButton
               className="btn primary"
               data-tutorial="apply"

@@ -1,0 +1,36 @@
+/* Итог партии. */
+.end {
+  width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; outline: none;
+  background: #1b1d22; color: #eef0f3; border-radius: 10px; border: 1px solid #3a3d45; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  animation: rc-in 520ms cubic-bezier(0.2, 1.3, 0.4, 1) both;
+}
+.end-head { padding: 20px 22px 16px; text-align: center; background: linear-gradient(135deg, #2c3b57, #1d2433); }
+.end.win .end-head { background: linear-gradient(135deg, #d9a514, #6b4700); }
+.end.lost .end-head { background: linear-gradient(135deg, #a33232, #4d1414); }
+.end-title { font: 700 34px var(--mono); }
+.end-lead { margin-top: 6px; font-size: 14px; opacity: 0.92; }
+.end-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 16px 22px 6px; }
+.end-tile { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; background: #252830; border-radius: 6px; min-width: 0; }
+.end-l { font-size: 12px; color: #9aa0aa; }
+.end-big { font: 700 28px var(--mono); line-height: 1.15; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.end-big.small { font-size: 20px; line-height: 1.6; }
+.end-big.gold { color: #ffd34d; }
+.end-sub { font-size: 12.5px; color: #b9bec7; }
+.end-chart { margin: 8px 22px 0; padding: 10px 12px 6px; background: #252830; border-radius: 6px; }
+.end-chart svg { width: 100%; height: auto; display: block; }
+.end-chart .grid { stroke: #3a3d45; stroke-width: 1; }
+.end-chart .ax { fill: #8a909a; font: 10px var(--font); }
+.end-chart .l-mine { fill: none; stroke: #5ed37f; stroke-width: 2.5; }
+.end-chart .l-rival { fill: none; stroke: #ff8a6b; stroke-width: 2; stroke-dasharray: 5 3; }
+.end-legend { display: flex; gap: 16px; font-size: 12px; margin-bottom: 4px; }
+.end-legend span::before { content: ''; display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; }
+.end-legend .mine::before { background: #5ed37f; }
+.end-legend .rival::before { background: #ff8a6b; }
+.end-moments { padding: 12px 22px 0; }
+.end-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.end-chip { padding: 4px 9px; border-radius: 4px; font-size: 13px; background: #3a2f12; border: 1px solid #b8901d; color: #ffe08a; }
+.end-kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 12px 22px 0; font-size: 13px; color: #c8cbd0; }
+.end-kv span:nth-child(even) { text-align: right; font-family: var(--mono); color: #eef0f3; }
+.end-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 22px 18px; }
+@media (max-width: 520px) { .end-tiles { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .end { animation: none; } }

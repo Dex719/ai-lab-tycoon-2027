@@ -7,7 +7,7 @@ import { datacentersDay } from './datacenters';
 import { expireChoices, fireDue, pendingChoice, pruneMail, pruneModifiers } from './events';
 import { beginDay, closeMonth, dayStep as financeDay } from './finance';
 import { goalsDay, yearEnd } from './goals';
-import { marketArenaRank, rivalsSellByApi, updateSaturation } from './leaderboard';
+import { marketArenaRank, rivalFrontierElo, rivalsSellByApi, updateSaturation } from './leaderboard';
 import { dayStep as marketDay } from './market';
 import { randomEventDay } from './randomEvents';
 import { progressDay as researchDay } from './research';
@@ -64,6 +64,11 @@ export function advanceDay(s: GameState): void {
   const monthEnd = isMonthStart(s.day + 1);
   if (monthEnd) {
     closeMonth(s);
+    const rec = s.finance.history[s.finance.history.length - 1];
+    // Лучшая модель игрока в продаже: по ней считается место, и график в итоге партии должен с ним сходиться.
+    rec.eloMine = s.models.reduce((b, m) => (m.releasedDay !== null && m.onApi ? Math.max(b, m.arenaElo) : b), 0);
+    rec.eloRival = rivalFrontierElo(s);
+    rec.placeEnd = rivalsSellByApi(s) ? playerBestArenaRank(s) : null;
     // Месяц закрыт на 1-м месте среди моделей по API: считается до разоблачений месяца, по состоянию рынка на его конец.
     // Месяц считается, только когда соперники уже продают модели по API: до этого первое место ничего не значит.
     if (playerBestArenaRank(s) === 1 && rivalsSellByApi(s)) s.monthsFirst += 1;

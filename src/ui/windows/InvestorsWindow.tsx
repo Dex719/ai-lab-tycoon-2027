@@ -16,7 +16,7 @@ import type { Valuation } from '../../sim/investors';
 import { byYear, formatDateShort, lerpByDate, yearOf } from '../../sim/time';
 import type { GameState } from '../../sim/types';
 import { Alert, ConfirmDialog, ErrorText, GuardButton } from '../components/common';
-import { fmtMoney, fmtMult, fmtNum, fmtShare } from '../format';
+import { fmtDays, fmtMoney, fmtMult, fmtNum, fmtShare } from '../format';
 import { fmtRank } from '../labels';
 import { actions, store } from '../store';
 import './InvestorsWindow.css';
@@ -34,7 +34,7 @@ function cooldownText(s: GameState, blocked: string | null): string | null {
   if (blocked === null) return null;
   if (s.lastRoundDay === null) return blocked;
   const left = s.lastRoundDay + ROUND_COOLDOWN_DAYS - s.day;
-  return left > 0 ? `Следующий раунд через ${fmtNum(left)} дн.` : blocked;
+  return left > 0 ? `Следующий раунд через ${fmtDays(left)}` : blocked;
 }
 
 // ---------- Доля основателя ----------
@@ -214,7 +214,7 @@ function SellConfirm(props: { fraction: number; v: Valuation; share: number; onC
         <span>Доля после</span>
         <span className={toneClass(after)}>{fmtShare(after)}</span>
         <span>Следующий раунд</span>
-        <span>через {ROUND_COOLDOWN_DAYS} дн.</span>
+        <span>через {fmtDays(ROUND_COOLDOWN_DAYS)}</span>
       </div>
       {crossesControl ? (
         <Alert tone="bad">

@@ -8,7 +8,10 @@ import { ArenaStrip } from './ArenaFeedback';
 import { MoneyFlies, useCountUp } from './Juice';
 import { LabStats } from './LabStats';
 import { dcCostPerDay } from '../sim/datacenters';
-import { formatDateShort } from '../sim/time';
+import { END_DAY, formatDateShort } from '../sim/time';
+
+/** С 1 октября 2024 года рядом с датой идёт отсчёт до конца партии. */
+const FINAL_DAYS = 92;
 import type { GameState, Speed } from '../sim/types';
 import { fmtMoney } from './format';
 import { IconAlert, IconArrowUpDown, IconBank, IconCalendar, IconFast, IconFaster, IconPause, IconPlay } from './icons';
@@ -133,6 +136,11 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
         <div className="tb-item tb-date">
           <IconCalendar />
           <span>{formatDateShort(s.day)}</span>
+          {!s.outcome && END_DAY - s.day <= FINAL_DAYS && (
+            <span className={`tb-final${END_DAY - s.day <= 30 ? ' hot' : ''}`} title="31.12.2024 партия заканчивается: побеждает первая модель на «Арене» среди моделей в продаже">
+              До финала {Math.max(0, END_DAY - s.day)} дн.
+            </span>
+          )}
         </div>
         <div className="speed">
           {SPEEDS.map(({ speed: sp, title, Icon }) => (

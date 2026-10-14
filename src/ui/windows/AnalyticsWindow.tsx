@@ -122,7 +122,7 @@ function YourModelsTab({ s, open }: WindowProps) {
     <div className="an-page">
       <StatStrip
         items={[
-          {
+          ...(subsOpen(s.day) || s.market.playerSubs > 0 ? [{
             label: 'Подписчиков',
             value: <span className={s.market.playerSubs > 0 ? 'good' : undefined}>{fmtNum(Math.round(finite(s.market.playerSubs)))}</span>,
             title: 'Обслуженные вчера пользователи подписки',
@@ -131,7 +131,7 @@ function YourModelsTab({ s, open }: WindowProps) {
             label: 'Выручка подписок в день',
             value: <span className={subsDay > 0 ? 'good' : undefined}>{fmtMoney(subsDay)}</span>,
             title: 'Подписчики × цена подписки / 30',
-          },
+          }] : []),
           {
             label: 'Выручка API в день',
             value: <span className={apiDay > 0 ? 'good' : undefined}>{fmtMoney(apiDay)}</span>,

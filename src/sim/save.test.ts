@@ -595,7 +595,7 @@ function collect(value: unknown, path: (string | number)[], norm: string, seen: 
 // lostSubs, segments и их сегменты, trainings, nextRunNum) тоже появился позже: загрузка дополняет умолчаниями.
 const OPTIONAL_FIELDS = new Set([
   'eventId', 'choices', 'chosen', 'important', 'target', 'mult', 'add', 'founderName', 'tutorial', 'replyByDay', 'defaultChoice',
-  'deferred', 'autoChosen', 'reward', 'context', 'contextLevel', 'earned', 'monthsFirst', 'autoApply', 'difficulty', 'rivalry',
+  'deferred', 'autoChosen', 'reward', 'eloMine', 'eloRival', 'placeEnd', 'context', 'contextLevel', 'earned', 'monthsFirst', 'autoApply', 'difficulty', 'rivalry',
   'tier', 'onSubs', 'subsPrice', 'review', 'reviewEndDay', 'earnedSubs', 'subs', 'subscribers', 'playerSubs', 'totalSubs',
   'lostApi', 'lostSubs', 'segments', 'consumers', 'enterprise', 'developers', 'trainings', 'nextRunNum',
   'queue', 'techs', 'distill', 'moe', 'codetrain', 'instruct', 'cot', 'quant', 'multimodal', 'synthetic',

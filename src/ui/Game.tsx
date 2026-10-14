@@ -17,6 +17,7 @@ import { ArenaBanner } from './ArenaFeedback';
 import { Juice } from './Juice';
 import { ReleaseCard } from './ReleaseCard';
 import { Moments } from './Moments';
+import { MonthStrip } from './MonthStrip';
 import { TopBar } from './TopBar';
 import { TutorialPanel } from './Tutorial';
 import { useViewport } from './viewport';
@@ -289,6 +290,7 @@ export function Game({ s }: { s: GameState }) {
 
       <Toasts s={s} open={open} />
       <ArenaBanner s={s} />
+      <MonthStrip s={s} />
       <Juice s={s} onRelease={setReleased} />
       {released && <ReleaseCard s={s} modelId={released} onClose={closeReleased} />}
       <ChoiceModal s={s} />

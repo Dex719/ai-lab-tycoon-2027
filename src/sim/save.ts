@@ -288,6 +288,9 @@ const monthRecord = shapeOf<MonthRecord>({
   marketShare: num,
   tokensPerDay: num,
   subscribers: num,
+  eloMine: optional(num),
+  eloRival: optional(num),
+  placeEnd: optional(nullable(num)),
 });
 
 const labShares = record([...HYPE_OWNERS, 'none'], num);

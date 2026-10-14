@@ -526,14 +526,13 @@ function AllocPanel({ s }: { s: GameState }) {
           ))}
         </div>
         <div
-          className={`cw-occ ${occ.tone}`}
+          className={`cw-occ ${total > 0 ? occ.tone : 'idle'}`}
           role="status"
           title={occ.tone === 'idle' ? 'Свободная мощность простаивает, а аренда за неё всё равно списывается.' : undefined}
         >
-          {occ.text}
+          {total > 0 ? occ.text : 'Мощности пока нет: арендуйте карты.'}
         </div>
       </div>
-      {total <= 0 && <p className="cw-panel-note">Мощность появится после аренды карт.</p>}
       {rows.map((r) => {
         const h = (total * shown[r.key]) / 100;
         const cap = maxPercent(shown, r.key);
