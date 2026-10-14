@@ -228,10 +228,7 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .ct-list { flex: none; overflow: visible; }
   .ct-main { flex: none; overflow: visible; padding: 10px; }
   .ct:not(.show-detail) .ct-main, .ct:not(.show-detail) .m-back { display: none; }
-  .ct.show-detail .ct-side, .ct.show-detail .ct-steps { display: none; }
-  .ct-steps { padding: 8px 10px; }
-  .ct-head { flex-wrap: wrap; }
-  .ct-cols { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .ct.show-detail .ct-side { display: none; }
 
   .mw { flex-direction: column; height: auto; min-height: 100%; }
   .mw-side { width: auto; flex: none; border-right: none; }
