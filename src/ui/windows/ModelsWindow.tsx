@@ -1,8 +1,8 @@
-// Окно «Модели»: список моделей игрока слева, карточка выбранной справа.
-// Образец - «Инспектор» и «Проект завершён» из Processor Tycoon.
+// Окно «Модели»: слева коллекция моделей с эмблемами, справа карточка выбранной.
+// У карточки тёмная шапка (как полоса прогноза в «Новой модели»): обложка, название и четыре главных числа.
 // Две панели продаж: «API» (цена за 1 млн токенов) и «Подписка» (цена в месяц, внешняя проверка сильных моделей).
 
-import { Fragment, useId, useState } from 'react';
+import { Fragment, useId, useState, type CSSProperties } from 'react';
 import type { WindowProps } from '.';
 import { benchDef, DOMAIN_NAMES, introducedBenchmarks } from '../../sim/benchmarks';
 import { pool, rentPerDay } from '../../sim/compute';
@@ -16,8 +16,8 @@ import {
 } from '../../sim/constants';
 import { awaitingEvent } from '../../sim/events';
 import { contextLabel } from '../../sim/research';
-import { benchRank } from '../../sim/leaderboard';
-import { ARENA_PLACE_TITLE, modelArenaPlace } from '../arena';
+import { benchRank, type RaceMetric } from '../../sim/leaderboard';
+import { ARENA_PLACE_TITLE } from '../arena';
 import { minPrice, playerSales, refPrice, subsOpen } from '../../sim/market';
 import { formatDateShort } from '../../sim/time';
 import {
@@ -34,6 +34,7 @@ import {
   DOMAINS,
   TIER_NAMES,
   type BenchmarkId,
+  type DomainId,
   type GameState,
   type ModelRef,
   type PlayerModel,
@@ -43,11 +44,12 @@ import {
 } from '../../sim/types';
 import { Cards } from '../components/Cards';
 import { Alert, ConfirmDialog, DenyNote, ErrorText, GuardButton, ProgressBar, useFlash } from '../components/common';
+import { ModelEmblem } from '../components/ModelEmblem';
 import { TierBadge } from '../components/TierBadge';
-import { fmtDays, fmtElo, fmtH100e, fmtMoney, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare, fmtTokens } from '../format';
+import { fmtDays, fmtElo, fmtH100e, fmtMoney, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare, fmtTokens, ruPlural } from '../format';
 import { tokensWord } from '../../sim/text';
 import { IconChevronLeft, IconModels } from '../icons';
-import { fmtRank } from '../labels';
+import { raceMetricOf, raceRows } from '../race';
 import { actions, store } from '../store';
 import './ModelsWindow.css';
 
@@ -62,7 +64,6 @@ const PRICE_STEPS = [
 
 const PRICE_TITLE = 'Цена за 1 млн токенов в долларах. Чем ниже цена, тем больше доля рынка и выше нагрузка на мощности «API».';
 const SUBS_PRICE_TITLE = 'Цена подписки в долларах в месяц. Чем ниже цена, тем больше подписчиков и выше нагрузка на мощности «Подписки».';
-const SUBS_CLOSED = 'Подписки появятся позже.';
 const REVIEW_FIRST = 'Сначала пройдите внешнюю проверку.';
 
 type Tone = 'idle' | 'sale' | 'off';
@@ -74,6 +75,11 @@ export function saleState(m: PlayerModel): { text: string; tone: Tone } {
   if (m.onApi) return { text: 'В продаже: API', tone: 'sale' };
   if (m.onSubs) return { text: 'В продаже: подписка', tone: 'sale' };
   return { text: 'Снята', tone: 'off' };
+}
+
+/** Подпись состояния в коллекции: обученная, но не выпущенная модель ждёт выпуска. */
+function stateLabel(m: PlayerModel): string {
+  return m.releasedDay === null ? 'Ждёт выпуска' : saleState(m).text;
 }
 
 /** Строка про внешнюю проверку для списка и значка (null - проверка не нужна или не требовалась). */
@@ -147,26 +153,44 @@ function salesOf(s: GameState, m: PlayerModel) {
   };
 }
 
+/** Подпись места в гонке: «Место на «Арене»» или «Место: GLUU». */
+function placeLabel(metric: RaceMetric | null): string {
+  return metric?.kind === 'bench' ? `Место: ${metric.name}` : 'Место на «Арене»';
+}
+
+function placeTitle(metric: RaceMetric | null): string {
+  return metric?.kind === 'bench'
+    ? `Место по тесту ${metric.name} среди всех вышедших моделей: пока соперники не продают модели по API, гонка идёт по этому тесту.`
+    : ARENA_PLACE_TITLE;
+}
+
 /** Ключ проекта обучения в списке: у проекта нет id модели. */
 const RUN_PREFIX = 'run:';
 
-// ---------- Левая колонка ----------
+// ---------- Коллекция ----------
 
 function ModelList(props: {
+  s: GameState;
   models: PlayerModel[];
   trainings: TrainingRun[];
   selectedId: string;
   onSelect: (id: string) => void;
   open: WindowProps['open'];
+  /** Модель игрока, которая сейчас на 1-м месте в гонке: золотая рамка. */
+  championId: string | null;
 }) {
   // Снятые с продажи модели сворачиваем в «Архив»; если выбрана одна из них, группа открыта.
   const [archiveOpen, setArchiveOpen] = useState(false);
   const archived = props.models.filter((m) => saleState(m).tone === 'off');
   const active = props.models.filter((m) => saleState(m).tone !== 'off');
   const archiveShown = archiveOpen || archived.some((m) => m.id === props.selectedId);
+  const onSale = props.models.filter((m) => saleState(m).tone === 'sale').length;
+  const waiting = props.models.filter((m) => m.releasedDay === null).length;
+  const total = props.models.length;
   const renderModel = (m: PlayerModel) => {
     const st = saleState(m);
     const rv = reviewState(m);
+    const champion = m.id === props.championId;
     return (
       <button
         key={m.id}
@@ -174,11 +198,20 @@ function ModelList(props: {
         aria-current={m.id === props.selectedId}
         onClick={() => props.onSelect(m.id)}
       >
+        <ModelEmblem m={m} size={42} gold={champion} exposed={m.exposed} faded={st.tone === 'off'} />
         <span className="mw-item-text">
-          <span className="mw-item-name" title={m.name}>{m.name}</span>
-          <span className="mw-item-state">
-            <TierBadge tier={m.plan.tier} />
-            <span>{st.text}</span>
+          <span className="mw-item-top">
+            <span className="mw-item-name" title={m.name}>
+              {m.name}
+            </span>
+            <span className="mw-item-elo" title="Рейтинг Эло">
+              {fmtElo(m.arenaElo)}
+            </span>
+          </span>
+          <span className={`mw-item-state ${st.tone}`}>
+            <i className="mw-dot" />
+            {stateLabel(m)}
+            {champion && <b className="mw-crown">1-е место</b>}
           </span>
           {rv && rv.tone !== 'good' && <span className={`mw-item-state ${rv.tone}`}>{rv.text}</span>}
           {m.exposed && <span className="mw-item-state bad">Подгонка раскрыта</span>}
@@ -188,9 +221,23 @@ function ModelList(props: {
   };
   return (
     <aside className="mw-side">
+      <div className="mw-side-head">
+        <div className="mw-coll">
+          <span className="mw-coll-t">Коллекция</span>
+          <span className="mw-coll-n">
+            {fmtNum(total)} {ruPlural(total, 'модель', 'модели', 'моделей')}
+          </span>
+        </div>
+        <div className="mw-coll-tags">
+          <span className="mw-tag sale">В продаже: {fmtNum(onSale)}</span>
+          {waiting > 0 && <span className="mw-tag idle">Ждут выпуска: {fmtNum(waiting)}</span>}
+          {props.trainings.length > 0 && <span className="mw-tag train">Обучается: {fmtNum(props.trainings.length)}</span>}
+        </div>
+      </div>
       <div className="mw-list">
         {props.trainings.map((t) => {
           const id = RUN_PREFIX + t.id;
+          const frac = t.flopTotal > 0 ? t.flopDone / t.flopTotal : 0;
           return (
             <button
               key={t.id}
@@ -198,11 +245,16 @@ function ModelList(props: {
               aria-current={props.selectedId === id}
               onClick={() => props.onSelect(id)}
             >
+              <ModelEmblem m={{ id: t.id, name: t.plan.name, arch: t.arch, plan: t.plan }} size={42} progress={frac} />
               <span className="mw-item-text">
-                <span className="mw-item-name" title={t.plan.name}>{t.plan.name}</span>
-                <span className="mw-item-state">
-                  <TierBadge tier={t.plan.tier} />
-                  <span>Обучается, {fmtShare(t.flopTotal > 0 ? t.flopDone / t.flopTotal : 0, 0)}</span>
+                <span className="mw-item-top">
+                  <span className="mw-item-name" title={t.plan.name}>
+                    {t.plan.name}
+                  </span>
+                </span>
+                <span className="mw-item-state train">
+                  <i className="mw-dot" />
+                  Обучается, {fmtShare(frac, 0)}
                 </span>
               </span>
             </button>
@@ -224,24 +276,11 @@ function ModelList(props: {
         {archiveShown && archived.map(renderModel)}
       </div>
       <div className="mw-side-foot">
-        <span>Моделей: {props.models.length}</span>
-        <button className="btn small" onClick={() => props.open('newModel')}>Создать модель</button>
+        <button className="btn primary wide" onClick={() => props.open('newModel')}>
+          Создать модель
+        </button>
       </div>
     </aside>
-  );
-}
-
-// ---------- Визуал модели ----------
-
-function Chip({ lab, name, tone }: { lab: string; name: string; tone: Tone }) {
-  return (
-    <div className="mw-chip" role="img" aria-label={`${lab}, ${name}`}>
-      <div className={`mw-die ${tone}`}>
-        <span className="mw-led" />
-        <span className="mw-die-lab">{lab}</span>
-        <span className="mw-die-name">{name}</span>
-      </div>
-    </div>
   );
 }
 
@@ -259,7 +298,9 @@ function PriceInput(props: {
   const id = useId();
   return (
     <div className="mw-field">
-      <label className="mw-sub" htmlFor={id}>{props.label}</label>
+      <label className="mw-sub" htmlFor={id}>
+        {props.label}
+      </label>
       <div className="mw-price-row">
         <span className="mw-cur">$</span>
         <input
@@ -324,14 +365,11 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
   const api = parsePrice(text, s.day);
   const subs = parseSubsPrice(subsText);
 
-  // Подписка при выпуске: канал открыт с чат-момента, а сильной модели сначала нужна внешняя проверка.
+  // Подписка при выпуске: канал открыт с чат-момента (до него строки нет вовсе), сильной модели сначала нужна внешняя проверка.
+  const opened = subsOpen(s.day);
   const reason = reviewReason(s, m);
-  const subsBlock = !subsOpen(s.day)
-    ? SUBS_CLOSED
-    : reason !== null
-      ? `Нужна внешняя проверка: ${reason}. Подписку можно включить после неё.`
-      : null;
-  const subsOn = subsWanted && subsBlock === null;
+  const subsBlock = !opened ? null : reason !== null ? `Нужна внешняя проверка: ${reason}. Подписку можно включить после неё.` : null;
+  const subsOn = opened && subsWanted && subsBlock === null;
 
   const canRelease = (apiOn || subsOn) && (!apiOn || api.price !== null) && (!subsOn || subs.price !== null);
   const blockReason = !(apiOn || subsOn)
@@ -354,16 +392,18 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
   }
 
   return (
-    <section>
+    <section className="mw-release">
       <h3 className="mw-h">Выпуск на рынок</h3>
-      {reason !== null && subsOpen(s.day) && (
+      {reason !== null && opened && (
         <Alert tone="info">
           Нужна внешняя проверка: {reason}. До неё модель можно продавать только по API. Проверка займёт {fmtDays(reviewDays(s, m))} и стоит{' '}
           {fmtMoney(reviewCost(m))}; начать её можно в этом окне после выпуска.
         </Alert>
       )}
-      <div className="mw-panel">
-        <div className="mw-sub">Уровень «{TIER_NAMES[tier]}»: типичная цена за 1 млн токенов - {fmtPrice(base)}</div>
+      <div className="mw-panel release">
+        <div className="mw-sub">
+          Уровень «{TIER_NAMES[tier]}»: типичная цена за 1 млн токенов - {fmtPrice(base)}
+        </div>
         <div className="mw-tiers" role="radiogroup" aria-label="Рекомендуемая цена">
           {steps.map((t) => (
             <button
@@ -382,12 +422,11 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
 
         <div className="mw-release-ch">
           <div className="mw-release-row">
-            <Switch
-              checked={apiOn}
-              label="Продавать по API"
-              title="Корпоративные клиенты и разработчики покупают токены модели."
-              onChange={setApiOn}
-            />
+            {opened ? (
+              <Switch checked={apiOn} label="Продавать по API" title="Корпоративные клиенты и разработчики покупают токены модели." onChange={setApiOn} />
+            ) : (
+              <span className="mw-switch on static">Продажа по API</span>
+            )}
             <div className="mw-edit">
               <PriceInput
                 label="Цена за 1 млн токенов"
@@ -403,34 +442,36 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
           </div>
           {apiOn && api.error && <div className="error">{api.error}</div>}
 
-          <div className="mw-release-row">
-            <Switch
-              checked={subsOn}
-              label="Продавать по подписке"
-              title={subsBlock ?? 'Обычные пользователи платят за чат с моделью каждый месяц.'}
-              reason={subsBlock}
-              onChange={setSubsWanted}
-            />
-            <div className="mw-edit">
-              <PriceInput
-                label="Цена подписки в месяц"
-                value={subsText}
-                onChange={setSubsText}
-                onEnter={release}
-                invalid={subsOn && subs.error !== null}
-                title={SUBS_PRICE_TITLE}
-                disabled={!subsOn}
-              />
-            </div>
-          </div>
-          {subsOn && subs.error && <div className="error">{subs.error}</div>}
-          {subsBlock !== null && <div className="mw-sub">{subsBlock}</div>}
+          {opened && (
+            <>
+              <div className="mw-release-row">
+                <Switch
+                  checked={subsOn}
+                  label="Продавать по подписке"
+                  title={subsBlock ?? 'Обычные пользователи платят за чат с моделью каждый месяц.'}
+                  reason={subsBlock}
+                  onChange={setSubsWanted}
+                />
+                <div className="mw-edit">
+                  <PriceInput
+                    label="Цена подписки в месяц"
+                    value={subsText}
+                    onChange={setSubsText}
+                    onEnter={release}
+                    invalid={subsOn && subs.error !== null}
+                    title={SUBS_PRICE_TITLE}
+                    disabled={!subsOn}
+                  />
+                </div>
+              </div>
+              {subsOn && subs.error && <div className="error">{subs.error}</div>}
+            </>
+          )}
         </div>
 
         <div className="mw-panel-foot">
-          <span className="mw-sub">Цены можно менять после выпуска.</span>
           <GuardButton
-            className="btn primary"
+            className="btn primary mw-release-btn"
             data-tutorial="release"
             reason={canRelease ? null : (blockReason ?? 'Модель пока нельзя выпустить.')}
             title={canRelease ? 'Выпустить модель на рынок' : undefined}
@@ -493,11 +534,20 @@ function ApiPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowPr
       )}
       {losing && <Alert tone="warn">Не хватает мощности «API»: теряется {fmtShare(lost, 0)} спроса.</Alert>}
       <div className="mw-metrics">
-        <Metric label="Токенов в день" value={tokens !== undefined ? fmtNum(Math.round(tokens)) : '-'} off={tokens === undefined}
+        <Metric
+          label="Токенов в день"
+          value={tokens !== undefined ? fmtNum(Math.round(tokens)) : '-'}
+          off={tokens === undefined}
           sub={users !== undefined ? `≈ ${fmtNum(Math.round(users))} пользователей` : undefined}
-          title={`Оценка пользователей: токены в день / ${fmtNum(TOKENS_PER_USER_DAY)}`} />
-        <Metric label="Цена за 1 млн" value={fmtPrice(m.price)} off={!m.onApi} sub={versusMarket(m.price, typical)}
-          title={`Типичная цена для уровня «${TIER_NAMES[m.plan.tier]}»: ${fmtPrice(typical)}`} />
+          title={`Оценка пользователей: токены в день / ${fmtNum(TOKENS_PER_USER_DAY)}`}
+        />
+        <Metric
+          label="Цена за 1 млн"
+          value={fmtPrice(m.price)}
+          off={!m.onApi}
+          sub={versusMarket(m.price, typical)}
+          title={`Типичная цена для уровня «${TIER_NAMES[m.plan.tier]}»: ${fmtPrice(typical)}`}
+        />
         <Metric label="Выручка в день" value={apiRevenue !== undefined ? fmtMoney(apiRevenue) : '-'} tone="income" off={apiRevenue === undefined} />
       </div>
       <div className="mw-edit mw-ch-edit">
@@ -510,8 +560,8 @@ function ApiPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowPr
         >
           Изменить цену
         </button>
+        <span className="mw-sub mw-vs">{price !== null && !unchanged ? versusMarket(price, typical) : ''}</span>
       </div>
-      {price !== null && !unchanged && <div className="mw-sub">{versusMarket(price, typical)}</div>}
       {error && <div className="error">{error}</div>}
       <ErrorText error={err} />
     </div>
@@ -600,20 +650,14 @@ function SubsPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowP
   const [err, setErr] = useState<string | null>(null);
   const { price, error } = parseSubsPrice(text);
   const { subscribers, subsRevenue } = salesOf(s, m);
-  const opened = subsOpen(s.day);
   const noPool = m.onSubs && pool(s, 'subs') <= 0;
   const lost = s.market.lostSubs;
   const losing = m.onSubs && !noPool && lost > 0.01;
 
-  // Выключить подписку можно всегда; включить - после чат-момента и без незавершённой проверки.
-  const blocked = !m.onSubs && (!opened || m.review === 'required' || m.review === 'pending');
-  const blockTitle = !opened
-    ? SUBS_CLOSED
-    : m.review === 'required'
-      ? REVIEW_FIRST
-      : m.review === 'pending' && m.reviewEndDay !== null
-        ? `Проверка до ${formatDateShort(m.reviewEndDay)}.`
-        : undefined;
+  // Выключить подписку можно всегда; включить - без незавершённой проверки (панель видна только после чат-момента).
+  const blocked = !m.onSubs && (m.review === 'required' || m.review === 'pending');
+  const blockTitle =
+    m.review === 'required' ? REVIEW_FIRST : m.review === 'pending' && m.reviewEndDay !== null ? `Проверка до ${formatDateShort(m.reviewEndDay)}.` : undefined;
 
   function run(r: Result) {
     setErr(r.ok ? null : r.error);
@@ -629,7 +673,7 @@ function SubsPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowP
           checked={m.onSubs}
           label="Продавать по подписке"
           title={blocked ? blockTitle : 'Обычные пользователи платят за чат с моделью каждый месяц.'}
-          reason={blocked ? (blockTitle ?? SUBS_CLOSED) : null}
+          reason={blocked ? (blockTitle ?? REVIEW_FIRST) : null}
           onChange={(v) => run(store.dispatch(actions.setOnSubs, m.id, v))}
         />
       </div>
@@ -663,14 +707,14 @@ function SubsPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowP
 }
 
 function SalesBlock({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowProps['open'] }) {
-  // До открытия подписок панель «Подписка» свёрнута в одну строку, API занимает всю ширину.
-  const subsLater = !subsOpen(s.day) && !m.onSubs;
+  // До открытия подписок панели «Подписка» нет вовсе: будущее не показываем, API занимает всю ширину.
+  const subsShown = subsOpen(s.day) || m.onSubs;
   return (
     <section>
       <h3 className="mw-h">Продажи</h3>
-      <div className={`mw-channels${subsLater ? ' single' : ''}`}>
+      <div className={`mw-channels${subsShown ? '' : ' single'}`}>
         <ApiPanel s={s} m={m} open={open} />
-        {subsLater ? <div className="mw-subs-later">{SUBS_CLOSED}</div> : <SubsPanel s={s} m={m} open={open} />}
+        {subsShown && <SubsPanel s={s} m={m} open={open} />}
       </div>
     </section>
   );
@@ -678,47 +722,47 @@ function SalesBlock({ s, m, open }: { s: GameState; m: PlayerModel; open: Window
 
 // ---------- Баллы ----------
 
+const DOMAIN_COLOR: Record<DomainId, string> = { language: '#2f80e4', code: '#d9822b', reasoning: '#7b5cd6' };
+
 function ScoresBlock({ s, m, benches }: { s: GameState; m: PlayerModel; benches: BenchmarkId[] }) {
   if (benches.length === 0) return null;
   const released = m.releasedDay !== null;
   const ref: ModelRef = { kind: 'player', id: m.id };
-  const showHonest = benches.some((b) => (m.overfit[b] ?? 0) > 0);
   const expose = exposureChance(s, m);
 
   return (
     <section>
-      <h3 className="mw-h">Баллы</h3>
-      <table className="grid mw-scores">
-        <thead>
-          <tr>
-            <th>Бенчмарк</th>
-            <th>Область</th>
-            <th className="num">Балл</th>
-            {showHonest && <th className="num" title="Балл без учёта подгонки под бенчмарк">Честный балл</th>}
-            {released && <th className="num" title="Место среди выпущенных моделей по этому бенчмарку">Место</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {benches.map((b) => {
-            const def = benchDef(b);
-            const saturated = s.benchmarks[b].saturated;
-            const overfit = (m.overfit[b] ?? 0) > 0;
-            const rank = released ? benchRank(s, ref, b) : null;
-            return (
-              <tr key={b} className={saturated ? 'dim' : undefined}>
-                <td title={def.description}>
-                  {def.name}
-                  {saturated && <span className="muted small" title="Бенчмарк насыщен: не влияет на шумиху и тендеры."> · насыщен</span>}
-                </td>
-                <td className="muted">{DOMAIN_NAMES[def.domain]}</td>
-                <td className="num">{fmtPct(modelScore(m, b, false))}</td>
-                {showHonest && <td className={`num${overfit ? '' : ' muted'}`}>{overfit ? fmtPct(modelScore(m, b, true)) : '-'}</td>}
-                {released && <td className="num">{rank ?? '-'}</td>}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <h3 className="mw-h">Баллы тестов</h3>
+      <div className="mw-scores">
+        {benches.map((b) => {
+          const def = benchDef(b);
+          const saturated = s.benchmarks[b].saturated;
+          const overfit = (m.overfit[b] ?? 0) > 0;
+          const shown = modelScore(m, b, false);
+          const honest = modelScore(m, b, true);
+          const rank = released ? benchRank(s, ref, b) : null;
+          const style = { '--dc': DOMAIN_COLOR[def.domain] } as CSSProperties;
+          return (
+            <div key={b} className={`mw-score${saturated ? ' sat' : ''}`} style={style}>
+              <span className="mw-score-name" title={saturated ? `${def.description} Тест насыщен: не влияет на шумиху и тендеры.` : def.description}>
+                {def.name}
+                <small>{saturated ? 'насыщен' : DOMAIN_NAMES[def.domain]}</small>
+              </span>
+              <span className="mw-score-bar" title={overfit ? `Честный балл без подгонки: ${fmtPct(honest)}` : undefined}>
+                <i style={{ width: `${Math.max(0, Math.min(100, shown))}%` }} />
+                {overfit && <em style={{ left: `${Math.max(0, Math.min(100, honest))}%` }} />}
+              </span>
+              <span className="mw-score-v">
+                {fmtPct(shown)}
+                {overfit && <small className="mw-honest">честно {fmtPct(honest)}</small>}
+              </span>
+              <span className={`mw-score-rank${rank === 1 ? ' gold' : ''}`} title="Место среди вышедших моделей по этому тесту">
+                {rank !== null ? `${fmtNum(rank)}-е` : ''}
+              </span>
+            </div>
+          );
+        })}
+      </div>
       {expose > 0 && (
         <div className="mw-expose">
           Шанс, что подгонку раскроют: <b>{fmtPct(expose * 100, 0)} в месяц</b>
@@ -728,73 +772,90 @@ function ScoresBlock({ s, m, benches }: { s: GameState; m: PlayerModel; benches:
   );
 }
 
-// ---------- Карточка модели ----------
+// ---------- Шапка карточки ----------
 
 interface Kpi {
   label: string;
   value: string;
   sub?: string;
   title?: string;
-  tone?: 'income' | 'cost';
+  tone?: 'income' | 'cost' | 'gold';
 }
 
-/** Крупные показатели под заголовком: на них взгляд падает первым. */
-function Kpis({ s, m }: { s: GameState; m: PlayerModel }) {
-  const released = m.releasedDay !== null;
-  const rank = modelArenaPlace(s, m);
-  const { share, revenue, apiRevenue, subsRevenue } = salesOf(s, m);
-  const items: Kpi[] = released
-    ? [
-        {
-          label: 'Место на «Арене»',
-          value: fmtRank(rank),
-          sub: rank === null ? `Не в продаже, Эло ${fmtElo(m.arenaElo)}` : `Эло ${fmtElo(m.arenaElo)}`,
-          title: `${ARENA_PLACE_TITLE} Подгонка под бенчмарки Эло не повышает.`,
-        },
-        {
-          label: 'Доля рынка',
-          value: share !== undefined ? fmtShare(share, share < 0.01 ? 2 : 1) : '-',
-          title: 'Общая доля среди клиентов API и подписчиков, по выручке',
-        },
-        {
-          label: 'Выручка в день',
-          value: revenue !== undefined ? fmtMoney(revenue) : '-',
-          sub:
-            revenue !== undefined
-              ? `API ${fmtMoney(apiRevenue ?? 0)}, подписки ${fmtMoney(subsRevenue ?? 0)}`
-              : undefined,
-          tone: 'income',
-          title: revenue !== undefined ? `≈ ${fmtMoney(revenue * 30)} в месяц` : undefined,
-        },
-        {
-          label: 'Заработала всего',
-          value: fmtMoney(m.earned),
-          sub: `из них подписки ${fmtMoney(m.earnedSubs)}`,
-          tone: 'income',
-          title: 'Выручка по обоим каналам с момента выпуска',
-        },
-      ]
-    : [
-        { label: 'Эло', value: fmtElo(m.arenaElo), title: 'Рейтинг на «Арене». Подгонка под бенчмарки его не повышает.' },
-        { label: 'Параметры', value: fmtParams(m.plan.paramsB) },
-        { label: 'Контекст', value: contextLabel(m.plan.context), sub: 'токенов' },
-        { label: 'Обучена', value: formatDateShort(m.trainedDay) },
-      ];
-  return <KpiRow items={items} />;
-}
-
-function KpiRow({ items }: { items: Kpi[] }) {
+function Hero(props: {
+  emblem: React.ReactNode;
+  name: string;
+  sub: string;
+  tier: TrainingPlan['tier'];
+  pills: React.ReactNode;
+  kpis: Kpi[];
+}) {
   return (
-    <div className="mw-kpis">
-      {items.map((k) => (
-        <div key={k.label} className="mw-kpi" title={k.title}>
-          <span className="mw-kpi-l">{k.label}</span>
-          <span className={`mw-kpi-v${k.tone ? ` ${k.tone}` : ''}`}>{k.value}</span>
-          {k.sub && <span className="mw-kpi-s">{k.sub}</span>}
+    <header className={`mw-hero ${props.tier}`}>
+      <div className="mw-hero-top">
+        {props.emblem}
+        <div className="mw-head-text">
+          <h2 className="mw-name" title={props.name}>
+            {props.name}
+          </h2>
+          <div className="mw-head-sub">{props.sub}</div>
+          <div className="mw-pills">{props.pills}</div>
         </div>
-      ))}
-    </div>
+      </div>
+      <div className="mw-kpis">
+        {props.kpis.map((k) => (
+          <div key={k.label} className="mw-kpi" title={k.title}>
+            <span className="mw-kpi-l">{k.label}</span>
+            <span className={`mw-kpi-v${k.tone ? ` ${k.tone}` : ''}`}>{k.value}</span>
+            <span className="mw-kpi-s">{k.sub ?? ''}</span>
+          </div>
+        ))}
+      </div>
+    </header>
   );
+}
+
+/** Крупные показатели в шапке: на них взгляд падает первым. */
+function kpisOf(s: GameState, m: PlayerModel, metric: RaceMetric | null, rank: number | null): Kpi[] {
+  const released = m.releasedDay !== null;
+  if (!released) {
+    return [
+      { label: 'Эло', value: fmtElo(m.arenaElo), title: 'Рейтинг на «Арене». Подгонка под тесты его не повышает.' },
+      { label: 'Параметры', value: fmtParams(m.plan.paramsB) },
+      { label: 'Контекст', value: contextLabel(m.plan.context), sub: tokensWord(m.plan.context) },
+      { label: 'Обучена', value: formatDateShort(m.trainedDay) },
+    ];
+  }
+  const { share, revenue, apiRevenue, subsRevenue } = salesOf(s, m);
+  const subsShown = subsOpen(s.day) || m.onSubs || m.earnedSubs > 0;
+  return [
+    {
+      label: placeLabel(metric),
+      value: rank !== null ? `${fmtNum(rank)}-е` : '-',
+      sub: rank === null ? `Не в зачёте, Эло ${fmtElo(m.arenaElo)}` : `Эло ${fmtElo(m.arenaElo)}`,
+      title: `${placeTitle(metric)} Подгонка под тесты Эло не повышает.`,
+      tone: rank === 1 ? 'gold' : undefined,
+    },
+    {
+      label: 'Доля рынка',
+      value: share !== undefined ? fmtShare(share, share < 0.01 ? 2 : 1) : '-',
+      title: subsShown ? 'Общая доля среди клиентов API и подписчиков, по выручке' : 'Доля среди клиентов API, по выручке',
+    },
+    {
+      label: 'Выручка в день',
+      value: revenue !== undefined ? fmtMoney(revenue) : '-',
+      sub: revenue !== undefined && subsShown ? `API ${fmtMoney(apiRevenue ?? 0)}, подписки ${fmtMoney(subsRevenue ?? 0)}` : undefined,
+      tone: 'income',
+      title: revenue !== undefined ? `≈ ${fmtMoney(revenue * 30)} в месяц` : undefined,
+    },
+    {
+      label: 'Заработала всего',
+      value: fmtMoney(m.earned),
+      sub: subsShown ? `из них подписки ${fmtMoney(m.earnedSubs)}` : `с ${formatDateShort(m.releasedDay as number)}`,
+      tone: 'income',
+      title: 'Выручка с момента выпуска',
+    },
+  ];
 }
 
 function Specs(props: { arch: 'lstm' | 'transformer'; plan: TrainingPlan; dates: [string, number][] }) {
@@ -813,7 +874,9 @@ function Specs(props: { arch: 'lstm' | 'transformer'; plan: TrainingPlan; dates:
         <dt>Параметры</dt>
         <dd>{fmtParams(plan.paramsB)}</dd>
         <dt>Контекст</dt>
-        <dd>{contextLabel(plan.context)} {tokensWord(plan.context)}</dd>
+        <dd>
+          {contextLabel(plan.context)} {tokensWord(plan.context)}
+        </dd>
         <dt>Данные</dt>
         <dd>
           {fmtTokens(plan.tokensB)} токенов
@@ -847,14 +910,13 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
   const forecast = s.research.done.includes('scaling')
     ? forecastElo(capsFromPlan(t.plan, t.algoLevel, t.arch, t.failPenalty, t.techs ?? []), t.plan.rlhf, t.algoLevel, t.techs ?? [])
     : null;
-  const sub = [t.arch === 'transformer' ? 'Трансформер' : 'LSTM', `${fmtParams(t.plan.paramsB)} параметров`, `контекст ${contextLabel(t.plan.context)}`]
-    .join(' · ');
+  const sub = [t.arch === 'transformer' ? 'Трансформер' : 'LSTM', `${fmtParams(t.plan.paramsB)} параметров`, `контекст ${contextLabel(t.plan.context)}`].join(' · ');
   const items: Kpi[] = [
     { label: 'Готово', value: fmtShare(frac, 0) },
     {
       // Пока проект стоит, срока нет: в плитке «-», причина - в подписи.
       label: 'Осталось',
-      value: !waiting && left !== null ? `${fmtNum(left)} дн.` : '-',
+      value: !waiting && left !== null ? fmtDays(left) : '-',
       sub: waiting ? 'ждёт решения в «Почте»' : left !== null ? `до ${formatDateShort(s.day + left)}` : 'нет мощности на обучение',
     },
     {
@@ -873,83 +935,82 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
 
   return (
     <div className="mw-main">
-      <header className="mw-head">
-        <Chip lab={s.labName} name={t.plan.name} tone="idle" />
-        <div className="mw-head-text">
-          <h2 className="mw-name" title={t.plan.name}>
-            {t.plan.name}
-          </h2>
-          <div className="mw-head-sub">{sub}</div>
-        </div>
-        <div className="mw-pills">
-          <span className="mw-pill train">Обучается</span>
-          <TierBadge tier={t.plan.tier} />
-        </div>
-      </header>
-      <KpiRow items={items} />
-      <section>
-        <h3 className="mw-h">Ход обучения</h3>
-        <div className="mw-panel">
-          <ProgressBar value={frac} />
-          <div className="mw-panel-foot">
-            <span className="mw-sub">
-              Мощность на обучение: <b>{fmtH100e(power)} H100e</b>
-              <Cards s={s} h100e={power} />
-            </span>
-            <span className="mw-btns">
-              <button className="btn small" onClick={() => open('compute')}>
-                Открыть «Мощности»
-              </button>
-              <button className="btn small" onClick={() => open('newModel')}>
-                Открыть «Новая модель»
-              </button>
-            </span>
+      <Hero
+        emblem={<ModelEmblem m={{ id: t.id, name: t.plan.name, arch: t.arch, plan: t.plan }} size={92} progress={frac} />}
+        name={t.plan.name}
+        sub={sub}
+        tier={t.plan.tier}
+        pills={
+          <>
+            <span className="mw-pill train">Обучается</span>
+            <TierBadge tier={t.plan.tier} />
+          </>
+        }
+        kpis={items}
+      />
+      <div className="mw-body">
+        <section>
+          <h3 className="mw-h">Ход обучения</h3>
+          <div className="mw-panel">
+            <ProgressBar value={frac} />
+            <div className="mw-panel-foot">
+              <span className="mw-sub">
+                Мощность на обучение: <b>{fmtH100e(power)} H100e</b>
+                <Cards s={s} h100e={power} />
+              </span>
+              <span className="mw-btns">
+                <button className="btn small" onClick={() => open('compute')}>
+                  Открыть «Мощности»
+                </button>
+                <button className="btn small" onClick={() => open('newModel')}>
+                  Открыть «Новая модель»
+                </button>
+              </span>
+            </div>
           </div>
-        </div>
-      </section>
-      <Specs arch={t.arch} plan={t.plan} dates={[['Начато', t.startedDay]]} />
+        </section>
+        <Specs arch={t.arch} plan={t.plan} dates={[['Начато', t.startedDay]]} />
+      </div>
     </div>
   );
 }
 
-function ModelCard({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowProps['open'] }) {
+function ModelCard(props: { s: GameState; m: PlayerModel; open: WindowProps['open']; metric: RaceMetric | null; rank: number | null }) {
+  const { s, m, open, metric, rank } = props;
+  const champion = rank === 1;
   const released = m.releasedDay !== null;
   const st = saleState(m);
   const rv = reviewState(m);
-  const sub = [
-    m.arch === 'transformer' ? 'Трансформер' : 'LSTM',
-    `${fmtParams(m.plan.paramsB)} параметров`,
-    `контекст ${contextLabel(m.plan.context)}`,
-    m.rlhf ? 'RLHF' : '',
-  ]
+  const sub = [m.arch === 'transformer' ? 'Трансформер' : 'LSTM', `${fmtParams(m.plan.paramsB)} параметров`, `контекст ${contextLabel(m.plan.context)}`, m.rlhf ? 'RLHF' : '']
     .filter(Boolean)
     .join(' · ');
 
   return (
     <div className="mw-main">
-      <header className="mw-head">
-        <Chip lab={s.labName} name={m.name} tone={st.tone} />
-        <div className="mw-head-text">
-          <h2 className="mw-name" title={m.name}>
-            {m.name}
-          </h2>
-          <div className="mw-head-sub">{sub}</div>
-        </div>
-        <div className="mw-pills">
-          <span className={`mw-pill ${st.tone}`}>{st.text}</span>
-          <TierBadge tier={m.plan.tier} />
-          {rv && <span className={`mw-pill ${rv.tone}`}>{rv.text}</span>}
-        </div>
-      </header>
-      {m.exposed && <Alert tone="bad">Подгонка под бенчмарки раскрыта: показаны честные баллы.</Alert>}
-      <Kpis s={s} m={m} />
-      {released ? <SalesBlock s={s} m={m} open={open} /> : <ReleaseBlock s={s} m={m} />}
-      <ScoresBlock s={s} m={m} benches={introducedBenchmarks(s)} />
-      <Specs
-        arch={m.arch}
-        plan={m.plan}
-        dates={m.releasedDay !== null ? [['Обучена', m.trainedDay], ['Выпущена', m.releasedDay]] : [['Обучена', m.trainedDay]]}
+      <Hero
+        emblem={<ModelEmblem m={m} size={92} gold={champion} exposed={m.exposed} faded={st.tone === 'off'} />}
+        name={m.name}
+        sub={sub}
+        tier={m.plan.tier}
+        pills={
+          <>
+            <span className={`mw-pill ${st.tone}`}>{stateLabel(m)}</span>
+            <TierBadge tier={m.plan.tier} />
+            {rv && <span className={`mw-pill ${rv.tone}`}>{rv.text}</span>}
+          </>
+        }
+        kpis={kpisOf(s, m, metric, rank)}
       />
+      <div className="mw-body">
+        {m.exposed && <Alert tone="bad">Подгонка под тесты раскрыта: показаны честные баллы.</Alert>}
+        {released ? <SalesBlock s={s} m={m} open={open} /> : <ReleaseBlock s={s} m={m} />}
+        <ScoresBlock s={s} m={m} benches={introducedBenchmarks(s)} />
+        <Specs
+          arch={m.arch}
+          plan={m.plan}
+          dates={m.releasedDay !== null ? [['Обучена', m.trainedDay], ['Выпущена', m.releasedDay]] : [['Обучена', m.trainedDay]]}
+        />
+      </div>
     </div>
   );
 }
@@ -965,7 +1026,9 @@ export default function ModelsWindow({ s, open }: WindowProps) {
       <div className="mw-empty">
         <IconModels size={64} />
         <div className="mw-empty-title">Моделей нет.</div>
-        <button className="btn primary" onClick={() => open('newModel')}>Создать модель</button>
+        <button className="btn primary" onClick={() => open('newModel')}>
+          Создать модель
+        </button>
       </div>
     );
   }
@@ -976,13 +1039,20 @@ export default function ModelsWindow({ s, open }: WindowProps) {
   const picked = run ? null : (models.find((x) => x.id === selectedId) ?? models[0] ?? null);
   const shownRun = run ?? (picked ? undefined : s.trainings[0]);
   const current = picked ? picked.id : shownRun ? RUN_PREFIX + shownRun.id : '';
+  const metric = raceMetricOf(s);
+  // Места моделей игрока в гонке; золотая рамка - у модели, которая держит 1-е место.
+  const places = new Map<string, number>();
+  for (const x of metric ? raceRows(s, metric) : []) if (x.row.ref.kind === 'player' && x.rank !== null) places.set(x.row.ref.id, x.rank);
+  const champion = models.find((m) => places.get(m.id) === 1)?.id ?? null;
 
   return (
     <div className={`mw${detail ? ' show-detail' : ''}`}>
       <ModelList
+        s={s}
         models={models}
         trainings={s.trainings}
         selectedId={current}
+        championId={champion}
         onSelect={(id) => {
           setSelectedId(id);
           setDetail(true);
@@ -993,7 +1063,11 @@ export default function ModelsWindow({ s, open }: WindowProps) {
         <IconChevronLeft size={14} />
         К списку
       </button>
-      {picked ? <ModelCard key={picked.id} s={s} m={picked} open={open} /> : shownRun && <TrainingCard key={shownRun.id} s={s} t={shownRun} open={open} />}
+      {picked ? (
+        <ModelCard key={picked.id} s={s} m={picked} open={open} metric={metric} rank={places.get(picked.id) ?? null} />
+      ) : (
+        shownRun && <TrainingCard key={shownRun.id} s={s} t={shownRun} open={open} />
+      )}
     </div>
   );
 }

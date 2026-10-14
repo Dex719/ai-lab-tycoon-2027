@@ -1,109 +1,104 @@
-/* Окно «Модели»: серый список слева, светлая карточка справа (как «Инспектор» в Processor Tycoon). */
+/* Окно «Модели»: светлая колонка-коллекция с эмблемами, карточка с тёмной шапкой (как полоса прогноза в «Новой модели»). */
 .mw { display: flex; height: 100%; min-height: 0; font-variant-numeric: tabular-nums; }
 
-/* ---------- Список ---------- */
+/* ---------- Коллекция ---------- */
 .mw-side {
-  flex: none; width: clamp(190px, 27%, 260px); display: flex; flex-direction: column;
+  flex: none; width: clamp(220px, 30%, 290px); display: flex; flex-direction: column;
   background: var(--win-body); border-right: 1px solid var(--line);
 }
-.mw-list { flex: 1; min-height: 0; overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+.mw-side-head { flex: none; padding: 12px 12px 10px; border-bottom: 1px solid var(--line); background: #e2e4e8; }
+.mw-coll { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.mw-coll-t { font-size: 18px; font-weight: 600; color: #1f2023; }
+.mw-coll-n { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+.mw-coll-tags { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
+.mw-tag { padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; line-height: 18px; white-space: nowrap; }
+.mw-tag.sale { background: #dcf1e3; color: #1d6b36; }
+.mw-tag.idle { background: #ffe7bf; color: #8a4a00; }
+.mw-tag.train { background: #e3eefc; color: #1f5fae; }
+
+.mw-list { flex: 1; min-height: 0; overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 3px; }
 .mw-item {
-  display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 8px 10px 8px 12px;
-  border-radius: 3px; color: var(--text); text-align: left; cursor: pointer;
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; flex: none;
+  border-radius: 6px; color: var(--text); text-align: left; cursor: pointer;
+  transition: background-color 100ms ease-out, border-color 100ms ease-out;
 }
 /* Сброс фона и рамки кнопки без веса селектора: выбранная строка берёт общий .is-selected из theme.css. */
 :where(.mw-item) { background: none; border: 1px solid transparent; }
-.mw-item:hover:not(.is-selected) { background: rgba(255, 255, 255, 0.6); }
+.mw-item:hover:not(.is-selected) { background: rgba(255, 255, 255, 0.7); }
 .mw-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.mw-item-text { flex: 1; min-width: 0; }
-.mw-item-name { display: block; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mw-item-state { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font-size: 13px; color: var(--text-dim); }
-.mw-item-state.bad { color: #b32f2f; }
+.mw-item.is-selected { background: #fff; border-color: var(--accent); box-shadow: 0 1px 4px rgba(31, 108, 204, 0.18); }
+.mw-item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.mw-item-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.mw-item-name { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mw-item-elo { flex: none; font: 600 13px var(--mono); color: #4a4d54; }
+.mw-item-state { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font-size: 12.5px; color: var(--text-dim); }
+.mw-item-state .mw-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #aab0b8; }
+.mw-item-state.sale { color: #1d6b36; }
+.mw-item-state.sale .mw-dot { background: var(--good); }
+.mw-item-state.idle { color: #8a4a00; font-weight: 600; }
+.mw-item-state.idle .mw-dot { background: #e08a1e; box-shadow: 0 0 0 3px rgba(224, 138, 30, 0.22); }
+.mw-item-state.train { color: #1f5fae; }
+.mw-item-state.train .mw-dot { background: var(--c-blue); }
+.mw-item-state.bad { color: #b32f2f; font-weight: 600; }
 .mw-item-state.warn { color: #a85a00; font-weight: 600; }
 .mw-item-state.info { color: #1f5fae; }
-.mw-side-foot {
-  flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  padding: 8px 10px 8px 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--text-dim);
-}
-
-/* Цветная полоска слева по состоянию: в продаже - зелёная, обучается - синяя, обучена - оранжевая, снята - серая. */
-.mw-item { box-shadow: inset 5px 0 0 #aab0b8; }
-.mw-item.sale { box-shadow: inset 5px 0 0 var(--good); }
-.mw-item.train { box-shadow: inset 5px 0 0 #2f80e4; }
-.mw-item.idle { box-shadow: inset 5px 0 0 #e08a1e; }
-.mw-item.off { box-shadow: inset 5px 0 0 #aab0b8; }
+.mw-item.off .mw-item-name { color: #5f636a; }
+.mw-crown { padding: 0 6px; border-radius: 3px; font-size: 11px; font-weight: 700; line-height: 16px; background: #ffd34d; color: #3b2a00; }
 .mw-archive {
-  display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 4px; padding: 8px 10px 8px 12px; cursor: pointer;
+  display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 4px; padding: 8px 10px 8px 12px; cursor: pointer; flex: none;
   background: none; border: none; border-top: 1px solid var(--line); color: var(--text-dim); font-size: 13px; font-weight: 600; text-align: left;
 }
 .mw-archive:hover { color: var(--text); }
-.mw-dot { flex: none; width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: #aab0b8; }
-.mw-dot.sale { background: var(--good); }
-.mw-dot.off { background: var(--warn); }
-.mw-dot.train { background: #7b5cd6; }
+.mw-side-foot { flex: none; padding: 10px; border-top: 1px solid var(--line); }
 
 /* ---------- Карточка ---------- */
-/* Порядок внимания: название и состояние → четыре крупных показателя → цена → баллы → характеристики. */
-.mw-main { flex: 1; min-width: 0; overflow: auto; padding: 16px 20px 24px; background: var(--panel); container-type: inline-size; }
+.mw-main { flex: 1; min-width: 0; overflow: auto; background: var(--panel); container-type: inline-size; }
+.mw-body { padding: 4px 20px 24px; }
+.mw-body > .alert:first-child { margin-top: 14px; }
 
-.mw-head { display: flex; align-items: center; gap: 14px; }
+/* Тёмная шапка: обложка, название, состояние и четыре главных числа. Цвет свечения - уровень модели. */
+.mw-hero {
+  --glow: rgba(47, 128, 228, 0.45);
+  color: #fff; background: radial-gradient(ellipse 60% 120% at 0% 0%, var(--glow), transparent 70%), #1d2433;
+}
+.mw-hero.light { --glow: rgba(31, 168, 160, 0.42); }
+.mw-hero.flagship { --glow: rgba(123, 92, 214, 0.5); }
+.mw-hero-top { display: flex; align-items: center; gap: 16px; padding: 16px 20px 14px; }
+.mw-hero-top .emb { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); }
 .mw-head-text { flex: 1; min-width: 0; }
-.mw-name { margin: 0; font-size: 24px; font-weight: 600; line-height: 1.2; color: #1f2023; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mw-head-sub { margin-top: 2px; font-size: 13px; color: #4a4d54; }
-.mw-pills { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.mw-pill { flex: none; padding: 3px 10px; border-radius: 12px; font-size: 13px; font-weight: 600; white-space: nowrap; }
-.mw-pill.warn { background: #fdebd0; color: #8a4a00; }
-.mw-pill.info { background: #e3eefc; color: #1f5fae; }
-.mw-pill.good { background: #dcf1e3; color: #1d6b36; }
-.mw-pill.sale { background: #dcf1e3; color: #1d6b36; }
-.mw-pill.idle { background: #e3eefc; color: #1f5fae; }
-.mw-pill.off { background: #f1e6cf; color: #7a5200; }
-.mw-pill.train { background: #ece6fb; color: #5a3fb8; }
+.mw-name { margin: 0; font: 700 26px/1.15 var(--mono); color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mw-head-sub { margin-top: 3px; font-size: 13px; color: #c9d1e0; }
+.mw-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.mw-pill { flex: none; padding: 2px 10px; border-radius: 12px; font-size: 12.5px; font-weight: 600; white-space: nowrap; line-height: 18px; }
+.mw-pill.warn { background: #6b4a12; color: #ffe7b0; }
+.mw-pill.info { background: #213a63; color: #cfe2ff; }
+.mw-pill.good, .mw-pill.sale { background: #1f4d30; color: #b9f1cb; }
+.mw-pill.idle { background: #e08a1e; color: #241400; }
+.mw-pill.off { background: #3a3d45; color: #c8cbd0; }
+.mw-pill.train { background: #213a63; color: #cfe2ff; }
 
-/* Маленький кристалл у названия: тёмный корпус и выводы, без подписей. */
-.mw-chip { flex: none; width: 64px; height: 64px; display: grid; place-items: center; border-radius: 6px; background: #e1e3e7; }
-.mw-die {
-  position: relative; isolation: isolate; width: 42px; height: 42px; border-radius: 3px; background: #25272b;
-  box-shadow: inset 0 0 0 1px #3a3d44;
-}
-.mw-die::before {
-  content: ''; position: absolute; inset: -4px; z-index: -1; pointer-events: none;
-  background:
-    repeating-linear-gradient(90deg, #8e99a8 0 3px, transparent 3px 6px) 50% 0 / 30px 4px no-repeat,
-    repeating-linear-gradient(90deg, #8e99a8 0 3px, transparent 3px 6px) 50% 100% / 30px 4px no-repeat,
-    repeating-linear-gradient(0deg, #8e99a8 0 3px, transparent 3px 6px) 0 50% / 4px 30px no-repeat,
-    repeating-linear-gradient(0deg, #8e99a8 0 3px, transparent 3px 6px) 100% 50% / 4px 30px no-repeat;
-}
-.mw-led { position: absolute; top: 6px; left: 6px; width: 6px; height: 6px; border-radius: 50%; background: #6c7078; }
-.mw-die.sale .mw-led { background: var(--good-on-dark); }
-.mw-die.off .mw-led { background: #e0a030; }
-.mw-die-lab, .mw-die-name { display: none; }
+.mw-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: rgba(0, 0, 0, 0.22); border-top: 1px solid #2f3a52; }
+.mw-kpi { display: flex; flex-direction: column; gap: 1px; min-width: 0; padding: 10px 16px 12px; border-left: 1px solid #2f3a52; overflow-wrap: anywhere; }
+.mw-kpi:first-child { border-left: none; }
+.mw-kpi-l { font-size: 12px; color: #a9b3c7; }
+.mw-kpi-v { font: 700 24px/1.2 var(--mono); color: #fff; }
+.mw-kpi-v.income { color: var(--good-on-dark); }
+.mw-kpi-v.cost { color: var(--bad-on-dark); }
+.mw-kpi-v.gold { color: #ffd34d; text-shadow: 0 0 12px rgba(255, 211, 77, 0.45); }
+.mw-kpi-s { min-height: 16px; font-size: 12px; color: #a9b3c7; }
 
-/* Крупные показатели. Подписи и значения переносятся, а не обрезаются: в окне 900 px плитка узкая. */
-.mw-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
-.mw-kpi { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 10px 12px; background: #fff; border: 1px solid var(--line-soft); border-radius: 4px; overflow-wrap: anywhere; }
-.mw-kpi-l { font-size: 12px; color: #5f636a; }
-.mw-kpi-v { font-size: 22px; font-weight: 600; line-height: 1.2; color: #1f2023; text-align: left; }
-.mw-kpi-v.income { color: #1d6b36; }
-.mw-kpi-v.cost { color: #b32f2f; }
-.mw-kpi-s { font-size: 12px; color: #5f636a; }
-.mw-sales-line { display: flex; flex-wrap: wrap; gap: 4px 18px; }
 .mw-panel .progress { height: 10px; }
 .mw-btns { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* ---------- Блоки ---------- */
-/* Заголовок блока - как .section-title в других окнах: 20 px, лёгкий. */
-.mw-h { margin: 22px 0 8px; font-size: 20px; font-weight: 300; color: #2a2c30; }
+.mw-h { display: flex; align-items: center; gap: 10px; margin: 20px 0 8px; font-size: 18px; font-weight: 600; color: #2a2c30; }
+.mw-h::before { content: ''; flex: none; width: 4px; height: 18px; border-radius: 2px; background: var(--c-teal); }
 .mw-sub { font-size: 13px; color: #5f636a; }
-/* Предупреждения (компонент Alert): под шапкой карточки и под заголовком блока. */
-.mw-head + .alert { margin-top: 12px; }
 .mw-h + .alert { margin-bottom: 8px; }
-.mw-panel { padding: 14px 16px; background: #fff; border: 1px solid var(--line-soft); border-radius: 4px; }
+.mw-panel { padding: 14px 16px; background: #fff; border: 1px solid var(--line-soft); border-radius: 6px; }
+.mw-release .mw-h::before { background: #e08a1e; }
+.mw-panel.release { border: 2px solid #f0b45a; box-shadow: 0 2px 10px rgba(224, 138, 30, 0.14); }
 
-.mw-price { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 32px; }
-.mw-price-now { display: flex; flex-direction: column; min-width: 150px; }
-.mw-price-v { font-size: 28px; font-weight: 600; line-height: 1.2; color: #1f2023; text-align: left; }
-.mw-price-side { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .mw-edit { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
 .mw-field { display: flex; flex-direction: column; gap: 4px; }
 .mw-price-row { display: flex; align-items: center; gap: 6px; }
@@ -114,20 +109,22 @@
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
   margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line-soft);
 }
+.mw-panel.release .mw-panel-foot { justify-content: flex-end; }
 .mw-panel-foot b { font-weight: 600; color: #1f2023; }
+.mw-release-btn { height: 38px; padding: 0 28px; font-size: 15px; font-weight: 600; }
 
 /* Рекомендуемые цены: три кнопки в ряд */
 .mw-tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 6px 0 14px; }
 .mw-tier {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px;
-  background: #fff; border: 1px solid var(--line); border-radius: 3px; color: #4a4d54; text-align: left; cursor: pointer;
+  background: #fff; border: 1px solid var(--line); border-radius: 4px; color: #4a4d54; text-align: left; cursor: pointer;
   font-size: 13px; transition: background-color 100ms ease-out, border-color 100ms ease-out;
 }
 .mw-tier:hover { background: #f1f5fb; }
 .mw-tier:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.mw-tier b { font-size: 17px; font-weight: 600; color: #1f2023; }
-.mw-tier.on { background: #e3eefc; border-color: var(--accent); }
-.mw-panel > .mw-sub + .error, .mw-edit + .mw-sub { margin-top: 6px; }
+.mw-tier b { font: 700 17px var(--mono); color: #1f2023; }
+.mw-tier.on { background: #e3eefc; border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.mw-tier:disabled { opacity: 0.5; cursor: default; }
 
 /* Характеристики */
 .mw-specs { display: grid; grid-template-columns: max-content 1fr; gap: 5px 24px; max-width: 560px; margin: 0; }
@@ -135,12 +132,27 @@
 .mw-specs dd { margin: 0; color: #1f2023; }
 .mw-specs dd small { display: block; font-size: 12px; color: #5f636a; }
 
-/* ---------- Баллы ---------- */
-table.grid.mw-scores th { position: static; }
+/* ---------- Баллы тестов: полоса балла цвета области, место справа ---------- */
+.mw-scores { display: flex; flex-direction: column; gap: 6px; padding: 10px 14px; background: #fff; border: 1px solid var(--line-soft); border-radius: 6px; }
+.mw-score { display: grid; grid-template-columns: 150px minmax(0, 1fr) 128px 44px; align-items: center; gap: 12px; min-height: 30px; }
+.mw-score-name { display: flex; flex-direction: column; font-weight: 600; color: #1f2023; line-height: 1.2; }
+.mw-score-name small { font-size: 11.5px; font-weight: 400; color: #5f636a; }
+.mw-score-bar { position: relative; height: 10px; background: #e6e8ec; border-radius: 5px; }
+.mw-score-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 5px; background: var(--dc); }
+.mw-score-bar em { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: #b32f2f; }
+.mw-score-v { font: 600 14px var(--mono); color: #1f2023; text-align: right; }
+.mw-honest { display: block; font: 600 11.5px var(--font); color: #b32f2f; }
+.mw-score-rank { font: 700 13px var(--mono); color: #4a4d54; text-align: right; }
+.mw-score-rank.gold { color: #9a6c00; }
+.mw-score.sat { opacity: 0.6; }
+.mw-score.sat .mw-score-bar i { background: #9aa0a8; }
 
-/* Карточка уже 640 px (окно по умолчанию 900 px минус список): показатели в два столбца. */
+/* Карточка уже 640 px (окно по умолчанию минус список): показатели в два столбца. */
 @container (max-width: 640px) {
   .mw-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mw-kpi:nth-child(3) { border-left: none; }
+  .mw-kpi:nth-child(n + 3) { border-top: 1px solid #2f3a52; }
+  .mw-score { grid-template-columns: 110px minmax(0, 1fr) 100px 36px; gap: 8px; }
 }
 
 /* ---------- Пустое окно ---------- */
@@ -155,34 +167,36 @@ table.grid.mw-scores th { position: static; }
 .mw-cost { color: #b32f2f; font-weight: 600; }
 .mw-channels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 12px; align-items: start; }
 .mw-channels.single { grid-template-columns: minmax(0, 1fr); }
-.mw-subs-later { padding: 2px 2px 0; font-size: 13px; color: var(--text-dim); }
 .mw-ch {
   --ch: #2e9b4f; --ch-text: #1d6b36;
   display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 10px 14px 14px;
-  background: #fff; border: 1px solid var(--line-soft); border-top: 4px solid var(--ch); border-radius: 4px;
+  background: #fff; border: 1px solid var(--line-soft); border-top: 4px solid var(--ch); border-radius: 6px;
 }
 .mw-ch.subs { --ch: #1fa8a0; --ch-text: #0e655f; }
+.mw-ch:not(.on) { --ch: #aab0b8; }
 .mw-ch-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; }
-.mw-ch-title { margin: 0; font-size: 20px; font-weight: 300; color: var(--ch-text); }
+.mw-ch-title { margin: 0; font-size: 18px; font-weight: 600; color: var(--ch-text); }
 .mw-ch:not(.on) .mw-ch-title { color: #6b6f76; }
 .mw-switch-wrap { position: relative; display: inline-flex; }
 .mw-switch { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: #1f2023; cursor: pointer; }
+.mw-switch.static { cursor: default; color: #1d6b36; }
 .mw-switch.disabled { font-weight: 400; color: #6b6f76; cursor: not-allowed; }
 .mw-switch.disabled input { opacity: 0.5; cursor: not-allowed; }
 .mw-switch-wrap .deny-note { left: 0; right: auto; }
 
 .mw-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 6px; }
-.mw-metric { display: flex; flex-direction: column; min-width: 0; padding: 6px 8px; background: var(--panel); border-radius: 3px; }
+.mw-metric { display: flex; flex-direction: column; min-width: 0; padding: 7px 10px; background: var(--panel); border-radius: 4px; }
 .mw-metric-l { font-size: 12px; color: #5f636a; }
-.mw-metric-v { font-size: 16px; font-weight: 600; line-height: 1.3; color: #1f2023; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mw-metric-v { font: 700 17px/1.3 var(--mono); color: #1f2023; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mw-metric-v.income { color: #1d6b36; }
 .mw-metric-v.off { font-weight: 400; color: #6b6f76; }
 .mw-metric-s { font-size: 12px; line-height: 1.3; color: #5f636a; }
 .mw-ch-edit { padding-top: 2px; }
+.mw-ch-edit .mw-vs { align-self: center; min-height: 18px; }
 .mw-ch > .alert { padding: 6px 10px; font-size: 13px; }
 
 /* Внешняя проверка сильной модели */
-.mw-review { display: flex; flex-direction: column; gap: 3px; padding: 9px 12px; border-radius: 3px; font-size: 13px; line-height: 1.35; }
+.mw-review { display: flex; flex-direction: column; gap: 3px; padding: 9px 12px; border-radius: 4px; font-size: 13px; line-height: 1.35; }
 .mw-review b { font-size: 14px; }
 .mw-review.required { background: #fff4e0; border: 1px solid #e3bf62; color: #4d3800; }
 .mw-review.pending { background: #eef4fc; border: 1px solid #aac3e8; color: #1f3f6b; }
@@ -193,11 +207,10 @@ table.grid.mw-scores th { position: static; }
 .mw-release-ch { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
 .mw-release-row {
   display: grid; grid-template-columns: minmax(170px, 210px) minmax(0, 1fr); align-items: end; gap: 6px 16px;
-  padding: 10px 12px; background: var(--panel); border-radius: 3px;
+  padding: 10px 12px; background: var(--panel); border-radius: 4px;
 }
 .mw-release-row .mw-switch { align-self: center; }
 .mw-vs { align-self: center; }
-.mw-tier:disabled { opacity: 0.5; cursor: default; }
 
 @container (max-width: 600px) {
   .mw-channels { grid-template-columns: minmax(0, 1fr); }
