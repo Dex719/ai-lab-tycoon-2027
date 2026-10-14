@@ -808,7 +808,7 @@ describe('письма с выбором', () => {
   }
 
   it('события: вариант 0 умеренный, вариант по умолчанию пассивный, тексты без длинных тире', () => {
-    expect(RIVALRY_EVENTS.map((e) => e.id)).toEqual(['rival-hype', 'rival-audit', 'rival-poach']);
+    expect(RIVALRY_EVENTS.map((e) => e.id)).toEqual(['rival-hype', 'rival-audit', 'rival-poach', 'rival-poach-team']);
     for (const e of RIVALRY_EVENTS) {
       expect(e.repeatable).toBe(true);
       expect('check' in e.when && e.when.check(game('2023-01-01'))).toBe(false);

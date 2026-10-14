@@ -1116,7 +1116,7 @@ describe('модификаторы читают настоящие потреб�
 
 describe('письма с выбором соперников (findEvent, RIVALRY_EVENTS)', () => {
   it('findEvent находит события каталога и письма соперников; EVENTS писем соперников не содержит', () => {
-    expect(RIVALRY_EVENTS.map((e) => e.id).sort()).toEqual(['rival-audit', 'rival-hype', 'rival-poach']);
+    expect(RIVALRY_EVENTS.map((e) => e.id).sort()).toEqual(['rival-audit', 'rival-hype', 'rival-poach', 'rival-poach-team']);
     expect(findEvent('gpt2-withheld')?.id).toBe('gpt2-withheld');
     for (const def of RIVALRY_EVENTS) {
       expect(findEvent(def.id)).toBe(def);
