@@ -4,13 +4,14 @@ import { useEffect, useState , type ReactElement } from 'react';
 import { pendingChoice } from '../sim/events';
 import { overheadPerDay } from '../sim/finance';
 import { rentPerDay } from '../sim/compute';
-import { ARENA_PLACE_TITLE, bestArenaPlace } from './arena';
+import { ArenaStrip } from './ArenaFeedback';
+import { MoneyFlies, useCountUp } from './Juice';
 import { dcCostPerDay } from '../sim/datacenters';
 import { formatDateShort } from '../sim/time';
 import type { GameState, Speed } from '../sim/types';
 import { fmtMoney, fmtShare } from './format';
 import { IconAlert, IconArrowUpDown, IconBank, IconCalendar, IconFast, IconFaster, IconPause, IconPlay } from './icons';
-import { EXPENSE_KINDS, EXPENSE_LABELS, fmtRank, INCOME_KINDS, INCOME_LABELS } from './labels';
+import { EXPENSE_KINDS, EXPENSE_LABELS, INCOME_KINDS, INCOME_LABELS } from './labels';
 import { store, useSpeed } from './store';
 import { isCoarsePointer } from './viewport';
 
@@ -93,7 +94,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
   }, [pinned]);
 
   const rate = monthlyRate(s);
-  const rank = bestArenaPlace(s);
+  const cashShown = useCountUp(s.cash);
   const locked = !!s.outcome || pendingChoice(s) !== null;
   const negative = s.finance.negativeDays > 0;
 
@@ -117,7 +118,8 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
           style={{ cursor: 'default' }}
         >
           <IconBank />
-          <span className={s.cash < 0 ? 'tb-bad' : undefined}>{fmtMoney(s.cash)}</span>
+          <span className={s.cash < 0 ? 'tb-bad' : undefined}>{fmtMoney(cashShown)}</span>
+          <MoneyFlies />
           {(hover || pinned) && <MoneyPopup s={s} />}
         </div>
         <div className="tb-item tb-rate" title="Доходы (API, подписки, контракты) минус текущие расходы за прошлый месяц. Вложения инвесторов и разовые вложения (дата-центры, карты) не входят">
@@ -160,7 +162,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
       )}
       <div className="topbar-right">
         <span>Доля рынка: {fmtShare(s.market.labShares.player ?? 0, 2)}</span>
-        <span title={ARENA_PLACE_TITLE}>«Арена»: {fmtRank(rank)}</span>
+        <ArenaStrip s={s} />
       </div>
       {(store.pauseReason || negative) && speed === 0 && (
         <div className="pause-note">

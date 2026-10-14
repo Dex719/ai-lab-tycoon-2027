@@ -13,6 +13,9 @@ import { SettingsDialog, SlotsDialog } from './MainMenu';
 import { SidePanel } from './SidePanel';
 import { store, useSpeed } from './store';
 import { Toasts } from './Toasts';
+import { ArenaBanner } from './ArenaFeedback';
+import { Juice } from './Juice';
+import { ReleaseCard } from './ReleaseCard';
 import { TopBar } from './TopBar';
 import { TutorialPanel } from './Tutorial';
 import { useViewport } from './viewport';
@@ -152,6 +155,8 @@ export function Game({ s }: { s: GameState }) {
   const [startOpen, setStartOpen] = useState(false);
   const [dialog, setDialog] = useState<GameDialog>(null);
   const [watched, setWatched] = useState<GameState | null>(null);
+  const [released, setReleased] = useState<string | null>(null); // карточка выхода модели
+  const closeReleased = useCallback(() => setReleased(null), []);
   const [contractsSeenDay, setContractsSeenDay] = useState(-1); // день, когда игрок последний раз видел список тендеров
 
   const visible = wins.filter((w) => !w.min);
@@ -282,6 +287,9 @@ export function Game({ s }: { s: GameState }) {
     </div>
 
       <Toasts s={s} open={open} />
+      <ArenaBanner s={s} />
+      <Juice s={s} onRelease={setReleased} />
+      {released && <ReleaseCard s={s} modelId={released} onClose={closeReleased} />}
       <ChoiceModal s={s} />
       {!s.outcome && !pendingChoice(s) && <YearReviewModal s={s} />}
       {showEnd && <EndDialog s={s} onWatch={() => setWatched(s)} />}

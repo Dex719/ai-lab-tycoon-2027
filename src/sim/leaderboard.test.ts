@@ -5,6 +5,8 @@ import { benchScore } from './benchmarks';
 import { HYPE_ARENA_TOP_BONUS, HYPE_RANK_BONUS } from './constants';
 import {
   arenaRank,
+  arenaStanding,
+  raceBenchmark,
   benchRank,
   bestElo,
   expectedLeaderElo,
@@ -613,5 +615,51 @@ describe('updateSaturation', () => {
     updateSaturation(s);
     expect(s.mail).toHaveLength(0);
     for (const id of BENCHMARK_IDS) expect(s.benchmarks[id].saturated).toBe(false);
+  });
+});
+
+// ---------- Гонка: место и соседи ----------
+
+describe('arenaStanding: гонка до рынка API и на «Арене»', () => {
+  it('без соперников гонки нет', () => {
+    const s = makeState('2017-06-01');
+    s.models = [withCaps('p1', 40, 600, s.day - 1)];
+    expect(arenaStanding(s)).toBeNull();
+  });
+
+  it('до рынка API гонка идёт по GLUU среди всех вышедших моделей, соседи - соперники', () => {
+    const s = makeState('2019-11-01', ['gtp-1', 'bort', 't5x']);
+    expect(raceBenchmark(s)).toBe('glue');
+    const t5 = rivalScore(findRivalDef('t5x')!, 'glue').value;
+    const bort = rivalScore(findRivalDef('bort')!, 'glue').value;
+    // Способность, при которой балл GLUU между BORT и T5x.
+    let cap = 0;
+    while (benchScore('glue', cap, 0) <= bort + 1 && cap < 200) cap += 1;
+    s.models = [withCaps('p1', cap, 600, s.day - 1, { onApi: false })];
+    const st = arenaStanding(s)!;
+    expect(st.metric).toEqual({ kind: 'bench', bid: 'glue', name: 'GLUU' });
+    expect(st.modelId).toBe('p1');
+    expect(st.above?.id).toBe('t5x');
+    expect(st.above?.gap).toBeCloseTo(t5 - st.value, 6);
+    expect(st.below?.id).toBe('bort');
+    expect(st.ahead.map((n) => n.id)).toEqual(['t5x']);
+    expect(st.rank).toBe(2);
+  });
+
+  it('до GLUU гонка идёт по SQuAT', () => {
+    const s = makeState('2018-03-01');
+    expect(raceBenchmark(s)).toBe('squad');
+  });
+
+  it('когда у соперников есть модели в продаже, гонка на «Арене» среди моделей в продаже', () => {
+    const s = makeState('2020-07-01', ['gtp-2', 'gtp-3']);
+    const gtp3 = findRivalDef('gtp-3')!;
+    s.models = [withCaps('p1', 60, gtp3.arenaElo - 10, s.day - 1), withCaps('p2', 60, gtp3.arenaElo + 50, s.day - 1, { onApi: false })];
+    const st = arenaStanding(s)!;
+    expect(st.metric).toEqual({ kind: 'arena' });
+    expect(st.modelId).toBe('p1'); // p2 не в продаже и не считается
+    expect(st.rank).toBe(marketArenaRank(s, mine('p1')));
+    expect(st.above?.id).toBe('gtp-3');
+    expect(st.below).toBeNull(); // GTP-2 по API не продаётся
   });
 });

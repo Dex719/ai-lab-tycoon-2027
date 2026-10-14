@@ -9,6 +9,7 @@ import { fmtMoney } from './format';
 import { fmtRank } from './labels';
 import { deleteSlot, formatSavedAt, latestSlot, listSlots, MANUAL_SLOTS, type SlotId, type SlotInfo } from './saves';
 import { applyRealNames } from './realNamesDom';
+import { playSound } from './sound';
 import { getSettings, setSettings } from './settings';
 import { store } from './store';
 
@@ -303,6 +304,21 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           <span>Оригинальные названия</span>
         </label>
         <div className="small muted">Показывает настоящие названия компаний, моделей и тестов. Сохранения не меняются.</div>
+        <label className="row" style={{ gap: 10 }}>
+          <span>Громкость звука</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={5}
+            value={Math.round(settings.volume * 100)}
+            onChange={(e) => set(setSettings({ volume: Number(e.target.value) / 100 }))}
+            onPointerUp={() => playSound('coin')}
+            onKeyUp={() => playSound('coin')}
+            style={{ flex: 1 }}
+          />
+          <span style={{ width: 44, textAlign: 'right' }}>{settings.volume > 0 ? `${Math.round(settings.volume * 100)} %` : 'Выкл.'}</span>
+        </label>
         <div className="small muted">Управление: пробел - пауза. Кнопки скорости - на верхней панели.</div>
       </div>
     </Dialog>

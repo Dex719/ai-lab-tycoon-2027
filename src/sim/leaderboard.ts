@@ -166,6 +166,79 @@ export function marketArenaRank(s: GameState, ref: ModelRef): number | null {
   return rankIn(onApiOnly(entries(s)), ref, (e) => e.elo);
 }
 
+/** Ближайшая модель соперника над или под лучшей моделью игрока. gap - разница в Эло или в баллах теста, всегда ≥ 0. */
+export interface ArenaNeighbor {
+  id: string;
+  name: string;
+  lab: HypeOwner;
+  value: number;
+  gap: number;
+}
+
+/** По чему идёт гонка: «Арена» среди моделей в продаже или, пока соперники не продают по API, главный тест времени. */
+export type RaceMetric = { kind: 'arena' } | { kind: 'bench'; bid: BenchmarkId; name: string };
+
+/** Положение игрока в гонке: место, лучшая модель и ближайшие соперники сверху и снизу. */
+export interface ArenaStanding {
+  metric: RaceMetric;
+  rank: number;
+  total: number;
+  modelId: string;
+  modelName: string;
+  value: number;
+  above: ArenaNeighbor | null;
+  below: ArenaNeighbor | null;
+  /** Все модели соперников выше лучшей модели игрока: по разнице между днями видно, кто кого обогнал. */
+  ahead: ArenaNeighbor[];
+  /** Все модели соперников ниже лучшей модели игрока, ближние первыми. */
+  behind: ArenaNeighbor[];
+}
+
+/** Место в списке по value (по убыванию, при равенстве выше вышедшая раньше) и соседи-соперники. */
+function standingIn(list: Entry[], value: (e: Entry) => number, metric: RaceMetric): ArenaStanding | null {
+  if (!list.some((e) => e.rival)) return null; // гонки без соперников нет
+  const sorted = [...list].sort((a, b) => value(b) - value(a) || (earlier(a, b) ? -1 : earlier(b, a) ? 1 : 0));
+  const idx = sorted.findIndex((e) => e.owner === 'player');
+  if (idx < 0) return null;
+  const me = sorted[idx];
+  const mine = value(me);
+  const neighbor = (e: Entry | undefined): ArenaNeighbor | null =>
+    e?.rival ? { id: e.rival.id, name: e.rival.gameName, lab: e.owner, value: value(e), gap: Math.abs(value(e) - mine) } : null;
+  const ahead = sorted.slice(0, idx).map(neighbor).filter((n): n is ArenaNeighbor => n !== null);
+  const behind = sorted.slice(idx + 1).map(neighbor).filter((n): n is ArenaNeighbor => n !== null);
+  return {
+    metric,
+    rank: idx + 1,
+    total: sorted.length,
+    modelId: me.ref.id,
+    modelName: entryName(me),
+    value: mine,
+    above: ahead.at(-1) ?? null,
+    below: behind[0] ?? null,
+    ahead,
+    behind,
+  };
+}
+
+/** Тест гонки до рынка API: GLUU, когда он вышел, раньше - SQuAT. */
+export function raceBenchmark(s: GameState): BenchmarkId {
+  return s.benchmarks.glue?.introduced ? 'glue' : 'squad';
+}
+
+/**
+ * Гонка, которую видит игрок. Пока у соперников нет моделей в продаже - место по главному тесту среди всех
+ * вышедших моделей (кроме только анонсированных). Потом - место на «Арене» среди моделей в продаже, по нему
+ * считается победа. null - у игрока нет подходящих моделей или соперников ещё нет.
+ */
+export function arenaStanding(s: GameState): ArenaStanding | null {
+  const all = entries(s);
+  if (rivalsSellByApi(s)) return standingIn(onApiOnly(all), (e) => e.elo, { kind: 'arena' });
+  const bid = raceBenchmark(s);
+  if (!s.benchmarks[bid]?.introduced) return null;
+  const list = all.filter((e) => !e.rival?.announcedOnly);
+  return standingIn(list, (e) => shownScore(e, bid).value, { kind: 'bench', bid, name: benchDef(bid).name });
+}
+
 /** Есть ли сейчас хотя бы одна модель соперника, доступная по API: пока нет, «первое место» ничего не значит. */
 export function rivalsSellByApi(s: GameState): boolean {
   return onApiOnly(entries(s)).some((e) => e.rival !== null);
@@ -308,4 +381,9 @@ export function updateSaturation(s: GameState): void {
         'В таблице он отмечен серым.',
     });
   }
+}
+
+/** Показатель модели игрока в гонке: Эло на «Арене» или показанный балл теста (с подгонкой, пока не раскрыта). */
+export function raceValue(metric: RaceMetric, m: PlayerModel): number {
+  return metric.kind === 'arena' ? m.arenaElo : modelScore(m, metric.bid, false);
 }

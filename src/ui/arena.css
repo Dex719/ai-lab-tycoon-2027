@@ -1,0 +1,87 @@
+/* «Арена» в движении: соседи на верхней панели и баннер смены места. */
+
+.ar-strip { display: flex; align-items: center; gap: 10px; white-space: nowrap; cursor: default; }
+.ar-empty { color: var(--bar-dim); font-size: 13px; }
+.ar-place { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.ar-k { font-size: 10px; color: var(--bar-dim); letter-spacing: 0.02em; }
+.ar-r { font: 700 19px var(--mono); color: var(--bar-text); margin-top: 2px; }
+.ar-r.first { color: #ffd34d; text-shadow: 0 0 8px rgba(255, 211, 77, 0.45); }
+.ar-ns { display: flex; flex-direction: column; gap: 1px; font-size: 12.5px; line-height: 1.25; min-width: 0; }
+.ar-n { display: flex; align-items: center; gap: 5px; color: #c8cbd0; }
+.ar-n b { font-size: 9px; width: 9px; }
+.ar-n-up b { color: var(--bad-on-dark); }
+.ar-n-down b { color: var(--good-on-dark); }
+.ar-n-none { color: #75787e; padding-left: 14px; }
+.ar-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.ar-name { max-width: 128px; overflow: hidden; text-overflow: ellipsis; }
+.ar-gap { font-family: var(--mono); color: var(--bar-dim); }
+.ar-n.close .ar-gap { color: #ffd34d; font-weight: 700; }
+.ar-close {
+  font-size: 9.5px; font-weight: 700; text-transform: uppercase; color: #1c1c1e; background: #ffd34d;
+  padding: 0 4px; border-radius: 2px; animation: ar-pulse 1.2s ease-in-out infinite;
+}
+@keyframes ar-pulse { 50% { opacity: 0.55; } }
+
+.ar-banner {
+  position: fixed; top: 52px; left: 50%; z-index: 880; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 14px; min-width: 380px; max-width: 560px; padding: 12px 40px 12px 16px;
+  color: #fff; border-radius: 6px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  animation: arb-in 420ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.ar-banner.up { background: linear-gradient(135deg, #1f8a4a, #136036); border: 1px solid #5ed37f; }
+.ar-banner.switch { background: linear-gradient(135deg, #2a64b8, #173a6e); border: 1px solid #7fb0ff; }
+.ar-banner.down { background: linear-gradient(135deg, #b23838, #7a1f1f); border: 1px solid #ff8a8a; }
+.ar-banner.first { background: linear-gradient(135deg, #d9a514, #8a5f00); border: 1px solid #ffe08a; }
+.ar-banner.first::after {
+  content: ''; position: absolute; inset: 0; border-radius: 6px; pointer-events: none;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%) -200% 0 / 200% 100% no-repeat;
+  animation: arb-shine 1.4s 0.3s ease-out;
+}
+.arb-arrow {
+  width: 42px; height: 42px; display: grid; place-items: center; flex: none; font-size: 22px;
+  border-radius: 50%; background: rgba(255, 255, 255, 0.18); animation: arb-bounce 600ms 200ms ease-out;
+}
+.arb-body { min-width: 0; }
+.arb-title { display: flex; align-items: baseline; gap: 10px; font-size: 15px; font-weight: 600; }
+.ar-banner.first .arb-title { font-size: 20px; }
+.arb-places { font: 20px var(--mono); }
+.arb-places s { opacity: 0.65; text-decoration-thickness: 2px; }
+.arb-places b { font-weight: 700; }
+.arb-sub { margin-top: 3px; font-size: 13.5px; opacity: 0.92; }
+.arb-x {
+  position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; display: grid; place-items: center;
+  background: none; border: none; color: rgba(255, 255, 255, 0.8); cursor: pointer; border-radius: 3px;
+}
+.arb-x:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
+@keyframes arb-in { from { opacity: 0; transform: translate(-50%, -24px) scale(0.92); } }
+@keyframes arb-bounce { 40% { transform: scale(1.25); } }
+@keyframes arb-shine { to { background-position: 200% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ar-banner, .arb-arrow, .ar-close, .ar-banner.first::after { animation: none; }
+}
+
+/* Летящие суммы под деньгами на верхней панели. */
+.flies { position: absolute; left: 50%; top: 100%; width: 0; height: 0; pointer-events: none; z-index: 960; }
+.fly {
+  position: absolute; transform: translateX(-50%); white-space: nowrap; padding: 3px 9px; border-radius: 4px;
+  font: 700 15px var(--mono); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45); display: flex; align-items: baseline; gap: 6px;
+}
+.fly small { font: 600 11px var(--font); opacity: 0.85; }
+.fly.plus { background: #1f8a4a; color: #fff; animation: fly-up 1800ms ease-out forwards; }
+.fly.minus { background: #b23838; color: #fff; animation: fly-down 1800ms ease-out forwards; }
+@keyframes fly-up {
+  0% { opacity: 0; transform: translate(-50%, 18px) scale(0.7); }
+  12% { opacity: 1; transform: translate(-50%, 6px) scale(1.12); }
+  25% { transform: translate(-50%, 6px) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -14px); }
+}
+@keyframes fly-down {
+  0% { opacity: 0; transform: translate(-50%, -6px) scale(0.7); }
+  12% { opacity: 1; transform: translate(-50%, 6px) scale(1.1); }
+  25% { transform: translate(-50%, 6px) scale(1); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, 34px); }
+}
+@media (prefers-reduced-motion: reduce) { .fly.plus, .fly.minus { animation-duration: 2400ms; animation-timing-function: steps(1, end); } }

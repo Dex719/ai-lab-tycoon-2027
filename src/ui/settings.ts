@@ -5,10 +5,11 @@ export interface Settings {
   pauseOnHidden: boolean; // пауза, когда вкладка браузера скрыта
   toasts: boolean; // всплывающие уведомления о новых письмах
   realNames: boolean; // показывать настоящие названия компаний, моделей и тестов
+  volume: number; // громкость звуков 0..1, 0 - без звука
 }
 
 const KEY = 'ailab.settings';
-const DEFAULTS: Settings = { pauseOnImportant: true, pauseOnHidden: true, toasts: true, realNames: false };
+const DEFAULTS: Settings = { pauseOnImportant: true, pauseOnHidden: true, toasts: true, realNames: false, volume: 0.5 };
 
 let cache: Settings | null = null;
 

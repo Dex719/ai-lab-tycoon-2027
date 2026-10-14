@@ -15,8 +15,17 @@ export function beginDay(s: GameState): void {
   if (s.finance.revenueDaily.length > REVENUE_WINDOW) s.finance.revenueDaily.shift();
 }
 
+/** Слушатель движения денег для интерфейса (летящие суммы, звук). Симуляция от него не зависит и в сохранение он не попадает. */
+type MoneyListener = (kind: IncomeKind | ExpenseKind, amount: number) => void;
+let moneyListener: MoneyListener | null = null;
+
+export function setMoneyListener(f: MoneyListener | null): void {
+  moneyListener = f;
+}
+
 export function earn(s: GameState, kind: IncomeKind, amount: number): void {
   if (!(amount > 0)) return;
+  moneyListener?.(kind, amount);
   s.cash += amount;
   s.finance.month.income[kind] += amount;
   if (kind !== 'investors') {
@@ -28,6 +37,7 @@ export function earn(s: GameState, kind: IncomeKind, amount: number): void {
 
 export function spend(s: GameState, kind: ExpenseKind, amount: number): void {
   if (!(amount > 0)) return;
+  moneyListener?.(kind, -amount);
   s.cash -= amount;
   s.finance.month.expense[kind] += amount;
 }
