@@ -121,21 +121,53 @@ interface PlotProps {
   yFormat: (v: number) => string;
   hover: number | null;
   onHover: (i: number | null) => void;
+  /** Логарифмическая шкала (цены падают в сотни раз); значения 0 и меньше - пропуск, линия рвётся. */
+  log?: boolean;
 }
 
 // Перерисовывается, только когда меняются данные (раз в месяц), размер или точка под курсором.
-const PlotSvg = memo(function PlotSvg({ width, height, labels, series, yFormat, hover, onHover }: PlotProps) {
+const PlotSvg = memo(function PlotSvg({ width, height, labels, series, yFormat, hover, onHover, log = false }: PlotProps) {
   const n = labels.length;
   const plotW = Math.max(40, width - PAD.left);
   const plotH = height - PAD.top - PAD.bottom;
 
   let max = 0;
-  for (const sr of series) for (const v of sr.values) if (v > max) max = v;
-  const ticks = n === 0 ? [] : niceTicks(max);
-  const top = ticks.length > 0 ? ticks[ticks.length - 1] : 1;
+  let min = Infinity;
+  for (const sr of series)
+    for (const v of sr.values) {
+      if (v > max) max = v;
+      if (v > 0 && v < min) min = v;
+    }
+  let ticks: number[];
+  let y: (v: number) => number;
+  if (log) {
+    const lo = Number.isFinite(min) ? Math.floor(Math.log10(min)) : 0;
+    const hi = Math.max(lo + 1, Math.ceil(Math.log10(Math.max(max, 1e-9))));
+    ticks = n === 0 ? [] : Array.from({ length: hi - lo + 1 }, (_, i) => Number((10 ** (lo + i)).toPrecision(12)));
+    y = (v: number) => PAD.top + plotH - ((Math.log10(Math.max(v, 10 ** lo)) - lo) / (hi - lo)) * plotH;
+  } else {
+    ticks = n === 0 ? [] : niceTicks(max);
+    const top = ticks.length > 0 ? ticks[ticks.length - 1] : 1;
+    y = (v: number) => PAD.top + plotH - (Math.max(0, v) / top) * plotH;
+  }
+  const missing = (v: number) => log && !(v > 0);
+  /** Куски линии без пропусков. */
+  const segments = (values: number[]): string[] => {
+    const out: string[] = [];
+    let cur: string[] = [];
+    values.forEach((v, i) => {
+      if (missing(v)) {
+        if (cur.length > 1) out.push(cur.join(' '));
+        cur = [];
+        return;
+      }
+      cur.push(`${x(i).toFixed(1)},${y(v).toFixed(1)}`);
+    });
+    if (cur.length > 1) out.push(cur.join(' '));
+    return out;
+  };
 
   const x = (i: number) => PAD.left + (n <= 1 ? plotW / 2 : INSET + (i * (plotW - 2 * INSET)) / (n - 1));
-  const y = (v: number) => PAD.top + plotH - (Math.max(0, v) / top) * plotH;
 
   const step = Math.max(1, Math.ceil(n / Math.max(1, Math.floor((plotW - 2 * INSET) / X_LABEL_GAP))));
 
@@ -165,24 +197,28 @@ const PlotSvg = memo(function PlotSvg({ width, height, labels, series, yFormat, 
         ) : null,
       )}
       {n >= 2 &&
-        series.map((sr) => (
-          <polyline
-            key={sr.id}
-            fill="none"
-            stroke={sr.color}
-            strokeWidth={2}
-            strokeLinejoin="round"
-            strokeLinecap="round"
-            points={sr.values.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ')}
-          />
-        ))}
+        series.map((sr) =>
+          segments(sr.values).map((pts, k) => (
+            <polyline
+              key={`${sr.id}-${k}`}
+              fill="none"
+              stroke={sr.color}
+              strokeWidth={2}
+              strokeLinejoin="round"
+              strokeLinecap="round"
+              points={pts}
+            />
+          )),
+        )}
       {n === 1 && series.map((sr) => <circle key={sr.id} cx={x(0)} cy={y(sr.values[0])} r={3.5} fill={sr.color} />)}
       {hover !== null && hover < n && (
         <g pointerEvents="none">
           <line className="pl-cursor" x1={x(hover)} x2={x(hover)} y1={PAD.top} y2={PAD.top + plotH} />
-          {series.map((sr) => (
-            <circle key={sr.id} cx={x(hover)} cy={y(sr.values[hover])} r={4} fill={sr.color} className="pl-point" />
-          ))}
+          {series.map((sr) =>
+            missing(sr.values[hover]) ? null : (
+              <circle key={sr.id} cx={x(hover)} cy={y(sr.values[hover])} r={4} fill={sr.color} className="pl-point" />
+            ),
+          )}
         </g>
       )}
       {n > 0 && (
@@ -224,8 +260,10 @@ export function ChartPanel(props: {
   liveLabel: string;
   height?: number;
   legendWidth?: number;
+  log?: boolean;
 }) {
-  const { data, yFormat, live, liveLabel, height = 260, legendWidth = 220 } = props;
+  const { data, yFormat, live, liveLabel, height = 260, legendWidth = 220, log = false } = props;
+  const fmtLegend = (v: number) => (log && !(v > 0) ? '-' : yFormat(v));
   const mainRef = useRef<HTMLDivElement>(null);
   const width = useWidth(mainRef);
   const [hover, setHover] = useState<number | null>(null);
@@ -244,6 +282,7 @@ export function ChartPanel(props: {
             yFormat={yFormat}
             hover={hov}
             onHover={setHover}
+            log={log}
           />
         )}
         {data.labels.length === 0 && (
@@ -260,7 +299,7 @@ export function ChartPanel(props: {
               <i className="dot" style={{ background: sr.color }} />
               {sr.label}
             </span>
-            <span className="num">{yFormat(hov !== null ? sr.values[hov] : finite(live[sr.id]))}</span>
+            <span className="num">{fmtLegend(hov !== null ? sr.values[hov] : finite(live[sr.id]))}</span>
           </div>
         ))}
       </div>

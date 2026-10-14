@@ -291,6 +291,7 @@ const monthRecord = shapeOf<MonthRecord>({
   eloMine: optional(num),
   eloRival: optional(num),
   placeEnd: optional(nullable(num)),
+  prices: optional(dict(num)),
 });
 
 const labShares = record([...HYPE_OWNERS, 'none'], num);

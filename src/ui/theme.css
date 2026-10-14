@@ -525,3 +525,8 @@ table.grid td.num, table.grid th.num { text-align: right; }
 .toast.tone-bad .tt { color: #a12a2a; }
 @keyframes toast-reward { from { opacity: 0; transform: translateX(30px) scale(0.9); } }
 @media (prefers-reduced-motion: reduce) { .toast.tone-reward { animation: none; } }
+
+/* Код партии в окнах «Сохранить» и «Загрузить». */
+.game-code { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.game-code-h { font-weight: 600; }
+.game-code-text { width: 100%; height: 64px; resize: vertical; font: 11px var(--mono); word-break: break-all; }

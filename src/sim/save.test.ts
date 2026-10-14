@@ -595,7 +595,7 @@ function collect(value: unknown, path: (string | number)[], norm: string, seen: 
 // lostSubs, segments и их сегменты, trainings, nextRunNum) тоже появился позже: загрузка дополняет умолчаниями.
 const OPTIONAL_FIELDS = new Set([
   'eventId', 'choices', 'chosen', 'important', 'target', 'mult', 'add', 'founderName', 'tutorial', 'replyByDay', 'defaultChoice',
-  'deferred', 'autoChosen', 'reward', 'eloMine', 'eloRival', 'placeEnd', 'context', 'contextLevel', 'earned', 'monthsFirst', 'autoApply', 'difficulty', 'rivalry',
+  'deferred', 'autoChosen', 'reward', 'eloMine', 'eloRival', 'placeEnd', 'prices', 'context', 'contextLevel', 'earned', 'monthsFirst', 'autoApply', 'difficulty', 'rivalry',
   'tier', 'onSubs', 'subsPrice', 'review', 'reviewEndDay', 'earnedSubs', 'subs', 'subscribers', 'playerSubs', 'totalSubs',
   'lostApi', 'lostSubs', 'segments', 'consumers', 'enterprise', 'developers', 'trainings', 'nextRunNum',
   'queue', 'techs', 'distill', 'moe', 'codetrain', 'instruct', 'cot', 'quant', 'multimodal', 'synthetic',
@@ -606,7 +606,7 @@ const OPTIONAL_PATHS = new Set(['mail[].outcome', 'tenders[].application.work', 
 /** Поправки к модели соперника (rivalry.overrides.<id>.*) все необязательные. */
 const optionalPath = (norm: string): boolean => OPTIONAL_PATHS.has(norm) || /^rivalry\.overrides\.[^.]+\.[^.]+$/.test(norm);
 const DICTS = new Set([
-  'flags', 'yearly.lastFired', 'market.shares', 'models[].overfit', 'rivalry.moveCooldown', 'rivalry.overrides', 'rivalry.extra',
+  'flags', 'yearly.lastFired', 'finance.history[].prices', 'market.shares', 'models[].overfit', 'rivalry.moveCooldown', 'rivalry.overrides', 'rivalry.extra',
   'market.segments.consumers.shares', 'market.segments.enterprise.shares', 'market.segments.developers.shares',
 ]);
 

@@ -141,7 +141,26 @@ export class GameStore {
 
   /** Запомнить, что было до шага симуляции, чтобы после него увидеть новые важные письма и уход денег в минус. */
   private markAdvance(s: GameState): AdvanceMark {
-    return { mailNum: s.nextMailNum, wasNegative: s.finance.negativeDays > 0 };
+    return {
+      mailNum: s.nextMailNum,
+      wasNegative: s.finance.negativeDays > 0,
+      models: s.models.length,
+      research: s.research.done.length + s.research.algoLevel + s.research.contextLevel,
+      contracts: s.contracts.length,
+      goals: s.yearly.year * 100 + s.yearly.goals.filter((g) => g.done).length,
+    };
+  }
+
+  /** Пауза по галочкам «Настроек»: модель обучена, исследование завершено, тендер выигран, цель выполнена. */
+  private eventReason(s: GameState, mark: AdvanceMark): string | null {
+    const set = getSettings();
+    if (set.pauseOnReady && s.models.length > mark.models) return `Модель «${s.models[s.models.length - 1].name}» готова`;
+    const research = s.research.done.length + s.research.algoLevel + s.research.contextLevel;
+    if (set.pauseOnResearch && research > mark.research) return 'Исследование завершено';
+    if (set.pauseOnTender && s.contracts.length > mark.contracts) return 'Тендер выигран';
+    const goals = s.yearly.year * 100 + s.yearly.goals.filter((g) => g.done).length;
+    if (set.pauseOnGoal && goals > mark.goals && goals % 100 > 0) return 'Цель года выполнена';
+    return null;
   }
 
   /** Причина, по которой после шага надо поставить паузу, или null. */
@@ -151,7 +170,8 @@ export class GameStore {
     for (let i = s.mail.length - 1; i >= 0; i--) {
       const m = s.mail[i];
       if (Number(m.id.slice(1)) < mark.mailNum) break;
-      if (m.important) fresh.unshift(m.title);
+      // «Модель готова» ставит паузу по своей галочке (eventReason), а не как важное письмо.
+      if (m.important && !isReadyMail(m)) fresh.unshift(m.title);
     }
     if (fresh.length > 0) return fresh.length === 1 ? fresh[0] : `${fresh[0]} (и ещё ${fresh.length - 1})`;
     if (!mark.wasNegative && s.finance.negativeDays > 0) return 'Деньги ушли в минус';
@@ -173,8 +193,8 @@ export class GameStore {
     } else if (this.speed !== 0 && unseenReview(s)) {
       this.pauseReason = 'Итоги года';
       this.setSpeed(0); // окно итогов года показывается один раз; lastSpeed сохраняется
-    } else if (mark && this.speed !== 0 && getSettings().pauseOnImportant) {
-      const reason = this.alertReason(s, mark);
+    } else if (mark && this.speed !== 0) {
+      const reason = (getSettings().pauseOnImportant ? this.alertReason(s, mark) : null) ?? this.eventReason(s, mark);
       if (reason !== null) {
         this.pauseReason = reason;
         this.setSpeed(0); // lastSpeed сохраняется: пробел продолжит с прежней скоростью
@@ -189,6 +209,16 @@ interface AdvanceMark {
   mailNum: number;
   /** Деньги уже были в минусе до шага. */
   wasNegative: boolean;
+  /** Для пауз по галочкам: число обученных моделей, уровень исследований, контрактов, выполненных целей года. */
+  models: number;
+  research: number;
+  contracts: number;
+  goals: number;
+}
+
+/** Письмо «Модель «X» готова» (sim/training.ts). */
+function isReadyMail(m: { kind: string; title: string }): boolean {
+  return m.kind === 'training' && /^Модель «.*» готова$/.test(m.title);
 }
 
 export const store = new GameStore();

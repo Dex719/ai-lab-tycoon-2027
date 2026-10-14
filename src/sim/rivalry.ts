@@ -1351,7 +1351,7 @@ function execContext(s: RivalryGame, lab: LabId, modelId?: string): string | nul
       addMail(s, {
         kind: 'rival',
         title: `${labName(lab)} ответила длинным контекстом`,
-        body: `${target.gameName} выйдет с контекстом ${contextLabel(context)} токенов${shift > 0 ? ` и на ${daysWord(shift)} раньше, ${formatDate(rivalDayIn(s, target))}` : ''}. Следующий уровень «Длинного контекста» или цена помогут удержать клиентов.`,
+        body: `${target.gameName} выйдет с контекстом ${contextLabel(context)} токенов${shift > 0 ? ` и на ${daysWord(shift)} раньше, ${formatDate(rivalDayIn(s, target))}` : ''}.`,
       });
       return `даст ${target.gameName} контекст ${contextLabel(context)}`;
     }
@@ -1370,7 +1370,7 @@ function execContext(s: RivalryGame, lab: LabId, modelId?: string): string | nul
   addMail(s, {
     kind: 'rival',
     title: `${labName(lab)} ответила длинным контекстом`,
-    body: `${def.gameName}: контекст ${contextLabel(context)} токенов, Эло на «Арене» около ${Math.round(rivalEloIn(s, def))}, цена ${fmtPrice(rivalPriceIn(s, def))} за 1 млн токенов. Следующий уровень «Длинного контекста» или цена помогут удержать клиентов.`,
+    body: `${def.gameName}: контекст ${contextLabel(context)} токенов, Эло на «Арене» около ${Math.round(rivalEloIn(s, def))}, цена ${fmtPrice(rivalPriceIn(s, def))} за 1 млн токенов.`,
   });
   return `выпустила ${def.gameName}`;
 }

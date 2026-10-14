@@ -321,6 +321,8 @@ export interface MonthRecord extends MonthLedger {
   eloRival?: number;
   /** Место на «Арене» среди моделей в продаже на конец месяца; null - соперники ещё не продают по API. */
   placeEnd?: number | null;
+  /** Цена за 1 млн токенов самой сильной модели в продаже по API: лаборатория (или 'player') → $. */
+  prices?: Record<string, number>;
 }
 
 /** Заказ карт в свой дата-центр: приедут в день arriveDay. */

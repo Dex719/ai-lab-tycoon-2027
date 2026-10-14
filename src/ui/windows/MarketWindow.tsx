@@ -16,6 +16,7 @@ import {
 } from '../../sim/market';
 import { contextLabel } from '../../sim/research';
 import { findRivalDefIn, labStance, lastMove, moveName, rivalDayIn, type HistoryRow } from '../../sim/rivalry';
+import { monthPrices } from '../../sim/tick';
 import { dayToDate, formatDateShort } from '../../sim/time';
 import { SEGMENT_IDS, type Channel, type GameState, type HypeOwner, type SegmentId, type Tier } from '../../sim/types';
 import { Alert } from '../components/common';
@@ -440,6 +441,38 @@ function MarketTable({ s, rows }: { s: GameState; rows: MarketRow[] | null }) {
   );
 }
 
+/** Цены за 1 млн токенов по месяцам: самая сильная модель каждой лаборатории в продаже и ваша (шкала логарифмическая). */
+function PriceChart({ s }: { s: GameState }) {
+  const history = s.finance.history;
+  const live = safe(() => monthPrices(s)) ?? {};
+  const owners = HYPE_OWNERS.filter((o) => live[o] !== undefined || history.some((h) => h.prices?.[o] !== undefined));
+  const defs: SeriesDef[] = owners.map((o) => ({
+    id: o,
+    label: ownerName(s, o),
+    color: ownerColor(o, true),
+    pick: (r) => r.prices?.[o] ?? 0,
+  }));
+  const data = useMemo(() => buildChartData(history, defs), [history, history.length, owners.join()]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cur = dayToDate(s.day);
+  if (owners.length === 0) return null;
+  return (
+    <section>
+      <h2 className="an-h" title="Цена самой сильной модели лаборатории в продаже по API. Шкала логарифмическая: каждое деление - в 10 раз">
+        Цены за 1 млн токенов
+      </h2>
+      <ChartPanel
+        data={data}
+        yFormat={(v) => fmtPrice(v)}
+        live={live}
+        liveLabel={liveMonthLabel(cur.year, cur.month)}
+        legendWidth={200}
+        height={240}
+        log
+      />
+    </section>
+  );
+}
+
 export default function MarketTab({ s, open }: WindowProps) {
   const history = s.finance.history;
   const data = useMemo(() => buildChartData(history, SHARE_SERIES), [history, history.length]);
@@ -476,6 +509,8 @@ export default function MarketTab({ s, open }: WindowProps) {
         <h2 className="an-h">Сегменты</h2>
         <Segments s={s} views={views} />
       </section>
+
+      <PriceChart s={s} />
 
       <section>
         <h2 className="an-h">Модели на рынке</h2>

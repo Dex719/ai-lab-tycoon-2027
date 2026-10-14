@@ -12,6 +12,7 @@ import { newGame } from '../sim/actions';
 import { addMail } from '../sim/events';
 import * as tick from '../sim/tick';
 import type { GameState } from '../sim/types';
+import { setSettings } from './settings';
 import { GameStore } from './store';
 
 // Автосохранение пишется в ячейку «авто» (см. ./saves).
@@ -210,5 +211,52 @@ describe('автосохранение', () => {
     store.advance(1);
     expect(setItem).not.toHaveBeenCalled();
     expect(s.flags.autosaveDue).toBe(false);
+  });
+});
+
+describe('автопауза по галочкам настроек', () => {
+  afterEach(() => {
+    setSettings({ pauseOnReady: true, pauseOnResearch: false, pauseOnTender: false, pauseOnGoal: false });
+  });
+
+  it('исследование завершено: без галочки игра идёт, с галочкой встаёт', () => {
+    const { store } = newStore();
+    store.setSpeed(1);
+    advanceDay.mockImplementationOnce((s) => {
+      s.research.algoLevel += 1;
+    });
+    vi.advanceTimersByTime(500);
+    expect(store.speed).toBe(1);
+
+    setSettings({ pauseOnResearch: true });
+    advanceDay.mockImplementationOnce((s) => {
+      s.research.algoLevel += 1;
+    });
+    vi.advanceTimersByTime(500);
+    expect(store.speed).toBe(0);
+    expect(store.pauseReason).toBe('Исследование завершено');
+  });
+
+  it('тендер выигран (новый контракт) ставит паузу по галочке', () => {
+    const { store, s } = newStore();
+    setSettings({ pauseOnTender: true });
+    store.setSpeed(1);
+    advanceDay.mockImplementationOnce((st) => {
+      st.contracts.push({ ...(s.contracts[0] ?? {}), id: 'c-test' } as GameState['contracts'][number]);
+    });
+    vi.advanceTimersByTime(500);
+    expect(store.pauseReason).toBe('Тендер выигран');
+  });
+
+  it('«Модель готова» с выключенной галочкой не останавливает игру, хотя письмо важное', () => {
+    const { store } = newStore();
+    setSettings({ pauseOnReady: false });
+    store.setSpeed(1);
+    advanceDay.mockImplementationOnce((s) => {
+      addMail(s, { kind: 'training', title: 'Модель «Тест» готова', body: '', important: true });
+    });
+    vi.advanceTimersByTime(500);
+    expect(store.speed).toBe(1);
+    store.setSpeed(0);
   });
 });

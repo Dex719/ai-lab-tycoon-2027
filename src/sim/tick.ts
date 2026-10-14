@@ -11,8 +11,8 @@ import { marketArenaRank, rivalFrontierElo, rivalsSellByApi, updateSaturation } 
 import { dayStep as marketDay } from './market';
 import { randomEventDay } from './randomEvents';
 import { progressDay as researchDay } from './research';
-import { releaseDue } from './rivals';
-import { rivalryDay, rivalryMonth } from './rivalry';
+import { marketRivals, releaseDue } from './rivals';
+import { rivalEloIn, rivalPriceIn, rivalryDay, rivalryMonth } from './rivalry';
 import { dayToDate, END_DAY, isMonthStart } from './time';
 import { monthlyExposure, progressDay as trainingDay, reviewDay } from './training';
 import type { GameState } from './types';
@@ -33,6 +33,24 @@ export function playerBestArenaRank(s: GameState): number | null {
     if (r !== null && (best === null || r < best)) best = r;
   }
   return best;
+}
+
+/** Цены за 1 млн токенов на конец месяца: самая сильная модель каждой лаборатории на витрине API и лучшая модель игрока. */
+export function monthPrices(s: GameState): Record<string, number> {
+  const best = new Map<string, { elo: number; price: number }>();
+  for (const def of marketRivals(s)) {
+    const elo = rivalEloIn(s, def);
+    const cur = best.get(def.lab);
+    if (!cur || elo > cur.elo) best.set(def.lab, { elo, price: rivalPriceIn(s, def) });
+  }
+  for (const m of s.models) {
+    if (m.releasedDay === null || !m.onApi) continue;
+    const cur = best.get('player');
+    if (!cur || m.arenaElo > cur.elo) best.set('player', { elo: m.arenaElo, price: m.price });
+  }
+  const out: Record<string, number> = {};
+  for (const [owner, v] of best) if (Number.isFinite(v.price) && v.price > 0) out[owner] = v.price;
+  return out;
 }
 
 /** Продвинуть игру на один день. Ничего не делает, если игра окончена или ждёт выбора в почте. */
@@ -69,6 +87,7 @@ export function advanceDay(s: GameState): void {
     rec.eloMine = s.models.reduce((b, m) => (m.releasedDay !== null && m.onApi ? Math.max(b, m.arenaElo) : b), 0);
     rec.eloRival = rivalFrontierElo(s);
     rec.placeEnd = rivalsSellByApi(s) ? playerBestArenaRank(s) : null;
+    rec.prices = monthPrices(s);
     // Месяц закрыт на 1-м месте среди моделей по API: считается до разоблачений месяца, по состоянию рынка на его конец.
     // Месяц считается, только когда соперники уже продают модели по API: до этого первое место ничего не значит.
     if (playerBestArenaRank(s) === 1 && rivalsSellByApi(s)) s.monthsFirst += 1;

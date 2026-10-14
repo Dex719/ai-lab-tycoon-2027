@@ -7,7 +7,7 @@ import { formatDateShort } from '../sim/time';
 import { ConfirmDialog, Dialog, ErrorText } from './components/common';
 import { fmtMoney } from './format';
 import { fmtRank } from './labels';
-import { deleteSlot, formatSavedAt, latestSlot, listSlots, MANUAL_SLOTS, type SlotId, type SlotInfo } from './saves';
+import { deleteSlot, exportCode, formatSavedAt, importCode, latestSlot, listSlots, MANUAL_SLOTS, type SlotId, type SlotInfo } from './saves';
 import { AchievementsDialog } from './Achievements';
 import { applyRealNames } from './realNamesDom';
 import { playSound } from './sound';
@@ -247,6 +247,7 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
       <div style={{ marginTop: 10 }}>
         <ErrorText error={error} />
       </div>
+      <GameCode mode={mode} onLoaded={onClose} />
       {del !== null && delSlot?.meta && (
         // Подтверждение выводится поверх этого окна; Escape в нём не должен закрывать и список ячеек.
         <span onKeyDown={(e) => e.stopPropagation()}>
@@ -272,7 +273,7 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
 
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [settings, set] = useState(getSettings);
-  const toggle = (k: keyof typeof settings) => set(setSettings({ [k]: !settings[k] }));
+  const toggle = (k: Exclude<keyof typeof settings, 'volume'>) => set(setSettings({ [k]: !settings[k] }));
   return (
     <Dialog
       title="Настройки"
@@ -284,10 +285,28 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       }
     >
       <div className="col" style={{ gap: 12 }}>
+        <div className="settings-h">Пауза, когда</div>
         <label className="row">
           <input type="checkbox" checked={settings.pauseOnImportant} onChange={() => toggle('pauseOnImportant')} />
-          <span>Пауза при важных письмах</span>
+          <span>приходит важное письмо (решение, деньги кончились, провал)</span>
         </label>
+        <label className="row">
+          <input type="checkbox" checked={settings.pauseOnReady} onChange={() => toggle('pauseOnReady')} />
+          <span>модель обучена</span>
+        </label>
+        <label className="row">
+          <input type="checkbox" checked={settings.pauseOnResearch} onChange={() => toggle('pauseOnResearch')} />
+          <span>исследование завершено</span>
+        </label>
+        <label className="row">
+          <input type="checkbox" checked={settings.pauseOnTender} onChange={() => toggle('pauseOnTender')} />
+          <span>выигран тендер</span>
+        </label>
+        <label className="row">
+          <input type="checkbox" checked={settings.pauseOnGoal} onChange={() => toggle('pauseOnGoal')} />
+          <span>выполнена цель года</span>
+        </label>
+        <div className="settings-h">Прочее</div>
         <label className="row">
           <input type="checkbox" checked={settings.pauseOnHidden} onChange={() => toggle('pauseOnHidden')} />
           <span>Пауза, когда вкладка браузера скрыта</span>
@@ -327,5 +346,87 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         <div className="small muted">Управление: пробел - пауза. Кнопки скорости - на верхней панели.</div>
       </div>
     </Dialog>
+  );
+}
+
+/** Код партии: в «Сохранить» - получить и скопировать, в «Загрузить» - вставить и загрузить. */
+function GameCode({ mode, onLoaded }: { mode: 'load' | 'save'; onLoaded: () => void }) {
+  const [code, setCode] = useState('');
+  const [note, setNote] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function make() {
+    if (!store.state) return;
+    setBusy(true);
+    try {
+      setCode(await exportCode(store.state));
+      setError(null);
+    } catch {
+      setError('Код получить не удалось: браузер не умеет сжимать данные.');
+    }
+    setBusy(false);
+  }
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(code);
+      setNote('Код скопирован');
+    } catch {
+      setNote('Выделите код и скопируйте вручную (Ctrl+C)');
+    }
+  }
+
+  async function load() {
+    setBusy(true);
+    const r = await importCode(code);
+    setBusy(false);
+    if (!r.ok) {
+      setError(r.error);
+      return;
+    }
+    store.start(r.state);
+    onLoaded();
+  }
+
+  return (
+    <div className="game-code">
+      <div className="game-code-h">Код партии</div>
+      {mode === 'save' ? (
+        <>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn small" disabled={busy || !store.state} onClick={() => void make()}>
+              Получить код
+            </button>
+            {code && (
+              <button className="btn small primary" onClick={() => void copy()}>
+                Скопировать
+              </button>
+            )}
+            {code && <span className="small muted">{Math.ceil(code.length / 1024)} КБ</span>}
+            {note && <span className="small good">{note}</span>}
+          </div>
+          {code && <textarea className="game-code-text" readOnly value={code} onFocus={(e) => e.currentTarget.select()} />}
+        </>
+      ) : (
+        <>
+          <textarea
+            className="game-code-text"
+            placeholder="Вставьте код партии"
+            value={code}
+            onChange={(e) => {
+              setCode(e.target.value);
+              setError(null);
+            }}
+          />
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn small primary" disabled={busy || !code.trim()} onClick={() => void load()}>
+              Загрузить из кода
+            </button>
+          </div>
+        </>
+      )}
+      <ErrorText error={error} />
+    </div>
   );
 }
