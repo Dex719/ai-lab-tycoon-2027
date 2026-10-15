@@ -74,6 +74,12 @@ const modelRef = (s: GameState): string => {
   return name ? `модель «${name}»` : 'модель лаборатории';
 };
 
+/** То же в родительном падеже: «модели «Мозг-2»». */
+const modelOf = (s: GameState): string => {
+  const name = bestName(s);
+  return name ? `модели «${name}»` : 'одной из моделей лаборатории';
+};
+
 const subsOpen = (s: GameState): boolean => s.day >= dateToDay(CHAT_MOMENT_DATE);
 const hasSubs = (s: GameState): boolean => s.models.some((m) => m.releasedDay !== null && m.onSubs);
 
@@ -878,7 +884,7 @@ export const RANDOM_EVENTS: EventDef[] = [
       kind: 'event',
       title: 'Веса модели появились в сети',
       body:
-        `Файлы с весами, на которых работает ${modelRef(s)}, выложили на форуме. Кто их вынес, неизвестно. ` +
+        `Файлы с весами ${modelOf(s)} выложили на форуме. Кто их вынес, неизвестно. ` +
         'Энтузиасты уже запускают модель на своих компьютерах.',
     }),
     choices: [
