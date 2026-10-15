@@ -16,8 +16,8 @@ const SHOW_MS = 6000;
 const REWARD_MS = 10000;
 const OUTCOME_MS = 8000;
 const MAX_VISIBLE = 4;
-/** На низком экране (1366×768) больше двух уведомлений закрывают сводку справа: показываем два. */
-const SHORT_SCREEN = 860;
+/** На экране ниже 1000 px (1366×768, 1440×900) больше двух уведомлений закрывают сводку справа: показываем два. */
+const SHORT_SCREEN = 1000;
 const maxVisible = (): number => (window.innerHeight < SHORT_SCREEN ? 2 : MAX_VISIBLE);
 /** Если за один шаг пришло больше писем, первые показываем по отдельности, остальные одной строкой. */
 const SINGLE_LIMIT = 3;
