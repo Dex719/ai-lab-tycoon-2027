@@ -1,5 +1,6 @@
-// Окно «Инвесторы» (FR-10): тёмная полоса с оценкой и долей основателя, под ней шкала контроля с порогами;
-// ниже слева столбик оценки из частей, справа раунды-сделки. Наведение на сделку показывает на шкале, какая часть уйдёт.
+// Окно «Инвесторы» (FR-10): сверху оценка и доля основателя, под ними шкала контроля с порогами 25 % и 50 %;
+// ниже слева столбик оценки из частей, справа таблица раундов. Наведение на строку раунда показывает на шкале,
+// какая часть доли уйдёт инвесторам.
 
 import { useState } from 'react';
 import type { WindowProps } from '.';
@@ -10,7 +11,7 @@ import { formatDateShort, lerpByDate } from '../../sim/time';
 import type { GameState } from '../../sim/types';
 import { Alert, ConfirmDialog, ErrorText, GuardButton } from '../components/common';
 import { fmtDays, fmtMoney, fmtNum, fmtShare } from '../format';
-import { IconLock } from '../icons';
+import { IconCheck, IconLock } from '../icons';
 import { fmtRank } from '../labels';
 import { actions, store } from '../store';
 import './InvestorsWindow.css';
@@ -76,19 +77,17 @@ function ControlBar({ share, sell }: { share: number; sell: number | null }) {
         {sell !== null && <div className="inv-ctl-sold" style={{ left: pct(after), width: pct(share - after) }} />}
         <i className="inv-ctl-mark" style={{ left: pct(FOUNDER_WARN_SHARE) }} />
         <i className="inv-ctl-mark" style={{ left: pct(FOUNDER_BOARD_SHARE) }} />
-        <span className="inv-ctl-inv" style={{ left: pct(share) }}>
-          {share >= 0.97 ? '' : share > 0.7 ? fmtShare(1 - share, 0) : `инвесторы ${fmtShare(1 - share, 0)}`}
-        </span>
+        <span className="inv-ctl-inv">{share >= 0.97 ? '' : share > 0.8 ? fmtShare(1 - share, 0) : `у инвесторов ${fmtShare(1 - share, 0)}`}</span>
       </div>
       <div className="inv-zones">
         <span className={`z bad${(sell === null ? tone : afterTone) === 'bad' ? ' on' : ''}`} style={{ width: pct(FOUNDER_WARN_SHARE) }}>
-          Контроль у совета
+          ниже 25 %: контроль у совета
         </span>
         <span className={`z warn${(sell === null ? tone : afterTone) === 'warn' ? ' on' : ''}`} style={{ width: pct(FOUNDER_BOARD_SHARE - FOUNDER_WARN_SHARE) }}>
-          Совет влияет
+          25-50 %: совет влияет
         </span>
         <span className={`z ok${(sell === null ? tone : afterTone) === 'ok' ? ' on' : ''}`} style={{ width: pct(1 - FOUNDER_BOARD_SHARE) }}>
-          Решения за вами
+          от 50 %: решения за вами
         </span>
       </div>
     </div>
@@ -180,7 +179,7 @@ function ValueTower({ s, v }: { s: GameState; v: Valuation }) {
 
 // ---------- Раунды ----------
 
-function Deal(props: {
+function DealRow(props: {
   fraction: number;
   v: Valuation | null;
   share: number;
@@ -195,32 +194,26 @@ function Deal(props: {
   const crossControl = share >= FOUNDER_WARN_SHARE && after < FOUNDER_WARN_SHARE;
   const crossBoard = share >= FOUNDER_BOARD_SHARE && after < FOUNDER_BOARD_SHARE;
   return (
-    <div
-      className={`inv-deal${why ? ' locked' : ''}`}
-      onMouseEnter={() => onHover(fraction)}
-      onMouseLeave={() => onHover(null)}
-      onFocus={() => onHover(fraction)}
-      onBlur={() => onHover(null)}
-    >
-      <span className="inv-deal-pct">{fmtShare(fraction, 0)}</span>
-      <span className="inv-deal-t">
-        <b className="inv-deal-money">{money === null ? '-' : `+${fmtMoney(money)}`}</b>
-        <span className="inv-deal-share">
-          ваша доля {fmtShare(share)} → <b className={toneClass(after)}>{fmtShare(after)}</b>
-        </span>
-        <span className={`inv-deal-warn ${crossControl ? 'bad' : crossBoard ? 'warn' : ''}`}>
-          {crossControl ? 'Контроль перейдёт к совету директоров' : crossBoard ? 'Совет директоров получит влияние' : ' '}
-        </span>
-      </span>
-      <GuardButton
-        className="btn primary inv-sell"
-        reason={why}
-        title={why === null ? `Продать ${fmtShare(fraction, 0)} компании за ${fmtMoney(money ?? 0)}` : undefined}
-        onClick={props.onSell}
-      >
-        Продать {fmtShare(fraction, 0)}
-      </GuardButton>
-    </div>
+    <tr onMouseEnter={() => onHover(fraction)} onMouseLeave={() => onHover(null)} onFocus={() => onHover(fraction)} onBlur={() => onHover(null)}>
+      <td className="inv-t-pct">{fmtShare(fraction, 0)}</td>
+      <td className="inv-t-money">{money === null ? '-' : `+${fmtMoney(money)}`}</td>
+      <td className="inv-t-after">
+        <span className={toneClass(after)}>{fmtShare(after)}</span>
+        {(crossControl || crossBoard) && (
+          <span className={`inv-t-warn ${crossControl ? 'bad' : 'warn'}`}>{crossControl ? 'контроль перейдёт совету' : 'совет получит влияние'}</span>
+        )}
+      </td>
+      <td className="inv-t-btn">
+        <GuardButton
+          className="btn small primary"
+          reason={why}
+          title={why === null ? `Продать ${fmtShare(fraction, 0)} компании за ${fmtMoney(money ?? 0)}` : undefined}
+          onClick={props.onSell}
+        >
+          Продать
+        </GuardButton>
+      </td>
+    </tr>
   );
 }
 
@@ -282,21 +275,22 @@ export default function InvestorsWindow({ s }: WindowProps) {
 
   return (
     <div className="inv">
-      <div className="inv-hero">
-        <div className="inv-kpis">
-          <div className="inv-kpi">
-            <div className="inv-kpi-l">Оценка компании</div>
-            <div className="inv-kpi-v gold">{v ? fmtMoney(v.total) : '-'}</div>
-            <div className="inv-kpi-s">Ваша часть: {v ? fmtMoney(v.total * share) : '-'}</div>
-          </div>
-          <div className={`inv-kpi inv-own ${tone}`}>
-            <div className="inv-kpi-l">Доля основателя</div>
-            <div className="inv-kpi-v">{fmtShare(share)}</div>
-            <div className="inv-kpi-s">{ZONE_TEXT[tone]}</div>
-          </div>
+      <div className="inv-head">
+        <div className="inv-fig">
+          <span className="inv-fig-l">Оценка компании</span>
+          <span className="inv-fig-v">{v ? fmtMoney(v.total) : '-'}</span>
+          <span className="inv-fig-s">Ваша часть: {v ? fmtMoney(v.total * share) : '-'}</span>
         </div>
-        <ControlBar share={share} sell={hover} />
+        <div className={`inv-fig ${tone}`}>
+          <span className="inv-fig-l">Доля основателя</span>
+          <span className="inv-fig-v">{fmtShare(share)}</span>
+          <span className="inv-fig-s">{ZONE_TEXT[tone]}</span>
+        </div>
       </div>
+
+      <section className="inv-own" aria-label="Доля основателя и пороги контроля">
+        <ControlBar share={share} sell={hover} />
+      </section>
 
       <div className="inv-body">
         <section className="inv-col inv-val">
@@ -307,11 +301,10 @@ export default function InvestorsWindow({ s }: WindowProps) {
         <section className="inv-col inv-rounds">
           <h3 className="inv-h">Раунд инвестиций</h3>
           <div className={`inv-cd${reason ? ' wait' : ' ready'}`}>
-            {reason ? <IconLock size={14} /> : <i className="inv-cd-dot" />}
             <span className="inv-cd-t">
+              {reason ? <IconLock size={13} /> : <IconCheck size={14} />}
               {reason ?? 'Раунд можно провести сейчас'}
-              {left > 0 && <small> · {formatDateShort(s.day + left)}</small>}
-              {!reason && s.lastRoundDay !== null && <small> · прошлый {formatDateShort(s.lastRoundDay)}</small>}
+              {left > 0 && <span className="inv-cd-d">, {formatDateShort(s.day + left)}</span>}
             </span>
             {left > 0 && (
               <span className="inv-cd-bar" aria-hidden="true">
@@ -319,11 +312,22 @@ export default function InvestorsWindow({ s }: WindowProps) {
               </span>
             )}
           </div>
-          <div className="inv-deals">
-            {ROUND_FRACTIONS.map((f) => (
-              <Deal key={f} fraction={f} v={v} share={share} blocked={reason} onSell={() => setSelling(f)} onHover={setHover} />
-            ))}
-          </div>
+          <table className="inv-table">
+            <thead>
+              <tr>
+                <th>Доля</th>
+                <th className="num">Деньги</th>
+                <th>Ваша доля после</th>
+                <th aria-label="Действие" />
+              </tr>
+            </thead>
+            <tbody>
+              {ROUND_FRACTIONS.map((f) => (
+                <DealRow key={f} fraction={f} v={v} share={share} blocked={reason} onSell={() => setSelling(f)} onHover={setHover} />
+              ))}
+            </tbody>
+          </table>
+          {s.lastRoundDay !== null && <div className="inv-last">Прошлый раунд: {formatDateShort(s.lastRoundDay)}</div>}
         </section>
       </div>
 

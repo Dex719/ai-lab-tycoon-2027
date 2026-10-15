@@ -1,9 +1,9 @@
-// Окно «Исследования»: тёмная полоса с текущим исследованием (или следующим, если ничего не идёт),
-// слева неподвижная карта технологий со значками (изученные - золотые трофеи), справа «Можно начать» -
-// что изучать дальше и что это даст. Любой узел и карточка открывают диалог исследования.
+// Окно «Исследования» в духе дерева Processor Tycoon: строка текущего исследования (или самого быстрого следующего),
+// слева неподвижная карта технологий со значками (изученные - тёмные плитки с полной зелёной полосой), справа
+// «Можно начать» - что изучать дальше и что это даст. Любой узел и строка открывают диалог исследования.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { CSSProperties, ReactNode, RefObject } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
 import { GPUS } from '../../data/gpus';
@@ -36,7 +36,6 @@ import { IconCheck, IconClose, IconLock } from '../icons';
 import { TechIcon } from '../icons/tech';
 import { actions, store } from '../store';
 import {
-  BRANCH_COLOR,
   CHAIN_TECHS,
   GRAPH_TECHS,
   graphEdges,
@@ -55,7 +54,7 @@ type Status = 'done' | 'current' | 'available' | 'blocked';
 
 // Размеры карты, px.
 const NW = 192; // ширина узла
-const NH = 52; // высота узла
+const NH = 56; // высота узла
 const PAD_X = 12;
 const PAD_Y = 12;
 const COL_GAP = 40;
@@ -70,8 +69,6 @@ const CHAIN_Y = PAD_Y + GRAPH_H + CHAIN_GAP;
 const MAP_H = CHAIN_Y + CHAIN_H + PAD_Y;
 const CHAIN_W = (MAP_W - PAD_X * 2 - 12) / 2;
 
-/** Как долго подсвечивается только что изученная технология, мс. */
-const FRESH_MS = 2600;
 /** Карта ужимается под окно, но не мельче этого масштаба: дальше текст на узлах не читается. */
 const MIN_SCALE = 0.74;
 
@@ -123,44 +120,18 @@ function upcomingList(s: GameState): TechId[] {
   });
 }
 
-/** Новые изученные технологии и уровни цепочек (для золотой вспышки на карте). */
-function useFresh(s: GameState): Set<TechId> {
-  const key = `${s.research.done.join(',')}|${s.research.algoLevel}|${s.research.contextLevel}`;
-  const prev = useRef<{ done: Set<TechId>; algo: number; ctx: number } | null>(null);
-  const [fresh, setFresh] = useState<Set<TechId>>(() => new Set());
-  useEffect(() => {
-    const now = { done: new Set(s.research.done), algo: s.research.algoLevel, ctx: s.research.contextLevel };
-    const p = prev.current;
-    prev.current = now;
-    if (!p) return;
-    const added = new Set<TechId>([...now.done].filter((t) => !p.done.has(t)));
-    if (now.algo > p.algo) added.add('algo');
-    if (now.ctx > p.ctx) added.add('context');
-    if (added.size === 0) return;
-    setFresh(added);
-    const timer = window.setTimeout(() => setFresh(new Set()), FRESH_MS);
-    return () => window.clearTimeout(timer);
-  }, [key]);
-  return fresh;
-}
-
 // ---------- Узел карты ----------
-
-function nodeStyle(id: TechId): CSSProperties {
-  const c = BRANCH_COLOR[techInfo(id).branch];
-  return { '--br': c.line, '--br-fill': c.fill } as CSSProperties;
-}
 
 function StatusLine({ s, id, status, rp }: { s: GameState; id: TechId; status: Status; rp: number }) {
   const q = s.research.queue.indexOf(id) + 1;
   if (status === 'done') {
     return (
       <span className="rs-st done">
-        <Star /> Изучено
+        <IconCheck size={12} /> Изучено
       </span>
     );
   }
-  if (status === 'current') return <span className="rs-st cur">Идёт · {fmtPct(progressOf(s, id) * 100, 0)}</span>;
+  if (status === 'current') return <span className="rs-st cur">Идёт: {fmtPct(progressOf(s, id) * 100, 0)}</span>;
   if (q > 0) return <span className="rs-st q">В очереди: {q}</span>;
   if (status === 'blocked') {
     return (
@@ -172,22 +143,7 @@ function StatusLine({ s, id, status, rp }: { s: GameState; id: TechId; status: S
   return <span className="rs-st">{termText(researchDaysLeft(s, id, rp))}</span>;
 }
 
-function Star({ size = 12 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className="rs-star">
-      <path d="M12 2.5 L14.9 8.6 L21.5 9.4 L16.6 13.9 L17.9 20.5 L12 17.2 L6.1 20.5 L7.4 13.9 L2.5 9.4 L9.1 8.6 Z" fill="currentColor" />
-    </svg>
-  );
-}
-
-function MapNode(props: {
-  s: GameState;
-  id: GraphTech;
-  rp: number;
-  fresh: boolean;
-  onOpen: (id: TechId) => void;
-}) {
-  const { s, id, rp, fresh, onOpen } = props;
+function MapNode({ s, id, rp, onOpen }: { s: GameState; id: GraphTech; rp: number; onOpen: (id: TechId) => void }) {
   const status = statusOf(s, id);
   const queued = s.research.queue.includes(id);
   const p = posOf(id);
@@ -195,32 +151,31 @@ function MapNode(props: {
   return (
     <button
       type="button"
-      className={`rs-node ${status}${queued ? ' queued' : ''}${fresh ? ' fresh' : ''}`}
-      style={{ left: p.x, top: p.y, width: NW, height: NH, ...nodeStyle(id) }}
+      className={`rs-node ${status}${queued ? ' queued' : ''}`}
+      style={{ left: p.x, top: p.y, width: NW, height: NH }}
       data-tutorial={id === 'attention' ? 'tech-attention' : undefined}
       data-tech={id}
       title={`${info.name}. ${techGain(s, id)}`}
       onClick={() => onOpen(id)}
     >
       <span className="rs-ico">
-        <TechIcon id={id} size={36} locked={status === 'blocked' && !queued} />
+        <TechIcon id={id} size={34} locked={status === 'blocked' && !queued} />
       </span>
       <span className="rs-txt">
         <span className="rs-name">{MAP_LABEL[id] ?? info.name}</span>
         <StatusLine s={s} id={id} status={status} rp={rp} />
       </span>
-      {status === 'current' && (
+      {(status === 'current' || status === 'done') && (
         <span className="rs-bar" aria-hidden="true">
-          <i style={{ width: `${progressOf(s, id) * 100}%` }} />
+          <i style={{ width: `${(status === 'done' ? 1 : progressOf(s, id)) * 100}%` }} />
         </span>
       )}
     </button>
   );
 }
 
-/** Цепочка с уровнями: значок, название, пройденные уровни точками, следующий уровень. */
-function ChainNode(props: { s: GameState; id: 'algo' | 'context'; x: number; rp: number; fresh: boolean; onOpen: (id: TechId) => void }) {
-  const { s, id, x, rp, fresh, onOpen } = props;
+/** Цепочка с уровнями: значок, название, пройденные уровни делениями, срок следующего уровня. */
+function ChainNode({ s, id, x, rp, onOpen }: { s: GameState; id: 'algo' | 'context'; x: number; rp: number; onOpen: (id: TechId) => void }) {
   const status = statusOf(s, id);
   const queued = s.research.queue.includes(id);
   const algo = id === 'algo';
@@ -228,37 +183,33 @@ function ChainNode(props: { s: GameState; id: 'algo' | 'context'; x: number; rp:
   const ctxNow = CONTEXT_LEVELS[s.research.contextLevel][0];
   const head = algo
     ? level > 0
-      ? `Изучено уровней: ${level} · обучение ×${fmtMult(ALGO_MULT ** level)}`
+      ? `Уровень ${level}: обучение ×${fmtMult(ALGO_MULT ** level)}`
       : 'Уровней пока нет'
     : `Контекст до ${contextLabel(ctxNow)} ${tokensWord(ctxNow)}`;
-  const pips = algo ? Math.min(level, 12) : CONTEXT_MAX_LEVEL;
+  const ticks = algo ? Math.min(level, 12) : CONTEXT_MAX_LEVEL;
   return (
     <button
       type="button"
-      className={`rs-node chain ${status}${queued ? ' queued' : ''}${fresh ? ' fresh' : ''}`}
-      style={{ left: x, top: CHAIN_Y, width: CHAIN_W, height: CHAIN_H, ...nodeStyle(id) }}
+      className={`rs-node chain ${status}${queued ? ' queued' : ''}`}
+      style={{ left: x, top: CHAIN_Y, width: CHAIN_W, height: CHAIN_H }}
       data-tech={id}
       title={`${techName(id)}. ${techGain(s, id)}`}
       onClick={() => onOpen(id)}
     >
       <span className="rs-ico">
-        <TechIcon id={id} size={40} locked={status === 'blocked' && !queued} />
+        <TechIcon id={id} size={38} locked={status === 'blocked' && !queued} />
       </span>
       <span className="rs-txt">
         <span className="rs-name">{techName(id)}</span>
         <span className="rs-sub">{head}</span>
         <span className="rs-chainrow">
-          <span className="rs-pips" aria-hidden="true">
-            {Array.from({ length: pips }, (_, i) => (
+          <span className="rs-ticks" aria-hidden="true">
+            {Array.from({ length: ticks }, (_, i) => (
               <i key={i} className={i < level ? 'on' : undefined} />
             ))}
             {algo && level > 12 && <b>+{level - 12}</b>}
           </span>
-          {status !== 'done' && (
-            <span className="rs-next">
-              <StatusLine s={s} id={id} status={status} rp={rp} />
-            </span>
-          )}
+          {status !== 'done' && <StatusLine s={s} id={id} status={status} rp={rp} />}
         </span>
       </span>
       {status === 'current' && (
@@ -301,65 +252,30 @@ function useFitScale(ref: RefObject<HTMLDivElement | null>): number {
   return k;
 }
 
-function TechMap({ s, rp, fresh, onOpen }: { s: GameState; rp: number; fresh: Set<TechId>; onOpen: (id: TechId) => void }) {
-  const edges = graphEdges();
-  // Сначала серые, затем открытые, сверху - золотые: общие отрезки линий принимают самый «сильный» цвет.
-  const kind = (from: TechId, to: TechId) =>
-    !s.research.done.includes(from) ? 0 : s.research.done.includes(to) ? 2 : 1;
-  const sorted = [...edges].sort((a, b) => kind(...a) - kind(...b));
+function TechMap({ s, rp, onOpen }: { s: GameState; rp: number; onOpen: (id: TechId) => void }) {
+  // Сначала закрытые линии, сверху - открытые: общие отрезки принимают цвет открытой линии.
+  const on = (from: TechId) => s.research.done.includes(from);
+  const edges = [...graphEdges()].sort((a, b) => Number(on(a[0])) - Number(on(b[0])));
   return (
     <div className="rs-map" style={{ width: MAP_W, height: MAP_H }}>
       <svg className="rs-lines" width={MAP_W} height={MAP_H} aria-hidden="true">
-        {sorted.map(([from, to]) => (
-          <path key={`${from}-${to}`} className={['off', 'on', 'gold'][kind(from, to)]} d={edgePath(from, to)} />
+        {edges.map(([from, to]) => (
+          <path key={`${from}-${to}`} className={on(from) ? 'on' : 'off'} d={edgePath(from, to)} />
         ))}
+        <path className="rs-rule" d={`M${PAD_X} ${CHAIN_Y - 10} H${MAP_W - PAD_X}`} />
       </svg>
       {GRAPH_TECHS.map((t) => (
-        <MapNode key={t} s={s} id={t} rp={rp} fresh={fresh.has(t)} onOpen={onOpen} />
+        <MapNode key={t} s={s} id={t} rp={rp} onOpen={onOpen} />
       ))}
-      <span className="rs-chain-l" style={{ top: CHAIN_Y - 15, left: PAD_X }}>
-        Уровни
-      </span>
-      <ChainNode s={s} id="algo" x={PAD_X} rp={rp} fresh={fresh.has('algo')} onOpen={onOpen} />
-      <ChainNode s={s} id="context" x={PAD_X + CHAIN_W + 12} rp={rp} fresh={fresh.has('context')} onOpen={onOpen} />
+      <ChainNode s={s} id="algo" x={PAD_X} rp={rp} onOpen={onOpen} />
+      <ChainNode s={s} id="context" x={PAD_X + CHAIN_W + 12} rp={rp} onOpen={onOpen} />
     </div>
   );
 }
 
-// ---------- Полоса сверху ----------
+// ---------- Строка текущего исследования ----------
 
-/** Значок технологии в кольце готовности. */
-function Ring({ id, share, dim }: { id: TechId; share: number; dim?: boolean }) {
-  const r = 33;
-  const c = 2 * Math.PI * r;
-  const color = BRANCH_COLOR[techInfo(id).branch].line;
-  return (
-    <span className={`rs-ring${dim ? ' dim' : ''}`}>
-      <svg width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">
-        <circle cx="38" cy="38" r={r} fill="none" stroke="#2c3650" strokeWidth="5" strokeDasharray={dim ? '4 5' : undefined} />
-        {!dim && (
-          <circle
-            cx="38"
-            cy="38"
-            r={r}
-            fill="none"
-            stroke={color}
-            strokeWidth="5"
-            strokeLinecap="round"
-            strokeDasharray={`${c * Math.max(0.001, share)} ${c}`}
-            transform="rotate(-90 38 38)"
-            className="rs-ring-arc"
-          />
-        )}
-      </svg>
-      <span className="rs-ring-ico">
-        <TechIcon id={id} size={40} />
-      </span>
-    </span>
-  );
-}
-
-function Hero(props: {
+function NowStrip(props: {
   s: GameState;
   rp: number;
   power: number;
@@ -370,73 +286,92 @@ function Hero(props: {
   const { s, rp, power, pick, onOpen, onCompute } = props;
   const [note, flash] = useFlash();
   const current = s.research.current;
-  const focus = current ?? pick;
   const cards = totalH100e(s) > 0;
-  const days = focus ? researchDaysLeft(s, focus, rp) : Infinity;
 
   const stop = () => {
     const r = store.dispatch(actions.setResearch, null);
     if (!r.ok) flash(r.error);
   };
 
-  let powerSub: ReactNode;
-  if (!cards) powerSub = <span className="rs-kpi-s warn">Карты не арендованы</span>;
-  else if (power <= 0) powerSub = <span className="rs-kpi-s warn">Работает только команда</span>;
-  else if (!current) powerSub = <span className="rs-kpi-s warn">Простаивает</span>;
-  else powerSub = <span className="rs-kpi-s">{fmtPct(s.compute.alloc.experiments * 100, 0)} всей мощности</span>;
+  let powerText: ReactNode;
+  if (!cards) powerText = <span className="warn">Карты не арендованы: работает только команда</span>;
+  else if (power <= 0) powerText = <span className="warn">Мощность не выделена: работает только команда</span>;
+  else if (!current) powerText = <span className="warn">Простаивает {fmtNum(power)} H100e</span>;
+  else
+    powerText = (
+      <>
+        Мощность: <b>{fmtNum(power)} H100e</b>, {fmtPct(s.compute.alloc.experiments * 100, 0)} всей
+      </>
+    );
+
+  if (current) {
+    const days = researchDaysLeft(s, current, rp);
+    const share = progressOf(s, current);
+    return (
+      <div className="rs-now">
+        <span className="rs-now-ico">
+          <TechIcon id={current} size={40} />
+        </span>
+        <div className="rs-now-main">
+          <div className="rs-now-t">
+            Изучается: <b>{techName(current)}</b>
+          </div>
+          <div className="rs-now-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(share * 100)}>
+            <i style={{ width: `${share * 100}%` }} />
+          </div>
+          <div className="rs-now-m">
+            <b>{fmtPct(share * 100, 0)}</b> · готово через {termText(days)}
+            {Number.isFinite(days) && `, ${formatDateShort(s.day + Math.max(1, days))}`} · {techGain(s, current)}
+          </div>
+        </div>
+        <div className="rs-now-side">
+          <div className="rs-now-power">{powerText}</div>
+          <div className="rs-now-btns">
+            {cards ? (
+              <button type="button" className="btn small" onClick={() => onOpen(current)}>
+                Изменить мощность
+              </button>
+            ) : (
+              <button type="button" className="btn small" onClick={onCompute}>
+                Открыть «Мощности»
+              </button>
+            )}
+            <button type="button" className="btn small" onClick={stop}>
+              Остановить
+            </button>
+            <DenyNote text={note} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`rs-hero${current ? '' : ' idle'}`}>
-      <div className="rs-kpi rs-kpi-main">
-        {focus ? <Ring id={focus} share={current ? progressOf(s, current) : 0} dim={!current} /> : null}
-        <div className="rs-kpi-body">
-          <div className={`rs-kpi-l${current ? '' : ' warn'}`}>{current ? 'Текущее исследование' : 'Исследование не выбрано'}</div>
-          {focus ? (
-            <>
-              <div className="rs-hero-name">{techName(focus)}</div>
-              <div className="rs-kpi-s gain">{techGain(s, focus)}</div>
-            </>
-          ) : (
-            <div className="rs-hero-name">Все технологии изучены</div>
-          )}
-        </div>
-        {!current && focus && (
-          <button
-            type="button"
-            className="btn rs-go"
-            data-tutorial={focus === 'attention' ? 'tech-attention' : undefined}
-            onClick={() => onOpen(focus)}
-          >
-            Изучать
-          </button>
+    <div className="rs-now idle">
+      <span className="rs-now-ico">{pick ? <TechIcon id={pick} size={40} /> : null}</span>
+      <div className="rs-now-main">
+        <div className="rs-now-t warn">Исследование не выбрано</div>
+        {pick ? (
+          <div className="rs-now-m">
+            Быстрее всего: <b>{techName(pick)}</b>, {termText(researchDaysLeft(s, pick, rp))} · {techGain(s, pick)}
+          </div>
+        ) : (
+          <div className="rs-now-m">Все технологии изучены.</div>
         )}
       </div>
-      <div className="rs-kpi">
-        <div className="rs-kpi-l">{current ? 'До готовности' : 'Срок'}</div>
-        <div className="rs-kpi-v">{focus ? termText(days) : '-'}</div>
-        <div className="rs-kpi-s">{focus && Number.isFinite(days) ? `к ${formatDateShort(s.day + Math.max(1, days))}` : ' '}</div>
-      </div>
-      <div className="rs-kpi rs-kpi-power">
-        <div className="rs-kpi-l">Мощность на исследования</div>
-        <div className="rs-kpi-v">{fmtNum(power)} H100e</div>
-        {powerSub}
-        <div className="rs-hero-btns">
-          {current && cards && (
-            <button type="button" className="rs-hbtn" onClick={() => onOpen(current)}>
-              Изменить
-            </button>
-          )}
+      <div className="rs-now-side">
+        <div className="rs-now-power">{powerText}</div>
+        <div className="rs-now-btns">
           {!cards && (
-            <button type="button" className="rs-hbtn" onClick={onCompute}>
+            <button type="button" className="btn small" onClick={onCompute}>
               Открыть «Мощности»
             </button>
           )}
-          {current && (
-            <button type="button" className="rs-hbtn" onClick={stop}>
-              Остановить
+          {pick && (
+            <button type="button" className="btn primary" data-tutorial={pick === 'attention' ? 'tech-attention' : undefined} onClick={() => onOpen(pick)}>
+              Изучать «{techName(pick)}»
             </button>
           )}
-          <DenyNote text={note} />
         </div>
       </div>
     </div>
@@ -448,13 +383,11 @@ function QueueStrip({ s, onOpen }: { s: GameState; onOpen: (id: TechId) => void 
   if (s.research.queue.length === 0) return null;
   return (
     <div className="rs-queue">
-      <span className="rs-queue-l">Дальше по очереди</span>
+      <span className="rs-queue-l">Дальше по очереди:</span>
       {s.research.queue.map((id, i) => (
-        <span className="rs-qchip" key={id}>
-          <b className="num">{i + 1}</b>
+        <span className="rs-qitem" key={id}>
           <button type="button" className="rs-qname" onClick={() => onOpen(id)}>
-            <TechIcon id={id} size={20} />
-            {techName(id)}
+            {i + 1}. {techName(id)}
           </button>
           <button
             type="button"
@@ -466,7 +399,7 @@ function QueueStrip({ s, onOpen }: { s: GameState; onOpen: (id: TechId) => void 
               if (!r.ok) flash(r.error);
             }}
           >
-            <IconClose size={12} />
+            <IconClose size={11} />
           </button>
         </span>
       ))}
@@ -480,49 +413,46 @@ function QueueStrip({ s, onOpen }: { s: GameState; onOpen: (id: TechId) => void 
 function NextList({ s, rp, onOpen }: { s: GameState; rp: number; onOpen: (id: TechId) => void }) {
   const list = availableList(s, rp);
   const later = upcomingList(s);
-  const busy = s.research.current !== null;
   return (
     <aside className="rs-side">
-      <div className="rs-side-h">
-        Можно начать <span className="rs-count num">{list.length}</span>
-      </div>
+      <div className="rs-side-h">Можно начать: {list.length}</div>
       <div className="rs-side-list">
         {list.map((id) => {
           const q = s.research.queue.indexOf(id) + 1;
           return (
-            <button key={id} type="button" className="rs-card" style={nodeStyle(id)} onClick={() => onOpen(id)}>
-              <TechIcon id={id} size={38} />
-              <span className="rs-card-t">
-                <span className="rs-card-name">{techName(id)}</span>
-                <span className="rs-card-gain">{techGain(s, id)}</span>
-                <span className="rs-card-foot">
-                  <span className="rs-card-term">{termText(researchDaysLeft(s, id, rp))}</span>
-                  {q > 0 ? <span className="rs-card-q">В очереди: {q}</span> : <span className="rs-card-go">{busy ? 'Выбрать' : 'Изучать'}</span>}
+            <button key={id} type="button" className="rs-row" onClick={() => onOpen(id)}>
+              <span className="rs-row-ico">
+                <TechIcon id={id} size={30} />
+              </span>
+              <span className="rs-row-t">
+                <span className="rs-row-top">
+                  <span className="rs-row-name">{techName(id)}</span>
+                  <span className={`rs-row-term${q > 0 ? ' q' : ''}`}>{q > 0 ? `В очереди: ${q}` : termText(researchDaysLeft(s, id, rp))}</span>
                 </span>
+                <span className="rs-row-gain">{techGain(s, id)}</span>
               </span>
             </button>
           );
         })}
-        {later.length > 0 && (
-          <>
-            <div className="rs-side-sub">Откроются потом</div>
-            {later.map((id) => {
-              const need = missingRequirements(s, id);
-              const q = s.research.queue.indexOf(id) + 1;
-              return (
-                <button key={id} type="button" className="rs-later" onClick={() => onOpen(id)}>
-                  <TechIcon id={id} size={26} locked={q === 0} />
-                  <span className="rs-later-t">
-                    <span className="rs-later-name">{techName(id)}</span>
-                    <span className="rs-later-why">
-                      {q > 0 ? `В очереди: ${q}` : `После «${need.map(techName).join('», «')}»`}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </>
-        )}
+        {later.length > 0 && <div className="rs-side-sub">Откроются потом</div>}
+        {later.map((id) => {
+          const need = missingRequirements(s, id);
+          const q = s.research.queue.indexOf(id) + 1;
+          return (
+            <button key={id} type="button" className="rs-row later" onClick={() => onOpen(id)}>
+              <span className="rs-row-ico">
+                <TechIcon id={id} size={26} locked={q === 0} />
+              </span>
+              <span className="rs-row-t">
+                <span className="rs-row-top">
+                  <span className="rs-row-name">{techName(id)}</span>
+                  {q > 0 && <span className="rs-row-term q">В очереди: {q}</span>}
+                </span>
+                <span className="rs-row-gain">После «{need.map(techName).join('», «')}»</span>
+              </span>
+            </button>
+          );
+        })}
       </div>
     </aside>
   );
@@ -534,36 +464,26 @@ export default function ResearchWindow({ s, open }: WindowProps) {
   const [dialog, setDialog] = useState<TechId | null>(null);
   const rp = rpPerDay(s);
   const power = pool(s, 'experiments');
-  const fresh = useFresh(s);
-  const doneCount = s.research.done.length;
   const pick = availableList(s, rp)[0] ?? null;
   const mapRef = useRef<HTMLDivElement>(null);
   const scale = useFitScale(mapRef);
 
   return (
     <div className="rs">
-      <Hero s={s} rp={rp} power={power} pick={pick} onOpen={setDialog} onCompute={() => open('compute')} />
+      <NowStrip s={s} rp={rp} power={power} pick={pick} onOpen={setDialog} onCompute={() => open('compute')} />
       <QueueStrip s={s} onOpen={setDialog} />
       <div className="rs-body">
         <section className="rs-mapwrap" aria-label="Карта технологий">
           <div className="rs-map-h">
-            <span className="rs-map-t">Карта технологий</span>
-            <span className="rs-legend" aria-hidden="true">
-              <span className="lg done">Изучено</span>
-              <span className="lg avail">Можно начать</span>
-              <span className="lg lock">Закрыто</span>
-            </span>
-            <span className={`rs-trophies${fresh.size > 0 ? ' pop' : ''}`} title="Изучено технологий">
-              <Star size={14} />
-              <b className="num">
-                {doneCount} из {TECHS_TO_LEARN}
-              </b>
+            <span className="rs-map-t">Технологии</span>
+            <span className="rs-map-n">
+              Изучено: {s.research.done.length} из {TECHS_TO_LEARN}
             </span>
           </div>
           <div className="rs-mapscroll" ref={mapRef}>
             <div className="rs-mapfit" style={{ width: MAP_W * scale, height: MAP_H * scale }}>
               <div style={{ transform: scale < 1 ? `scale(${scale})` : undefined, transformOrigin: '0 0' }}>
-                <TechMap s={s} rp={rp} fresh={fresh} onOpen={setDialog} />
+                <TechMap s={s} rp={rp} onOpen={setDialog} />
               </div>
             </div>
           </div>
@@ -619,7 +539,6 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
   const changed = pct !== current.experiments;
   const noCards = total <= 0;
   const past = pastHistory(s, id);
-  const color = BRANCH_COLOR[info.branch];
   const missing = missingRequirements(s, id);
 
   /** Подтверждение нужно, если канал, где идут продажи, теряет всю мощность из-за новой доли. */
@@ -722,20 +641,22 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
 
   return (
     <Dialog title="Исследование" onClose={onClose} footer={footer}>
-      <div className="rs-d" style={{ '--br': color.line, '--br-fill': color.fill } as CSSProperties}>
-        <div className={`rs-d-head${status === 'done' ? ' done' : ''}`}>
+      <div className="rs-d">
+        <div className="rs-d-head">
           <span className="rs-d-ico">
-            <TechIcon id={id} size={56} locked={status === 'blocked' && !queued} />
+            <TechIcon id={id} size={52} locked={status === 'blocked' && !queued} />
           </span>
           <div className="rs-d-ht">
-            <div className="rs-d-branch">{BRANCH_NAMES[info.branch]}</div>
             <h2 className="rs-d-title">{info.name}</h2>
+            <div className="rs-d-sub">
+              {BRANCH_NAMES[info.branch]}
+              {status === 'done' && (
+                <span className="rs-d-done">
+                  <IconCheck size={13} /> Изучено
+                </span>
+              )}
+            </div>
           </div>
-          {status === 'done' && (
-            <span className="rs-d-medal">
-              <Star size={16} /> Изучено
-            </span>
-          )}
         </div>
         <p className="rs-d-desc">{info.description}</p>
 
@@ -763,7 +684,7 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
             <>
               <dt>Контекст</dt>
               <dd>
-                {contextLabel(maxContext(s))} → {contextLabel(ctxNext)} {tokensWord(ctxNext)}
+                до {contextLabel(ctxNext)} {tokensWord(ctxNext)}, сейчас {contextLabel(maxContext(s))}
               </dd>
             </>
           )}
@@ -799,7 +720,7 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
                 </div>
               ) : (
                 <>
-                  <Range value={pct} min={0} max={100} color={color.line} label="Мощность на исследование" valueText={fmtPct(pct, 0)} onChange={setPct} />
+                  <Range value={pct} min={0} max={100} label="Мощность на исследование" valueText={fmtPct(pct, 0)} onChange={setPct} />
                   <div className="rs-d-ends">
                     <span>Медленнее</span>
                     <span>Быстрее</span>

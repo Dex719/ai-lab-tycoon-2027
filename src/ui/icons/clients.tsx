@@ -308,7 +308,6 @@ export function ClientEmblem({ clientId, size = 40, className }: { clientId: str
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" className={className} aria-hidden="true" focusable="false">
       <rect width={64} height={64} rx={14} fill={e.color} />
-      <path d="M14 0 H50 A14 14 0 0 1 64 14 V22 Q32 34 0 22 V14 A14 14 0 0 1 14 0 Z" fill="#ffffff" opacity={0.12} />
       {e.draw(ink, e.color)}
     </svg>
   );
