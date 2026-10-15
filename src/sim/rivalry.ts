@@ -841,7 +841,7 @@ export function threatOf(s: RivalryGame, lab: LabId): Threat {
   let hint = 'угрозы не видит';
   const top = Math.max(share, elo, price, rank);
   if (top > 0) {
-    if (top === share) hint = `ваша доля выше на ${Math.max(1, Math.round((shareP - shareL) * 100))} п.п.`;
+    if (top === share) hint = `ваша доля рынка ${Math.round(shareP * 100)} % против их ${Math.round(shareL * 100)} %`;
     else if (top === elo) hint = `ваше Эло выше на ${Math.max(1, Math.round(eloP - eloL))}`;
     else if (top === price && newest && cheapest !== null) hint = `вы дешевле на ${Math.round((1 - cheapest / newest.price) * 100)} %`;
     else hint = 'вы в тройке на «Арене»';

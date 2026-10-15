@@ -417,6 +417,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           <span>Оригинальные названия</span>
         </label>
         <div className="small muted">Показывает настоящие названия компаний, моделей и тестов. Сохранения не меняются.</div>
+        <div className="small muted">Управление: пробел - пауза. Кнопки скорости - на верхней панели.</div>
         <div className="settings-h">Звук</div>
         <VolumeRow
           label="Музыка"
@@ -435,7 +436,6 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           }}
           onRelease={() => playSound('coin')}
         />
-        <div className="small muted">Управление: пробел - пауза. Кнопки скорости - на верхней панели.</div>
       </div>
     </Dialog>
   );
