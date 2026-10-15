@@ -1,5 +1,5 @@
-// Вкладки «Рынок» (доли лабораторий, сегменты спроса, модели на рынке) и «Лаборатории» (таблица соперников: характер,
-// настрой, последний ход; под таблицей - последние ходы соперников).
+// Вкладка «Рынок» (доли лабораторий, сегменты спроса, модели на рынке) и данные лабораторий для досье
+// (labRows, recentMoves - вкладка «Лаборатории» в LabsDossier.tsx).
 
 import { useMemo, type CSSProperties } from 'react';
 import type { WindowProps } from '.';
@@ -15,9 +15,9 @@ import {
   type SegmentSnapshot,
 } from '../../sim/market';
 import { contextLabel } from '../../sim/research';
-import { findRivalDefIn, labStance, lastMove, moveName, rivalDayIn, type HistoryRow } from '../../sim/rivalry';
+import { findRivalDefIn, labStance, lastMove, rivalDayIn, type HistoryRow } from '../../sim/rivalry';
 import { monthPrices } from '../../sim/tick';
-import { dayToDate, formatDateShort } from '../../sim/time';
+import { dayToDate } from '../../sim/time';
 import { SEGMENT_IDS, type Channel, type GameState, type HypeOwner, type SegmentId, type Tier } from '../../sim/types';
 import { Alert } from '../components/common';
 import { TierBadge } from '../components/TierBadge';
@@ -598,84 +598,3 @@ export function recentMoves(s: GameState): HistoryRow[] {
   return s.rivalry.history.slice(-RECENT_MOVES).reverse();
 }
 
-const TIP_CHARACTER = 'Как лаборатория отвечает на ваши успехи';
-const TIP_STANCE = 'Отношение лаборатории к вам сейчас; в подсказке - главный сигнал';
-const TIP_LAST_MOVE = 'Последний исполненный ход против вас';
-
-function RecentMoves({ s }: { s: GameState }) {
-  const rows = recentMoves(s);
-  if (rows.length === 0) return <div className="muted">Ходов пока нет</div>;
-  return (
-    <div className="lab-moves">
-      {rows.map((h, i) => (
-        <div key={`${h.day}:${h.lab}:${i}`} className="lab-moves-row">
-          <span className="d">{formatDateShort(h.day)}</span>
-          <span className="l">
-            <OwnerTag s={s} owner={h.lab} />
-          </span>
-          <span className="m">{moveName(h.move)}</span>
-          <span className="t">{h.text}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export function LabsTab({ s }: WindowProps) {
-  const rows = labRows(s);
-  return (
-    <div className="an-page">
-      <table className="grid an-grid lab-grid">
-        <thead>
-          <tr>
-            <th>Лаборатория</th>
-            <th className="num" title="Выпущенных моделей">
-              Моделей
-            </th>
-            <th className="num">Лучший Эло</th>
-            <th className="num" title="Доля рынка">
-              Доля
-            </th>
-            <th>Последняя модель</th>
-            <th title="Дата выхода первой модели">На рынке с</th>
-            <th title={TIP_CHARACTER}>Характер</th>
-            <th title={TIP_STANCE}>Настрой</th>
-            <th title={TIP_LAST_MOVE}>Последний ход</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.owner} className={r.owner === 'player' ? 'player' : undefined}>
-              <td>
-                <OwnerTag s={s} owner={r.owner} />
-              </td>
-              <td className="num">{fmtNum(r.count)}</td>
-              <td className="num">{r.best > 0 ? fmtElo(r.best) : '-'}</td>
-              <td className="num">{fmtShare(r.share)}</td>
-              <td>{r.lastName ?? '-'}</td>
-              <td>{r.since !== null ? formatDateShort(r.since) : '-'}</td>
-              <td>{r.character ? <span title={r.character.description}>{r.character.archetype}</span> : <span className="muted">-</span>}</td>
-              <td>{r.stance ? <span title={r.stance.hint}>{r.stance.label}</span> : <span className="muted">-</span>}</td>
-              <td className="lab-move">
-                {r.lastMove ? (
-                  <>
-                    <span className="lab-move-d">{formatDateShort(r.lastMove.day)}</span>
-                    <span className="lab-move-t" title={r.lastMove.text}>
-                      {r.lastMove.text}
-                    </span>
-                  </>
-                ) : (
-                  <span className="muted">-</span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <section>
-        <h2 className="an-h">Последние ходы</h2>
-        <RecentMoves s={s} />
-      </section>
-    </div>
-  );
-}
