@@ -154,7 +154,8 @@ const PlotSvg = memo(function PlotSvg({ width, height, labels, series, yFormat, 
   let ticks: number[];
   let y: (v: number) => number;
   if (log) {
-    const lo = Number.isFinite(min) ? Math.floor(Math.log10(min)) : 0;
+    // Чуть ниже минимума: ряд, равный круглому числу ($100), не ложится на нижнюю ось.
+    const lo = Number.isFinite(min) ? Math.floor(Math.log10(min * 0.95)) : 0;
     const hi = Math.max(lo + 1, Math.ceil(Math.log10(Math.max(max, 1e-9))));
     ticks = n === 0 ? [] : Array.from({ length: hi - lo + 1 }, (_, i) => Number((10 ** (lo + i)).toPrecision(12)));
     y = (v: number) => PAD.top + plotH - ((Math.log10(Math.max(v, 10 ** lo)) - lo) / (hi - lo)) * plotH;
