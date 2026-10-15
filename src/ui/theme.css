@@ -30,6 +30,11 @@
   --warn: #a85a00;
   --good-on-dark: #5ed37f;
   --bad-on-dark: #ff6b6b;
+  /* Золото наград и 1-го места: только плоско, без градиента и свечения. */
+  --gold-fill: #e8c34a;
+  --gold-line: #c99a1a;
+  --gold-ink: #8a5f00;
+  --gold-tint: #fff8e1;
   --plot: #232427;
   --side: #26272b;
   --font: 'Segoe UI', Roboto, Arial, sans-serif;
@@ -478,7 +483,7 @@ table.grid td.num, table.grid th.num { text-align: right; }
 }
 .toast.important { border: 2px solid var(--tc); border-left-width: 6px; }
 .toast .ti { grid-row: 1 / span 3; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--tc); color: #fff; }
-.toast .tk { grid-column: 2; font-size: 12px; font-weight: 700; color: var(--text-body); text-transform: uppercase; letter-spacing: 0.03em; }
+.toast .tk { grid-column: 2; font-size: 12px; font-weight: 600; color: var(--text-dim); }
 .toast .tt { font-size: 14px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; grid-column: 2; }
 .toast .ta { grid-column: 2; display: flex; gap: 14px; margin-top: 4px; }
 .toast .ta button { background: none; border: none; padding: 0; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--accent-dark); }
@@ -512,19 +517,13 @@ table.grid td.num, table.grid th.num { text-align: right; }
 .side-idle .btn { flex: none; }
 .side-idle-more { align-self: flex-start; background: none; border: none; padding: 0; color: #ffd27a; text-decoration: underline; cursor: pointer; font-size: 12px; }
 
-/* Награды и исход риска в уведомлениях. */
-.toast.tone-reward {
-  background: linear-gradient(135deg, #fff6d6, #ffe8a3); border: 2px solid #d9a514; border-left-width: 6px; --tc: #c08a00;
-  box-shadow: 0 8px 26px rgba(217, 165, 20, 0.45); animation: toast-reward 420ms cubic-bezier(0.2, 1.4, 0.4, 1);
-}
-.toast.tone-reward .tk { color: #8a5f00; }
-.toast.tone-reward .tt { font-size: 15px; }
-.toast.tone-good { border: 2px solid var(--c-green); border-left-width: 6px; --tc: var(--c-green); background: #effaf2; }
-.toast.tone-bad { border: 2px solid var(--c-red); border-left-width: 6px; --tc: var(--c-red); background: #fdf0f0; }
+/* Награды и исход риска в уведомлениях: светлая подложка цвета исхода, полоса слева - вид уведомления. */
+.toast.tone-reward { --tc: var(--gold-line); background: var(--gold-tint); border-color: #e6cf86; border-left-color: var(--tc); }
+.toast.tone-reward .tk { color: var(--gold-ink); }
+.toast.tone-good { --tc: var(--c-green); background: #effaf2; border-color: #a8d8b6; border-left-color: var(--tc); }
+.toast.tone-bad { --tc: var(--c-red); background: #fdf0f0; border-color: #e8b0b0; border-left-color: var(--tc); }
 .toast.tone-good .tt { color: #1d6b37; }
 .toast.tone-bad .tt { color: #a12a2a; }
-@keyframes toast-reward { from { opacity: 0; transform: translateX(30px) scale(0.9); } }
-@media (prefers-reduced-motion: reduce) { .toast.tone-reward { animation: none; } }
 
 /* Код партии в окнах «Сохранить» и «Загрузить». */
 .game-code { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }

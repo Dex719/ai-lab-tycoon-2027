@@ -1,27 +1,27 @@
-/* Итог месяца над панелью задач (левее уведомлений). */
+/* Итог месяца над панелью задач (левее уведомлений): строка состояния цвета панели задач, как в PT.
+   Изменения - цветом значения, без стрелок-символов. */
 .month-strip {
-  position: fixed; left: 110px; bottom: 52px; z-index: 870; display: flex; align-items: center; gap: 18px;
-  max-width: calc(100vw - 110px - 370px); padding: 9px 16px; overflow: hidden; cursor: pointer;
-  background: rgba(22, 24, 29, 0.95); color: #eef0f3; border: 1px solid #3a3d45; border-left: 4px solid var(--c-blue);
-  border-radius: 6px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  position: fixed; left: 110px; bottom: 50px; z-index: 870; display: flex; align-items: center; gap: 20px;
+  max-width: calc(100vw - 110px - 370px); padding: 7px 14px; overflow: hidden; cursor: pointer;
+  background: var(--bar); color: var(--bar-text); border: 1px solid #3b3b3f; border-radius: 3px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
   animation: ms-in 3500ms ease-out forwards;
 }
-.ms-title { font: 700 15px var(--mono); white-space: nowrap; }
-.ms-item { display: flex; flex-direction: column; gap: 2px; white-space: nowrap; min-width: 0; }
-.ms-k { font-size: 10.5px; color: #9aa0aa; overflow: hidden; text-overflow: ellipsis; }
-.ms-v { display: flex; align-items: baseline; gap: 5px; font: 700 14px var(--mono); }
-.ms-v small { font: 600 11.5px var(--font); }
-.ms-v small.good, .ms-ar.good { color: var(--good-on-dark); }
-.ms-v small.bad, .ms-ar.bad { color: var(--bad-on-dark); }
-.ms-ar { font-size: 10px; }
+.ms-title { font-size: 14px; font-weight: 600; white-space: nowrap; }
+.ms-item { display: flex; flex-direction: column; gap: 1px; white-space: nowrap; min-width: 0; }
+.ms-k { font-size: 11px; color: var(--bar-dim); overflow: hidden; text-overflow: ellipsis; }
+.ms-v { display: flex; align-items: baseline; gap: 6px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ms-v small { font-size: 12px; font-weight: 600; }
+.ms-v.good, .ms-v small.good { color: var(--good-on-dark); }
+.ms-v.bad, .ms-v small.bad { color: var(--bad-on-dark); }
 .ms-goal { min-width: 140px; max-width: 240px; }
-.ms-bar { position: relative; height: 14px; background: #33363d; border-radius: 3px; overflow: hidden; }
+.ms-bar { position: relative; height: 14px; background: #3a3b40; border-radius: 2px; overflow: hidden; }
 .ms-bar i { position: absolute; inset: 0 auto 0 0; background: var(--c-amber); }
-.ms-bar em { position: relative; display: block; font: 700 10.5px/14px var(--font); font-style: normal; text-align: center; color: #fff; }
+.ms-bar em { position: relative; display: block; font: 600 11px/14px var(--font); font-style: normal; text-align: center; color: #fff; font-variant-numeric: tabular-nums; }
 @keyframes ms-in {
-  0% { opacity: 0; transform: translateY(16px); }
-  8%, 88% { opacity: 1; transform: none; }
-  100% { opacity: 0; transform: translateY(8px); }
+  0% { opacity: 0; transform: translateY(6px); }
+  6%, 90% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
 }
 @media (max-width: 900px) { .month-strip { left: 12px; max-width: calc(100vw - 24px); bottom: 120px; } .ms-goal { display: none; } }
 @media (prefers-reduced-motion: reduce) { .month-strip { animation: none; } }
