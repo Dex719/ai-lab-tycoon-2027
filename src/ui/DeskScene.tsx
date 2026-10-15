@@ -107,8 +107,8 @@ const Scene = memo(function Scene(p: SceneProps) {
             </span>
           </span>
           <span className="ls-cap">
-            <span>Исследования</span>
-            <b title={p.research?.name}>{p.research ? `${p.research.name}, ${fmtShare(p.research.frac, 0)}` : 'Не идут'}</b>
+            <span>{p.research ? `Исследования, ${fmtShare(p.research.frac, 0)}` : 'Исследования'}</span>
+            <b title={p.research?.name}>{p.research ? p.research.name : 'Не идут'}</b>
           </span>
         </button>
 
