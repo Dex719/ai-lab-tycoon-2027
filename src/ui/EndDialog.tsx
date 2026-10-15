@@ -27,6 +27,7 @@ const MOMENT_TITLES: Record<string, string> = {
   'main-rival': 'Главный соперник обойдён',
   startup: 'Покупка стартапа',
   'push-held': 'Финальный рывок отбит',
+  'stage-3': 'Переезд в свой кампус',
 };
 
 function revenueOf(h: MonthRecord): number {
