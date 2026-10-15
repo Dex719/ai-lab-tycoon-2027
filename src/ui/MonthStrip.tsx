@@ -54,7 +54,7 @@ export function MonthStrip({ s }: { s: GameState }) {
       const gp = goalProgress(s, g);
       if (!gp || gp.progress.done) continue; // выполнена, но ещё не засчитана (проверка раз в неделю)
       const pct = Math.floor(gp.progress.fraction * 100);
-      if (!goal || pct > goal.pct) goal = { title: gp.def.title(s.yearly.year), pct };
+      if (!goal || pct > goal.pct) goal = { title: gp.title, pct };
     }
     setStrip({
       key: months,

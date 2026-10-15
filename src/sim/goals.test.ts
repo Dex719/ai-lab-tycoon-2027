@@ -128,7 +128,7 @@ describe('выдача целей', () => {
     expect(q.param).toBe('squad');
     expect(q.target!).toBeGreaterThan(40);
     expect(q.target!).toBeLessThanOrEqual(95);
-    expect(goalTitle(q, 2017)).toMatch(/^Модель с баллом SQuAT от \d+ %$/);
+    expect(goalTitle(q, 2017)).toMatch(/^Модель с баллом SQuAT от \d+ %$/); // процент не отрывается от числа
     const r = goals.find((g) => goalStyle(g.id) === 'research')!;
     if (r.id === 'r-tech') expect(r.param).toBe('attention');
   });

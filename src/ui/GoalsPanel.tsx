@@ -1,64 +1,104 @@
-// Цели года в боковой панели: три строки с прогрессом и наградой.
+// Цели года и короткие задачи в боковой панели. Строка цели: название и награда, прогресс, полоска;
+// выполненная - галочкой. Ниже - действующие бонусы наград (скидки на время) и короткие задачи.
 
 import { useEffect, useRef, useState } from 'react';
-import { goalProgress, rewardText } from '../sim/goals';
+import { STYLE_NAMES } from '../data/goals';
+import { activeBonuses, capitalize, untilText } from '../data/questKit';
+import { goalPenaltyText, goalProgress, goalRewardShort, goalRewardText } from '../sim/goals';
 import type { GameState } from '../sim/types';
+import { IconCheck } from './icons';
+import { TasksPanel } from './TasksPanel';
 import type { WindowAlias, WindowId } from './windows';
 import './goals.css';
+
+/** Какое окно открывает строка цели. */
+function opensFor(id: string): WindowId | WindowAlias {
+  if (id.startsWith('r-') || id.startsWith('tech-')) return 'research';
+  if (id === 'k-tenders') return 'contracts';
+  if (id.startsWith('g-') || id === 'x-first' || id.startsWith('rank-')) return 'ratings';
+  return 'analytics';
+}
 
 export function GoalsPanel({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
   const y = s.yearly;
   const justDone = useJustDone(s);
-  if (!y || y.goals.length === 0) return null;
-  const done = y.goals.filter((g) => g.done).length;
+  const bonuses = activeBonuses(s);
+  const hasGoals = !!y && y.goals.length > 0;
+  const done = hasGoals ? y.goals.filter((g) => g.done).length : 0;
   return (
     <>
-      <div className="goal-head">
-        <span>Цели {y.year} года</span>
-        <span className="n">
-          {done} из {y.goals.length}
-        </span>
-      </div>
-      <div className="goal-list">
-        {y.goals.map((g) => {
-          const p = goalProgress(s, g);
-          if (!p) return null;
-          const isDone = g.done;
-          const almost = !isDone && p.progress.fraction >= ALMOST;
-          return (
-            <div
-              key={g.id}
-              className={`goal-row${isDone ? ' done' : ''}${justDone.has(g.id) ? ' just-done' : ''}${almost ? ' almost' : ''}`}
-              onClick={() => open(p.def.id.startsWith('tech-') ? 'research' : 'analytics')}>
-              <div className="gt">
-                {p.def.title(y.year)}
-                {almost && <span className="goal-almost">Почти!</span>}
-              </div>
-              <div className="gp">{isDone ? 'Выполнено' : p.progress.text}</div>
-              <div className="goal-bar">
-                <div style={{ width: `${Math.round(p.progress.fraction * 100)}%` }} />
-              </div>
-              <div className={`gr${isDone ? ' ok' : ''}`}>
-                {isDone ? 'Награда получена: ' : 'Награда: '}
-                {rewardText(p.def.reward, y.year)}
-              </div>
+      {hasGoals && (
+        <>
+          <div className="goal-head">
+            <span>Цели {y.year} года</span>
+            <span className="n">
+              {done} из {y.goals.length}
+            </span>
+          </div>
+          <div className="goal-list">
+            {y.goals.map((g) => {
+              const v = goalProgress(s, g);
+              if (!v) return null;
+              const isDone = g.done;
+              const reward = goalRewardText(g, y.year);
+              const penalty = isDone ? '' : goalPenaltyText(g);
+              const style = v.def.style ? STYLE_NAMES[v.def.style] : '';
+              return (
+                <div
+                  key={g.id}
+                  className={`goal-row${isDone ? ' done' : ''}${justDone.has(g.id) ? ' just-done' : ''}`}
+                  onClick={() => open(opensFor(g.id))}
+                  title={style ? `${style}. Награда: ${reward}` : `Награда: ${reward}`}
+                >
+                  <div className="gt">
+                    {isDone && <IconCheck size={14} className="gt-ok" />}
+                    <span className="gt-name">{v.title}</span>
+                    <span className={`gt-reward${isDone ? ' ok' : ''}`}>{capitalize(goalRewardShort(g, y.year))}</span>
+                  </div>
+                  <div className="gp">
+                    {justDone.has(g.id) ? (
+                      <span className="gp-flash">Цель выполнена</span>
+                    ) : (
+                      <>
+                        {isDone ? 'Выполнено' : v.progress.text}
+                        {v.progress.almost && <span className="gp-almost"> - почти</span>}
+                      </>
+                    )}
+                  </div>
+                  {penalty && <div className="gp-risk">Если не выйдет к 31 декабря: {penalty}</div>}
+                  <div className="goal-bar">
+                    <div style={{ width: `${Math.round(v.progress.fraction * 100)}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+      {bonuses.length > 0 && (
+        <div className="goal-bonuses">
+          {bonuses.map((b) => (
+            <div key={b.id} className="goal-bonus">
+              {b.text} {untilText(b.untilDay)}
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
+      <TasksPanel s={s} open={open} />
     </>
   );
 }
 
-/** Цель с полоской от 80 % получает метку «Почти!». */
-const ALMOST = 0.8;
 const FLASH_MS = 2600;
 
 /** Цели, выполненные только что (в этой сессии): строка вспыхивает на 2,6 с. */
 function useJustDone(s: GameState): Set<string> {
   const seen = useRef<{ state: GameState; year: number; done: Set<string> } | null>(null);
   const [flash, setFlash] = useState<Set<string>>(new Set());
-  const doneKey = s.yearly.goals.filter((g) => g.done).map((g) => g.id).join(',');
+  const doneKey = s.yearly.goals
+    .filter((g) => g.done)
+    .map((g) => g.id)
+    .join(',');
   useEffect(() => {
     const now = new Set(s.yearly.goals.filter((g) => g.done).map((g) => g.id));
     const p = seen.current;

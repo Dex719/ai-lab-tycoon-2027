@@ -2,10 +2,10 @@
 // три; по умолчанию отмечены деньги, гонка и исследования (их же получают боты, которые не выбирают). Награда приходит
 // сразу после выполнения; рискованная цель, не выполненная к 31 декабря, даёт штраф. 31 декабря считаются итоги года
 // (окно «Итоги {год}», с тем, сколько не хватило до каждой цели), и тут же предлагаются цели следующего года.
-// Случайность (вид цели внутри стиля) берётся из своего потока s.quests.rng: основной поток игры не сдвигается.
+// Случайность (вид цели внутри стиля) - свой поток на каждый год от зерна: основной поток игры не сдвигается.
 
 import { ALMOST_FRACTION, DEFAULT_STYLES, findGoal, makeOffer, type GoalDef, type GoalProgress } from '../data/goals';
-import { applyPenalty, capitalize, giveReward, penaltyText, rewardMoney, rewardText, type Reward } from '../data/questKit';
+import { applyPenalty, capitalize, giveReward, penaltyText, rewardMoney, rewardShort, rewardText, type Reward } from '../data/questKit';
 import { addMail } from './events';
 import { nextRandom } from './rng';
 import { endSentence } from './text';
@@ -38,11 +38,20 @@ export function defaultPick(offer: YearGoalState[]): YearGoalState[] {
 }
 
 /**
+ * Случайность выбора целей: свой поток на каждый год от зерна партии. Ни основной поток, ни поток задач
+ * (s.quests.rng) не сдвигаются, и цели года не зависят от того, сколько задач было до этого.
+ */
+function yearRandom(seed: number, year: number): () => number {
+  const g = { rng: (seed ^ Math.imul(year, 0x9e3779b1) ^ 0x5bd1e995) >>> 0 };
+  return () => nextRandom(g);
+}
+
+/**
  * Начало года: пять целей на выбор (s.quests.offer) и три по умолчанию сразу в работе. Пока игрок выбирает,
  * интерфейс держит время на паузе; симуляция без интерфейса (боты, тесты) остаётся с целями по умолчанию.
  */
 export function startYear(s: GameState, year: number): void {
-  const offer = makeOffer(s, year, () => nextRandom(s.quests));
+  const offer = makeOffer(s, year, yearRandom(s.seed, year));
   s.yearly.year = year;
   s.yearly.goals = defaultPick(offer).map((g) => ({ ...g }));
   s.quests.offer = offer.length > GOALS_PER_YEAR ? { year, goals: offer, open: true } : null;
@@ -224,6 +233,12 @@ export function ackYearReview(s: GameState): Result {
 export function goalRewardText(g: YearGoalState, year: number): string {
   const def = findGoal(g.id);
   return def ? rewardText(def.reward, year) : '';
+}
+
+/** Награда цели коротко («аренда -8 %») для боковой панели. */
+export function goalRewardShort(g: YearGoalState, year: number): string {
+  const def = findGoal(g.id);
+  return def ? rewardShort(def.reward, year) : '';
 }
 
 /** Штраф цели одной строкой (только риск) или ''. */

@@ -5,7 +5,7 @@ import { useSyncExternalStore } from 'react';
 import * as actions from '../sim/actions';
 import { TICK_MS } from '../sim/constants';
 import type { Difficulty } from '../sim/rivalry';
-import { unseenReview } from '../sim/goals';
+import { goalOfferOpen, goalsDay, unseenReview } from '../sim/goals';
 import { advanceDay, advanceDays, blockedByChoice } from '../sim/tick';
 import type { GameState, Result, Speed } from '../sim/types';
 import { readSlot, writeSlot, type SlotId } from './saves';
@@ -59,6 +59,7 @@ export class GameStore {
     const s = actions.newGame(labName, opts.seed ?? (Date.now() ^ 0x5eed) >>> 0, opts.difficulty ?? 'normal');
     s.founderName = (opts.founderName ?? '').trim();
     s.tutorial = { step: 0, active: opts.tutorial ?? false };
+    goalsDay(s); // цели первого года предлагаются сразу: окно выбора открывается до первого дня
     this.start(s);
   }
 
@@ -106,7 +107,7 @@ export class GameStore {
   /** Пауза/продолжение. В законченной игре и пока в почте ждёт выбор, часы не трогаем. */
   togglePause(): void {
     const s = this.state;
-    if (!s || s.outcome || blockedByChoice(s) || unseenReview(s)) return;
+    if (!s || s.outcome || blockedByChoice(s) || unseenReview(s) || goalOfferOpen(s)) return;
     this.setSpeed(this.speed === 0 ? this.lastSpeed : 0);
   }
 
@@ -124,7 +125,8 @@ export class GameStore {
       this.setSpeed(0);
       return;
     }
-    if (blockedByChoice(s) || unseenReview(s)) return; // ждём выбора в почте или закрытия итогов года, скорость сохраняется
+    // Ждём выбора в почте, закрытия итогов года или выбора целей года; скорость сохраняется.
+    if (blockedByChoice(s) || unseenReview(s) || goalOfferOpen(s)) return;
     const mark = this.markAdvance(s);
     advanceDay(s);
     this.afterAdvance(mark);
@@ -193,6 +195,9 @@ export class GameStore {
     } else if (this.speed !== 0 && unseenReview(s)) {
       this.pauseReason = 'Итоги года';
       this.setSpeed(0); // окно итогов года показывается один раз; lastSpeed сохраняется
+    } else if (this.speed !== 0 && goalOfferOpen(s)) {
+      this.pauseReason = 'Цели года';
+      this.setSpeed(0);
     } else if (mark && this.speed !== 0) {
       const reason = (getSettings().pauseOnImportant ? this.alertReason(s, mark) : null) ?? this.eventReason(s, mark);
       if (reason !== null) {

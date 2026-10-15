@@ -4,7 +4,7 @@
 // Случайность - свой поток s.quests.rng: основной поток игры не сдвигается.
 
 import { findTask, TASKS, type TaskDef, type TaskProgress } from '../data/tasks';
-import { capitalize, giveReward, rewardText } from '../data/questKit';
+import { capitalize, giveReward, rewardShort, rewardText } from '../data/questKit';
 import { addMail } from './events';
 import { nextRandom, randInt } from './rng';
 import { endSentence } from './text';
@@ -17,7 +17,7 @@ export const MAX_TASKS = 2;
 export const CLOSED_KEEP_DAYS = 30;
 /** Пауза перед следующей задачей, дней: после новой задачи и после закрытой. Подобраны так, чтобы награды задач
  *  не сдвигали баланс ботов (balance.test.ts): за год приходит около 8-10 задач. */
-const SPAWN_GAP: readonly [number, number] = [8, 16];
+const SPAWN_GAP: readonly [number, number] = [6, 12];
 const CLOSE_GAP: readonly [number, number] = [12, 24];
 /** Невыполненная задача с полоской от этой доли - «почти»: о ней приходит уведомление. */
 const NEAR_MISS = 0.7;
@@ -47,6 +47,12 @@ export function taskProgress(s: GameState, t: TaskState): TaskProgress | null {
 export function taskRewardText(t: TaskState, year: number): string {
   const def = findTask(t.kind);
   return def ? rewardText(def.reward, year) : '';
+}
+
+/** Награда задачи коротко («аренда -8 %») для боковой панели. */
+export function taskRewardShort(t: TaskState, year: number): string {
+  const def = findTask(t.kind);
+  return def ? rewardShort(def.reward, year) : '';
 }
 
 /** Сколько дней осталось, включая сегодняшний. */

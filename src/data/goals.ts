@@ -351,7 +351,7 @@ const NEW_GOALS: GoalDef[] = [
   {
     id: 'g-quality',
     style: 'race',
-    title: (_y, g) => `Модель с баллом ${benchDef(P(g) as BenchmarkId).name} от ${T(g)} %`,
+    title: (_y, g) => `Модель с баллом ${benchDef(P(g) as BenchmarkId).name} от ${T(g)} %`,
     reward: STYLE_REWARD.race,
     cheap: true,
     progress: (s, g) => {
@@ -592,7 +592,7 @@ const MAKERS: Record<GoalStyle, Maker[]> = {
     {
       id: 'm-month',
       make: (s, year, rnd) => {
-        const floor = (pickBy(REVENUE_FLOOR, year) / 12) * (2 + 0.5 * rnd());
+        const floor = (pickBy(REVENUE_FLOOR, year) / 12) * (1.6 + 0.4 * rnd());
         return { target: niceMoney(Math.max(floor, lastMonthRevenue(s) * (1.4 + 0.4 * rnd()))), base: 0 };
       },
     },
@@ -700,6 +700,9 @@ const MAKERS: Record<GoalStyle, Maker[]> = {
   ],
 };
 
+/** Рискованная цель и обычная цель с тем же показателем: вместе не предлагаются. */
+const RISK_TWIN: Record<string, string> = { 'x-share': 'k-share', 'x-revenue': 'm-revenue' };
+
 /** Порядок перебора видов внутри стиля: случайный, но последний вид - запасной (подходит почти всегда). */
 function shuffled<T>(list: T[], rnd: () => number): T[] {
   const a = [...list];
@@ -711,13 +714,16 @@ function shuffled<T>(list: T[], rnd: () => number): T[] {
 }
 
 /**
- * Пять целей на год, по одной каждого стиля. Вид цели внутри стиля выбирается случайно (rnd - свой поток задач
- * и целей, s.quests.rng), порог - от положения лаборатории. Если ни один вид стиля не подходит, стиль пропускается.
+ * Пять целей на год, по одной каждого стиля. Вид цели внутри стиля выбирается случайно (rnd - свой поток года,
+ * sim/goals.ts), порог - от положения лаборатории. Если ни один вид стиля не подходит, стиль пропускается.
  */
 export function makeOffer(s: GameState, year: number, rnd: () => number): YearGoalState[] {
   const out: YearGoalState[] = [];
   for (const style of GOAL_STYLES) {
     for (const maker of shuffled(MAKERS[style], rnd)) {
+      // Риск не повторяет показатель, который уже есть среди целей года (доля рынка, выручка за год).
+      const twin = RISK_TWIN[maker.id];
+      if (twin && out.some((g) => g.id === twin)) continue;
       const made = maker.make(s, year, rnd);
       if (!made) continue;
       const g: YearGoalState = { id: maker.id, done: false, doneDay: null, base: made.base };

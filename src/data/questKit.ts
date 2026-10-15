@@ -45,10 +45,10 @@ export function niceCount(x: number): number {
   return Math.round(x / k) * k;
 }
 
-/** «12,5 %», «8 %». */
+/** «12,5 %», «8 %»; знак процента не отрывается от числа при переносе строки. */
 export function shareText(x: number): string {
   const v = Math.round(x * 1000) / 10;
-  return `${String(v).replace('.', ',')} %`;
+  return `${String(v).replace('.', ',')} %`;
 }
 
 /** «1,3», «12»: разница в процентных пунктах без лишних нулей. */
@@ -217,6 +217,18 @@ export function rewardText(r: Reward, year: number): string {
   const span = `${days} ${ruPlural(days, 'день', 'дня', 'дней')}`;
   if (r.rentMult) parts.push(`аренда дешевле на ${pctOff(r.rentMult)} % на ${span}`);
   if (r.researchMult) parts.push(`исследования дешевле на ${pctOff(r.researchMult)} % на ${span}`);
+  return parts.join(', ');
+}
+
+/** Короткая запись награды для боковой панели: «+$150 тыс.», «+10 шумихи», «аренда -8 %». */
+export function rewardShort(r: Reward, year: number): string {
+  const parts: string[] = [];
+  const money = rewardMoney(r, year);
+  if (money > 0) parts.push(`+${usd(money)}`);
+  if (r.reputation) parts.push(`+${r.reputation} репутации`);
+  if (r.hype) parts.push(`+${r.hype} шумихи`);
+  if (r.rentMult) parts.push(`аренда -${pctOff(r.rentMult)} %`);
+  if (r.researchMult) parts.push(`исследования -${pctOff(r.researchMult)} %`);
   return parts.join(', ');
 }
 
