@@ -81,7 +81,7 @@
 .inv-table td { padding: 8px 10px; border-bottom: 1px solid var(--row-line); vertical-align: middle; }
 .inv-table tr:last-child td { border-bottom: none; }
 .inv-table tbody tr:hover td, .inv-table tbody tr:focus-within td { background: var(--row-hover); }
-.inv-t-pct { font-size: 18px; font-weight: 700; color: #1f2023; }
+.inv-t-pct { font-size: 18px; font-weight: 700; color: var(--text-title); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .inv-t-money { text-align: right; font-size: 15px; font-weight: 600; color: var(--good-ink); white-space: nowrap; }
 .inv-t-after { font-size: 14px; }
 .inv-t-after .warn { color: var(--warn); font-weight: 600; }

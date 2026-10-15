@@ -9,7 +9,7 @@
 .dos-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .dos-row-n { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .dos-row-n > span { display: flex; flex-direction: column; line-height: 1.25; }
-.dos-main-s { font-size: 12px; font-weight: 600; color: var(--warn); }
+.dos-main-s { font-size: 12px; font-weight: 600; color: var(--text-dim); }
 .dos-row-v { font-variant-numeric: tabular-nums; color: var(--text-dim); white-space: nowrap; }
 
 /* Досье. */
@@ -18,7 +18,7 @@
 .dos-title { min-width: 0; }
 .dos-title h3 { margin: 0; font-size: 22px; font-weight: 600; color: var(--text); line-height: 1.2; }
 .dos-line { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
-.dos-main { font-size: 13px; font-weight: 600; color: var(--warn); margin-top: 2px; }
+.dos-main { font-size: 13px; font-weight: 600; color: var(--text-title); margin-top: 2px; }
 
 .dos-body { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px 32px; margin-top: 16px; align-items: start; }
 .dos-score { font-size: 36px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--text); }

@@ -217,10 +217,21 @@ export function marketRows(s: GameState, snap: MarketSnapshot): MarketRow[] {
 }
 
 /** Горизонтальные полосы долей: от самой большой доли к самой маленькой. Спрос, не доставшийся никому, - отдельной строкой. */
+/** Вы и лаборатории, у которых уже вышла модель (не только анонс): остальных в долях не показываем - будущее не раскрываем. */
+function releasedOwners(s: GameState): Set<HypeOwner> {
+  const out = new Set<HypeOwner>(['player']);
+  for (const id of s.rivalsReleased) {
+    const def = findRivalDefIn(id);
+    if (def && !def.announcedOnly) out.add(def.lab);
+  }
+  return out;
+}
+
 function ShareBars({ s, snap }: { s: GameState; snap: MarketSnapshot | null }) {
-  const rows = HYPE_OWNERS.map((owner) => ({ owner, share: finite(s.market.labShares[owner]) })).sort(
-    (a, b) => b.share - a.share,
-  );
+  const shown = releasedOwners(s);
+  const rows = HYPE_OWNERS.map((owner) => ({ owner, share: finite(s.market.labShares[owner]) }))
+    .filter((r) => shown.has(r.owner) || r.share > 0)
+    .sort((a, b) => b.share - a.share);
   const none = finite(s.market.labShares.none);
   const maxShare = Math.max(0.0001, ...rows.map((r) => r.share));
   const api = snap ? snap.totalTokens : s.market.totalTokens;
@@ -372,79 +383,81 @@ function MarketTable({ s, rows }: { s: GameState; rows: MarketRow[] | null }) {
   const subs = subsOpen(s.day) || rows.some((r) => r.subsPrice !== null);
   const segs = SEGMENT_IDS.filter((id) => subs || SEGMENT_DEF[id].channel === 'api');
   return (
-    <table className="grid an-grid flat mk-grid">
-      <thead>
-        <tr className="mk-h1">
-          <th rowSpan={2} title="Название модели и лаборатория">
-            Модель
-          </th>
-          <th rowSpan={2}>Уровень</th>
-          <th rowSpan={2} className="num">
-            Эло
-          </th>
-          <th rowSpan={2} className="num" title="Длина контекста, токенов">
-            Контекст
-          </th>
-          <th colSpan={subs ? 2 : 1} className="gh" title="У соперников цена API - средняя: (3 × входные + выходные) / 4">
-            Цена
-          </th>
-          <th colSpan={segs.length} className="gh" title="Доля модели в спросе сегмента после ограничения мощностью">
-            Доля в сегменте
-          </th>
-          <th rowSpan={2} className="num" title="По всем сегментам, с весом по выручке сегментов">
-            Общая доля
-          </th>
-          <th colSpan={subs ? 2 : 1} className="gh" title="Спрос на модель до ограничения мощностью">
-            Спрос
-          </th>
-        </tr>
-        <tr>
-          <th className="num" title="Доллары за 1 млн токенов">
-            API
-          </th>
-          {subs && (
-            <th className="num" title="Доллары в месяц за пользователя">
-              Подписка
+    <div className="an-hscroll">
+      <table className="grid an-grid flat mk-grid">
+        <thead>
+          <tr className="mk-h1">
+            <th rowSpan={2} title="Название модели и лаборатория">
+              Модель
             </th>
-          )}
-          {segs.map((id) => (
-            <th key={id} className="num mk-seg" style={{ color: SEGMENT_ACCENT[id].text }}>
-              {SEGMENT_DEF[id].name}
+            <th rowSpan={2}>Уровень</th>
+            <th rowSpan={2} className="num">
+              Эло
             </th>
-          ))}
-          <th className="num">Токенов в день</th>
-          {subs && <th className="num">Пользователей</th>}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.key} className={r.owner === 'player' ? 'player' : undefined}>
-            <td>
-              <div>{r.name}</div>
-              <div className="mk-lab">
-                <i className="own-dot" style={{ background: ownerColor(r.owner) }} />
-                {ownerName(s, r.owner)}
-              </div>
-            </td>
-            <td>
-              <TierBadge tier={r.tier} plain />
-            </td>
-            <td className="num">{fmtElo(r.elo)}</td>
-            <td className="num">{ctxLabel(r.context)}</td>
-            <td className="num">{r.apiPrice !== null ? fmtPrice(r.apiPrice) : <Dash />}</td>
-            {subs && <td className="num">{r.subsPrice !== null ? fmtPrice(r.subsPrice) : <Dash />}</td>}
-            {segs.map((id) => (
-              <td key={id} className="num">
-                {r.seg[id] !== null ? fmtShare(r.seg[id] as number) : <Dash />}
-              </td>
-            ))}
-            <td className="num">{fmtShare(r.share)}</td>
-            <td className="num">{r.apiTokens !== null ? fmtNum(r.apiTokens) : <Dash />}</td>
-            {subs && <td className="num">{r.subsUsers !== null ? fmtNum(r.subsUsers) : <Dash />}</td>}
+            <th rowSpan={2} className="num" title="Длина контекста, токенов">
+              Контекст
+            </th>
+            <th colSpan={subs ? 2 : 1} className="gh" title="У соперников цена API - средняя: (3 × входные + выходные) / 4">
+              Цена
+            </th>
+            <th colSpan={segs.length} className="gh" title="Доля модели в спросе сегмента после ограничения мощностью">
+              Доля в сегменте
+            </th>
+            <th rowSpan={2} className="num" title="По всем сегментам, с весом по выручке сегментов">
+              Общая доля
+            </th>
+            <th colSpan={subs ? 2 : 1} className="gh" title="Спрос на модель до ограничения мощностью">
+              Спрос
+            </th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+          <tr>
+            <th className="num" title="Доллары за 1 млн токенов">
+              API
+            </th>
+            {subs && (
+              <th className="num" title="Доллары в месяц за пользователя">
+                Подписка
+              </th>
+            )}
+            {segs.map((id) => (
+              <th key={id} className="num mk-seg" style={{ color: SEGMENT_ACCENT[id].text }}>
+                {SEGMENT_DEF[id].name}
+              </th>
+            ))}
+            <th className="num">Токенов в день</th>
+            {subs && <th className="num">Пользователей</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.key} className={r.owner === 'player' ? 'player' : undefined}>
+              <td>
+                <div>{r.name}</div>
+                <div className="mk-lab">
+                  <i className="own-dot" style={{ background: ownerColor(r.owner) }} />
+                  {ownerName(s, r.owner)}
+                </div>
+              </td>
+              <td>
+                <TierBadge tier={r.tier} plain />
+              </td>
+              <td className="num">{fmtElo(r.elo)}</td>
+              <td className="num">{ctxLabel(r.context)}</td>
+              <td className="num">{r.apiPrice !== null ? fmtPrice(r.apiPrice) : <Dash />}</td>
+              {subs && <td className="num">{r.subsPrice !== null ? fmtPrice(r.subsPrice) : <Dash />}</td>}
+              {segs.map((id) => (
+                <td key={id} className="num">
+                  {r.seg[id] !== null ? fmtShare(r.seg[id] as number) : <Dash />}
+                </td>
+              ))}
+              <td className="num">{fmtShare(r.share)}</td>
+              <td className="num">{r.apiTokens !== null ? fmtNum(r.apiTokens) : <Dash />}</td>
+              {subs && <td className="num">{r.subsUsers !== null ? fmtNum(r.subsUsers) : <Dash />}</td>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

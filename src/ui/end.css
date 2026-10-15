@@ -17,7 +17,7 @@
 
 .end-stats { display: grid; grid-template-columns: repeat(2, max-content minmax(0, 1fr)); gap: 4px 14px; margin: 0; font-size: 14px; }
 .end-stats dt { color: var(--text-dim); white-space: nowrap; }
-.end-stats dd { margin: 0; font-weight: 600; color: var(--text-title); font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.end-stats dd { margin: 0; font-weight: 600; color: var(--text-title); font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
 
 .end-chart { padding: 8px 10px 4px; background: #fff; border: 1px solid var(--line); }
 .end-chart svg { width: 100%; height: auto; display: block; }
@@ -39,3 +39,4 @@
 .end-kv span:nth-child(even) { text-align: right; color: var(--text-title); font-variant-numeric: tabular-nums; }
 @media (max-width: 520px) { .end-stats { grid-template-columns: max-content minmax(0, 1fr); } .end-place { font-size: 32px; } }
 @media (prefers-reduced-motion: reduce) { .dialog.end { animation: none; } }
+.end-stats .nowrap { white-space: nowrap; }

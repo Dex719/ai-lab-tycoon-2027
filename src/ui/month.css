@@ -1,14 +1,13 @@
-/* Итог месяца над панелью задач (левее уведомлений): строка состояния цвета панели задач, как в PT.
+/* Итог месяца - в панели задач слева от часов: строка состояния, как в PT. Не перекрывает окна.
    Изменения - цветом значения, без стрелок-символов. */
 .month-strip {
-  position: fixed; left: 110px; bottom: 50px; z-index: 870; display: flex; align-items: center; gap: 20px;
-  max-width: calc(100vw - 110px - 370px); padding: 7px 14px; overflow: hidden; cursor: pointer;
-  background: var(--bar); color: var(--bar-text); border: 1px solid #3b3b3f; border-radius: 3px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  margin-left: auto; flex: 0 0 auto; max-width: 55%; min-width: 0; height: 34px; display: flex; align-items: center; gap: 18px;
+  padding: 0 12px; overflow: hidden; cursor: pointer; background: #2a2a2d; color: var(--bar-text); border-radius: 2px;
   animation: ms-in 3500ms ease-out forwards;
 }
+.month-strip + .task-clock { margin-left: 12px; }
 .ms-title { font-size: 14px; font-weight: 600; white-space: nowrap; }
-.ms-item { display: flex; flex-direction: column; gap: 1px; white-space: nowrap; min-width: 0; }
+.ms-item { display: flex; flex-direction: column; gap: 0; line-height: 1.15; white-space: nowrap; min-width: 0; }
 .ms-k { font-size: 11px; color: var(--bar-dim); overflow: hidden; text-overflow: ellipsis; }
 .ms-v { display: flex; align-items: baseline; gap: 6px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .ms-v small { font-size: 12px; font-weight: 600; }
@@ -23,5 +22,9 @@
   6%, 90% { opacity: 1; transform: none; }
   100% { opacity: 0; }
 }
-@media (max-width: 900px) { .month-strip { left: 12px; max-width: calc(100vw - 24px); bottom: 120px; } .ms-goal { display: none; } }
+@media (max-width: 900px) {
+  .month-strip { position: fixed; left: 12px; right: 12px; bottom: 120px; z-index: 870; height: auto; padding: 7px 12px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45); }
+  .month-strip + .task-clock { margin-left: auto; }
+  .ms-goal { display: none; }
+}
 @media (prefers-reduced-motion: reduce) { .month-strip { animation: none; } }

@@ -173,12 +173,17 @@ function daysLeftInYear(s: GameState, year: number): number {
 
 // ---------- Прогресс по видам ----------
 
+/** «$1,2 млрд из $1,2 млрд» при недоборе путает (округление): тогда пишем, сколько не хватает. */
+function ofTarget(v: number, target: number): string {
+  return v < target && usd(v) === usd(target) ? `${usd(v)}, не хватает ${usd(target - v)}` : `${usd(v)} из ${usd(target)}`;
+}
+
 function revenueProgress(s: GameState, target: number): GoalProgress {
   const v = yearRevenue(s, s.yearly.year);
   return {
     done: v >= target,
     fraction: clamp01(v / target),
-    text: `Выручка за год: ${usd(v)} из ${usd(target)}`,
+    text: `Выручка за год: ${ofTarget(v, target)}`,
     miss: `не хватило ${usd(Math.max(0, target - v))}`,
   };
 }
@@ -188,7 +193,7 @@ function monthProgress(s: GameState, target: number): GoalProgress {
   return {
     done: v >= target,
     fraction: clamp01(v / target),
-    text: `Лучший месяц года: ${usd(v)} из ${usd(target)}`,
+    text: `Лучший месяц года: ${ofTarget(v, target)}`,
     miss: `не хватило ${usd(Math.max(0, target - v))}`,
   };
 }

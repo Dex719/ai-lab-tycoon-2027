@@ -53,6 +53,9 @@ import { raceMetricOf, raceRows } from '../race';
 import { actions, store } from '../store';
 import './ModelsWindow.css';
 
+/** Части подписи модели не рвутся посередине («2 тыс.», «109 млрд»): перенос только между частями. */
+const nb = (part: string): string => part.replace(/ /g, String.fromCharCode(160));
+
 const MAX_PRICE = 10_000;
 
 /** Три готовые цены относительно типичной цены уровня модели. */
@@ -151,6 +154,11 @@ function salesOf(s: GameState, m: PlayerModel) {
     subsRevenue,
     revenue: onAny ? (apiRevenue ?? 0) + (subsRevenue ?? 0) : undefined,
   };
+}
+
+/** Есть ли в таблице гонки модели соперников: без них места не показываем. */
+function hasRivals(s: GameState, metric: RaceMetric | null): boolean {
+  return metric !== null && raceRows(s, metric).some((x) => x.owner !== 'player');
 }
 
 /** Подпись места в гонке: «Место на «Арене»» или «Место: GLUU». */
@@ -853,11 +861,12 @@ function kpisOf(s: GameState, m: PlayerModel, metric: RaceMetric | null, rank: n
   }
   const { share, revenue, apiRevenue, subsRevenue } = salesOf(s, m);
   const subsShown = subsOpen(s.day) || m.onSubs || m.earnedSubs > 0;
+  const rivals = hasRivals(s, metric);
   return [
     {
       label: placeLabel(metric),
       value: rank !== null ? `${fmtNum(rank)}-е` : '-',
-      sub: rank === null ? `Не в зачёте, Эло ${fmtElo(m.arenaElo)}` : `Эло ${fmtElo(m.arenaElo)}`,
+      sub: rank === null ? `${rivals ? 'Не в зачёте' : 'Соперников пока нет'}, Эло ${fmtElo(m.arenaElo)}` : `Эло ${fmtElo(m.arenaElo)}`,
       title: `${placeTitle(metric)} Подгонка под тесты Эло не повышает.`,
       tone: rank === 1 ? 'gold' : undefined,
     },
@@ -935,7 +944,7 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
   const forecast = s.research.done.includes('scaling')
     ? forecastElo(capsFromPlan(t.plan, t.algoLevel, t.arch, t.failPenalty, t.techs ?? []), t.plan.rlhf, t.algoLevel, t.techs ?? [])
     : null;
-  const sub = [t.arch === 'transformer' ? 'Трансформер' : 'LSTM', `${fmtParams(t.plan.paramsB)} параметров`, `контекст ${contextLabel(t.plan.context)}`].join(' · ');
+  const sub = [t.arch === 'transformer' ? 'Трансформер' : 'LSTM', `${fmtParams(t.plan.paramsB)} параметров`, `контекст ${contextLabel(t.plan.context)}`].map(nb).join(' · ');
   const items: Kpi[] = [
     { label: 'Готово', value: fmtShare(frac, 0) },
     {
@@ -1007,6 +1016,7 @@ function ModelCard(props: { s: GameState; m: PlayerModel; open: WindowProps['ope
   const rv = reviewState(m);
   const sub = [m.arch === 'transformer' ? 'Трансформер' : 'LSTM', `${fmtParams(m.plan.paramsB)} параметров`, `контекст ${contextLabel(m.plan.context)}`, m.rlhf ? 'RLHF' : '']
     .filter(Boolean)
+    .map(nb)
     .join(' · ');
 
   return (
@@ -1065,7 +1075,8 @@ export default function ModelsWindow({ s, open }: WindowProps) {
   const metric = raceMetricOf(s);
   // Места моделей игрока в гонке; золотая рамка - у модели, которая держит 1-е место.
   const places = new Map<string, number>();
-  for (const x of metric ? raceRows(s, metric) : []) if (x.row.ref.kind === 'player' && x.rank !== null) places.set(x.row.ref.id, x.rank);
+  // Без соперников в таблице места нет: верхняя панель в это время пишет «Соперников пока нет».
+  if (hasRivals(s, metric)) for (const x of raceRows(s, metric!)) if (x.row.ref.kind === 'player' && x.rank !== null) places.set(x.row.ref.id, x.rank);
   const champion = models.find((m) => places.get(m.id) === 1)?.id ?? null;
 
   return (

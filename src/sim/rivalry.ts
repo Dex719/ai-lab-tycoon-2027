@@ -819,6 +819,12 @@ export interface Threat {
   hint: string; // главный сигнал: «вы дешевле на 40 %»
 }
 
+/** Доля рынка в процентах для подписи: до 10 % - с десятыми («0,4»), как в окнах. */
+function sharePct(v: number): string {
+  const p = v * 100;
+  return p < 10 ? String(Math.round(p * 10) / 10).replace('.', ',') : String(Math.round(p));
+}
+
 /**
  * Угроза игрока для лаборатории: 0,35 × доля + 0,25 × Эло + 0,2 × [игрок дешевле новейшей модели на 30 %] +
  * 0,2 × [игрок в тройке на Арене среди моделей по API].
@@ -841,7 +847,7 @@ export function threatOf(s: RivalryGame, lab: LabId): Threat {
   let hint = 'угрозы не видит';
   const top = Math.max(share, elo, price, rank);
   if (top > 0) {
-    if (top === share) hint = `ваша доля выше на ${Math.max(1, Math.round((shareP - shareL) * 100))} п.п.`;
+    if (top === share) hint = `ваша доля рынка ${sharePct(shareP)} % против их ${sharePct(shareL)} %`;
     else if (top === elo) hint = `ваше Эло выше на ${Math.max(1, Math.round(eloP - eloL))}`;
     else if (top === price && newest && cheapest !== null) hint = `вы дешевле на ${Math.round((1 - cheapest / newest.price) * 100)} %`;
     else hint = 'вы в тройке на «Арене»';
@@ -1516,7 +1522,7 @@ function fireMove(s: RivalryGame, p: PendingMove): void {
   if (text === null) {
     addMail(s, {
       kind: 'rival',
-      title: `Слухи о ${labName(p.lab)} не подтвердились`,
+      title: `Слухи ${/^[aeiouаеёиоуыэюя]/i.test(labName(p.lab)) ? 'об' : 'о'} ${labName(p.lab)} не подтвердились`,
       body: `${labName(p.lab)} отказалась от хода «${moveName(p.move)}»: обстоятельства изменились.`,
     });
     return;

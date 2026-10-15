@@ -306,13 +306,13 @@ export function Game({ s }: { s: GameState }) {
             </button>
           );
         })}
+        <MonthStrip s={s} />
         <div className="task-clock">{clock}</div>
       </footer>
     </div>
 
       <Toasts s={s} open={open} />
       <ArenaBanner s={s} open={open} />
-      <MonthStrip s={s} />
       <AchievementToasts s={s} />
       <Juice s={s} onRelease={setReleased} />
       {released && <ReleaseCard s={s} modelId={released} onClose={closeReleased} />}

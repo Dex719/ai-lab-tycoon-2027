@@ -411,7 +411,7 @@ function TenderCard(props: {
             label: 'Шанс победы',
             value: chance === null ? '-' : fmtShare(chance, 0),
             tone: chanceTone(chance),
-            sub: app ? 'заявка подана' : model ? `модель «${model.name}»` : released.length === 0 ? 'нет выпущенных моделей' : 'нет подходящей модели',
+            sub: app ? 'заявка подана' : model ? `модель «${model.name}»` : released.length === 0 ? 'моделей ещё нет' : 'модель не подходит',
           },
           { label: 'Срок работы', value: fmtDays(t.durationDays), sub: `решение через ${fmtDays(decide)}` },
         ]}

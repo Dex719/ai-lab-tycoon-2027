@@ -140,13 +140,14 @@ body:has(.menu-screen) .modal-backdrop { background: rgba(0, 0, 0, 0.94); }
 .task-start:hover, .task-start.on { background: rgba(255, 255, 255, 0.1); }
 .task-sep { width: 1px; height: 24px; background: #3b3b3f; margin: 0 4px; }
 .task-win {
-  height: 32px; display: flex; align-items: center; gap: 6px; padding: 0 10px 0 6px; max-width: 180px;
+  height: 32px; display: flex; align-items: center; gap: 6px; padding: 0 10px 0 6px; min-width: 0; max-width: 180px;
   background: none; border: none; border-bottom: 2px solid transparent; color: var(--bar-text); cursor: pointer; font-size: 13px;
 }
 .task-win:hover { background: rgba(255, 255, 255, 0.07); }
 .task-win.active { border-bottom-color: var(--accent); background: rgba(255, 255, 255, 0.06); }
 .task-win.min { opacity: 0.6; }
 .task-win span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.task-win svg { flex: none; }
 .task-clock { margin-left: auto; font-size: 14px; color: var(--bar-text); }
 .start-menu {
   position: absolute; bottom: 44px; left: 6px; width: 240px; padding: 6px 0; background: #2a2a2d; border-radius: 3px;

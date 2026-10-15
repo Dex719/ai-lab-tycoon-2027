@@ -137,7 +137,7 @@ function TeamsTab({ s }: { s: GameState }) {
               {hireDef.name}, {hireDef.leader}
             </span>
             <span>Подъёмные сейчас</span>
-            <span className="bad">-{fmtMoney(hireDef.signing)}</span>
+            <span className="bad">{fmtMoney(-hireDef.signing)}</span>
             <span>Зарплата</span>
             <span>{fmtMoney(hireDef.salary)} в месяц</span>
             <span>Эффект</span>
@@ -259,7 +259,7 @@ function StartupsTab({ s }: { s: GameState }) {
             <span>Стартап</span>
             <span>{buyDef.name}</span>
             <span>Цена</span>
-            <span className="bad">-{fmtMoney(buyDef.price)}</span>
+            <span className="bad">{fmtMoney(-buyDef.price)}</span>
             <span>Эффект</span>
             <span className="good">{buyDef.effect}</span>
             <span>Срок действия</span>
@@ -408,7 +408,7 @@ function CloudTab({ s }: { s: GameState }) {
             <span>Партнёр</span>
             <span>{def.name}</span>
             <span>Плата за расторжение</span>
-            <span className="bad">-{fmtMoney(fee)}</span>
+            <span className="bad">{fmtMoney(-fee)}</span>
             <span>Скидка и лимит</span>
             <span>пропадут сразу</span>
           </div>

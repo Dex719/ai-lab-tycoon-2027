@@ -142,7 +142,15 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
             <dt>Месяцев на 1-м месте</dt>
             <dd>{fmtNum(months)}</dd>
             <dt>Лучшая модель</dt>
-            <dd>{best ? `${best.name}, ${fmtElo(best.elo)} Эло` : 'моделей не было'}</dd>
+            <dd>
+              {best ? (
+                <>
+                  {best.name}, <span className="nowrap">{fmtElo(best.elo)} Эло</span>
+                </>
+              ) : (
+                'моделей не было'
+              )}
+            </dd>
             <dt>Моделей выпущено</dt>
             <dd>{released}</dd>
             <dt>Оценка компании</dt>
