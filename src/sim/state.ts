@@ -54,6 +54,12 @@ export function emptyYearly(seed: number, day = 0): GameState['yearly'] {
   return { year: 0, goals: [], reviews: [], rng, nextEventDay: day + 75, eventUnit: 0, lastFired: {} };
 }
 
+/** Задачи и выбор целей: свой поток случайных чисел от зерна; первая задача - через 5 дней. */
+export function emptyQuests(seed: number, day = 0): GameState['quests'] {
+  const rng = (seed ^ 0x2545f491) >>> 0;
+  return { rng, tasks: [], nextTaskDay: day + 5, nextTaskNum: 1, done: 0, failed: 0, tendersWon: 0, knownContracts: [], offer: null };
+}
+
 export function createInitialState(labName: string, seed: number, difficulty: Difficulty = 'normal'): GameState {
   const hype = Object.fromEntries(HYPE_OWNERS.map((o) => [o, 0])) as Record<HypeOwner, number>;
   const benchmarks = Object.fromEntries(
@@ -97,6 +103,7 @@ export function createInitialState(labName: string, seed: number, difficulty: Di
     difficulty,
     rivalry: emptyRivalry(),
     yearly: emptyYearly(seed),
+    quests: emptyQuests(seed),
     market: emptyMarket(),
   };
 }

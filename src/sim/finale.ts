@@ -43,7 +43,7 @@ interface FinaleDef {
 export const FINALE: Record<Difficulty, FinaleDef> = {
   easy: { notice: 45, margin: 3, cap: 10, maxPushes: 1, perCheck: 1 },
   normal: { notice: 30, margin: 6, cap: 20, maxPushes: 2, perCheck: 1 },
-  hard: { notice: 21, margin: 8, cap: 30, maxPushes: 3, perCheck: 2 },
+  hard: { notice: 21, margin: 8, cap: 40, maxPushes: 3, perCheck: 2 },
 };
 
 /** Объявляются модели каталога не слабее лучшей модели игрока минус столько Эло. */
