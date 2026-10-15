@@ -44,6 +44,8 @@
   .mo-cols { grid-template-columns: 1fr; }
   .mo-art svg { max-height: 110px; }
   .mo-headline { font-size: 28px; }
+  .mo-paper { padding: 16px 18px 14px; }
+  .mo-mast { font-size: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { .mo-paper { animation: none; } }
 
