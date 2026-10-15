@@ -195,7 +195,9 @@ export function DeskScene({ s, open }: { s: GameState; open: (id: WindowId | Win
   let place: number | null = null;
   let best: PlayerModel | undefined;
   if (metric) {
-    const mine = raceRows(s, metric).find((x) => x.owner === 'player' && x.rank !== null);
+    const rows = raceRows(s, metric);
+    // Без соперников в таблице места нет (как на верхней панели: «Соперников пока нет»).
+    const mine = rows.some((x) => x.owner !== 'player') ? rows.find((x) => x.owner === 'player' && x.rank !== null) : undefined;
     if (mine) {
       place = mine.rank;
       best = s.models.find((m) => m.id === mine.row.ref.id);
