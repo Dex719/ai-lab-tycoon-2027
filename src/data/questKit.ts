@@ -13,7 +13,7 @@ import { formatDateShort } from '../sim/time';
 import { modelScore, trainingPoolPerRun } from '../sim/training';
 import { TRAIN_FLOP_PER_H100E_DAY } from '../sim/constants';
 import type { BenchmarkId, GameState, IncomeKind, MonthLedger } from '../sim/types';
-import { amountForYear, usd } from './eventKit';
+import { amountForYear, eloText, usd } from './eventKit';
 
 export const clamp01 = (x: number): number => Math.max(0, Math.min(1, Number.isFinite(x) ? x : 0));
 const clamp100 = (x: number): number => Math.max(0, Math.min(100, x));
@@ -114,7 +114,7 @@ export function gapText(key: RaceKey, gap: number, genitive = false): string {
 
 /** «1 234 Эло» или «88,4 %». */
 export function raceValueText(key: RaceKey, v: number): string {
-  return key === 'arena' ? `${Math.round(v)} Эло` : `${String(Math.round(v * 10) / 10).replace('.', ',')} %`;
+  return key === 'arena' ? `${eloText(v)} Эло` : `${String(Math.round(v * 10) / 10).replace('.', ',')} %`;
 }
 
 export function safeStanding(s: GameState): ArenaStanding | null {

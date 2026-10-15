@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialState } from '../sim/state';
 import { fmtMoney } from '../ui/format';
-import { finishRollLog, roll, startRollLog, usd } from './eventKit';
+import { eloText, finishRollLog, roll, startRollLog, usd } from './eventKit';
 
 describe('исход выбора со случайностью', () => {
   it('без записи бросков исхода нет', () => {
@@ -32,5 +32,12 @@ describe('usd: суммы в письмах и целях', () => {
     }
     expect(usd(194_900)).toBe('$195 тыс.');
     expect(usd(-40_000)).toBe('-$40 тыс.');
+  });
+});
+
+describe('eloText: Эло в целях и задачах', () => {
+  it('с разрядами, как fmtElo в окнах', () => {
+    expect(eloText(987.4)).toBe('987');
+    expect(eloText(1294.4).replace(/\s/g, ' ')).toBe('1 294');
   });
 });

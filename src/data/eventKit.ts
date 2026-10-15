@@ -20,6 +20,11 @@ export function usd(n: number): string {
   return `${sign}$${dec(a / 1e9, a < 1e11 ? 1 : 0)} млрд`;
 }
 
+/** Эло целым с разрядами, как в окнах (fmtElo): «987», «1 294». */
+export function eloText(n: number): string {
+  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+}
+
 /** Базовая сумма случайных писем по годам: растёт вместе с деньгами в игре, чтобы суммы не были смешными в 2024-м. */
 const UNIT_BY_YEAR: Record<number, number> = {
   2017: 100_000,

@@ -14,7 +14,7 @@ import { ruPlural } from '../sim/text';
 import { dateToDay, yearOf } from '../sim/time';
 import { archFor, capsFromPlan, modelScore, tierPreset } from '../sim/training';
 import type { BenchmarkId, GameState, TechId, YearGoalState } from '../sim/types';
-import { usd } from './eventKit';
+import { eloText, usd } from './eventKit';
 import {
   clamp01,
   closeGapOf,
@@ -396,7 +396,7 @@ const NEW_GOALS: GoalDef[] = [
   {
     id: 'g-elo',
     style: 'race',
-    title: (_y, g) => `Модель с Эло от ${T(g)} на «Арене»`,
+    title: (_y, g) => `Модель с Эло от ${eloText(T(g))} на «Арене»`,
     reward: STYLE_REWARD.race,
     cheap: true,
     progress: (s, g) => {
@@ -407,14 +407,14 @@ const NEW_GOALS: GoalDef[] = [
       return {
         done: v >= t,
         fraction: clamp01(1 - gap / Math.max(1, t - g.base)),
-        text: `Лучшая модель: ${Math.round(v)} Эло из ${t}`,
+        text: `Лучшая модель: ${eloText(v)} Эло из ${eloText(t)}`,
         miss: `не хватило ${gapText('arena', gap, true)}`,
         almost: gap <= closeGapOf('arena'),
       };
     },
     hint: (s) => {
       const v = myRaceValue(s, 'arena');
-      return v === null ? 'Нет моделей в продаже' : `Лучшая модель сейчас: ${Math.round(v)} Эло`;
+      return v === null ? 'Нет моделей в продаже' : `Лучшая модель сейчас: ${eloText(v)} Эло`;
     },
   },
   // Исследования
