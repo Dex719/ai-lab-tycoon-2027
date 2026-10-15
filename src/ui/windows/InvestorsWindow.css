@@ -17,7 +17,7 @@
 /* Шкала контроля: заливка - доля основателя, серое - у инвесторов, отметки 25 % и 50 %. */
 .inv-own { flex: none; padding: 10px 20px 10px; background: var(--panel); border-bottom: 1px solid var(--line); }
 .inv-ctl-bar { position: relative; height: 16px; background: #a9aeb6; }
-.inv-ctl-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--c-green); transition: width 200ms ease-out; }
+.inv-ctl-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--c-green); }
 .inv-ctl-bar.warn .inv-ctl-fill { background: #c99a1a; }
 .inv-ctl-bar.bad .inv-ctl-fill { background: var(--c-red); }
 /* Часть доли, которая уйдёт инвесторам при выбранном раунде. */
@@ -104,6 +104,3 @@
   .inv-col { padding: 12px; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .inv-ctl-fill { transition: none; }
-}

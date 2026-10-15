@@ -157,7 +157,7 @@ function riskOf(info: ContractInfo): string | null {
 function tenderFit(s: GameState, t: Tender, released: PlayerModel[]): { text: string; tone: string } {
   if (t.application) return { text: `заявка подана, шанс ${fmtShare(t.application.chance, 0)}`, tone: 'applied' };
   const ok = suitableModels(s, t, released);
-  if (ok.length === 0) return { text: 'нет подходящей модели', tone: 'none' };
+  if (ok.length === 0) return { text: released.length === 0 ? 'нет выпущенных моделей' : 'нет подходящей модели', tone: 'none' };
   const c = applyChance(s, t, ok[0]);
   return { text: `шанс ${fmtShare(c, 0)}`, tone: chanceTone(c) };
 }
@@ -411,7 +411,7 @@ function TenderCard(props: {
             label: 'Шанс победы',
             value: chance === null ? '-' : fmtShare(chance, 0),
             tone: chanceTone(chance),
-            sub: app ? 'заявка подана' : model ? `модель «${model.name}»` : 'нет подходящей модели',
+            sub: app ? 'заявка подана' : model ? `модель «${model.name}»` : released.length === 0 ? 'нет выпущенных моделей' : 'нет подходящей модели',
           },
           { label: 'Срок работы', value: fmtDays(t.durationDays), sub: `решение через ${fmtDays(decide)}` },
         ]}
