@@ -2,12 +2,13 @@
 
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ComponentType } from 'react';
 import { openChoices, pendingChoice, unreadCount } from '../sim/events';
-import { unseenReview } from '../sim/goals';
+import { goalOfferOpen, unseenReview } from '../sim/goals';
 import type { GameState } from '../sim/types';
 import { ChoiceModal } from './ChoiceModal';
 import { Dialog, isFresh } from './components/common';
 import { EndDialog } from './EndDialog';
 import { YearReviewModal } from './YearReviewModal';
+import { GoalChoiceModal } from './GoalChoice';
 import { IconExit, IconFolder, IconGear, IconLogo, IconSave, IconTrophy } from './icons';
 import { formatDateShort } from '../sim/time';
 import { SettingsDialog, SlotsDialog } from './MainMenu';
@@ -181,7 +182,7 @@ export function Game({ s }: { s: GameState }) {
   const newTenders = s.tenders.filter((t) => !t.application && t.appearedDay > contractsSeenDay).length;
   const showEnd = !!s.outcome && watched !== s;
   // Пока открыт выбор в письме, итог или диалог, остальной интерфейс закрыт для кликов и клавиатуры.
-  const blocked = showEnd || pendingChoice(s) !== null || dialog !== null || (!s.outcome && unseenReview(s) !== null);
+  const blocked = showEnd || pendingChoice(s) !== null || dialog !== null || (!s.outcome && (unseenReview(s) !== null || goalOfferOpen(s)));
 
   function iconCount(id: WindowId): number {
     if (id === 'mail') return unread;
@@ -317,6 +318,7 @@ export function Game({ s }: { s: GameState }) {
       <ChoiceModal s={s} />
       <Moments s={s} />
       {!s.outcome && !pendingChoice(s) && <YearReviewModal s={s} />}
+      {!s.outcome && !pendingChoice(s) && <GoalChoiceModal s={s} />}
       {showEnd && <EndDialog s={s} onWatch={() => setWatched(s)} />}
       {dialog === 'save' && <SlotsDialog mode="save" onClose={() => setDialog(null)} />}
       {dialog === 'load' && <SlotsDialog mode="load" onClose={() => setDialog(null)} />}

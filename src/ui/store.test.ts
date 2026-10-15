@@ -10,6 +10,7 @@ vi.mock('../sim/tick', async (importOriginal) => {
 
 import { newGame } from '../sim/actions';
 import { addMail } from '../sim/events';
+import { chooseGoals, goalOfferOpen, goalsDay } from '../sim/goals';
 import * as tick from '../sim/tick';
 import type { GameState } from '../sim/types';
 import { setSettings } from './settings';
@@ -23,6 +24,9 @@ const advanceDay = vi.mocked(tick.advanceDay);
 function newStore(): { store: GameStore; s: GameState } {
   const store = new GameStore();
   const s = newGame('Тест', 7);
+  // Цели первого года уже выбраны: иначе первый день партии останавливает время окном выбора целей.
+  goalsDay(s);
+  chooseGoals(s, s.yearly.goals.map((g) => g.id));
   store.start(s);
   return { store, s };
 }
@@ -258,5 +262,36 @@ describe('автопауза по галочкам настроек', () => {
     vi.advanceTimersByTime(500);
     expect(store.speed).toBe(1);
     store.setSpeed(0);
+  });
+});
+
+describe('выбор целей года', () => {
+  it('новая партия сразу предлагает цели 2017 года: время стоит, пока цели не выбраны', () => {
+    const store = new GameStore();
+    store.newGame('Тест', { seed: 3 });
+    const s = store.state!;
+    expect(goalOfferOpen(s)).toBe(true);
+    store.togglePause();
+    expect(store.speed).toBe(0);
+    store.setSpeed(1);
+    vi.advanceTimersByTime(2000);
+    expect(s.day).toBe(0);
+    store.setSpeed(0);
+    store.dispatch(chooseGoals, s.yearly.goals.map((g) => g.id));
+    store.togglePause();
+    vi.advanceTimersByTime(1000);
+    expect(s.day).toBeGreaterThan(0);
+    store.setSpeed(0);
+  });
+
+  it('если цели предложены во время хода (сохранение с первого дня), игра встаёт на паузу с причиной', () => {
+    const store = new GameStore();
+    const s = newGame('Тест', 7);
+    store.start(s);
+    store.setSpeed(1);
+    vi.advanceTimersByTime(500);
+    expect(goalOfferOpen(s)).toBe(true);
+    expect(store.speed).toBe(0);
+    expect(store.pauseReason).toBe('Цели года');
   });
 });
