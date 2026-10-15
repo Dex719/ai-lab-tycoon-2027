@@ -4,6 +4,7 @@ import { botAct, type BotKind } from './sim/bots';
 import { applyChoice, pendingChoice } from './sim/events';
 import { advanceDay } from './sim/tick';
 import { App } from './ui/App';
+import { initMusic } from './ui/music';
 import { initRealNames } from './ui/realNamesDom';
 import { actions, store } from './ui/store';
 import './ui/theme.css';
@@ -46,6 +47,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 initRealNames();
+initMusic();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

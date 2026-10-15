@@ -13,7 +13,8 @@ import { fmtRank } from './labels';
 import { deleteSlot, exportCode, formatSavedAt, importCode, latestSlot, listSlots, MANUAL_SLOTS, type SlotId, type SlotInfo } from './saves';
 import { AchievementsDialog } from './Achievements';
 import { applyRealNames } from './realNamesDom';
-import { playSound } from './sound';
+import { musicSettingsChanged } from './music';
+import { applySfxVolume, playSound } from './sound';
 import { getSettings, setSettings } from './settings';
 import { store } from './store';
 
@@ -361,7 +362,7 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
 
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [settings, set] = useState(getSettings);
-  const toggle = (k: Exclude<keyof typeof settings, 'volume'>) => set(setSettings({ [k]: !settings[k] }));
+  const toggle = (k: Exclude<keyof typeof settings, 'volume' | 'music'>) => set(setSettings({ [k]: !settings[k] }));
   return (
     <Dialog
       title="Настройки"
@@ -416,24 +417,48 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           <span>Оригинальные названия</span>
         </label>
         <div className="small muted">Показывает настоящие названия компаний, моделей и тестов. Сохранения не меняются.</div>
-        <label className="row" style={{ gap: 10 }}>
-          <span>Громкость звука</span>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={Math.round(settings.volume * 100)}
-            onChange={(e) => set(setSettings({ volume: Number(e.target.value) / 100 }))}
-            onPointerUp={() => playSound('coin')}
-            onKeyUp={() => playSound('coin')}
-            style={{ flex: 1 }}
-          />
-          <span style={{ width: 44, textAlign: 'right' }}>{settings.volume > 0 ? `${Math.round(settings.volume * 100)} %` : 'Выкл.'}</span>
-        </label>
+        <div className="settings-h">Звук</div>
+        <VolumeRow
+          label="Музыка"
+          value={settings.music}
+          onChange={(v) => {
+            set(setSettings({ music: v }));
+            musicSettingsChanged();
+          }}
+        />
+        <VolumeRow
+          label="Звуки"
+          value={settings.volume}
+          onChange={(v) => {
+            set(setSettings({ volume: v }));
+            applySfxVolume();
+          }}
+          onRelease={() => playSound('coin')}
+        />
         <div className="small muted">Управление: пробел - пауза. Кнопки скорости - на верхней панели.</div>
       </div>
     </Dialog>
+  );
+}
+
+/** Ползунок громкости 0-100 % с шагом 5; 0 - «Выкл.». */
+function VolumeRow({ label, value, onChange, onRelease }: { label: string; value: number; onChange: (v: number) => void; onRelease?: () => void }) {
+  return (
+    <label className="row" style={{ gap: 10 }}>
+      <span style={{ width: 64 }}>{label}</span>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={5}
+        value={Math.round(value * 100)}
+        onChange={(e) => onChange(Number(e.target.value) / 100)}
+        onPointerUp={onRelease}
+        onKeyUp={onRelease}
+        style={{ flex: 1 }}
+      />
+      <span style={{ width: 44, textAlign: 'right' }}>{value > 0 ? `${Math.round(value * 100)} %` : 'Выкл.'}</span>
+    </label>
   );
 }
 
