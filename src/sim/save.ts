@@ -427,7 +427,7 @@ const late = shapeOf<LateState>({
 });
 
 // Личное соперничество (sim/duel.ts): счёт обгонов, главный соперник.
-const duelLab = shapeOf<DuelLab>({ passedYou: int, youPassed: int, moves: int, lastDay: nullable(num) });
+const duelLab = shapeOf<DuelLab>({ passedYou: int, youPassed: int, moves: int, lastDay: nullable(num), letters: int });
 
 const duel = shapeOf<DuelState>({
   labs: record(LAB_IDS, duelLab),

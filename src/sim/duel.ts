@@ -19,6 +19,8 @@ export interface DuelLab {
   moves: number;
   /** День последнего обгона в любую сторону; null - обгонов не было. */
   lastDay: number | null;
+  /** Сколько писем лаборатория вам написала. */
+  letters: number;
 }
 
 export interface DuelState {
@@ -42,7 +44,7 @@ export const MAIN_RIVAL_MIN = 3;
 export const DUEL_LETTER_GAP = 75;
 
 function emptyLab(): DuelLab {
-  return { passedYou: 0, youPassed: 0, moves: 0, lastDay: null };
+  return { passedYou: 0, youPassed: 0, moves: 0, lastDay: null, letters: 0 };
 }
 
 export function emptyDuel(): DuelState {
@@ -119,7 +121,7 @@ type LetterText = { title: string; body: (v: LetterVars) => string };
 const LETTERS: Record<LabId, Record<LetterKind, LetterText[]>> = {
   openbrain: {
     passedYou: [
-      { title: 'мы снова впереди', body: (v) => `${v.their} теперь выше ${v.yours} на ${v.race}. Спасибо, что держите темп. Мы его тоже держим.` },
+      { title: 'мы впереди', body: (v) => `${v.their} теперь выше ${v.yours} на ${v.race}. Спасибо, что держите темп. Мы его тоже держим.` },
       { title: 'ничего личного', body: (v) => `${v.their} снова впереди ${v.yours}. Ничего личного, просто следующий релиз.` },
     ],
     youPassed: [
@@ -222,6 +224,7 @@ function sendLetter(s: GameState, d: DuelState, lab: LabId, kind: LetterKind, v:
   const t = letterText(lab, kind, { ...v, you, You: you[0].toUpperCase() + you.slice(1), of }, n);
   addMail(s, { kind: 'rival', title: t.title, body: t.body, from: lab });
   d.letterDay = s.day;
+  d.labs[lab].letters += 1;
 }
 
 function letterDue(s: GameState, d: DuelState): boolean {
@@ -311,12 +314,15 @@ export function duelDay(s: GameState): void {
     return;
   }
 
-  // Письмо главного соперника после обгона в его сторону или в вашу.
+  // Письмо после обгона в любую сторону: главный соперник пишет каждый раз, остальные - только в первый
+  // (знакомство с характером лаборатории). Все письма - не чаще DUEL_LETTER_GAP дней.
+  if (!st || !letterDue(s, d)) return;
   const main = d.main;
-  if (!main || !st || !letterDue(s, d)) return;
+  const speaker = [main, ...LAB_IDS].find((l): l is LabId => !!l && (lost.has(l) || passed.has(l)) && (l === main || d.labs[l].letters === 0));
+  if (!speaker) return;
   const v = { yours: st.modelName, race: raceWhere(st.metric) };
-  const their = lost.get(main);
-  const mine = passed.get(main);
-  if (their) sendLetter(s, d, main, 'passedYou', { ...v, their: their.name }, d.labs[main].passedYou - 1);
-  else if (mine) sendLetter(s, d, main, 'youPassed', { ...v, their: mine.name }, d.labs[main].youPassed - 1);
+  const their = lost.get(speaker);
+  const mine = passed.get(speaker);
+  if (their) sendLetter(s, d, speaker, 'passedYou', { ...v, their: their.name }, d.labs[speaker].passedYou - 1);
+  else if (mine) sendLetter(s, d, speaker, 'youPassed', { ...v, their: mine.name }, d.labs[speaker].youPassed - 1);
 }
