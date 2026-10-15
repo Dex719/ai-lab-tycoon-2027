@@ -1522,7 +1522,7 @@ function fireMove(s: RivalryGame, p: PendingMove): void {
   if (text === null) {
     addMail(s, {
       kind: 'rival',
-      title: `Слухи о ${labName(p.lab)} не подтвердились`,
+      title: `Слухи ${/^[aeiouаеёиоуыэюя]/i.test(labName(p.lab)) ? 'об' : 'о'} ${labName(p.lab)} не подтвердились`,
       body: `${labName(p.lab)} отказалась от хода «${moveName(p.move)}»: обстоятельства изменились.`,
     });
     return;
