@@ -59,6 +59,8 @@ function MoneyPopup({ s }: { s: GameState }) {
   );
 }
 
+const SPEED_KEYS: Record<string, Speed> = { Digit1: 1, Digit2: 2, Digit3: 4, Numpad1: 1, Numpad2: 2, Numpad3: 4 };
+
 export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; phone: boolean; sheetOpen: boolean; onToggleSheet: () => void }) {
   const speed = useSpeed();
   const [hover, setHover] = useState(false);
@@ -68,8 +70,16 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
     function onKey(e: KeyboardEvent) {
       const target = e.target instanceof HTMLElement ? e.target : null;
       const tag = target?.tagName;
-      if (e.code !== 'Space' || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      // Пробел - пауза; 1, 2, 3 - скорость ×1, ×2, ×4.
+      const speedKey = SPEED_KEYS[e.code];
+      if ((e.code !== 'Space' && speedKey === undefined) || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (e.repeat || e.ctrlKey || e.altKey || e.metaKey) return;
+      if (speedKey !== undefined) {
+        if (target?.closest('[aria-modal="true"]')) return;
+        e.preventDefault();
+        store.setSpeed(speedKey);
+        return;
+      }
       // Пробел на кнопке или ссылке нажимает её, а не ставит паузу.
       if (target?.closest('button, a[href], [role="button"], [role="menuitem"]')) return;
       if (target?.closest('[aria-modal="true"]')) return;

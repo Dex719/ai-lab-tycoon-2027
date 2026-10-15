@@ -397,8 +397,18 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
   );
 }
 
+type SettingsTab = 'game' | 'screen' | 'sound' | 'keys';
+const SETTINGS_TABS: { id: SettingsTab; name: string }[] = [
+  { id: 'game', name: 'Игра' },
+  { id: 'screen', name: 'Экран' },
+  { id: 'sound', name: 'Звук' },
+  { id: 'keys', name: 'Управление' },
+];
+
+/** Настройки по разделам: слева список разделов, справа один раздел; высота окна постоянная. */
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [settings, set] = useState(getSettings);
+  const [tab, setTab] = useState<SettingsTab>('game');
   const toggle = (k: Exclude<keyof typeof settings, 'volume' | 'music' | 'fps' | 'quality3d'>) => set(setSettings({ [k]: !settings[k] }));
   return (
     <Dialog
@@ -411,75 +421,112 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         </button>
       }
     >
-      <div className="settings-grid">
-      <div className="col" style={{ gap: 12 }}>
-        <div className="settings-h">Пауза, когда</div>
-        <label className="row">
-          <input type="checkbox" checked={settings.pauseOnImportant} onChange={() => toggle('pauseOnImportant')} />
-          <span title="Решение в почте, деньги кончились, провал контракта">пришло важное письмо</span>
-        </label>
-        <label className="row">
-          <input type="checkbox" checked={settings.pauseOnReady} onChange={() => toggle('pauseOnReady')} />
-          <span>модель обучена</span>
-        </label>
-        <label className="row">
-          <input type="checkbox" checked={settings.pauseOnResearch} onChange={() => toggle('pauseOnResearch')} />
-          <span>исследование завершено</span>
-        </label>
-        <label className="row">
-          <input type="checkbox" checked={settings.pauseOnTender} onChange={() => toggle('pauseOnTender')} />
-          <span>выигран тендер</span>
-        </label>
-        <label className="row">
-          <input type="checkbox" checked={settings.pauseOnGoal} onChange={() => toggle('pauseOnGoal')} />
-          <span>выполнена цель года</span>
-        </label>
-        <div className="settings-h">Прочее</div>
-        <label className="row">
-          <input type="checkbox" checked={settings.pauseOnHidden} onChange={() => toggle('pauseOnHidden')} />
-          <span>{desktop ? 'Пауза, когда окно игры свёрнуто' : 'Пауза, когда вкладка браузера скрыта'}</span>
-        </label>
-        <label className="row">
-          <input type="checkbox" checked={settings.toasts} onChange={() => toggle('toasts')} />
-          <span>Всплывающие уведомления</span>
-        </label>
-        <label className="row">
-          <input
-            type="checkbox"
-            checked={settings.realNames}
-            onChange={() => {
-              const next = setSettings({ realNames: !settings.realNames });
-              set(next);
-              applyRealNames(next.realNames);
-            }}
-          />
-          <span>Оригинальные названия</span>
-        </label>
-        <div className="small muted">Показывает настоящие названия компаний, моделей и тестов. Сохранения не меняются.</div>
-        <div className="small muted">Управление: пробел - пауза. Кнопки скорости - на верхней панели.</div>
-      </div>
-      <div className="col" style={{ gap: 12 }}>
-        <div className="settings-h">Экран</div>
-        <ScreenSettings />
-        <div className="settings-h">Звук</div>
-        <VolumeRow
-          label="Музыка"
-          value={settings.music}
-          onChange={(v) => {
-            set(setSettings({ music: v }));
-            musicSettingsChanged();
-          }}
-        />
-        <VolumeRow
-          label="Звуки"
-          value={settings.volume}
-          onChange={(v) => {
-            set(setSettings({ volume: v }));
-            applySfxVolume();
-          }}
-          onRelease={() => playSound('coin')}
-        />
-      </div>
+      <div className="st">
+        <nav className="st-nav" role="tablist" aria-label="Разделы настроек">
+          {SETTINGS_TABS.map((t) => (
+            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={`st-tab${tab === t.id ? ' on' : ''}`} onClick={() => setTab(t.id)}>
+              {t.name}
+            </button>
+          ))}
+        </nav>
+        <div className="st-body" role="tabpanel">
+          {tab === 'game' && (
+            <div className="col" style={{ gap: 10 }}>
+              <div className="settings-h">Ставить паузу, когда</div>
+              <label className="row">
+                <input type="checkbox" checked={settings.pauseOnImportant} onChange={() => toggle('pauseOnImportant')} />
+                <span>пришло важное письмо: решение, деньги на исходе, контракт не успевает</span>
+              </label>
+              <label className="row">
+                <input type="checkbox" checked={settings.pauseOnReady} onChange={() => toggle('pauseOnReady')} />
+                <span>модель обучена</span>
+              </label>
+              <label className="row">
+                <input type="checkbox" checked={settings.pauseOnResearch} onChange={() => toggle('pauseOnResearch')} />
+                <span>исследование завершено</span>
+              </label>
+              <label className="row">
+                <input type="checkbox" checked={settings.pauseOnTender} onChange={() => toggle('pauseOnTender')} />
+                <span>выигран тендер по вашей заявке</span>
+              </label>
+              <label className="row">
+                <input type="checkbox" checked={settings.pauseOnGoal} onChange={() => toggle('pauseOnGoal')} />
+                <span>выполнена цель года</span>
+              </label>
+              <label className="row">
+                <input type="checkbox" checked={settings.pauseOnHidden} onChange={() => toggle('pauseOnHidden')} />
+                <span>{desktop ? 'окно игры свёрнуто' : 'вкладка браузера скрыта'}</span>
+              </label>
+              <div className="settings-h">Прочее</div>
+              <label className="row">
+                <input type="checkbox" checked={settings.toasts} onChange={() => toggle('toasts')} />
+                <span>Всплывающие уведомления о письмах</span>
+              </label>
+              <label className="row">
+                <input
+                  type="checkbox"
+                  checked={settings.realNames}
+                  onChange={() => {
+                    const next = setSettings({ realNames: !settings.realNames });
+                    set(next);
+                    applyRealNames(next.realNames);
+                  }}
+                />
+                <span>Оригинальные названия компаний, моделей и тестов (сохранения не меняются)</span>
+              </label>
+            </div>
+          )}
+          {tab === 'screen' && (
+            <div className="col" style={{ gap: 12 }}>
+              <ScreenSettings />
+            </div>
+          )}
+          {tab === 'sound' && (
+            <div className="col" style={{ gap: 12 }}>
+              <VolumeRow
+                label="Музыка"
+                value={settings.music}
+                onChange={(v) => {
+                  set(setSettings({ music: v }));
+                  musicSettingsChanged();
+                }}
+              />
+              <VolumeRow
+                label="Звуки"
+                value={settings.volume}
+                onChange={(v) => {
+                  set(setSettings({ volume: v }));
+                  applySfxVolume();
+                }}
+                onRelease={() => playSound('coin')}
+              />
+            </div>
+          )}
+          {tab === 'keys' && (
+            <dl className="st-keys">
+              <dt>
+                <kbd>Пробел</kbd>
+              </dt>
+              <dd>Пауза и продолжение</dd>
+              <dt>
+                <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd>
+              </dt>
+              <dd>Скорость ×1, ×2, ×4</dd>
+              <dt>
+                <kbd>Esc</kbd>
+              </dt>
+              <dd>Закрыть диалог</dd>
+              {desktop && (
+                <>
+                  <dt>
+                    <kbd>F11</kbd> или <kbd>Alt</kbd>+<kbd>Enter</kbd>
+                  </dt>
+                  <dd>Полный экран или окно</dd>
+                </>
+              )}
+            </dl>
+          )}
+        </div>
       </div>
     </Dialog>
   );
