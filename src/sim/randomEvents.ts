@@ -1,10 +1,15 @@
 // Расписание случайных писем с выбором: примерно раз в 2-3 месяца, не больше одного неотвеченного за раз.
 // Жребий идёт в отдельном потоке s.yearly.rng (nextRandom): основной поток игры (s.rng) не сдвигается,
 // поэтому тендеры, рынок и соперники до первого письма и после него считаются так же, как раньше.
+// Чтобы письма с выбором не шли вплотную: письмо по дате (история, ранние заказы) приходит не раньше чем через неделю
+// после другого письма с выбором и не за неделю до сюжетного письма по дате; случайное - не раньше чем через 10 дней
+// после любого решения. Частоту случайных писем это почти не меняет: их отказы по умолчанию - часть баланса
+// (боты отвечают вариантом по умолчанию, balance.test.ts).
 
-import { EXTRA_EVENTS } from '../data/events';
+import { EVENTS, EXTRA_EVENTS } from '../data/events';
 import { openChoices, triggerEvent } from './events';
 import { nextRandom, randInt } from './rng';
+import { dateToDay } from './time';
 import type { GameState } from './types';
 
 /** Через сколько дней после письма может прийти следующее: от 60 до 90 (примерно раз в 2-3 месяца). */
@@ -12,6 +17,27 @@ export const RANDOM_GAP_MIN = 60;
 export const RANDOM_GAP_MAX = 90;
 /** Сколько дней одно и то же письмо не повторяется (если оно не «только раз за игру»). */
 export const RANDOM_COOLDOWN_DAYS = 540;
+/** Письмо по дате ждёт столько дней после любого письма с выбором (окно письма - 60 дней, успевает). */
+export const DATED_SPACING_DAYS = 7;
+/** Случайное письмо ждёт столько дней после любого письма с выбором. */
+export const RANDOM_QUIET_DAYS = 10;
+
+/** Сюжетное письмо с выбором по дате (data/events.ts EVENTS) придёт в ближайшие days дней: не ставить письма вплотную. */
+export function mainChoiceSoon(s: GameState, days: number): boolean {
+  for (const e of EVENTS) {
+    if (!e.choices || !('date' in e.when) || s.firedEvents.includes(e.id)) continue;
+    const d = dateToDay(e.when.date);
+    if (d >= s.day && d - s.day < days) return true;
+  }
+  return false;
+}
+
+/** День последнего письма с выбором (любого: история, соперники, случайное); -Infinity, если их не было. */
+export function lastChoiceDay(s: GameState): number {
+  // Письма добавляются по порядку дней, поэтому первое с конца - самое позднее.
+  for (let i = s.mail.length - 1; i >= 0; i--) if (s.mail[i].choices) return s.mail[i].day;
+  return -Infinity;
+}
 
 export interface RandomCandidate {
   id: string;
@@ -45,10 +71,11 @@ export function pickWeighted(list: readonly RandomCandidate[], r: number): Rando
 
 /**
  * Ранние заказы и события по датам (EXTRA_EVENTS без жребия): приходят в своё окно, но не поверх другого письма
- * с выбором - ждут ответа на прежнее. Окно письма - 60 дней (data/eventKit.windowFrom).
+ * с выбором - ждут ответа на прежнее и ещё неделю после него. Окно письма - 60 дней (data/eventKit.windowFrom).
  */
 export function extraDateEventsDay(s: GameState): void {
   if (openChoices(s).length > 0) return;
+  if (s.day - lastChoiceDay(s) < DATED_SPACING_DAYS || mainChoiceSoon(s, DATED_SPACING_DAYS)) return;
   for (const def of EXTRA_EVENTS) {
     if (def.random || def.repeatable || s.firedEvents.includes(def.id) || !('check' in def.when)) continue;
     if (!def.when.check(s)) continue;
@@ -58,14 +85,17 @@ export function extraDateEventsDay(s: GameState): void {
 }
 
 /**
- * Ежедневно: если пришёл срок и в почте нет ни одного неотвеченного письма с выбором (даже отложенного),
- * бросить жребий и отправить письмо. Если жребий не из чего бросать, ждём до завтра.
+ * Ежедневно: если пришёл срок, в почте нет ни одного неотвеченного письма с выбором (даже отложенного),
+ * последнее такое письмо было не меньше 10 дней назад и сюжетное письмо не на подходе, бросить жребий и отправить
+ * письмо. Если жребий не из чего бросать, ждём до завтра.
  */
 export function randomEventDay(s: GameState): void {
   extraDateEventsDay(s);
   const y = s.yearly;
   if (s.day < y.nextEventDay) return;
   if (openChoices(s).length > 0) return; // не больше одного письма с выбором: ждём ответа
+  if (s.day - lastChoiceDay(s) < RANDOM_QUIET_DAYS) return; // только что было другое решение: даём передохнуть
+  if (mainChoiceSoon(s, DATED_SPACING_DAYS)) return;
   const list = randomCandidates(s);
   const pick = pickWeighted(list, nextRandom(y));
   if (!pick) return;
