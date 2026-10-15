@@ -12,7 +12,16 @@ const TIER_TITLE: Record<Tier, string> = {
   flagship: 'Самая сильная модель и самая дорогая в обслуживании.',
 };
 
-export function TierBadge({ tier, title }: { tier: Tier; title?: string }) {
+/** plain - без заливки: цветная точка и название (для таблиц и сведений, где плашка лишняя). */
+export function TierBadge({ tier, title, plain }: { tier: Tier; title?: string; plain?: boolean }) {
+  if (plain) {
+    return (
+      <span className="tier-plain" title={title ?? TIER_TITLE[tier]}>
+        <i style={{ background: TIER_COLOR[tier] }} />
+        {TIER_NAMES[tier]}
+      </span>
+    );
+  }
   return (
     <span className={`tier-badge ${tier}`} title={title ?? TIER_TITLE[tier]}>
       {TIER_NAMES[tier]}

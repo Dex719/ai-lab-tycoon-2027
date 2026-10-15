@@ -427,7 +427,7 @@ function MarketTable({ s, rows }: { s: GameState; rows: MarketRow[] | null }) {
               </div>
             </td>
             <td>
-              <TierBadge tier={r.tier} />
+              <TierBadge tier={r.tier} plain />
             </td>
             <td className="num">{fmtElo(r.elo)}</td>
             <td className="num">{ctxLabel(r.context)}</td>

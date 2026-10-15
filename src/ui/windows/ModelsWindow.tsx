@@ -892,7 +892,7 @@ function Specs(props: { arch: 'lstm' | 'transformer'; plan: TrainingPlan; dates:
       <dl className="mw-specs">
         <dt>Уровень</dt>
         <dd>
-          <TierBadge tier={plan.tier} />
+          <TierBadge tier={plan.tier} plain />
         </dd>
         <dt>Архитектура</dt>
         <dd>{arch === 'transformer' ? 'Трансформер' : 'LSTM'}</dd>
@@ -967,7 +967,7 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
         status={
           <>
             <span className="mw-st train">Обучается</span>
-            <TierBadge tier={t.plan.tier} />
+            <TierBadge tier={t.plan.tier} plain />
           </>
         }
         kpis={items}
@@ -1018,7 +1018,7 @@ function ModelCard(props: { s: GameState; m: PlayerModel; open: WindowProps['ope
         status={
           <>
             <span className={`mw-st ${st.tone}`}>{stateLabel(m)}</span>
-            <TierBadge tier={m.plan.tier} />
+            <TierBadge tier={m.plan.tier} plain />
             {rv && <span className={`mw-st ${rv.tone}`}>{rv.text}</span>}
           </>
         }

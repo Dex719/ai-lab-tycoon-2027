@@ -269,7 +269,10 @@ function ModelsTable({
                   <span className="an-mname">
                     <IconCaret size={14} className={`an-caret${isOpen ? ' open' : ''}`} />
                     <ModelEmblem m={m} size={24} exposed={m.exposed} faded={!channels} />
-                    {m.name} <TierBadge tier={m.plan.tier} />
+                    {m.name}
+                    <span className="an-tier">
+                      <TierBadge tier={m.plan.tier} plain />
+                    </span>
                   </span>
                 </td>
                 <td>
