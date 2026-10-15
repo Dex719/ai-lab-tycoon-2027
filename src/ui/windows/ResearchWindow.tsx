@@ -31,6 +31,7 @@ import type { GameState, TechId } from '../../sim/types';
 import { TECH_IDS } from '../../sim/types';
 import { checkAllocation, percentsOf, soldChannels, toAllocation, withPercent, ZERO_SHARE_WARNING } from '../alloc';
 import { ConfirmDialog, DenyNote, Dialog, ErrorText, Range, useFlash } from '../components/common';
+import { researchDaysAt } from '../forecast';
 import { fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
 import { IconCheck, IconClose, IconLock } from '../icons';
 import { TechIcon } from '../icons/tech';
@@ -534,6 +535,11 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
   const share = progressOf(s, id);
   const left = researchDaysLeft(s, id, rp);
   const days = Number.isFinite(left) ? Math.max(1, left) : left;
+  // Края ползунка - срок без карт (работает команда) и со всей мощностью: честно видно, сколько даёт ползунок.
+  const endDate = (share: number): string => {
+    const d = researchDaysAt(s, id, share);
+    return Number.isFinite(d) ? formatDateShort(s.day + Math.max(1, d)) : '-';
+  };
   const penalty = earlyPenalty(s, id);
   const rentMonth = rentPerDay(s) * (pct / 100) * DAYS_IN_MONTH;
   const changed = pct !== current.experiments;
@@ -722,8 +728,8 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
                 <>
                   <Range value={pct} min={0} max={100} label="Мощность на исследование" valueText={fmtPct(pct, 0)} onChange={setPct} />
                   <div className="rs-d-ends">
-                    <span>Медленнее</span>
-                    <span>Быстрее</span>
+                    <span>при 0 %: {endDate(0)}</span>
+                    <span>при 100 %: {endDate(1)}</span>
                   </div>
                   <dl className="rs-d-kv">
                     <dt>Карт</dt>
