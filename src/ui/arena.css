@@ -41,8 +41,9 @@
 .arb-sub { margin-top: 1px; font-size: 14px; color: var(--text-body); }
 .arb-rival {
   display: flex; align-items: center; gap: 6px; margin-top: 4px; padding: 0; border: 0; background: none;
-  font: inherit; font-size: 13px; font-weight: 600; color: var(--warn); cursor: pointer; text-align: left;
+  font: inherit; font-size: 13px; color: var(--text-body); cursor: pointer; text-align: left; font-variant-numeric: tabular-nums;
 }
+.arb-rival b { font-weight: 600; color: var(--text-title); }
 .arb-rival:hover span { text-decoration: underline; text-underline-offset: 2px; }
 .arb-rival:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .arb-rows { width: 100%; margin-top: 7px; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
