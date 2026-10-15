@@ -9,13 +9,16 @@ import { getSettings } from './settings';
 import { playSound } from './sound';
 import { store } from './store';
 import type { WindowAlias, WindowId } from './windows';
-import { lettersWord } from '../sim/text';
+import { lettersWord, ruPlural } from '../sim/text';
 
 const SHOW_MS = 6000;
 /** Награды и исход риска живут дольше: их не должны вытеснять новости. */
 const REWARD_MS = 10000;
 const OUTCOME_MS = 8000;
 const MAX_VISIBLE = 4;
+/** На низком экране (1366×768) больше двух уведомлений закрывают сводку справа: показываем два. */
+const SHORT_SCREEN = 860;
+const maxVisible = (): number => (window.innerHeight < SHORT_SCREEN ? 2 : MAX_VISIBLE);
 /** Если за один шаг пришло больше писем, первые показываем по отдельности, остальные одной строкой. */
 const SINGLE_LIMIT = 3;
 
@@ -118,7 +121,7 @@ export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | Window
       }),
     );
     playSound(fresh[fresh.length - 1].outcome!.lucky ? 'coin' : 'spend');
-    setItems((cur) => [...cur, ...next].slice(-MAX_VISIBLE));
+    setItems((cur) => [...cur, ...next].slice(-maxVisible()));
   });
 
   // Состояние меняется на месте: сравниваем номер следующего письма с тем, что видели в прошлый раз.
@@ -157,8 +160,19 @@ export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | Window
     // На ×4 новости не всплывают: копятся в «Почте», чтобы не вытеснять награды.
     const news = store.speed === 4 ? [] : fresh.filter((m) => !m.reward && !m.important);
     const others = [...important, ...news];
-    const next: ToastData[] = [...rewards.slice(-MAX_VISIBLE).map((m) => toToast(m))];
-    const room = Math.max(0, SINGLE_LIMIT - next.length);
+    const max = maxVisible();
+    // Наград больше, чем помещается: последние - отдельными карточками, остальные одной строкой.
+    const single = rewards.length > max ? rewards.slice(-(max - 1)) : rewards;
+    const next: ToastData[] = single.map((m) => toToast(m));
+    if (rewards.length > single.length) {
+      const extra = rewards.length - single.length;
+      next.unshift({
+        ...toToast(rewards[0], true, `Ещё ${extra} ${ruPlural(extra, 'награда', 'награды', 'наград')} в «Почте»`),
+        tone: 'reward',
+        label: 'Награды',
+      });
+    }
+    const room = Math.max(0, Math.min(SINGLE_LIMIT, max) - next.length);
     next.push(...others.slice(0, room).map((m) => toToast(m)));
     const rest = others.slice(room);
     if (rest.length > 0) next.push(toToast(rest[0], true, `Ещё ${rest.length} ${lettersWord(rest.length)}`));
@@ -166,7 +180,7 @@ export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | Window
     // Вытесняем сначала обычные уведомления, награды держим.
     setItems((cur) => {
       const all = [...cur, ...next];
-      while (all.length > MAX_VISIBLE) {
+      while (all.length > max) {
         const i = all.findIndex((x) => x.tone !== 'reward');
         all.splice(i >= 0 ? i : 0, 1);
       }
