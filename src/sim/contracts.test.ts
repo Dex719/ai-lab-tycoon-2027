@@ -1601,11 +1601,20 @@ describe('проигранный тендер: сколько не хватил�
   });
 
   it('далёкий проигрыш: заголовок без недостачи, в письме - шанс и недостача', () => {
-    const s = lostWithRoll(0.3, 0.9, 0.95);
+    const s = lostWithRoll(0.3, 0.8, 0.85);
     progressDay(s);
     const mail = lastMail(s);
     expect(mail.title).toMatch(/^Тендер проигран: /);
     expect(mail.body).toMatch(/Шанс победы был 30 %, не хватило \d+ пункт(а|ов) шанса\./);
+  });
+
+  it('бросок выше наибольшего шанса (92 %): недостачу не пишем - победить было нельзя', () => {
+    const s = lostWithRoll(0.6, 0.95, 0.999);
+    progressDay(s);
+    const mail = lastMail(s);
+    expect(mail.title).toMatch(/^Тендер проигран: /);
+    expect(mail.body).toContain('Шанс победы был 60 %. ');
+    expect(mail.body).not.toContain('не хватило');
   });
 
   it('недостача в 1 пункт: «не хватило 1 пункта»', () => {

@@ -23,6 +23,7 @@ import {
   niceCount,
   niceMoney,
   niceShare,
+  myRaceValue,
   pointsText,
   raceGap,
   raceKeyOf,
@@ -97,6 +98,9 @@ export interface GoalDef {
 const placeText = (n: number): string => `${n}-е место`;
 const nDays = (n: number): string => `${n} ${ruPlural(n, 'день', 'дня', 'дней')}`;
 
+/** Сколько дней обученная, но не выпущенная модель считается «осталось выпустить». */
+export const READY_FRESH_DAYS = 60;
+
 /** Доля полоски, с которой цель получает метку «Почти!». */
 export const ALMOST_FRACTION = 0.8;
 
@@ -155,6 +159,9 @@ const REVENUE_FLOOR: Record<number, number> = {
   2024: 500_000_000,
 };
 
+/** Наибольший отрыв, при котором «удержать 1-е место до 31 декабря» ещё цель: 60 Эло или 3 балла теста. */
+const HOLD_MAX_LEAD = { arena: 60, bench: 3 } as const;
+
 /** Тендеров за год в обычной партии. */
 const TENDERS_BY_YEAR: Record<number, number> = { 2018: 2, 2019: 3, 2020: 4, 2021: 6, 2022: 8, 2023: 8, 2024: 8 };
 
@@ -174,6 +181,22 @@ function revenueProgress(s: GameState, target: number): GoalProgress {
     text: `Выручка за год: ${usd(v)} из ${usd(target)}`,
     miss: `не хватило ${usd(Math.max(0, target - v))}`,
   };
+}
+
+function monthProgress(s: GameState, target: number): GoalProgress {
+  const v = bestMonthRevenue(s, s.yearly.year);
+  return {
+    done: v >= target,
+    fraction: clamp01(v / target),
+    text: `Лучший месяц года: ${usd(v)} из ${usd(target)}`,
+    miss: `не хватило ${usd(Math.max(0, target - v))}`,
+  };
+}
+
+function tendersProgress(s: GameState, g: YearGoalState): GoalProgress {
+  const n = Math.max(0, s.quests.tendersWon - g.base);
+  const t = g.target ?? 0;
+  return { done: n >= t, fraction: clamp01(n / t), text: `Выиграно за год: ${n} из ${t}`, miss: `выиграно ${n} из ${t}` };
 }
 
 export function shareProgress(s: GameState, target: number): GoalProgress {
@@ -201,7 +224,8 @@ function techProgress(s: GameState, tech: TechId): GoalProgress {
  * модель - 95 %: осталось нажать «Выпустить». Без проектов - пустая полоска и текст empty.
  */
 export function trainingProgress(s: GameState, empty: string, rlhf = false): GoalProgress {
-  const ready = s.models.find((m) => m.releasedDay === null && (!rlhf || m.rlhf));
+  // Обученная модель, которую давно решили не выпускать, - не «почти»: считается только свежая.
+  const ready = s.models.find((m) => m.releasedDay === null && (!rlhf || m.rlhf) && s.day - m.trainedDay <= READY_FRESH_DAYS);
   if (ready) return { done: false, fraction: 0.95, text: `«${ready.name}» обучена, осталось выпустить` };
   let best: { name: string; f: number } | null = null;
   for (const r of s.trainings) {
@@ -277,16 +301,7 @@ const NEW_GOALS: GoalDef[] = [
     title: (_y, g) => `Выручка ${usd(T(g))} за месяц`,
     reward: STYLE_REWARD.money,
     cheap: true,
-    progress: (s, g) => {
-      const v = bestMonthRevenue(s, s.yearly.year);
-      const t = T(g);
-      return {
-        done: v >= t,
-        fraction: clamp01(v / t),
-        text: `Лучший месяц года: ${usd(v)} из ${usd(t)}`,
-        miss: `не хватило ${usd(Math.max(0, t - v))}`,
-      };
-    },
+    progress: (s, g) => monthProgress(s, T(g)),
     hint: (s) => {
       const last = lastMonthRevenue(s);
       return last > 0 ? `Прошлый месяц: ${usd(last)}` : 'Выручки пока не было';
@@ -376,6 +391,30 @@ const NEW_GOALS: GoalDef[] = [
       return v === null ? 'Моделей пока нет' : `Лучший балл сейчас: ${pointsText(v)} %`;
     },
   },
+  {
+    id: 'g-elo',
+    style: 'race',
+    title: (_y, g) => `Модель с Эло от ${T(g)} на «Арене»`,
+    reward: STYLE_REWARD.race,
+    cheap: true,
+    progress: (s, g) => {
+      const t = T(g);
+      const v = myRaceValue(s, 'arena');
+      if (v === null) return { done: false, fraction: 0, text: 'Нет моделей в продаже', miss: 'моделей в продаже не было' };
+      const gap = t - v;
+      return {
+        done: v >= t,
+        fraction: clamp01(1 - gap / Math.max(1, t - g.base)),
+        text: `Лучшая модель: ${Math.round(v)} Эло из ${t}`,
+        miss: `не хватило ${gapText('arena', gap, true)}`,
+        almost: gap <= closeGapOf('arena'),
+      };
+    },
+    hint: (s) => {
+      const v = myRaceValue(s, 'arena');
+      return v === null ? 'Нет моделей в продаже' : `Лучшая модель сейчас: ${Math.round(v)} Эло`;
+    },
+  },
   // Исследования
   {
     id: 'r-tech',
@@ -425,6 +464,7 @@ const NEW_GOALS: GoalDef[] = [
         miss: `завершено ${n} из ${t}`,
       };
     },
+    hint: (s) => (s.research.current ? `Сейчас идёт: «${techName(s.research.current)}»` : 'Исследование не выбрано'),
   },
   // Рынок
   {
@@ -442,11 +482,7 @@ const NEW_GOALS: GoalDef[] = [
     title: (_y, g) => `Выиграть ${T(g)} ${ruPlural(T(g), 'тендер', 'тендера', 'тендеров')}`,
     reward: STYLE_REWARD.market,
     cheap: true,
-    progress: (s, g) => {
-      const n = Math.max(0, s.quests.tendersWon - g.base);
-      const t = T(g);
-      return { done: n >= t, fraction: clamp01(n / t), text: `Выиграно за год: ${n} из ${t}`, miss: `выиграно ${n} из ${t}` };
-    },
+    progress: (s, g) => tendersProgress(s, g),
     hint: (s) => `Выиграно за всё время: ${s.quests.tendersWon}`,
   },
   {
@@ -496,6 +532,29 @@ const NEW_GOALS: GoalDef[] = [
       const gap = st.ahead[0]?.gap;
       return gap === undefined ? `Сейчас: ${placeText(st.rank)}` : `Сейчас: ${placeText(st.rank)}, до 1-го ${gapText(raceKeyOf(st.metric), gap)}`;
     },
+  },
+  {
+    id: 'x-month',
+    style: 'risk',
+    title: (_y, g) => `Выручка ${usd(T(g))} за месяц`,
+    reward: STYLE_REWARD.risk,
+    penalty: RISK_PENALTY,
+    cheap: true,
+    progress: (s, g) => monthProgress(s, T(g)),
+    hint: (s) => {
+      const last = lastMonthRevenue(s);
+      return last > 0 ? `Прошлый месяц: ${usd(last)}` : 'Выручки пока не было';
+    },
+  },
+  {
+    id: 'x-tenders',
+    style: 'risk',
+    title: (_y, g) => `Выиграть ${T(g)} ${ruPlural(T(g), 'тендер', 'тендера', 'тендеров')}`,
+    reward: STYLE_REWARD.risk,
+    penalty: RISK_PENALTY,
+    cheap: true,
+    progress: (s, g) => tendersProgress(s, g),
+    hint: (s) => `Выиграно за всё время: ${s.quests.tendersWon}`,
   },
   {
     id: 'x-models',
@@ -622,13 +681,27 @@ const MAKERS: Record<GoalStyle, Maker[]> = {
       id: 'g-hold',
       make: (s) => {
         const st = safeStanding(s);
-        return st && st.rank === 1 ? { base: 0 } : null;
+        if (!st || st.rank !== 1) return null;
+        // С большим отрывом удержать 1-е место - не цель: тогда гонка предлагает рекорд модели.
+        const lead = st.below?.gap ?? Infinity;
+        return lead <= HOLD_MAX_LEAD[raceKeyOf(st.metric) === 'arena' ? 'arena' : 'bench'] ? { base: 0 } : null;
+      },
+    },
+    {
+      id: 'g-elo',
+      make: (s, _y, rnd) => {
+        const st = safeStanding(s);
+        if (!st || st.rank !== 1 || st.metric.kind !== 'arena') return null;
+        const best = myRaceValue(s, 'arena');
+        if (best === null) return null;
+        return { target: Math.round((best + 20 + 25 * rnd()) / 5) * 5, base: Math.round(best) };
       },
     },
     {
       id: 'g-quality',
       make: (s, _y, rnd) => {
-        if (safeStanding(s)) return null;
+        const st = safeStanding(s);
+        if (st && (st.rank !== 1 || st.metric.kind !== 'bench')) return null;
         const bid = raceBenchmark(s);
         if (!s.benchmarks[bid]?.introduced) return null;
         const best = bestScore(s, bid);
@@ -691,6 +764,17 @@ const MAKERS: Record<GoalStyle, Maker[]> = {
     },
     { id: 'x-models', make: (s) => ({ target: 3, base: releasedCount(s) }) },
     {
+      id: 'x-month',
+      make: (s, year, rnd) => {
+        const floor = (pickBy(REVENUE_FLOOR, year) / 12) * (2.8 + 0.6 * rnd());
+        return { target: niceMoney(Math.max(floor, lastMonthRevenue(s) * (2.5 + 0.5 * rnd()))), base: 0 };
+      },
+    },
+    {
+      id: 'x-tenders',
+      make: (s, year) => (year >= 2018 ? { target: pickBy(TENDERS_BY_YEAR, year) * 2, base: s.quests.tendersWon } : null),
+    },
+    {
       id: 'x-share',
       make: (s, _y, rnd) => {
         const cur = playerShare(s);
@@ -701,7 +785,7 @@ const MAKERS: Record<GoalStyle, Maker[]> = {
 };
 
 /** Рискованная цель и обычная цель с тем же показателем: вместе не предлагаются. */
-const RISK_TWIN: Record<string, string> = { 'x-share': 'k-share', 'x-revenue': 'm-revenue' };
+const RISK_TWIN: Record<string, string> = { 'x-share': 'k-share', 'x-revenue': 'm-revenue', 'x-month': 'm-month', 'x-tenders': 'k-tenders' };
 
 /** Порядок перебора видов внутри стиля: случайный, но последний вид - запасной (подходит почти всегда). */
 function shuffled<T>(list: T[], rnd: () => number): T[] {

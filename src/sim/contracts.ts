@@ -362,13 +362,15 @@ function resolveApplication(s: GameState, t: Tender): void {
     if (a.auto) return; // проигрыш автозаявки не засоряет почту: игрок её не подавал
     const chancePct = Math.round(a.chance * 100);
     const short = Math.max(1, Math.floor((roll - a.chance) * 100) + 1);
-    const near = model !== undefined && short <= NEAR_MISS_POINTS;
+    // Если победе не помог бы и наибольший шанс, «не хватило» не пишем: это был просто проигрыш.
+    const reachable = roll < CHANCE_MAX;
+    const near = model !== undefined && reachable && short <= NEAR_MISS_POINTS;
     addMail(s, {
       kind: 'contract',
       title: near ? `Тендер проигран, не хватило ${short} ${pointsWord(short)}: ${client}` : `Тендер проигран: ${client}`,
       body:
         'Тендер достался другому исполнителю. ' +
-        (model ? `Шанс победы был ${chancePct} %, не хватило ${short} ${pointsWord(short)} шанса. ` : '') +
+        (model ? `Шанс победы был ${chancePct} %${reachable ? `, не хватило ${short} ${pointsWord(short)} шанса` : ''}. ` : '') +
         `Требование было ${t.requirement} % на ${benchDef(t.benchmark).name}.`,
     });
     return;

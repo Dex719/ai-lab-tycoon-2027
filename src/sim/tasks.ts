@@ -17,7 +17,7 @@ export const MAX_TASKS = 2;
 export const CLOSED_KEEP_DAYS = 30;
 /** Пауза перед следующей задачей, дней: после новой задачи и после закрытой. Подобраны так, чтобы награды задач
  *  не сдвигали баланс ботов (balance.test.ts): за год приходит около 8-10 задач. */
-const SPAWN_GAP: readonly [number, number] = [6, 12];
+const SPAWN_GAP: readonly [number, number] = [8, 16];
 const CLOSE_GAP: readonly [number, number] = [12, 24];
 /** Невыполненная задача с полоской от этой доли - «почти»: о ней приходит уведомление. */
 const NEAR_MISS = 0.7;
@@ -90,7 +90,7 @@ function close(s: GameState, t: TaskState, def: TaskDef, p: TaskProgress, done: 
   addMail(s, {
     kind: 'event',
     title: near ? `Почти: ${title}` : `Задача не выполнена: ${title}`,
-    body: `${p.lost ? '' : 'Срок задачи вышел. '}${endSentence(p.text)}${p.miss ? ` ${endSentence(capitalize(p.miss))}` : ''}`,
+    body: `${p.lost ? '' : 'Срок задачи вышел. '}${endSentence(capitalize(p.miss || p.text))}`,
     read: !near,
   });
 }

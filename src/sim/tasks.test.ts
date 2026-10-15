@@ -139,16 +139,18 @@ describe('появление по ситуации', () => {
     expect(plan).toMatchObject({ need: 1, days: 40, base: s.quests.tendersWon });
   });
 
-  it('«заработать» - только при модели в продаже и выручке; порог - на 10-30 % выше обычных 60 дней', () => {
+  it('«заработать» - только при модели в продаже и выручке; порог - на 10-30 % выше обычных 60 дней, не мельче полуединицы года', () => {
     const def = findTask('earn')!;
     const s = quietGame(D('2019-03-01'));
-    s.finance.revenueDaily = Array.from({ length: 90 }, () => 1000);
+    s.finance.revenueDaily = Array.from({ length: 90 }, () => 3000);
     expect(def.make(s, rnd)).toBeNull();
     s.models = [model()];
     const plan = def.make(s, rnd)!;
-    expect(plan.need).toBeGreaterThanOrEqual(60_000 * 1.1 * 0.9);
-    expect(plan.need).toBeLessThanOrEqual(60_000 * 1.3 * 1.1);
+    expect(plan.need).toBeGreaterThanOrEqual(180_000 * 1.1 * 0.9);
+    expect(plan.need).toBeLessThanOrEqual(180_000 * 1.3 * 1.1);
     expect(plan.days).toBe(60);
+    s.finance.revenueDaily = Array.from({ length: 90 }, () => 1000); // $66 тыс. за 60 дней - мельче $125 тыс.
+    expect(def.make(s, rnd)).toBeNull();
   });
 
   it('«завершить исследование» - срок чуть короче нынешнего прогноза: нужно поднажать', () => {
@@ -210,7 +212,7 @@ describe('выполнение и провал', () => {
     const mail = s.mail[s.mail.length - 1];
     expect(mail.title).toBe('Почти: Заработать $100 тыс.');
     expect(mail.read).toBe(false);
-    expect(mail.body).toBe('Срок задачи вышел. Заработано: $92 тыс. из $100 тыс. Не хватило $8 тыс.');
+    expect(mail.body).toBe('Срок задачи вышел. Не хватило $8 тыс.');
   });
 
   it('далёкий промах: письмо ложится в «Почту» прочитанным, без уведомления', () => {

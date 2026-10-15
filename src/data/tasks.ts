@@ -3,7 +3,7 @@
 // есть выручка. Задачи называют только то, что уже есть в игре: будущее не раскрывают.
 
 import { CLIENTS } from './clients';
-import { usd } from './eventKit';
+import { unitForYear, usd } from './eventKit';
 import { beatProgress, shareProgress, trainingProgress } from './goals';
 import {
   clamp01,
@@ -127,14 +127,16 @@ export const TASKS: TaskDef[] = [
       if (list.length === 0) return null;
       const { c, left } = list[Math.floor(rnd() * list.length)];
       const days = Math.min(Math.ceil(left * 0.85) + 2, c.deadlineDay - s.day - 1);
-      return { need: c.tender.payment, base: cumIncome(s, ['contracts']), subject: c.id, days };
+      // Клиент в предмете задачи: после сдачи контракта его уже нет в списке, а название нужно письму.
+      return { need: c.tender.payment, base: cumIncome(s, ['contracts']), subject: `${c.id}:${c.tender.clientId}`, days };
     },
-    title: (s, t) => {
-      const c = s.contracts.find((x) => x.id === t.subject);
-      return `Сдать контракт досрочно${c ? `: ${clientName(c.tender.clientId)}` : ''}`;
+    title: (_s, t) => {
+      const client = t.subject.split(':')[1];
+      return `Сдать контракт досрочно${client ? `: ${clientName(client)}` : ''}`;
     },
     progress: (s, t) => {
-      const c = s.contracts.find((x) => x.id === t.subject);
+      const id = t.subject.split(':')[0];
+      const c = s.contracts.find((x) => x.id === id);
       if (c) {
         const f = clamp01(c.workDone / c.tender.work);
         return withAlmost({ done: false, fraction: f, text: `Работа: ${Math.floor(f * 100)} %`, miss: `работа сделана на ${Math.floor(f * 100)} %` });
@@ -149,7 +151,8 @@ export const TASKS: TaskDef[] = [
     weight: 3,
     reward: { hype: 5 },
     make: (s) => {
-      if (s.models.some((m) => m.releasedDay === null)) return { need: 1, base: releasedCount(s), subject: '', days: 14 };
+      // Свежая обученная модель ждёт выпуска; давно отложенная - не повод для задачи.
+      if (s.models.some((m) => m.releasedDay === null && s.day - m.trainedDay <= 30)) return { need: 1, base: releasedCount(s), subject: '', days: 14 };
       const left = nearestTrainingDays(s);
       if (left === null || left < 7 || left > 110) return null;
       return { need: 1, base: releasedCount(s), subject: '', days: Math.ceil(left) + 15 };
@@ -199,7 +202,8 @@ export const TASKS: TaskDef[] = [
       const sum = r.reduce((a, b) => a + b, 0);
       if (!(sum > 0) || r.length < 30) return null;
       const need = niceMoney((sum / r.length) * 60 * (1.1 + 0.2 * rnd()));
-      return need > 0 ? { need, base: cumRevenue(s), subject: '', days: 60 } : null;
+      // Мелкая сумма (меньше половины денежной единицы года) - не задача: награда была бы больше цели.
+      return need >= unitForYear(yearOf(s.day)) / 2 ? { need, base: cumRevenue(s), subject: '', days: 60 } : null;
     },
     title: (_s, t) => `Заработать ${usd(t.need)}`,
     progress: (s, t) => {
