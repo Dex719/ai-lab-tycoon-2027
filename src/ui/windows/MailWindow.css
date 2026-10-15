@@ -153,7 +153,10 @@
     width: auto; flex: none; flex-direction: row; gap: 4px; padding: 6px 8px; overflow-x: auto; overflow-y: hidden;
     border-right: none; border-bottom: 1px solid var(--line);
   }
-  .mail .mail-folder { flex: none; width: 44px; height: 40px; justify-content: center; padding: 0; }
+  .mail .mail-folder { flex: none; width: 44px; height: 44px; justify-content: center; padding: 0; }
+  /* Счётчик под значком, а не поверх него: на телефоне папки - столбики «значок, число». */
+  .mail .mail-folder { flex-direction: column; gap: 1px; }
+  .mail .mail-folder-n { position: static; min-width: 0; padding: 0; font-size: 11px; line-height: 13px; }
   .mail .mail-rail .grow, .mail .mail-markall { display: none; }
   .mail.show-detail .mail-rail { display: none; }
   .mail .mail-view { padding: 10px 8px 20px; }

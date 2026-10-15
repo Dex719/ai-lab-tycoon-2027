@@ -72,8 +72,8 @@ function TeamRow({ s, def, onHire, onRelease }: { s: GameState; def: TeamDef; on
         {def.extra && <span className="dl-sub good">{def.extra}</span>}
         <span className="dl-sub">{def.about}</span>
       </td>
-      <td className="num">{fmtMoney(def.signing)}</td>
-      <td className="num">{fmtMoney(def.salary)}</td>
+      <td className="num" data-label="Подъёмные">{fmtMoney(def.signing)}</td>
+      <td className="num" data-label="Зарплата в месяц">{fmtMoney(def.salary)}</td>
       <td className="dl-act">
         {hired ? (
           <div className="dl-act-in">
@@ -185,7 +185,7 @@ function OfferRow({ s, o, onBuy }: { s: GameState; o: StartupOffer; onBuy: () =>
         <span className="dl-sub">{o.def.what}</span>
       </td>
       <td className={open || o.status === 'bought' ? 'good' : undefined}>{o.def.effect}</td>
-      <td className="num">{fmtMoney(o.def.price)}</td>
+      <td className="num" data-label="Цена">{fmtMoney(o.def.price)}</td>
       <td className="dl-when">
         {open ? (
           <>
@@ -293,10 +293,10 @@ function CloudRow({ s, def, onSign }: { s: GameState; def: CloudDef; onSign: () 
       <td>
         <b>{def.name}</b>
       </td>
-      <td className="num">{def.months} мес.</td>
-      <td className="num good">-{pct(def.discount)}</td>
-      <td className="num">{capLine(s, def.capMult)}</td>
-      <td className="num">{fmtMoney(active ? (s.late?.cloud?.monthly ?? 0) : terms.monthly)}</td>
+      <td className="num" data-label="Срок">{def.months} мес.</td>
+      <td className="num good" data-label="Аренда">-{pct(def.discount)}</td>
+      <td className="num" data-label="Лимит аренды, карт">{capLine(s, def.capMult)}</td>
+      <td className="num" data-label="Платёж в месяц">{fmtMoney(active ? (s.late?.cloud?.monthly ?? 0) : terms.monthly)}</td>
       <td className="dl-act">
         {active ? (
           <span className="good">действует</span>

@@ -11,7 +11,7 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .btn.small { min-height: 40px; height: 40px; padding: 0 12px; }
   input[type='text'], input[type='number'], select { min-height: 40px; height: 40px; font-size: 16px; }
   input[type='checkbox'], input[type='radio'] { width: 22px !important; height: 22px !important; }
-  .range { height: 40px; }
+  .range, input[type='range'] { height: 40px; }
   .range::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; }
   .range::-webkit-slider-thumb { width: 28px; height: 28px; margin-top: -11px; }
   .range::-moz-range-thumb { width: 28px; height: 28px; }
@@ -71,6 +71,10 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .tb-rate { grid-column: 3; grid-row: 1; justify-self: end; font-size: 11px; }
   .tb-date { grid-column: 1; grid-row: 2; min-height: 40px; font-size: 13px; }
   .tb-date svg { display: none; }
+  /* Отсчёт до финала - под датой и без слов «До финала» (полный текст во всплывающей подсказке): в строке ещё скорость и «Сводка». */
+  .tb-date { flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; min-width: 0; line-height: 1.15; }
+  .tb-final { margin-left: 0; padding: 0 4px; font-size: 11px; white-space: nowrap; }
+  .tb-final-k { display: none; }
   .speed { grid-column: 2; grid-row: 2; justify-self: end; gap: 0; }
   .tb-side {
     display: block; grid-column: 3; grid-row: 2; min-height: 36px; padding: 0 8px; border: 1px solid #4a4b50; border-radius: 3px;
@@ -79,6 +83,8 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .tb-side.on { background: var(--c-blue); border-color: var(--c-blue); }
   .money-pop { position: fixed; left: 8px; right: 8px; top: 44px; min-width: 0; transform: none; }
   .pause-note { top: 100%; margin-top: 6px; max-width: calc(100vw - 16px); white-space: normal; text-align: center; }
+  /* Открыто окно на весь экран: плашка паузы закрывала бы его заголовок; о паузе говорит нажатая кнопка скорости. */
+  .game:has(.window.fs:not(.fs-off)) .pause-note { display: none; }
   /* верхняя панель на телефоне в две строки, под ней плашка паузы: баннер гонки ниже обеих */
   .ar-banner { top: 132px; }
 
@@ -135,6 +141,7 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .side.sheet .side-body { width: 100%; min-height: 0; flex: 1; overflow-y: auto; border-radius: 0; }
   .side.sheet .side-head { border-top: none; padding-top: 0; }
   .side.sheet .side-item { padding: 12px; }
+  .side.sheet .side-rival { min-height: 40px; font-size: 13px; }
 
   /* Обучение: полоса над панелью задач, разворачивается по кнопке */
   .tutor-dock { display: block; position: absolute; left: 0; right: 0; bottom: 0; z-index: 780; }
@@ -165,6 +172,8 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .slot { grid-template-columns: 40px 1fr; }
   .slot > :last-child { grid-column: 1 / -1; }
   .toasts { right: 8px; left: 8px; bottom: 56px; width: auto; }
+  /* Достижения: список на всю высоту листа, а не на 60 % экрана. */
+  .ach-list { max-height: calc(92dvh - 72px); }
   .tip { max-width: calc(100vw - 16px); }
 
   /* Общие сетки внутри окон */
@@ -199,6 +208,9 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .cw-qty-range, .cw-qty-legend, .cw-qty-note { grid-column: 1 / -1; }
   .cw-pct input { width: 64px; height: 40px; }
   .cw-alloc-ctl { gap: 8px; }
+  /* «Нужно клиентам: …» и «не хватает …» - в две строки вместо обрезки многоточием. */
+  .cw-need { flex-wrap: wrap; row-gap: 0; }
+  .cw-need-t { white-space: normal; }
 
   /* Новая модель: колонки друг под другом, кнопка запуска прилипает к низу */
   .nm { height: auto; min-height: 100%; }
@@ -247,6 +259,47 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .inv { height: auto; min-height: 100%; }
   .inv-hero { padding: 12px; }
   .inv-body { flex: none; overflow: visible; }
+  /* Раунд: «10 %» и суммы не переносятся по частям. */
+  .inv-table th, .inv-table td { padding-left: 6px; padding-right: 6px; }
+  .inv-table td { white-space: nowrap; }
+
+  /* Дата-центры: окно прокручивается целиком, сводка сверху уходит вместе с площадкой. */
+  .dc { height: auto; min-height: 100%; }
+  .dc-body { flex: none; overflow: visible; }
+  .dc-head-kv dd { white-space: normal; }
+  /* Дата-центры: карты площадки - строкой «значок, название, штук», под ней мощность и кнопки во всю ширину. */
+  .dc-gpus, .dc-gpus tbody { display: block; }
+  .dc-gpus thead { display: none; }
+  .dc-gpus tr { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; column-gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--row-line); }
+  .dc-gpus td, .dc-gpus td + td { padding: 0; border: none; }
+  .dc-gpus .dc-td-thumb { grid-row: span 2; }
+  .dc-gpus td:nth-child(3)::after { content: ' шт.'; }
+  .dc-gpus td:nth-child(4) { grid-column: 2 / -1; text-align: left; color: var(--text-dim); }
+  .dc-gpus .dc-td-act { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 6px; text-align: left; }
+  .dc-gpus .dc-td-act .btn { flex: 1 1 0; }
+  .dc-gpus .dc-td-act .btn + .btn { margin-left: 0; }
+
+  /* Финал: таблица рывков прокручивается вбок внутри своей рамки, а не уходит за край окна. */
+  .fn-table { display: block; max-width: 100%; overflow-x: auto; }
+  .fn-body { padding: 10px; }
+
+  /* Сделки: окно прокручивается целиком, деньги и действующие сделки - друг под другом. */
+  .dl { height: auto; min-height: 100%; }
+  .dl-top { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 10px 12px; }
+  .dl-effects ul { columns: 1; }
+  .dl-body { flex: none; overflow: visible; padding: 10px; }
+  .dl-row-head { flex-wrap: wrap; }
+  .dl-note { text-align: left; }
+  /* Сделки: строки таблиц - блоками друг под другом, у чисел подпись столбца (data-label), кнопка во всю ширину. */
+  .dl-table, .dl-table tbody, .dl-table tr, .dl-table td { display: block; width: auto; }
+  .dl-table thead { display: none; }
+  .dl-table tr { padding: 10px 12px; border-bottom: 1px solid var(--row-line); }
+  .dl-table tr:last-child { border-bottom: none; }
+  .dl-table tr.on { background: var(--row-sel); }
+  .dl-table td, .dl-table th.num, .dl-table td.num { padding: 2px 0; border: none; text-align: left; white-space: normal; background: none; }
+  .dl-table td[data-label]::before { content: attr(data-label) ': '; color: var(--text-dim); }
+  .dl-table td.dl-act { margin-top: 8px; }
+  .dl-table td.dl-act .btn { width: 100%; }
 
   /* Аналитика */
   .an-body { padding: 10px; }
@@ -257,5 +310,8 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .pl { flex-direction: column; align-items: stretch; }
   .pl-legend { max-width: none; min-width: 0; border-left: none; border-top: 1px solid #3a3c42; }
   .bar-row { grid-template-columns: 96px minmax(0, 1fr) 52px; gap: 8px; }
+  /* «Последние ходы соперников»: дата и лаборатория, под ними ход и что произошло - без прокрутки вбок. */
+  .lab-moves-row { grid-template-columns: auto minmax(0, 1fr); gap: 0 10px; padding-bottom: 4px; border-bottom: 1px solid var(--row-line); }
+  .lab-moves-row .m { white-space: normal; }
   .elo-track { width: 72px; }
 }
