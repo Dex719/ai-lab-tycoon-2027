@@ -7,7 +7,7 @@ import { arenaStanding, type ArenaNeighbor, type ArenaStanding, type RaceMetric 
 import type { GameState, HypeOwner } from '../sim/types';
 import { ARENA_PLACE_TITLE } from './arena';
 import { fmtInt, fmtPct } from './format';
-import { IconClose } from './icons';
+import { IconClose, IconTrophy } from './icons';
 import { playSound } from './sound';
 import { store } from './store';
 import './arena.css';
@@ -66,7 +66,7 @@ function NeighborLine({ n, dir, metric }: { n: ArenaNeighbor | null; dir: 'up' |
   const close = n.gap <= closeGap(metric);
   return (
     <span className={`ar-n ar-n-${dir}${close ? ' close' : ''}`} title={`${n.name} (${LAB_NAME.get(n.lab) ?? n.lab}): ${fmtValue(metric, n.value)}`}>
-      <b>{dir === 'up' ? '▲' : '▼'}</b>
+      <b className="ar-tri" aria-hidden="true" />
       <Dot lab={n.lab} />
       <span className="ar-name">{n.name}</span>
       <span className="ar-gap">
@@ -102,6 +102,16 @@ export function ArenaStrip({ s }: { s: GameState }) {
   );
 }
 
+/** Строка выдержки из таблицы гонки в баннере. */
+interface Row {
+  key: string;
+  name: string;
+  lab: HypeOwner | null; // null - модель игрока
+  value: number;
+  me: boolean;
+  note: 'passed' | 'lost' | null; // обогнали её / она обогнала вас
+}
+
 interface Banner {
   key: number;
   metric: RaceMetric;
@@ -113,6 +123,7 @@ interface Banner {
   ahead: ArenaNeighbor[];
   behind: ArenaNeighbor[];
   switched: boolean; // гонка перешла на другой тест или на «Арену»
+  rows: Row[];
 }
 
 function names(list: ArenaNeighbor[]): string {
@@ -121,7 +132,25 @@ function names(list: ArenaNeighbor[]): string {
   return more > 0 ? `${shown.join(', ')} и ещё ${more}` : shown.join(' и ');
 }
 
-/** Баннер под верхней панелью, когда лучшая модель игрока меняет место в гонке. */
+function rivalRow(n: ArenaNeighbor, note: Row['note']): Row {
+  return { key: n.id, name: n.name, lab: n.lab, value: n.value, me: false, note };
+}
+
+/** Выдержка из таблицы: до двух моделей выше, лучшая модель игрока, до двух ниже. Кто сменил место - отмечен. */
+function excerpt(st: ArenaStanding, passed: ArenaNeighbor[], lost: ArenaNeighbor[]): Row[] {
+  const lostIds = new Set(lost.map((n) => n.id));
+  const passedIds = new Set(passed.map((n) => n.id));
+  // ahead идут по убыванию, ближние к игроку в конце; behind - ближние первыми.
+  const above = (lost.length > 0 ? st.ahead.filter((n) => lostIds.has(n.id)) : st.ahead).slice(-2);
+  const below = (passed.length > 0 ? st.behind.filter((n) => passedIds.has(n.id)) : st.behind).slice(0, passed.length > 0 ? 2 : 1);
+  return [
+    ...above.map((n) => rivalRow(n, lostIds.has(n.id) ? 'lost' : null)),
+    { key: 'me', name: st.modelName, lab: null, value: st.value, me: true, note: null },
+    ...below.map((n) => rivalRow(n, passedIds.has(n.id) ? 'passed' : null)),
+  ];
+}
+
+/** Баннер под верхней панелью, когда лучшая модель игрока меняет место в гонке: выдержка из таблицы вокруг модели. */
 export function ArenaBanner({ s }: { s: GameState }) {
   const prev = useRef<{ state: GameState; day: number; st: ArenaStanding | null } | null>(null);
   const [banner, setBanner] = useState<Banner | null>(null);
@@ -139,17 +168,20 @@ export function ArenaBanner({ s }: { s: GameState }) {
     if (before && before.rank === st.rank) return;
     const wasAhead = new Set((before?.ahead ?? []).map((n) => n.id));
     const nowAhead = new Set(st.ahead.map((n) => n.id));
+    const passed = (before?.ahead ?? []).filter((n) => !nowAhead.has(n.id));
+    const lost = st.ahead.filter((n) => !wasAhead.has(n.id));
     const b: Banner = {
       key: version,
       metric: st.metric,
       from: before?.rank ?? null,
       to: st.rank,
       model: st.modelName,
-      passed: (before?.ahead ?? []).filter((n) => !nowAhead.has(n.id)),
-      lost: st.ahead.filter((n) => !wasAhead.has(n.id)),
+      passed,
+      lost,
       ahead: st.ahead,
       behind: st.behind,
       switched,
+      rows: excerpt(st, switched ? [] : passed, switched ? [] : lost),
     };
     setBanner(b);
     const up = b.from === null || b.to < b.from;
@@ -177,33 +209,39 @@ export function ArenaBanner({ s }: { s: GameState }) {
   }
   else if (up) sub = banner.passed.length > 0 ? `${banner.model} обогнала ${names(banner.passed)}` : `${banner.model} поднялась выше`;
   else sub = banner.lost.length > 0 ? `Вас ${banner.lost.length > 1 ? 'обогнали' : 'обогнала'} ${names(banner.lost)}` : `${banner.model} опустилась ниже`;
+  const tone = banner.switched ? 'switch' : first ? 'first' : up ? 'up' : 'down';
   return (
     <div
       key={banner.key}
-      className={`ar-banner ${banner.switched ? 'switch' : up ? 'up' : 'down'}${first ? ' first' : ''}`}
+      className={`ar-banner ${tone}`}
       role="status"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      <span className="arb-arrow" aria-hidden="true">
-        {banner.switched ? '⇄' : up ? '▲' : '▼'}
-      </span>
-      <div className="arb-body">
-        <div className="arb-title">
-          {first ? `1-е место: ${race}` : banner.switched ? `Гонка: ${race}` : race}
-          {!first && (
-            <span className="arb-places">
-              {banner.from !== null && (
-                <>
-                  <s>{banner.from}-е</s> →{' '}
-                </>
-              )}
-              <b>{banner.to}-е место</b>
-            </span>
-          )}
-        </div>
-        <div className="arb-sub">{sub}</div>
+      <div className="arb-head">
+        {first && <IconTrophy size={18} className="arb-cup" />}
+        <span className="arb-race">{banner.switched ? `Гонка: ${race}` : race}</span>
+        <b className="arb-place">{banner.to}-е место</b>
+        {banner.from !== null && !banner.switched && <span className="arb-was">было {banner.from}-е</span>}
       </div>
+      <div className="arb-sub">{sub}</div>
+      <table className="arb-rows">
+        <tbody>
+          {banner.rows.map((r) => (
+            <tr key={r.key} className={r.me ? 'me' : r.note ?? undefined}>
+              <td>
+                <span className="arb-n">
+                  <i className="ar-dot" style={{ background: r.lab ? (LAB_COLOR.get(r.lab) ?? '#888') : 'var(--accent)' }} />
+                  <span className="ar-name">{r.name}</span>
+                  {r.me && <span className="arb-you">вы</span>}
+                </span>
+              </td>
+              <td className="arb-v">{fmtValue(banner.metric, r.value)}</td>
+              <td className="arb-note">{r.note === 'passed' ? 'обогнали' : r.note === 'lost' ? 'обогнала вас' : ''}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       <button type="button" className="arb-x" onClick={() => setBanner(null)} aria-label="Скрыть">
         <IconClose size={12} />
       </button>

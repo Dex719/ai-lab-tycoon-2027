@@ -1,105 +1,107 @@
-/* «Арена» в движении: соседи на верхней панели и баннер смены места. */
+/* «Арена» в движении: соседи на верхней панели и баннер смены места. Плоско: без градиентов, свечения и «пружин». */
 
 .ar-strip { display: flex; align-items: center; gap: 10px; white-space: nowrap; cursor: default; }
 .ar-empty { color: var(--bar-dim); font-size: 13px; }
 .ar-place { display: flex; flex-direction: column; align-items: center; line-height: 1; }
-.ar-k { font-size: 10px; color: var(--bar-dim); letter-spacing: 0.02em; }
-.ar-r { font: 700 19px var(--mono); color: var(--bar-text); margin-top: 2px; }
-.ar-r.first { color: #ffd34d; text-shadow: 0 0 8px rgba(255, 211, 77, 0.45); }
+.ar-k { font-size: 11px; color: var(--bar-dim); }
+.ar-r { margin-top: 2px; font-size: 18px; font-weight: 700; color: var(--bar-text); font-variant-numeric: tabular-nums; }
+.ar-r.first { color: var(--gold-fill); }
 .ar-ns { display: flex; flex-direction: column; gap: 1px; font-size: 12.5px; line-height: 1.25; min-width: 0; }
 .ar-n { display: flex; align-items: center; gap: 5px; color: #c8cbd0; }
-.ar-n b { font-size: 9px; width: 9px; }
-.ar-n-up b { color: var(--bad-on-dark); }
-.ar-n-down b { color: var(--good-on-dark); }
-.ar-n-none { color: #75787e; padding-left: 14px; }
+/* Треугольник «выше» / «ниже» рисуется фигурой, а не символом шрифта. */
+.ar-tri { flex: none; width: 8px; height: 6px; background: currentColor; }
+.ar-n-up .ar-tri { color: var(--bad-on-dark); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.ar-n-down .ar-tri { color: var(--good-on-dark); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.ar-n-none { color: #8b8e93; padding-left: 13px; }
 .ar-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .ar-name { max-width: 128px; overflow: hidden; text-overflow: ellipsis; }
-.ar-gap { font-family: var(--mono); color: var(--bar-dim); }
-.ar-n.close .ar-gap { color: #ffd34d; font-weight: 700; }
-.ar-close {
-  font-size: 9.5px; font-weight: 700; text-transform: uppercase; color: #1c1c1e; background: #ffd34d;
-  padding: 0 4px; border-radius: 2px; animation: ar-pulse 1.2s ease-in-out infinite;
-}
-@keyframes ar-pulse { 50% { opacity: 0.55; } }
+.ar-gap { color: var(--bar-dim); font-variant-numeric: tabular-nums; }
+.ar-n.close .ar-gap { color: var(--gold-fill); font-weight: 700; }
+.ar-close { font-size: 11.5px; font-weight: 600; color: var(--gold-fill); }
 
+/* Баннер: выдержка из таблицы гонки под верхней панелью. Полоса слева - исход, как у уведомлений. */
 .ar-banner {
-  position: fixed; top: 52px; left: 50%; z-index: 880; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 14px; min-width: 380px; max-width: 560px; padding: 12px 40px 12px 16px;
-  color: #fff; border-radius: 6px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
-  animation: arb-in 420ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  --arb: var(--c-green);
+  position: fixed; top: 50px; left: 50%; z-index: 880; transform: translateX(-50%);
+  width: 420px; max-width: calc(100vw - 24px); padding: 9px 36px 8px 14px;
+  background: #fff; color: var(--text); border: 1px solid var(--line); border-left: 5px solid var(--arb); border-radius: 3px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  animation: arb-in 200ms ease-out both;
 }
-.ar-banner.up { background: linear-gradient(135deg, #1f8a4a, #136036); border: 1px solid #5ed37f; }
-.ar-banner.switch { background: linear-gradient(135deg, #2a64b8, #173a6e); border: 1px solid #7fb0ff; }
-.ar-banner.down { background: linear-gradient(135deg, #b23838, #7a1f1f); border: 1px solid #ff8a8a; }
-.ar-banner.first { background: linear-gradient(135deg, #d9a514, #8a5f00); border: 1px solid #ffe08a; }
-.ar-banner.first::after {
-  content: ''; position: absolute; inset: 0; border-radius: 6px; pointer-events: none;
-  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%) -200% 0 / 200% 100% no-repeat;
-  animation: arb-shine 1.4s 0.3s ease-out;
-}
-.arb-arrow {
-  width: 42px; height: 42px; display: grid; place-items: center; flex: none; font-size: 22px;
-  border-radius: 50%; background: rgba(255, 255, 255, 0.18); animation: arb-bounce 600ms 200ms ease-out;
-}
-.arb-body { min-width: 0; }
-.arb-title { display: flex; align-items: baseline; gap: 10px; font-size: 15px; font-weight: 600; }
-.ar-banner.first .arb-title { font-size: 20px; }
-.arb-places { font: 20px var(--mono); }
-.arb-places s { opacity: 0.65; text-decoration-thickness: 2px; }
-.arb-places b { font-weight: 700; }
-.arb-sub { margin-top: 3px; font-size: 13.5px; opacity: 0.92; }
+.ar-banner.down { --arb: var(--c-red); }
+.ar-banner.switch { --arb: var(--c-blue); }
+.ar-banner.first { --arb: var(--gold-line); background: var(--gold-tint); border-color: #e6cf86; border-left-color: var(--arb); }
+.arb-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.arb-cup { align-self: center; flex: none; color: var(--gold-ink); }
+.arb-race { font-size: 14px; color: var(--text-dim); white-space: nowrap; }
+.arb-place { font-size: 19px; font-weight: 700; color: #1d6b37; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ar-banner.down .arb-place { color: #a12a2a; }
+.ar-banner.switch .arb-place { color: var(--text); }
+.ar-banner.first .arb-place { color: var(--gold-ink); }
+.arb-was { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+.arb-sub { margin-top: 1px; font-size: 13.5px; color: var(--text-body); }
+.arb-rows { width: 100%; margin-top: 7px; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.arb-rows td { padding: 3px 4px; border-top: 1px solid #e3e5e8; white-space: nowrap; }
+.arb-n { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.arb-n .ar-name { max-width: 170px; }
+.arb-v { text-align: right; color: var(--text-body); }
+.arb-note { width: 1%; text-align: right; font-size: 12px; font-weight: 600; }
+.arb-rows tr.me td { background: #e3eefc; font-weight: 600; }
+.arb-rows tr.me .arb-v { color: var(--text); }
+.arb-you { font-size: 11.5px; font-weight: 600; color: var(--accent-dark); }
+.arb-rows tr.passed .arb-note { color: #1d6b37; }
+.arb-rows tr.lost .arb-note { color: #a12a2a; }
 .arb-x {
-  position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; display: grid; place-items: center;
-  background: none; border: none; color: rgba(255, 255, 255, 0.8); cursor: pointer; border-radius: 3px;
+  position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; display: grid; place-items: center;
+  background: none; border: none; color: var(--text-dim); cursor: pointer; border-radius: 2px;
 }
-.arb-x:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
-@keyframes arb-in { from { opacity: 0; transform: translate(-50%, -24px) scale(0.92); } }
-@keyframes arb-bounce { 40% { transform: scale(1.25); } }
-@keyframes arb-shine { to { background-position: 200% 0; } }
+.arb-x:hover { background: #eceef1; color: var(--text); }
+.arb-x:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@keyframes arb-in { from { opacity: 0; transform: translate(-50%, -6px); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .ar-banner, .arb-arrow, .ar-close, .ar-banner.first::after { animation: none; }
+  .ar-banner { animation: none; }
 }
 
-/* Летящие суммы под деньгами на верхней панели. */
+/* Летящие суммы под деньгами: тёмная подпись, как подсказка верхней панели; плывёт вверх и гаснет. */
 .flies { position: absolute; left: 50%; top: 100%; width: 0; height: 0; pointer-events: none; z-index: 960; }
 .fly {
-  position: absolute; transform: translateX(-50%); white-space: nowrap; padding: 3px 9px; border-radius: 4px;
-  font: 700 15px var(--mono); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45); display: flex; align-items: baseline; gap: 6px;
+  position: absolute; transform: translateX(-50%); display: flex; align-items: baseline; gap: 6px; padding: 3px 8px;
+  white-space: nowrap; background: var(--bar); border: 1px solid #3b3b3f; border-radius: 3px;
+  font: 600 14px var(--font); font-variant-numeric: tabular-nums; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
-.fly small { font: 600 11px var(--font); opacity: 0.85; }
-.fly.plus { background: #1f8a4a; color: #fff; animation: fly-up 1800ms ease-out forwards; }
-.fly.minus { background: #b23838; color: #fff; animation: fly-down 1800ms ease-out forwards; }
+.fly small { font-size: 12px; font-weight: 400; color: var(--bar-dim); }
+.fly.plus { color: var(--good-on-dark); animation: fly-up 1800ms ease-out forwards; }
+.fly.minus { color: var(--bad-on-dark); animation: fly-down 1800ms ease-out forwards; }
 @keyframes fly-up {
-  0% { opacity: 0; transform: translate(-50%, 18px) scale(0.7); }
-  12% { opacity: 1; transform: translate(-50%, 6px) scale(1.12); }
-  25% { transform: translate(-50%, 6px) scale(1); }
+  0% { opacity: 0; transform: translate(-50%, 10px); }
+  12% { opacity: 1; transform: translate(-50%, 6px); }
   75% { opacity: 1; }
-  100% { opacity: 0; transform: translate(-50%, -14px); }
+  100% { opacity: 0; transform: translate(-50%, -6px); }
 }
 @keyframes fly-down {
-  0% { opacity: 0; transform: translate(-50%, -6px) scale(0.7); }
-  12% { opacity: 1; transform: translate(-50%, 6px) scale(1.1); }
-  25% { transform: translate(-50%, 6px) scale(1); }
+  0% { opacity: 0; transform: translate(-50%, 0); }
+  12% { opacity: 1; transform: translate(-50%, 6px); }
   75% { opacity: 1; }
-  100% { opacity: 0; transform: translate(-50%, 34px); }
+  100% { opacity: 0; transform: translate(-50%, 18px); }
 }
 @media (prefers-reduced-motion: reduce) { .fly.plus, .fly.minus { animation-duration: 2400ms; animation-timing-function: steps(1, end); } }
 
 /* Показатели лаборатории на верхней панели. */
 .lab-stat { position: relative; display: flex; flex-direction: column; align-items: flex-start; line-height: 1; cursor: default; white-space: nowrap; }
-.ls-k { font-size: 10px; color: var(--bar-dim); }
-.ls-v { font: 700 15px var(--mono); color: var(--bar-text); margin-top: 3px; display: flex; align-items: baseline; gap: 4px; }
+.ls-k { font-size: 11px; color: var(--bar-dim); }
+.ls-v { margin-top: 3px; display: flex; align-items: baseline; gap: 5px; font-size: 15px; font-weight: 600; color: var(--bar-text); font-variant-numeric: tabular-nums; }
 .ls-bar { width: 100%; min-width: 44px; height: 3px; margin-top: 3px; background: #3a3b40; border-radius: 2px; overflow: hidden; }
 .ls-bar i { display: block; height: 100%; background: #8fa3bf; transition: width 300ms ease-out; }
 .lab-stat.up .ls-bar i { background: var(--good-on-dark); }
 .lab-stat.down .ls-bar i { background: var(--bad-on-dark); }
-.ls-d { font-size: 12px; padding: 0 4px; border-radius: 2px; animation: ls-pop 2200ms ease-out forwards; }
-.lab-stat.up .ls-d { background: var(--good-on-dark); color: #0f2b19; }
-.lab-stat.down .ls-d { background: var(--bad-on-dark); color: #2b0f0f; }
-@keyframes ls-pop { 0% { transform: scale(0.4); opacity: 0; } 12% { transform: scale(1.3); opacity: 1; } 25% { transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
+/* Изменение от события: цветной текст рядом с числом, гаснет сам. */
+.ls-d { font-size: 12.5px; font-weight: 700; animation: ls-fade 2200ms ease-out forwards; }
+.lab-stat.up .ls-d { color: var(--good-on-dark); }
+.lab-stat.down .ls-d { color: var(--bad-on-dark); }
+@keyframes ls-fade { 0% { opacity: 0; } 10%, 80% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .ls-d { animation: none; } }
 
 /* Отсчёт до финала рядом с датой. */
-.tb-final { margin-left: 6px; padding: 1px 7px; border-radius: 3px; font: 700 12px var(--font); background: #c99a1a; color: #1c1c1e; }
-.tb-final.hot { background: var(--bad-on-dark); animation: ar-pulse 1s ease-in-out infinite; }
+.tb-final { margin-left: 6px; padding: 1px 7px; border-radius: 3px; font-size: 12px; font-weight: 700; background: var(--gold-fill); color: #2b2000; }
+.tb-final.hot { background: var(--bad-on-dark); color: #2b0f0f; }
