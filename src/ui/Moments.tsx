@@ -10,6 +10,7 @@ import type { GameState } from '../sim/types';
 import { fmtGap, raceName } from './ArenaFeedback';
 import { useModalFocus } from './components/common';
 import { fmtDays, fmtInt } from './format';
+import { lateMoments } from './lateMoments';
 import { playSound } from './sound';
 import { store } from './store';
 import './moments.css';
@@ -20,7 +21,7 @@ interface Moment {
   headline: string;
   sub: string;
   body: string;
-  art: 'attention' | 'chat' | 'trophy' | 'arena' | 'rlhf' | 'final';
+  art: 'attention' | 'chat' | 'trophy' | 'arena' | 'rlhf' | 'final' | 'push' | 'swap' | 'deal';
 }
 
 function standing(s: GameState): ArenaStanding | null {
@@ -120,6 +121,7 @@ function currentMoments(s: GameState): Moment[] {
       art: 'final',
     });
   }
+  out.push(...lateMoments(s, st));
   return out;
 }
 
@@ -213,6 +215,64 @@ const FIGS: Record<string, { caption: string; draw: () => ReactElement }> = {
         </g>
         <text x={100} y={94} className="mo-num big">31</text>
         <text x={100} y={116} className="mo-num small">декабря</text>
+      </g>
+    ),
+  },
+  // Две строки «Арены»: рывок второй строки (штриховка) не дотянул до черты первой.
+  push: {
+    caption: '«Арена»: рывок не достал до первой строки',
+    draw: () => (
+      <g>
+        <g className="mo-ink">
+          <rect x={34} y={30} width={130} height={22} fillOpacity={0.88} />
+          <rect x={34} y={78} width={86} height={22} fillOpacity={0.3} />
+        </g>
+        <g className="mo-line">
+          <rect x={120} y={78} width={34} height={22} />
+          <path d="M128 78 L120 86 M138 78 L120 96 M148 78 L126 100 M154 82 L136 100 M154 92 L146 100" className="mo-thin" />
+          <path d="M164 18 V112" className="mo-dash" />
+          <path d="M124 116 H150 M144 110 L150 116 L144 122" />
+        </g>
+        <g className="mo-num">
+          <text x={20} y={47}>1</text>
+          <text x={20} y={95}>2</text>
+        </g>
+      </g>
+    ),
+  },
+  // Таблица гонки: две строки поменялись местами, стрелки справа.
+  swap: {
+    caption: 'Таблица гонки: строки поменялись местами',
+    draw: () => (
+      <g>
+        <g className="mo-ink">
+          <rect x={20} y={28} width={120} height={26} fillOpacity={0.88} />
+        </g>
+        <g className="mo-line">
+          <rect x={20} y={28} width={120} height={26} />
+          <rect x={20} y={86} width={120} height={26} />
+          <path d="M34 99 H96" className="mo-thin" />
+          <path d="M152 99 C178 99 178 41 152 41 M158 35 L152 41 L158 47" />
+        </g>
+        <g className="mo-num">
+          <text x={10} y={47}>1</text>
+          <text x={10} y={105}>2</text>
+        </g>
+        <path d="M34 41 H96" className="mo-line inv" />
+      </g>
+    ),
+  },
+  // Договор о покупке: строки текста, подпись и круглая печать.
+  deal: {
+    caption: 'Договор о покупке подписан',
+    draw: () => (
+      <g className="mo-line">
+        <rect x={50} y={8} width={100} height={124} />
+        <path d="M62 24 H138 M62 36 H138 M62 48 H124 M62 60 H138 M62 72 H110" className="mo-thin" />
+        <path d="M62 110 C70 96 76 118 84 104 C90 94 94 116 102 106 C106 101 110 104 114 102" />
+        <path d="M60 118 H116" className="mo-thin" />
+        <circle cx={126} cy={100} r={16} />
+        <circle cx={126} cy={100} r={11} className="mo-thin" />
       </g>
     ),
   },
