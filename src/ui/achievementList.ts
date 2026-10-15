@@ -1,11 +1,13 @@
 // Достижения: значки за всю историю игры в этом браузере (не в сохранении партии).
 // Условия смотрят на состояние партии; полученное остаётся навсегда.
 
-import { dcReady } from '../sim/datacenters';
+import { findGoal } from '../data/goals';
+import { dcReady, gpuKwAt } from '../sim/datacenters';
 import { valuation } from '../sim/investors';
 import { CONTEXT_MAX_LEVEL } from '../sim/research';
 import { dateToDay } from '../sim/time';
-import type { GameState, MonthRecord } from '../sim/types';
+import type { Datacenter, GameState, MonthRecord } from '../sim/types';
+import { GPU_IDS } from '../sim/types';
 
 export interface AchievementDef {
   id: string;
@@ -27,6 +29,47 @@ function safe(f: () => boolean): boolean {
     return false;
   }
 }
+
+// ---------- Новые системы: задачи, цели с риском, соперники, сделки, финал, дата-центры ----------
+
+/** Выполнено рискованных целей года за партию: прошлые годы - по итогам, текущий - по целям в работе. */
+function riskGoalsDone(s: GameState): number {
+  let n = 0;
+  for (const r of s.yearly.reviews) {
+    if (r.year === s.yearly.year) continue; // текущий год посчитаем по целям в работе
+    n += (r.results ?? []).filter((g) => g.done && g.style === 'risk').length;
+  }
+  n += s.yearly.goals.filter((g) => g.done && findGoal(g.id)?.style === 'risk').length;
+  return n;
+}
+
+/** Обгонов главного соперника (по счёту обгонов из досье). */
+function mainRivalPassed(s: GameState): number {
+  const main = s.duel?.main;
+  return main ? (s.duel?.labs[main]?.youPassed ?? 0) : 0;
+}
+
+/** Три исхода «повезло» подряд в письмах с риском (по порядку писем). */
+function luckyStreak(s: GameState, need: number): boolean {
+  let run = 0;
+  for (const m of s.mail) {
+    if (!m.outcome) continue;
+    run = m.outcome.lucky ? run + 1 : 0;
+    if (run >= need) return true;
+  }
+  return false;
+}
+
+/** Готовый дата-центр заполнен картами: стоящие карты занимают от 98 % мощности. */
+function dcFull(dc: Datacenter): boolean {
+  if (!dcReady(dc) || dc.mw <= 0) return false;
+  let kw = 0;
+  for (const id of GPU_IDS) kw += (dc.gpus[id] ?? 0) * gpuKwAt(dc.site, id);
+  return kw >= dc.mw * 1000 * 0.98;
+}
+
+const startupsBought = (s: GameState) => s.late?.startups.filter((d) => d.status === 'bought').length ?? 0;
+const pushFired = (s: GameState) => s.late?.finale.pushes.some((p) => p.fired) ?? false;
 
 export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'first-model', title: 'Первая модель', how: 'Выпустить первую модель', check: (s) => released(s).length >= 1 },
@@ -91,6 +134,35 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   { id: 'founder-control', title: 'Контроль', how: 'Дойти до конца 2024 года с долей основателя от 50 %', check: (s) => ended(s) && s.founderShare >= 0.5 },
   { id: 'bankrupt', title: 'Горький опыт', how: 'Обанкротиться', check: (s) => s.outcome === 'bankrupt' },
+  // Задачи и цели года
+  { id: 'tasks-10', title: 'Десять задач', how: 'Выполнить 10 задач за партию', check: (s) => s.quests.done >= 10 },
+  { id: 'tasks-30', title: 'Тридцать задач', how: 'Выполнить 30 задач за партию', check: (s) => s.quests.done >= 30 },
+  { id: 'risk-goals', title: 'Три риска', how: 'Выполнить 3 рискованные цели года за партию', check: (s) => riskGoalsDone(s) >= 3 },
+  { id: 'lucky-streak', title: 'Везение', how: 'Три раза подряд повезло в письмах с риском', check: (s) => luckyStreak(s, 3) },
+  // Соперники
+  { id: 'main-rival', title: 'Личный счёт', how: 'Обойти главного соперника 3 раза', check: (s) => mainRivalPassed(s) >= 3 },
+  // Сделки
+  { id: 'star-team', title: 'Звёздная команда', how: 'Нанять звёздную команду', check: (s) => (s.late?.teams.length ?? 0) > 0 },
+  {
+    id: 'team-kept',
+    title: 'Своих не отдаём',
+    how: 'Удержать звёздную команду, которую переманивает соперник',
+    check: (s) => s.mail.some((m) => m.eventId === 'rival-poach-team' && m.chosen === 0),
+  },
+  { id: 'startup', title: 'Покупка', how: 'Купить стартап', check: (s) => startupsBought(s) >= 1 },
+  { id: 'startups-3', title: 'Холдинг', how: 'Купить 3 стартапа за партию', check: (s) => startupsBought(s) >= 3 },
+  { id: 'cloud-deal', title: 'Облачный партнёр', how: 'Подписать облачную сделку', check: (s) => !!s.late?.cloud || (s.late?.cloudPast.length ?? 0) > 0 },
+  // Финальный квартал
+  { id: 'final-update', title: 'Доработка', how: 'Доработать модель в финальном квартале', check: (s) => (s.late?.finale.done.length ?? 0) > 0 },
+  {
+    id: 'push-held',
+    title: 'Рывок отбит',
+    how: 'Остаться на 1-м месте после финального рывка соперника',
+    check: (s) => moment(s, 'push-held') || (s.outcome === 'victory' && pushFired(s)),
+  },
+  // Дата-центры
+  { id: 'dc-50', title: 'Большая стройка', how: 'Достроить дата-центр на 50 МВт или больше', check: (s) => s.datacenters.list.some((d) => dcReady(d) && d.mw >= 50) },
+  { id: 'dc-full', title: 'Полный зал', how: 'Заполнить свой дата-центр картами', check: (s) => s.datacenters.list.some(dcFull) },
 ];
 
 const KEY = 'ailab.achievements';
