@@ -8,6 +8,7 @@ import { newGame, releaseModel } from '../sim/actions';
 import { setRent } from '../sim/compute';
 import { applyTender, canApply } from '../sim/contracts';
 import { applyChoice, pendingChoice } from '../sim/events';
+import { chooseGoals, goalOfferOpen, goalsDay } from '../sim/goals';
 import { refPrice } from '../sim/market';
 import { setResearch } from '../sim/research';
 import { advanceDay } from '../sim/tick';
@@ -112,7 +113,13 @@ describe('обучение игре', () => {
         return i;
       };
 
-      expect(TUTORIAL[0].done).toBeUndefined();
+      // Первый шаг - окно выбора целей: интерфейс открывает его сразу (store.newGame вызывает goalsDay).
+      goalsDay(s);
+      expect(goalOfferOpen(s)).toBe(true);
+      const goals = at('Цели года');
+      expect(done(goals)).toBe(false);
+      expect(chooseGoals(s, s.quests.offer!.goals.slice(0, 3).map((g) => g.id)).ok).toBe(true);
+      expect(done(goals)).toBe(true);
 
       const compute = at('Мощности');
       expect(done(compute)).toBe(false);

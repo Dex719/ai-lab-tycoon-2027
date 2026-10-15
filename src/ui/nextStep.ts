@@ -9,17 +9,18 @@ import { canApply } from '../sim/contracts';
 import { formatDateShort, START_DAY } from '../sim/time';
 import { modelScore } from '../sim/training';
 import type { GameState, PlayerModel, Tender } from '../sim/types';
-import { contractsNeed, trainingDaysAt } from './forecast';
+import { contractsNeed, researchDaysAt, trainingDaysAt } from './forecast';
 import { fmtH100e, fmtMoney } from './format';
 import type { WindowId } from './windows';
 
 export interface NextStep {
-  id: 'rent' | 'contract-power' | 'release' | 'research' | 'first-model' | 'transformer' | 'tender' | 'waiting';
+  id: 'rent' | 'contract-power' | 'release' | 'research' | 'first-model' | 'transformer' | 'tender' | 'research-wait' | 'waiting' | 'stopped' | 'time';
   title: string;
   detail: string;
   /** Глагол на кнопке; null - кнопки нет. */
   action: string | null;
-  open: WindowId;
+  /** Окно, которое открывает кнопка; 'play' - кнопка запускает время. */
+  open: WindowId | 'play';
 }
 
 /** Подсказка видна только в первый год партии. */
@@ -48,8 +49,25 @@ function richestTender(s: GameState): Tender | null {
   return best;
 }
 
-/** Следующий шаг или null: подсказка не нужна (обучение игре идёт, первый год прошёл, партия окончена или всё сделано). */
-export function nextStep(s: GameState): NextStep | null {
+/**
+ * Следующий шаг или null: подсказка не нужна (обучение игре идёт, первый год прошёл, партия окончена или всё сделано).
+ * speed - скорость игры: пока время ни разу не шло, а ждать уже есть чего, подсказка - запустить время.
+ */
+export function nextStep(s: GameState, speed = 1): NextStep | null {
+  const step = firstStep(s);
+  if (step && step.id === 'waiting' && speed === 0 && s.day === START_DAY) {
+    return {
+      id: 'time',
+      title: 'Запустите время',
+      detail: 'Модель обучается, только пока идёт время: кнопка ▶ на верхней панели или пробел. Важные события сами ставят игру на паузу.',
+      action: 'Запустить',
+      open: 'play',
+    };
+  }
+  return step;
+}
+
+function firstStep(s: GameState): NextStep | null {
   if (s.tutorial.active || s.outcome || s.day >= START_DAY + NEXT_STEP_DAYS) return null;
 
   if (totalH100e(s) <= 0) {
@@ -128,11 +146,24 @@ export function nextStep(s: GameState): NextStep | null {
     }
   }
 
+  // Первая модель выпущена, «Механизм внимания» ещё идёт: доля «Обучение» стоит без дела до его конца.
+  const cur = s.research.current;
+  if (released && !attentionDone && cur === 'attention' && !s.trainings.some((t) => !t.failed) && s.compute.alloc.training > 0) {
+    const days = researchDaysAt(s, cur, s.compute.alloc.experiments);
+    return {
+      id: 'research-wait',
+      title: `«Механизм внимания»: готово ${Number.isFinite(days) ? formatDateShort(s.day + Math.max(1, days)) : 'не скоро'}`,
+      detail: 'После него новая модель будет заметно сильнее. До тех пор свободную долю «Обучение» можно отдать исследованию или контрактам.',
+      action: 'Изменить доли',
+      open: 'compute',
+    };
+  }
+
   if (s.models.length === 0) {
     const run = s.trainings.find((t) => !t.failed) ?? s.trainings[0];
     if (run?.failed) {
       return {
-        id: 'waiting',
+        id: 'stopped',
         title: `Обучение «${run.plan.name}» остановлено`,
         detail: 'Как продолжить, решается в письме о срыве обучения.',
         action: 'Открыть почту',
@@ -142,7 +173,7 @@ export function nextStep(s: GameState): NextStep | null {
     const days = run ? trainingDaysAt(s, run, s.compute.alloc.training) : null;
     if (run && days === null) {
       return {
-        id: 'waiting',
+        id: 'stopped',
         title: `Обучение «${run.plan.name}» стоит`,
         detail: 'Доля «Обучение» в «Мощностях» равна 0 %.',
         action: 'Изменить доли',

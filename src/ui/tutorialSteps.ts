@@ -4,6 +4,7 @@
 // и первые месяцы партии не проходят в ожидании исследования.
 
 import { totalH100e } from '../sim/compute';
+import { goalOfferOpen } from '../sim/goals';
 import type { GameState, Speed } from '../sim/types';
 import type { WindowId } from './windows';
 
@@ -29,14 +30,16 @@ export function stepTargets(step: TutorialStep, s: GameState): string[] {
 const released = (s: GameState) => s.models.some((m) => m.releasedDay !== null);
 
 export const TUTORIAL: TutorialStep[] = [
+  // Окно «Цели 2017 года» открывается сразу и держит время: первый шаг - выбрать цели в нём.
   {
-    title: 'Добро пожаловать',
-    text: 'Вы руководите ИИ-лабораторией с 1 января 2017 года. На счету $3 млн. Цель - лучшая модель на «Арене» 31.12.2024.',
-    targets: [],
+    title: 'Цели года',
+    text: 'Вы руководите ИИ-лабораторией с 1 января 2017 года. Отметьте три цели на год и нажмите «Принять цели»: за каждую выполненную - награда.',
+    targets: ['goals-accept'],
+    done: (s) => !goalOfferOpen(s),
   },
   {
     title: 'Мощности',
-    text: 'Модели обучаются на видеокартах, карты арендуют в облаке. Откройте «Мощности».',
+    text: 'Главная цель - лучшая модель на «Арене» 31.12.2024. Модели обучаются на видеокартах из облака: откройте «Мощности».',
     targets: ['icon-compute'],
     done: (_s, ctx) => ctx.open.has('compute'),
   },

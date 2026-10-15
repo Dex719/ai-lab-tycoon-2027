@@ -19,6 +19,9 @@ export function TutorialPanel({ s, open, speed }: { s: GameState; open: Readonly
   const index = Math.min(s.tutorial.step, TUTORIAL.length - 1);
   const step = TUTORIAL[index];
   const doneNow = active && !!step.done?.(s, { open, speed });
+  // «Назад» на выполненный шаг сразу вернул бы сюда же: кнопка нужна, только если прошлый шаг можно перечитать.
+  const prevStep = index > 0 ? TUTORIAL[index - 1] : null;
+  const canBack = !!prevStep && !prevStep.done?.(s, { open, speed });
   // Свёрнутая панель - одна строка; на новом шаге панель разворачивается сама, чтобы игрок увидел подсказку.
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => setCollapsed(false), [index]);
@@ -90,10 +93,14 @@ export function TutorialPanel({ s, open, speed }: { s: GameState; open: Readonly
           </div>
           <div className="foot">
             {/* Короткая подпись: в узкой панели три кнопки помещаются в одну строку, панель не меняет высоту. */}
-            <button className="skip" title="Пропустить обучение игре" onClick={() => store.dispatch(finish)}>
-              Пропустить
-            </button>
-            {index > 0 && (
+            {last ? (
+              <span className="skip" aria-hidden="true" />
+            ) : (
+              <button className="skip" title="Пропустить обучение игре" onClick={() => store.dispatch(finish)}>
+                Пропустить
+              </button>
+            )}
+            {canBack && (
               <button className="btn small" onClick={() => store.dispatch(setStep, index - 1)}>
                 Назад
               </button>

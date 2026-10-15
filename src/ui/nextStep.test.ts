@@ -53,7 +53,12 @@ describe('следующий шаг', () => {
     expect(first.open).toBe('newModel');
 
     expect(startTraining(s, midPlan(s)).ok).toBe(true);
+    // Время ещё ни разу не шло: подсказка - запустить его.
+    expect(nextStep(s, 0)?.id).toBe('time');
+    expect(nextStep(s, 0)?.open).toBe('play');
+    expect(nextStep(s, 1)?.id).toBe('waiting');
     for (let i = 0; i < 3; i++) day(s);
+    expect(nextStep(s, 0)?.id).toBe('waiting');
     const waiting = nextStep(s)!;
     expect(waiting.id).toBe('waiting');
     expect(waiting.title).toMatch(/^«Модель 1» обучается, готово \d\d\.\d\d\.2017$/);
@@ -69,6 +74,12 @@ describe('следующий шаг', () => {
     expect(tender.id).toBe('tender');
     expect(tender.open).toBe('contracts');
     expect(applyTender(s, fit.tender.id, fit.model.id).ok).toBe(true);
+    // Пока идёт «Механизм внимания», доля «Обучение» свободна: подсказка - срок исследования и доли.
+    const wait = nextStep(s)!;
+    expect(wait.id).toBe('research-wait');
+    expect(wait.title).toMatch(/^«Механизм внимания»: готово \d\d\.\d\d\.2017$/);
+    expect(wait.open).toBe('compute');
+    s.compute.alloc = { ...s.compute.alloc, training: 0, experiments: s.compute.alloc.experiments + s.compute.alloc.training };
     expect(nextStep(s)).toBeNull();
   });
 

@@ -11,6 +11,7 @@ import { ModelEmblem } from './components/ModelEmblem';
 import { fmtNum, fmtShare, ruPlural } from './format';
 import { IconLogo } from './icons';
 import { nextStep, type NextStep } from './nextStep';
+import { store, useSpeed } from './store';
 import { raceMetricOf, raceRows } from './race';
 import type { WindowAlias, WindowId } from './windows';
 import './desk.css';
@@ -167,7 +168,7 @@ function NextPlate({ step, open }: { step: NextStep; open: (id: WindowId | Windo
         <small>{step.detail}</small>
       </div>
       {step.action && (
-        <button type="button" className="btn primary" onClick={() => open(step.open)}>
+        <button type="button" className="btn primary" onClick={() => (step.open === 'play' ? store.setSpeed(1) : open(step.open))}>
           {step.action}
         </button>
       )}
@@ -177,6 +178,7 @@ function NextPlate({ step, open }: { step: NextStep; open: (id: WindowId | Windo
 
 /** Сцена лаборатории по состоянию партии: сюда приходят только простые числа, чтобы не перерисовывать её каждый день. */
 export function DeskScene({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
+  const speed = useSpeed();
   const cur = s.research.current;
   let research: SceneProps['research'] = null;
   if (cur) {
@@ -213,7 +215,7 @@ export function DeskScene({ s, open }: { s: GameState; open: (id: WindowId | Win
       shelf={shelf}
       onSale={onSaleList.length}
       place={place}
-      next={nextStep(s)}
+      next={nextStep(s, speed)}
       open={open}
     />
   );
