@@ -90,7 +90,7 @@ export function ReleaseCard({ s, modelId, onClose }: { s: GameState; modelId: st
         <div className="body rc-body">
           <div className="rc-id">
             <h2 className="rc-name">{m.name}</h2>
-            <TierBadge tier={m.plan.tier} />
+            <TierBadge tier={m.plan.tier} plain />
           </div>
           <div className="rc-meta">
             {fmtNum(m.plan.paramsB * 1e9)} параметров · контекст {fmtInt(m.plan.context)} · {fmtMoney(m.price)} за 1 млн токенов

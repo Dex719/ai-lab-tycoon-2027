@@ -154,7 +154,7 @@ function Hero({ s, onRent, flash }: { s: GameState; onRent: () => void; flash: R
             </>
           )}
         </dl>
-        <button className="btn primary cw-rent-btn" onClick={onRent} data-tutorial="rent-button">
+        <button className="btn primary big cw-rent-btn" onClick={onRent} data-tutorial="rent-button">
           Арендовать
         </button>
       </div>

@@ -485,7 +485,7 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
 
         <div className="mw-panel-foot">
           <GuardButton
-            className="btn primary mw-release-btn"
+            className="btn primary big mw-release-btn"
             data-tutorial="release"
             reason={canRelease ? null : (blockReason ?? 'Модель пока нельзя выпустить.')}
             title={canRelease ? 'Выпустить модель на рынок' : undefined}

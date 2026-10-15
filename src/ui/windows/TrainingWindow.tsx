@@ -325,7 +325,7 @@ function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
       <b className="nm-run-name" title={summary}>
         Идёт: «{p.name}»
       </b>
-      <TierBadge tier={p.tier} />
+      <TierBadge tier={p.tier} plain />
       <div className="nm-run-bar">
         <ProgressBar value={frac} title={summary} />
       </div>

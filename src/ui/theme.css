@@ -30,6 +30,14 @@
   --warn: #a85a00;
   --good-on-dark: #5ed37f;
   --bad-on-dark: #ff6b6b;
+  /* Цвет текста статусов на светлом (контраст с белым не ниже 5:1): плюс, минус, сведения. Предупреждение - --warn. */
+  --good-ink: #1d6b36;
+  --bad-ink: #b32f2f;
+  --info-ink: #1f5fae;
+  /* Строки списков и таблиц во всех окнах: наведение и выбранная строка. */
+  --row-hover: #f1f4f8;
+  --row-sel: #e3eefc;
+  --row-line: #e6e8eb;
   /* Золото наград и 1-го места: только плоско, без градиента и свечения. */
   --gold-fill: #e8c34a;
   --gold-line: #c99a1a;
@@ -114,7 +122,7 @@ body:has(.menu-screen) .modal-backdrop { background: rgba(0, 0, 0, 0.94); }
 .desk-icon:hover:not(:disabled) { background: rgba(255, 255, 255, 0.06); }
 .desk-icon:disabled { color: #8b8e93; cursor: default; pointer-events: none; }
 .desk-icon-wrap { display: block; }
-.desk-icon .icon-label { color: #f2f2f2; font-size: 14px; line-height: 1.2; text-align: center; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+.desk-icon .icon-label { color: #f2f2f2; font-size: 14px; line-height: 1.2; text-align: center; }
 .desk-icon:disabled .icon-label { color: #8b8e93; }
 .desk-icon .count {
   position: absolute; top: 2px; right: 22px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
@@ -169,11 +177,11 @@ body:has(.menu-screen) .modal-backdrop { background: rgba(0, 0, 0, 0.94); }
 }
 .side-tabs button.on { background: var(--c-blue); color: #fff; }
 .side-list { overflow: auto; padding: 0 0 10px; border-top: 1px solid #36373c; }
-.side-item { padding: 10px 12px; border-bottom: 1px solid #333439; font-size: 13px; color: #d6d8dc; border-left: 3px solid var(--c-teal); }
+.side-item { padding: 10px 12px; border-bottom: 1px solid #333439; font-size: 13px; color: #d6d8dc; }
 .side-item .t { color: #fff; font-size: 15px; margin-bottom: 4px; }
 .side-item .r { display: flex; justify-content: space-between; gap: 10px; line-height: 1.5; }
 .side-item .r .v { color: #fff; font-variant-numeric: tabular-nums; }
-.side-item.decision { border: 1px solid #f2c14e; border-left: 3px solid var(--c-orange); }
+.side-item.decision { border: 1px solid #f2c14e; background: #3a2f17; }
 .side-item.decision .t { font-size: 14px; }
 .side-empty { padding: 14px 12px; color: #a9acb2; font-size: 13px; }
 .side .progress { background: #3a3b40; border: none; height: 6px; margin-top: 6px; }
@@ -199,7 +207,7 @@ body:has(.menu-screen) .modal-backdrop { background: rgba(0, 0, 0, 0.94); }
 }
 .titlebar .wbtn:hover { background: rgba(0, 0, 0, 0.08); }
 .titlebar .wbtn.close:hover { background: #d64545; color: #fff; }
-.window-body { flex: 1; overflow: auto; padding: 12px 14px; user-select: text; color: var(--text); }
+.window-body { flex: 1; overflow: auto; padding: 12px 16px; user-select: text; color: var(--text); }
 .window-body.flush { padding: 0; }
 .resize { position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; cursor: nwse-resize; }
 
@@ -218,6 +226,8 @@ body:has(.menu-screen) .modal-backdrop { background: rgba(0, 0, 0, 0.94); }
 .btn.danger { color: var(--bad); }
 .btn.danger:hover:not(:disabled) { background: #fbeaea; border-color: #e3a3a3; }
 .btn.small { height: 26px; padding: 0 10px; font-size: 13px; }
+/* Главное действие окна (выпуск, аренда, начало партии): одна такая кнопка на окно. */
+.btn.big { height: 36px; padding: 0 20px; font-size: 15px; font-weight: 600; }
 .btn.wide { width: 100%; }
 /* Недоступная кнопка, которая отвечает на нажатие причиной (GuardButton в components/common.tsx). */
 .btn[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
@@ -228,7 +238,7 @@ body:has(.menu-screen) .modal-backdrop { background: rgba(0, 0, 0, 0.94); }
 .guard > .btn.wide { flex: 1; }
 .deny-note {
   position: absolute; bottom: calc(100% + 4px); right: 0; z-index: 30; width: max-content; max-width: 320px; padding: 4px 8px;
-  background: #fdeeee; color: #b32f2f; border: 1px solid #e8a5a5; border-radius: 2px; font-size: 13px; font-weight: 600; line-height: 1.3;
+  background: #fdeeee; color: var(--bad-ink); border: 1px solid #e8a5a5; border-radius: 2px; font-size: 13px; font-weight: 600; line-height: 1.3;
   white-space: normal; text-align: left; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); animation: deny-in 120ms ease-out;
 }
 @keyframes deny-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
@@ -275,15 +285,11 @@ input[type='checkbox'] { accent-color: var(--accent); width: 16px; height: 16px;
 .col { display: flex; flex-direction: column; gap: 8px; }
 .grow { flex: 1; }
 .card { background: var(--panel); border: 1px solid var(--line-soft); border-radius: 4px; padding: 12px 14px; }
-.section-title {
-  font-size: 20px; font-weight: 400; color: var(--text-title); margin: 4px 0 8px; display: flex; align-items: center; gap: 10px;
-}
-.section-title::before { content: ''; flex: none; width: 4px; height: 20px; border-radius: 2px; background: var(--wa, var(--accent)); }
 .label { font-size: 13px; color: var(--text-dim); }
 .muted { color: var(--text-dim); }
 .small { font-size: 13px; }
-.good { color: #1f7a3b; }
-.bad { color: #c03030; }
+.good { color: var(--good-ink); }
+.bad { color: var(--bad-ink); }
 .warn { color: var(--warn); }
 .num { text-align: right; white-space: nowrap; }
 .error { color: var(--bad); font-size: 13px; }
@@ -293,26 +299,27 @@ input[type='checkbox'] { accent-color: var(--accent); width: 16px; height: 16px;
 }
 .field { display: grid; grid-template-columns: 160px 1fr; align-items: center; gap: 6px 12px; }
 .field > label { color: var(--text-dim); }
-.kv { display: grid; grid-template-columns: 1fr auto; gap: 2px 16px; }
+/* Список «подпись - значение»: один вид во всех окнах и диалогах. */
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; }
 .kv > :nth-child(odd) { color: var(--text-dim); }
 .kv > :nth-child(even) { text-align: right; font-variant-numeric: tabular-nums; }
 
 table.grid { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); }
-table.grid th, table.grid td { padding: 5px 10px; border-bottom: 1px solid #e3e5e8; text-align: left; white-space: nowrap; }
-table.grid th { position: sticky; top: 0; z-index: 1; background: #fff; color: var(--text-title); font-weight: 600; border-bottom: 1px solid var(--line); }
+table.grid th, table.grid td { padding: 5px 10px; border-bottom: 1px solid var(--row-line); text-align: left; white-space: nowrap; }
+table.grid th { position: sticky; top: 0; z-index: 1; background: #fff; color: var(--text-title); font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--line); }
 table.grid th.sortable { cursor: pointer; }
 table.grid th.sortable:hover { color: var(--accent); }
 table.grid tr:nth-child(even) td { background: #f4f5f7; }
-table.grid tr.player td { background: #e3eefc; font-weight: 600; }
-table.grid tbody tr:hover td { background: #eaf1fb; }
+table.grid tr.player td { background: var(--row-sel); font-weight: 600; }
+table.grid tbody tr:hover td { background: var(--row-hover); }
 table.grid td.num, table.grid th.num { text-align: right; }
 .est { color: var(--text-dim); font-style: italic; }
 .dim { opacity: 0.5; }
 
 .tabs { display: flex; gap: 20px; padding: 0 14px; background: var(--win-title); border-bottom: 1px solid var(--line); margin: -12px -14px 12px; }
 .tab {
-  background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 2px 6px; color: #5f636a;
-  font-size: 17px; cursor: pointer;
+  background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 2px 6px; color: var(--text-dim);
+  font-size: 16px; cursor: pointer;
 }
 .tab:hover { color: var(--text-title); }
 .tab.on { color: #1f2023; border-bottom-color: var(--accent); border-bottom-width: 3px; }
@@ -326,11 +333,11 @@ table.grid td.num, table.grid th.num { text-align: right; }
 .progress.red > div { background: var(--c-red); }
 
 .list { background: #fff; border: 1px solid var(--line); overflow: auto; }
-.list-item { padding: 8px 10px; border-bottom: 1px solid #eceef1; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
-.list-item:hover { background: #f1f4f8; }
-.list-item.on { background: #dfe9f8; }
+.list-item { padding: 8px 10px; border-bottom: 1px solid var(--row-line); cursor: pointer; display: flex; justify-content: space-between; gap: 10px; }
+.list-item:hover { background: var(--row-hover); }
+.list-item.on { background: var(--row-sel); box-shadow: inset 0 0 0 1px var(--accent); }
 /* Единый вид «выбрано» для строк списков, карточек и плиток: рамка цвета акцента и светлый фон, без полосок слева. */
-.is-selected { border: 1px solid var(--accent); background: #e3eefc; }
+.is-selected { border: 1px solid var(--accent); background: var(--row-sel); }
 
 /* Предупреждение в окне (компонент Alert в components/common.tsx): значок, текст, кнопка справа. */
 .alert {
@@ -358,21 +365,23 @@ table.grid td.num, table.grid th.num { text-align: right; }
   font: 14px/1.4 var(--font);
 }
 .dialog.wide { width: min(720px, calc(100vw - 32px)); }
+/* Фокус ставится на сам диалог при открытии (для клавиатуры): рамка браузера вокруг всего окна не нужна. */
+.dialog:focus { outline: none; }
 .dialog .titlebar { cursor: default; }
-.dialog .body { padding: 18px 22px; overflow: auto; }
+.dialog .body { padding: 16px 20px; overflow: auto; }
 .dialog .body.white { background: #fff; }
-.dialog .foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 22px 16px; }
+.dialog .foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px 16px; }
 /* Варианты в письме с выбором: карточки-кнопки, последствия цветом, справа видимое «Выбрать». */
 .choice-list { display: flex; flex-direction: column; gap: 8px; }
 .choice {
   display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 14px; width: 100%;
   padding: 10px 12px 10px 14px; background: #fff; color: var(--text-title); border: 1px solid #aeb3bb;
-  border-left: 4px solid #aeb3bb; border-radius: 3px; text-align: left; cursor: pointer;
+  border-radius: 3px; text-align: left; cursor: pointer;
   transition: background-color 100ms ease-out, border-color 100ms ease-out;
 }
 .choice-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .choice-go {
-  flex: none; height: 28px; padding: 0 14px; display: inline-flex; align-items: center; font-size: 13px; font-weight: 600;
+  flex: none; height: 26px; padding: 0 12px; display: inline-flex; align-items: center; font-size: 13px; font-weight: 600;
   color: var(--accent-dark); background: #fff; border: 1px solid var(--accent); border-radius: 2px;
   transition: background-color 100ms ease-out, color 100ms ease-out;
 }
@@ -381,25 +390,27 @@ table.grid td.num, table.grid th.num { text-align: right; }
 .choice:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .choice-l { font-size: 15px; font-weight: 700; color: var(--text-title); }
 .choice-h { font-size: 13px; color: var(--text-body); }
-.choice-h .hp.good { color: #1f7a3b; }
-.choice-h .hp.bad { color: #c03030; }
+.choice-h .hp.good { color: var(--good-ink); }
+.choice-h .hp.bad { color: var(--bad-ink); }
 .choice-h .hp.flat { color: var(--text-body); }
 .choice-h .hp b { font-weight: 700; }
 .choice-h .hp-sep { color: var(--text-body); }
 .choice-dialog { width: min(560px, calc(100vw - 32px)); }
 .choice-date { font-size: 13px; color: var(--text-dim); }
-.choice-title { margin: 2px 0 10px; font-size: 20px; font-weight: 500; line-height: 1.3; color: var(--text-title); }
+.choice-title { margin: 2px 0 10px; font-size: 22px; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; color: var(--text-title); }
 .choice-text { margin: 0; line-height: 1.5; white-space: pre-wrap; color: var(--text-body); }
 .choice-reply { margin-right: auto; align-self: center; font-size: 13px; color: var(--text-dim); }
 
 /* Ячейки сохранений */
-.slots { display: flex; flex-direction: column; gap: 8px; }
+.slots { display: flex; flex-direction: column; background: #fff; border: 1px solid var(--line); }
 .slot {
-  display: grid; grid-template-columns: 54px 1fr auto; gap: 12px; align-items: center; padding: 10px 12px;
-  background: #fff; border: 1px solid var(--line-soft); border-radius: 4px;
+  display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; min-height: 52px; padding: 8px 12px;
+  border-bottom: 1px solid var(--row-line);
 }
-.slot .n { font-size: 20px; font-weight: 600; color: #6b6f76; text-align: center; font-variant-numeric: tabular-nums; }
-.slot .t { font-size: 16px; color: var(--text); }
+.slot:last-child { border-bottom: none; }
+.slot:hover { background: var(--row-hover); }
+.slot .n { font-size: 18px; font-weight: 600; color: #6b6f76; text-align: center; font-variant-numeric: tabular-nums; }
+.slot .t { font-size: 15px; color: var(--text); }
 .slot .m { font-size: 13px; color: var(--text-dim); }
 .slot.empty .t { color: #6b6f76; }
 
@@ -419,7 +430,7 @@ table.grid td.num, table.grid th.num { text-align: right; }
 .side-body > :not(.tutor):not(.side-list) { flex: none; }
 .side-list { flex: 1 1 0; min-height: 0; }
 .tutor .step { font-size: 12px; font-weight: 600; color: var(--warn); margin-bottom: 2px; }
-.tutor h3 { margin: 0 0 6px; font-size: 17px; font-weight: 600; }
+.tutor h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
 .tutor p { margin: 0 0 8px; }
 .tutor .foot { display: flex; gap: 8px; padding: 8px 16px 14px; }
 .tutor .foot .skip { margin-right: auto; background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 0; font-size: 13px; white-space: nowrap; }
@@ -455,7 +466,8 @@ table.grid td.num, table.grid th.num { text-align: right; }
   background: #fff; color: var(--text-title); border: 1px solid var(--line); border-left: 5px solid var(--tc); border-radius: 3px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4); animation: toast-in 180ms ease-out;
 }
-.toast.important { border: 2px solid var(--tc); border-left-width: 6px; }
+/* Важное письмо: рамка цвета вида письма (1 px), полоса слева та же, что у обычных. */
+.toast.important { border-color: var(--tc); }
 .toast .ti { grid-row: 1 / span 3; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--tc); color: #fff; }
 .toast .tk { grid-column: 2; font-size: 12px; font-weight: 600; color: var(--text-dim); }
 .toast .tt { font-size: 14px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; grid-column: 2; }
@@ -484,20 +496,22 @@ table.grid td.num, table.grid th.num { text-align: right; }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
 
 /* Простой мощности в боковой панели */
-.side-idle { margin: 0 12px 10px; padding: 8px 10px; background: #3a2d12; border: 1px solid #f2b84b; border-left: 4px solid var(--c-orange); border-radius: 3px; font-size: 12px; color: #ffe6b0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.side-idle { margin: 0 12px 10px; padding: 8px 10px; background: #3a2d12; border: 1px solid #f2b84b; border-radius: 3px; font-size: 12px; color: #ffe6b0; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .side-idle .txt { min-width: 0; line-height: 1.25; }
 .side-idle .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .side-idle b { color: #fff; }
 .side-idle .btn { flex: none; }
 .side-idle-more { align-self: flex-start; background: none; border: none; padding: 0; color: #ffd27a; text-decoration: underline; cursor: pointer; font-size: 12px; }
 
-/* Награды и исход риска в уведомлениях: светлая подложка цвета исхода, полоса слева - вид уведомления. */
-.toast.tone-reward { --tc: var(--gold-line); background: var(--gold-tint); border-color: #e6cf86; border-left-color: var(--tc); }
+/* Награды и исход риска в уведомлениях. Награда - белая карточка, золото только у полосы вида и значка:
+   несколько наград подряд не сливаются в золотую стену. Исход риска - светлая подложка цвета исхода. */
+.toast.tone-reward { --tc: var(--gold-line); border-left-color: var(--tc); }
+.toast.tone-reward .ti { background: var(--gold-fill); color: #3b2a00; }
 .toast.tone-reward .tk { color: var(--gold-ink); }
 .toast.tone-good { --tc: var(--c-green); background: #effaf2; border-color: #a8d8b6; border-left-color: var(--tc); }
 .toast.tone-bad { --tc: var(--c-red); background: #fdf0f0; border-color: #e8b0b0; border-left-color: var(--tc); }
-.toast.tone-good .tt { color: #1d6b37; }
-.toast.tone-bad .tt { color: #a12a2a; }
+.toast.tone-good .tt { color: var(--good-ink); }
+.toast.tone-bad .tt { color: var(--bad-ink); }
 
 /* Код партии в окнах «Сохранить» и «Загрузить». */
 .game-code { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
@@ -505,4 +519,4 @@ table.grid td.num, table.grid th.num { text-align: right; }
 .game-code-text { width: 100%; height: 64px; resize: vertical; font: 11px var(--mono); word-break: break-all; }
 
 /* Подзаголовки групп в «Настройках». */
-.settings-h { margin-top: 4px; font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); }
+.settings-h { margin-top: 4px; font-size: 14px; font-weight: 600; color: var(--text-title); }

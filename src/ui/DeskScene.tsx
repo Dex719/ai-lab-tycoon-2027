@@ -95,7 +95,7 @@ const Scene = memo(function Scene(p: SceneProps) {
           <span className="ls-cap">
             <span>Серверная</span>
             <b className={p.idle ? 'warn' : undefined}>
-              {p.cards > 0 ? `${fmtNum(p.cards)} ${ruPlural(p.cards, 'карта', 'карты', 'карт')}` : 'Карт нет'}
+              {p.cards > 0 ? `${fmtNum(p.cards)} ${p.cards >= 10_000 ? 'карт' : ruPlural(p.cards, 'карта', 'карты', 'карт')}` : 'Карт нет'}
             </b>
           </span>
         </button>

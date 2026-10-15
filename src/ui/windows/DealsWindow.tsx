@@ -430,7 +430,7 @@ export default function DealsWindow({ s }: WindowProps) {
     <div className="dl">
       <div className="dl-top">
         <div className="dl-main">
-          <span className="dl-l">Деньги на счету</span>
+          <span className="dl-l">Деньги на счёте</span>
           <span className={`dl-big${s.cash < 0 ? ' bad' : ''}`}>{fmtMoney(s.cash)}</span>
           <span className="dl-l">
             {total > 0
