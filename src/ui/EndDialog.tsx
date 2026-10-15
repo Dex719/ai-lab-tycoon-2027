@@ -4,7 +4,7 @@
 import { useEffect } from 'react';
 import { LABS } from '../data/labs';
 import { valuation } from '../sim/investors';
-import { leaderboard } from '../sim/leaderboard';
+import { leaderboard, rivalsSellByApi } from '../sim/leaderboard';
 import { DIFFICULTY } from '../sim/rivalry';
 import { subsOpen } from '../sim/market';
 import { ARENA_PLACE_TITLE, bestArenaPlace } from './arena';
@@ -75,7 +75,8 @@ function EloChart({ history, lab }: { history: MonthRecord[]; lab: string }) {
 
 export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void }) {
   const { ref, onKeyDown } = useModalFocus<HTMLDivElement>(s.outcome ?? '');
-  const rank = bestArenaPlace(s);
+  // Пока соперники не продают модели, места нет (как в карточке выпуска и на верхней панели), а не «1-е».
+  const rank = rivalsSellByApi(s) ? bestArenaPlace(s) : null;
   const rows = leaderboard(s).filter((r) => r.ref.kind === 'player');
   const best = rows.reduce<(typeof rows)[number] | null>((b, r) => (!b || r.elo > b.elo ? r : b), null);
   const v = valuation(s);
@@ -134,7 +135,7 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
 
           <dl className="end-stats">
             <dt>Лучшее место за игру</dt>
-            <dd>{bestPlace !== null ? `${bestPlace}-е` : 'соперников в продаже не было'}</dd>
+            <dd>{bestPlace !== null ? `${bestPlace}-е` : 'без места'}</dd>
             <dt>Месяцев на 1-м месте</dt>
             <dd>{fmtNum(months)}</dd>
             <dt>Лучшая модель</dt>

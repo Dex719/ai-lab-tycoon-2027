@@ -116,7 +116,7 @@ export function valuationParts(s: GameState, v: Valuation): Part[] {
       ? 'нет моделей в продаже'
       : `${fmtRank(v.bestRank)} среди моделей в продаже${v.bestRank > 1 ? ` · на 1-м: ${fmtMoney(mania)}` : ''}`;
   const parts: Part[] = [
-    { key: 'rev', label: 'Продажи', sub: v.annualRevenue > 0 ? `выручка ${fmtMoney(v.annualRevenue)} в год` : 'продаж пока нет', value: v.revenuePart },
+    { key: 'rev', label: 'Продажи', sub: v.annualRevenue > 0 ? `выручка ${fmtMoney(v.annualRevenue)} в год по темпу 3 месяцев` : 'продаж пока нет', value: v.revenuePart },
     { key: 'tech', label: 'Лучшая модель', sub: rank, value: v.techPart },
     { key: 'floor', label: 'Минимальная оценка', sub: `оценка не ниже ${fmtMoney(VALUATION_FLOOR)}`, value: floorFill },
     { key: 'hype', label: 'Шумиха', sub: `уровень ${fmtNum(s.hype.player)} из 100`, value: hype },
