@@ -2,6 +2,7 @@
 // Главное место, график Эло против лучшего соперника по месяцам, ваши моменты и то, чего лаборатория добилась.
 
 import { useEffect } from 'react';
+import { LABS } from '../data/labs';
 import { valuation } from '../sim/investors';
 import { leaderboard } from '../sim/leaderboard';
 import { DIFFICULTY } from '../sim/rivalry';
@@ -92,6 +93,10 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
   const bestPlace = places.length > 0 ? Math.min(...places) : null;
   const released = s.models.filter((m) => m.releasedDay !== null).length;
   const moments = Object.keys(MOMENT_TITLES).filter((id) => s.flags[`moment:${id}`]);
+  // Финальный квартал (sim/finale.ts): чьи рывки были и сколько раз игрок дорабатывал модели.
+  const finale = s.late?.finale;
+  const pushLabs = [...new Set((finale?.pushes ?? []).map((p) => LABS.find((l) => l.id === p.lab)?.name ?? p.lab))];
+  const updates = finale?.done.length ?? 0;
 
   useEffect(() => {
     playSound(win ? 'first' : bankrupt ? 'rankDown' : 'goal');
@@ -140,7 +145,7 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
 
         <EloChart history={history} lab={s.labName} />
 
-        {moments.length > 0 && (
+        {(moments.length > 0 || (win && pushLabs.length > 0)) && (
           <div className="end-moments">
             <span className="end-l">Ваши моменты</span>
             <div className="end-chips">
@@ -149,6 +154,7 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
                   ★ {MOMENT_TITLES[id]}
                 </span>
               ))}
+              {win && pushLabs.length > 0 && <span className="end-chip">★ Отбили финальный рывок: {pushLabs.join(', ')}</span>}
             </div>
           </div>
         )}
@@ -158,6 +164,14 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
           <span>{DIFFICULTY[s.difficulty].name}</span>
           <span>Выручка за игру</span>
           <span>{fmtMoney(revenue)}</span>
+          {finale && (
+            <>
+              <span>Финальный квартал</span>
+              <span>
+                {pushLabs.length > 0 ? `рывки: ${pushLabs.join(', ')}` : 'без рывков соперников'}, доработок: {updates}
+              </span>
+            </>
+          )}
           <span>Деньги</span>
           <span>{fmtMoney(s.cash)}</span>
           {subsOpen(s.day) && (
