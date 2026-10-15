@@ -11,7 +11,7 @@
 .ls-sign {
   display: inline-flex; align-items: center; gap: 10px; padding: 8px 20px 8px 14px; max-width: 100%;
   background: #1c1c1e; color: #f2f2f2; border: 1px solid #3b3c41; border-radius: 3px;
-  font-size: 20px; font-weight: 700; letter-spacing: 0.01em;
+  font-size: 18px; font-weight: 700; letter-spacing: 0.01em;
 }
 .ls-sign svg { color: #a9acb2; flex: none; }
 .ls-sign b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

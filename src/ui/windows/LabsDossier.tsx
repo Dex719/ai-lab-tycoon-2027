@@ -172,10 +172,7 @@ function Dossier({ s, lab, main }: { s: GameState; lab: LabId; main: boolean }) 
               ? 'Обгонов в гонке пока не было'
               : `Обгоняли вас ${timesCount(d.passedYou)}, вы их - ${timesCount(d.youPassed)}`}
           </div>
-          <div className="dos-score-l muted">
-            Ходов против вас: {fmtNum(d.moves)}
-            {d.lastDay !== null && `, последний обгон ${formatDateShort(d.lastDay)}`}
-          </div>
+          {d.lastDay !== null && <div className="dos-score-l muted">Последний обгон {formatDateShort(d.lastDay)}</div>}
         </div>
 
         <div className="kv dos-kv">
@@ -191,7 +188,7 @@ function Dossier({ s, lab, main }: { s: GameState; lab: LabId; main: boolean }) 
             {row?.since != null && `, с ${formatDateShort(row.since)}`}
           </span>
           <span>Настрой к вам</span>
-          <span title={stance?.hint}>{stance ? `${stance.label}${stance.hint ? `: ${stance.hint}` : ''}` : '-'}</span>
+          <span title={stance?.hint}>{stance ? `${stance.label}${stance.hint ? `, ${stance.hint}` : ''}` : '-'}</span>
           <span title="Насколько лаборатория считает вас угрозой: ваша доля, Эло, цена и место на «Арене» против её моделей">
             Угроза в их глазах
           </span>
@@ -204,7 +201,7 @@ function Dossier({ s, lab, main }: { s: GameState; lab: LabId; main: boolean }) 
         </div>
       </div>
 
-      <h4 className="dos-h">Ходы против вас</h4>
+      <h4 className="dos-h">Ходы против вас{d.moves > 0 && `: ${fmtNum(d.moves)}`}</h4>
       {moves.length === 0 ? (
         <div className="muted dos-none">Ходов против вас не было</div>
       ) : (

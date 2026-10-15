@@ -41,7 +41,7 @@
   .game .side-head { padding: 9px 12px 7px; border-top: 3px solid var(--c-teal); font-size: 16px; }
   .side-race { display: flex; align-items: center; gap: 12px; padding: 4px 12px 10px; cursor: pointer; color: #d6d8dc; border-bottom: 1px solid #36373c; }
   .side-race:hover .sr-v { text-decoration: underline; text-underline-offset: 3px; }
-  .sr-place { flex: none; min-width: 50px; font-size: 30px; font-weight: 700; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+  .sr-place { flex: none; min-width: 50px; font-size: 36px; font-weight: 700; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
   .side-race.first .sr-place { color: #f2c94c; }
   .sr-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
   .sr-k { font-size: 12px; color: #a9acb2; }
