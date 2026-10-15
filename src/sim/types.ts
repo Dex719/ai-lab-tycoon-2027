@@ -353,6 +353,55 @@ export interface YearGoalState {
   doneDay: number | null;
   /** Значение показателя на начало года (число выпущенных моделей и т. п.), от него считается «за год». */
   base: number;
+  /** Цели с выбором (с 15.10.2026): порог и предмет цели (модель соперника, технология, тест). В старых сохранениях нет. */
+  target?: number;
+  param?: string;
+}
+
+/** Итог одной цели года для окна «Итоги года»: тексты сняты 31 декабря, позже показатели меняются. */
+export interface YearGoalResult {
+  title: string;
+  style: string; // стиль цели (data/goals.ts GoalStyle) или '' у старых целей
+  done: boolean;
+  text: string; // показатель на конец года: «Выручка за год: $2,7 млн из $3 млн»
+  miss: string; // сколько не хватило: «не хватило $300 тыс.»; '' - выполнена
+  prize: string; // награда: «+$150 тыс.» - получена или была обещана
+  penalty: string; // штраф рискованной цели, если она не выполнена; '' - штрафа нет
+}
+
+/** Выбор целей года: пять целей разного стиля, игрок берёт три. Пока выбор открыт, время в интерфейсе стоит. */
+export interface GoalOffer {
+  year: number;
+  goals: YearGoalState[];
+  open: boolean;
+}
+
+/** Короткая задача (sim/tasks.ts, data/tasks.ts): одна-две сразу, срок 1-4 месяца, награда при выполнении. */
+export interface TaskState {
+  id: string; // 'q1', 'q2'…
+  kind: string; // вид задачи (data/tasks.ts TaskKind)
+  startDay: number;
+  endDay: number; // последний день срока (включительно)
+  need: number; // порог: сколько нужно (деньги, доля, число побед)
+  base: number; // показатель на старте задачи
+  subject: string; // предмет задачи: модель соперника, технология, контракт; '' - нет
+  status: 'active' | 'done' | 'failed';
+  closedDay: number | null;
+  /** Итог для интерфейса: прогресс на момент закрытия («$1,1 млн из $1,2 млн», «не хватило $80 тыс.»). */
+  result: string;
+}
+
+/** Задачи, выбор целей года и счётчики для них. Свой поток случайных чисел: основной поток игры не сдвигается. */
+export interface QuestState {
+  rng: number;
+  tasks: TaskState[]; // идущие и недавно закрытые (для отклика в интерфейсе)
+  nextTaskDay: number; // раньше этого дня новая задача не появится
+  nextTaskNum: number;
+  done: number; // выполнено задач за партию
+  failed: number; // не выполнено задач за партию
+  tendersWon: number; // выиграно тендеров за партию (для задач и целей «выиграть тендер»)
+  knownContracts: string[]; // контракты, которые уже засчитаны в tendersWon
+  offer: GoalOffer | null;
 }
 
 /** Итоги года: цифры считаются в последний день года, окно показывается один раз. */
@@ -368,6 +417,8 @@ export interface YearReview {
   cash: number;
   comment: string;
   seen: boolean;
+  /** Итоги каждой цели года («почти получилось»); в старых сохранениях нет. */
+  results?: YearGoalResult[];
 }
 
 /** Цели года, итоги и случайные события с выбором. Свой поток случайных чисел: основной поток игры не сдвигается. */
@@ -441,6 +492,8 @@ export interface GameState {
   rivalry: RivalryState;
   /** Цели года, итоги года и расписание случайных событий (sim/goals.ts, sim/randomEvents.ts). */
   yearly: YearlyState;
+  /** Короткие задачи и выбор целей года (sim/tasks.ts, sim/goals.ts); старые сохранения получают пустое состояние. */
+  quests: QuestState;
   market: {
     shares: Record<string, number>; // ключ: 'player:<id>' | 'rival:<id>' | 'none'; общие доли (взвешенные по выручке сегментов), после ограничения мощностью
     labShares: Record<HypeOwner | 'none', number>; // общие, после ограничения мощностью

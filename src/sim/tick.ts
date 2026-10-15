@@ -8,6 +8,7 @@ import { expireChoices, fireDue, pendingChoice, pruneMail, pruneModifiers } from
 import { beginDay, closeMonth, dayStep as financeDay } from './finance';
 import { goalsDay, yearEnd } from './goals';
 import { marketArenaRank, rivalFrontierElo, rivalsSellByApi, updateSaturation } from './leaderboard';
+import { tasksDay } from './tasks';
 import { dayStep as marketDay } from './market';
 import { randomEventDay } from './randomEvents';
 import { progressDay as researchDay } from './research';
@@ -76,6 +77,7 @@ export function advanceDay(s: GameState): void {
   contractsDay(s);
   marketDay(s);
   financeDay(s);
+  tasksDay(s); // короткие задачи: проверка после денег и контрактов дня, новая задача
 
   if (s.rivalsReleased.length !== releasedBefore) updateSaturation(s);
 

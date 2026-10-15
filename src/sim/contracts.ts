@@ -20,7 +20,8 @@ import {
 } from './constants';
 import { addMail } from './events';
 import { earn, spend } from './finance';
-import { chance, pick, randInt, randRange } from './rng';
+import { chance, nextRandom, pick, randInt, randRange } from './rng';
+import { ruPlural } from './text';
 import { endSentence } from './text';
 import { byYear, dateToDay, dayToDate, lerpByDate, yearOf } from './time';
 import { frontierParams, modelScore } from './training';
@@ -42,6 +43,13 @@ const CHANCE_REP = 0.6; // × репутация / 100
 const CHANCE_MARGIN_MAX = 0.3; // запас балла над требованием, который даёт прибавку
 const CHANCE_MIN = 0.05;
 const CHANCE_MAX = 0.92;
+/** Проигрыш, которому не хватило не больше стольких пунктов шанса, - «почти»: недостача видна в заголовке письма. */
+const NEAR_MISS_POINTS = 10;
+
+/** После «не хватило»: «1 пункта», «4 пунктов», «21 пункта». */
+function pointsWord(n: number): string {
+  return ruPlural(n, 'пункта', 'пунктов', 'пунктов');
+}
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, x));
@@ -346,15 +354,21 @@ function resolveApplication(s: GameState, t: Tender): void {
   if (!a) return;
   removeById(s.tenders, t.id);
   const model = s.models.find((m) => m.id === a.modelId);
-  const won = chance(s, a.chance) && model !== undefined;
+  // Тот же бросок, что chance(s, a.chance): по нему видно, сколько пунктов шанса не хватило до победы.
+  const roll = nextRandom(s);
+  const won = roll < a.chance && model !== undefined;
   const client = clientName(t.clientId);
   if (!won || !model) {
     if (a.auto) return; // проигрыш автозаявки не засоряет почту: игрок её не подавал
+    const chancePct = Math.round(a.chance * 100);
+    const short = Math.max(1, Math.floor((roll - a.chance) * 100) + 1);
+    const near = model !== undefined && short <= NEAR_MISS_POINTS;
     addMail(s, {
       kind: 'contract',
-      title: `Тендер проигран: ${client}`,
+      title: near ? `Тендер проигран, не хватило ${short} ${pointsWord(short)}: ${client}` : `Тендер проигран: ${client}`,
       body:
         'Тендер достался другому исполнителю. ' +
+        (model ? `Шанс победы был ${chancePct} %, не хватило ${short} ${pointsWord(short)} шанса. ` : '') +
         `Требование было ${t.requirement} % на ${benchDef(t.benchmark).name}.`,
     });
     return;

@@ -47,6 +47,7 @@ import {
   progressDay,
   setAutoApply,
 } from './contracts';
+import { nextRandom } from './rng';
 import { deserialize, serialize } from './save';
 import { createInitialState } from './state';
 import { byYear, dateToDay, lerpByDate } from './time';
@@ -1568,5 +1569,48 @@ describe('объём работы зависит от размера модел�
     s.day = 30;
     progressDay(s);
     expect(s.contracts[0].tender.work).toBe(77);
+  });
+});
+
+describe('проигранный тендер: сколько не хватило', () => {
+  /** Состояние генератора, при котором следующий бросок попадает в [lo, hi). */
+  function rngFor(lo: number, hi: number): number {
+    for (let x = 1; x < 100_000; x++) {
+      const r = nextRandom({ rng: x });
+      if (r >= lo && r < hi) return x;
+    }
+    throw new Error('нет подходящего броска');
+  }
+
+  function lostWithRoll(chance: number, lo: number, hi: number): GameState {
+    const s = newState();
+    s.day = 25;
+    s.models.push(makeModel());
+    s.tenders.push(makeTender({ expiresDay: 35, application: { modelId: 'p1', appliedDay: 5, resolveDay: 25, chance } }));
+    s.rng = rngFor(lo, hi);
+    return s;
+  }
+
+  it('почти: шанс 62 %, бросок 0,655 - не хватило 4 пунктов, это видно в заголовке и в письме', () => {
+    const s = lostWithRoll(0.62, 0.652, 0.658);
+    progressDay(s);
+    const mail = lastMail(s);
+    expect(mail.title).toMatch(/^Тендер проигран, не хватило 4 пунктов: /);
+    expect(mail.body).toContain('Шанс победы был 62 %, не хватило 4 пунктов шанса.');
+    expect(s.contracts).toHaveLength(0);
+  });
+
+  it('далёкий проигрыш: заголовок без недостачи, в письме - шанс и недостача', () => {
+    const s = lostWithRoll(0.3, 0.9, 0.95);
+    progressDay(s);
+    const mail = lastMail(s);
+    expect(mail.title).toMatch(/^Тендер проигран: /);
+    expect(mail.body).toMatch(/Шанс победы был 30 %, не хватило \d+ пункт(а|ов) шанса\./);
+  });
+
+  it('недостача в 1 пункт: «не хватило 1 пункта»', () => {
+    const s = lostWithRoll(0.5, 0.5001, 0.5099);
+    progressDay(s);
+    expect(lastMail(s).title).toMatch(/^Тендер проигран, не хватило 1 пункта: /);
   });
 });

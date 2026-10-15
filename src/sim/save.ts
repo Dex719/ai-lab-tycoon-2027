@@ -7,12 +7,13 @@ import { findEvent } from '../data/events';
 import { CHAT_MOMENT_DATE, CHOICE_DAYS, FAIL_CHOICE_DAYS, HYPE_OWNERS, TIER_SUBS_PRICE } from './constants';
 import { DIFFICULTY_IDS, emptyRivalry, LEVERS, MOVE_IDS } from './rivalry';
 import type { ActiveMove, HistoryRow, LabMemory, PendingMove, RivalOverride, RivalryState } from './rivalry';
-import { emptyMarket, emptySegmentShares, emptyYearly } from './state';
+import { emptyMarket, emptyQuests, emptySegmentShares, emptyYearly } from './state';
 import { dateToDay } from './time';
 import { tierOf } from './training';
 import type {
   Contract,
   Datacenter,
+  GoalOffer,
   DcOrder,
   ExpenseKind,
   GameState,
@@ -24,12 +25,15 @@ import type {
   MonthLedger,
   MonthRecord,
   PlayerModel,
+  QuestState,
   SegmentShares,
+  TaskState,
   TechId,
   Tender,
   Tier,
   TrainingPlan,
   TrainingRun,
+  YearGoalResult,
   YearGoalState,
   YearlyState,
   YearReview,
@@ -360,7 +364,9 @@ const datacenter = shapeOf<Datacenter>({
 });
 
 // Цели года, итоги и расписание случайных событий (sim/goals.ts, sim/randomEvents.ts).
-const yearGoal = shapeOf<YearGoalState>({ id: str, done: bool, doneDay: nullable(num), base: num });
+const yearGoal = shapeOf<YearGoalState>({ id: str, done: bool, doneDay: nullable(num), base: num, target: optional(num), param: optional(str) });
+
+const yearGoalResult = shapeOf<YearGoalResult>({ title: str, style: str, done: bool, text: str, miss: str, prize: str, penalty: str });
 
 const yearReview = shapeOf<YearReview>({
   year: int,
@@ -374,6 +380,7 @@ const yearReview = shapeOf<YearReview>({
   cash: num,
   comment: str,
   seen: bool,
+  results: optional(arrayOf(yearGoalResult)),
 });
 
 const yearly = shapeOf<YearlyState>({
@@ -384,6 +391,34 @@ const yearly = shapeOf<YearlyState>({
   nextEventDay: num,
   eventUnit: nonNeg,
   lastFired: dict(num),
+});
+
+// Короткие задачи и выбор целей года (sim/tasks.ts, sim/goals.ts).
+const task = shapeOf<TaskState>({
+  id: str,
+  kind: str,
+  startDay: num,
+  endDay: num,
+  need: num,
+  base: num,
+  subject: str,
+  status: oneOf(['active', 'done', 'failed']),
+  closedDay: nullable(num),
+  result: str,
+});
+
+const goalOffer = shapeOf<GoalOffer>({ year: int, goals: arrayOf(yearGoal), open: bool });
+
+const quests = shapeOf<QuestState>({
+  rng: int,
+  tasks: arrayOf(task),
+  nextTaskDay: num,
+  nextTaskNum: posInt,
+  done: int,
+  failed: int,
+  tendersWon: int,
+  knownContracts: arrayOf(str),
+  offer: nullable(goalOffer),
 });
 
 /** Каждое поле GameState обязано быть здесь: добавили поле в тип, не добавили проверку - tsc не даст собрать. */
@@ -441,6 +476,7 @@ const STATE: Record<keyof GameState, Check> = {
   difficulty: oneOf(DIFFICULTY_IDS),
   rivalry,
   yearly,
+  quests,
   market: shapeOf<GameState['market']>({
     shares: dict(num),
     labShares,
@@ -635,6 +671,13 @@ export function deserialize(json: string): { ok: true; state: GameState } | { ok
   // Цели года и случайные события появились позже: старое сохранение получает цели текущего года на ближайшем тике
   // и первое случайное письмо через 75 дней; свой поток случайных чисел берётся от зерна.
   if (data.yearly === undefined && typeof data.seed === 'number') data.yearly = emptyYearly(data.seed, typeof data.day === 'number' ? data.day : 0);
+  // Короткие задачи и выбор целей появились позже: первая задача через 5 дней, цели текущего года остаются прежними.
+  if (data.quests === undefined && typeof data.seed === 'number') {
+    const q = emptyQuests(data.seed, typeof data.day === 'number' ? data.day : 0);
+    // Идущие контракты выиграны до появления счётчика: засчитывать их как новые победы нельзя.
+    if (Array.isArray(data.contracts)) q.knownContracts = data.contracts.map((c) => (isRec(c) && typeof c.id === 'string' ? c.id : '')).filter(Boolean);
+    data.quests = q;
+  }
   migrateContext(data);
   migrateMarketV2(data);
   migrateChoices(data);
