@@ -15,8 +15,8 @@
 .ach-medal.on .ach-star { fill: var(--gold-ink); }
 .ach-tt { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
 .ach-tt small { font-size: 12px; font-weight: 600; color: var(--gold-ink); }
-.ach-tt b { font-size: 14.5px; font-weight: 600; }
-.ach-tt span { font-size: 12.5px; color: var(--text-body); }
+.ach-tt b { font-size: 15px; font-weight: 600; }
+.ach-tt span { font-size: 13px; color: var(--text-body); }
 @keyframes ach-in {
   0% { opacity: 0; transform: translateX(-8px); }
   5%, 90% { opacity: 1; transform: none; }
@@ -30,6 +30,6 @@
 .ach-row .ach-tt b { color: #4a4d54; }
 .ach-row .ach-tt span { color: var(--text-dim); }
 .ach-row.on .ach-tt b { color: var(--text-title); }
-.ach-when { font-size: 12.5px; color: #8a8e95; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.ach-row.on .ach-when { color: var(--gold-ink); font-weight: 600; }
+.ach-when { font-size: 13px; color: #8a8e95; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ach-row.on .ach-when { color: var(--text-dim); }
 @media (prefers-reduced-motion: reduce) { .ach-toast { animation: none; } }

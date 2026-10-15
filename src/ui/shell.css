@@ -48,31 +48,12 @@
   .sr-v { font-size: 13px; font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sr-m { font-size: 12px; color: #c4c7cc; }
   .game .side-tabs { padding-top: 10px; }
-  .game .side-item { border-left: none; padding: 10px 12px; }
-  .game .side .goal-row { border-left: none; padding-left: 12px; }
-  .game .side-item.decision { border: 1px solid #f2c14e; background: #3a2f17; }
+  .game .side-item { padding: 10px 12px; }
   .game .side-item .progress { height: 5px; background: #3a3b40; border-radius: 1px; }
   .game .side-item.t-train .progress > div { background: var(--c-blue); }
   .game .side-item.t-research .progress > div { background: var(--c-purple); }
   .game .side-item.t-contract .progress > div { background: var(--c-orange); }
   .side-model-t { display: flex; align-items: center; gap: 8px; }
-}
-
-/* Числа на верхней панели - обычный шрифт с табличными цифрами (моно в игре только у кода партии). */
-.game .tb-item, .game .ar-r, .game .ls-v, .game .ar-gap, .game .fly { font-family: var(--font); font-variant-numeric: tabular-nums; }
-.game .ar-r { font-weight: 700; }
-.game .ar-r.first { color: #f2c94c; text-shadow: none; }
-.game .ar-n b { display: inline-flex; width: auto; }
-.game .ar-close { text-transform: none; font-size: 10.5px; animation: none; }
-.game .ls-d { animation: tb-fade 2200ms ease-out forwards; }
-.game .fly { box-shadow: none; }
-.game .fly.plus { animation-name: tb-fly-up; }
-.game .fly.minus { animation-name: tb-fly-down; }
-@keyframes tb-fade { 0% { opacity: 0; } 10%, 80% { opacity: 1; } 100% { opacity: 0; } }
-@keyframes tb-fly-up { 0% { opacity: 0; transform: translate(-50%, 10px); } 12%, 75% { opacity: 1; transform: translate(-50%, 6px); } 100% { opacity: 0; transform: translate(-50%, -8px); } }
-@keyframes tb-fly-down { 0% { opacity: 0; transform: translate(-50%, 0); } 12%, 75% { opacity: 1; transform: translate(-50%, 6px); } 100% { opacity: 0; transform: translate(-50%, 22px); } }
-@media (prefers-reduced-motion: reduce) {
-  .game .ls-d, .game .fly.plus, .game .fly.minus { animation-duration: 2400ms; animation-timing-function: steps(1, end); }
 }
 
 @media (max-width: 767px) {

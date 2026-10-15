@@ -25,7 +25,9 @@ function Star({ on, i }: { on: boolean; i: number }) {
 function Change({ v, unit, invert = false }: { v: number | null; unit: string; invert?: boolean }) {
   if (v === null || !Number.isFinite(v) || Math.abs(v) < 0.05) return <td className="num yr-ch">-</td>;
   const good = invert ? v < 0 : v > 0;
-  const n = Math.abs(v) >= 10 ? Math.round(Math.abs(v)) : Math.abs(v).toFixed(1).replace('.', ',');
+  // Целые (смена места) - без дробной части: «+1», а не «+1,0».
+  const a = Math.abs(v);
+  const n = a >= 10 || Number.isInteger(a) ? Math.round(a) : a.toFixed(1).replace('.', ',');
   return (
     <td className={`num yr-ch ${good ? 'good' : 'bad'}`}>
       {v > 0 ? '+' : '−'}

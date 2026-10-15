@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { goalProgress, rewardText } from '../sim/goals';
 import type { GameState } from '../sim/types';
+import { IconCheck } from './icons';
 import type { WindowAlias, WindowId } from './windows';
 import './goals.css';
 
@@ -31,6 +32,7 @@ export function GoalsPanel({ s, open }: { s: GameState; open: (id: WindowId | Wi
               className={`goal-row${isDone ? ' done' : ''}${justDone.has(g.id) ? ' just-done' : ''}${almost ? ' almost' : ''}`}
               onClick={() => open(p.def.id.startsWith('tech-') ? 'research' : 'analytics')}>
               <div className="gt">
+                {isDone && <IconCheck size={13} strokeWidth={3} className="gt-ok" />}
                 {p.def.title(y.year)}
                 {almost && <span className="goal-almost">Почти!</span>}
               </div>
