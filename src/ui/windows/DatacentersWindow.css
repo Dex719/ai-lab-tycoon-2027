@@ -1,64 +1,79 @@
-/* Окно «Дата-центры»: сверху светлая сводка с крупными цифрами, ниже серое поле с карточками площадок
-   (как «Мощности»). Цвета: своя мощность - синим, расходы - красным, экономия - зелёным. */
+/* Окно «Дата-центры»: светлая шапка с одним главным числом и списком «подпись - значение»,
+   ниже слева список площадок, справа выбранная площадка: 3D-сцена и сведения под ней.
+   Цвета только по смыслу: расходы - красным, экономия - зелёным, состояние площадки - точкой. */
 
-.dc {
-  --dc-well: #d3d5d9;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  font-variant-numeric: tabular-nums;
+.dc { display: flex; flex-direction: column; height: 100%; min-height: 0; font-variant-numeric: tabular-nums; container-type: inline-size; }
+.dc-hide { visibility: hidden; }
+
+/* ---------- Шапка ---------- */
+.dc-head {
+  flex: none; display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;
+  padding: 10px 16px 12px; background: var(--win-body); border-bottom: 1px solid var(--line);
 }
-.dc-h { margin: 0; font-size: 20px; font-weight: 300; line-height: 1.2; color: #2a2c30; }
+.dc-main-l { font-size: 13px; color: var(--text-dim); }
+.dc-main-v { display: flex; align-items: baseline; gap: 8px; font-size: 32px; font-weight: 600; line-height: 1.15; color: var(--text); white-space: nowrap; }
+.dc-main-v span { font-size: 15px; font-weight: 400; color: var(--text-dim); }
+.dc-main-v.dim { color: #8a8e95; }
+.dc-main-s { font-size: 13px; color: var(--text-body); }
+.dc-head-kv { display: grid; grid-template-columns: auto auto; gap: 2px 16px; margin: 0; font-size: 13px; }
+.dc-head-kv dt { color: var(--text-dim); }
+.dc-head-kv dd { margin: 0; text-align: right; white-space: nowrap; }
+.dc-head-kv dd.bad, .dc-kv dd.bad { color: #b32f2f; }
+.dc-head-kv dd.good, .dc-kv dd.good { color: #1d6b36; }
 
-.dc-info { flex: none; padding: 10px 16px 14px; background: var(--win-body); border-bottom: 1px solid var(--line); }
-.dc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 8px; margin-top: 8px; }
-.dc-kpi {
-  display: flex; flex-direction: column; gap: 2px; padding: 6px 10px; background: #fff;
-  border: 1px solid var(--line-soft); border-top: 3px solid var(--c-teal); border-radius: 4px; min-width: 0;
-}
-.dc-kpi-l { font-size: 13px; color: var(--text-dim); }
-.dc-kpi-v { font-size: 20px; font-weight: 600; line-height: 1.2; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dc-kpi-v.blue, .dc-kv dd.blue { color: #1f62b8; }
-.dc-kpi-v.red, .dc-kv dd.red { color: #b32f2f; }
-.dc-kpi-v.green { color: #1d6b36; }
-.dc-kpi-s { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* ---------- Тело ---------- */
+.dc-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 250px minmax(0, 1fr); background: #d3d5d9; }
 
-.dc-scroll { flex: 1; min-height: 0; overflow: auto; padding: 14px 16px 16px; background: var(--dc-well); }
-.dc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; align-items: start; }
-
+/* Площадки: строки списка, выбранная - фоном */
+.dc-sites { display: flex; flex-direction: column; gap: 4px; padding: 10px 8px 10px 12px; overflow: auto; }
 .dc-site {
-  display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 12px; background: var(--panel);
-  border: 1px solid var(--line-soft); border-top: 4px solid #9aa0a8; border-radius: 4px; min-width: 0;
+  display: grid; gap: 3px; width: 100%; padding: 8px 10px 9px; text-align: left; color: var(--text);
+  background: var(--panel); border: 1px solid var(--line-soft); border-radius: 2px; cursor: pointer;
 }
-.dc-site.building { border-top-color: var(--c-orange); }
-.dc-site.ready { border-top-color: var(--c-green); }
-.dc-site-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.dc-site-name { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.2; }
-.dc-tag { flex: none; padding: 1px 8px; border-radius: 9px; font-size: 12px; font-weight: 700; color: #fff; background: #7a7f87; }
-.dc-tag.building { background: var(--c-orange); }
-.dc-tag.ready { background: var(--c-green); }
-.dc-note { margin: 0; min-height: 34px; font-size: 13px; line-height: 1.3; color: var(--text-dim); }
+.dc-site:hover { background: #fff; }
+.dc-site.is-selected { background: #e3eefc; border-color: var(--accent); }
+.dc-site:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.dc-site-name { font-size: 15px; font-weight: 600; line-height: 1.2; }
+.dc-site-st { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-dim); }
+.dc-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #9aa0a8; }
+.dc-site-st.building .dc-dot { background: var(--c-orange); }
+.dc-site-st.ready .dc-dot { background: var(--c-green); }
+.dc-site-bar .progress { height: 4px; }
+.dc-site-st.building + .dc-site-bar .progress > div { background: var(--c-orange); }
+.dc-site-st.ready + .dc-site-bar .progress > div { background: var(--c-green); }
+
+/* Выбранная площадка */
+.dc-detail { display: flex; flex-direction: column; min-width: 0; min-height: 0; margin: 10px 12px 12px 4px; background: var(--panel); border: 1px solid var(--line-soft); border-radius: 2px; }
+.dc-detail-head { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 8px 12px 8px; }
+.dc-detail-title h3 { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.2; }
+.dc-detail-title p { margin: 2px 0 0; font-size: 13px; color: var(--text-dim); }
+/* Переключатель «Площадка / Зал»: две кнопки встык */
+.dc-seg { flex: none; display: inline-flex; border: 1px solid var(--line); border-radius: 2px; overflow: hidden; }
+.dc-seg button { height: 26px; padding: 0 12px; font-size: 13px; color: var(--text); background: #fff; border: none; cursor: pointer; }
+.dc-seg button + button { border-left: 1px solid var(--line); }
+.dc-seg button.on { background: #e3eefc; color: var(--accent-dark); font-weight: 600; }
+.dc-seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.dc-scene { position: relative; flex: none; height: 230px; margin: 0 12px; border: 1px solid var(--line); border-radius: 2px; overflow: hidden; background: #dfe1e4; }
+.dc-scene-view { position: absolute; inset: 0; }
+.dc-scene-empty { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font-size: 13px; color: #3a3d42; pointer-events: none; }
+.dc-detail-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px 12px 12px; }
+.dc-build { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 
 .dc-kv { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; margin: 0; }
-.dc-kv dt { color: #3a3c40; }
+.dc-kv dt { color: var(--text-dim); }
 .dc-kv dd { margin: 0; text-align: right; white-space: nowrap; color: var(--text); }
 .dc-kv dd.warn { color: #a85a00; font-weight: 600; }
 .dc-risk { font-weight: 600; }
 .dc-risk.low { color: #1d6b36 !important; }
 .dc-risk.mid { color: #a85a00 !important; }
 .dc-risk.high { color: #b32f2f !important; }
-
-.dc-actions { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.dc-actions { display: flex; align-items: center; gap: 10px; }
 .dc-actions .btn { min-width: 132px; }
 
-/* Этапы стройки: номер в кружке, сделанные - зелёные, текущий - оранжевый с полосой. */
-.dc-stages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+/* Этапы стройки: номер в кружке, сделанные - зелёные с галочкой, текущий - оранжевый с полосой. */
+.dc-stages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .dc-stages li { display: grid; grid-template-columns: 22px auto 1fr; align-items: center; gap: 8px; color: var(--text-dim); }
-.dc-stage-mark {
-  display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 12px; font-weight: 700;
-  background: #e3e5e9; color: #5f636a;
-}
+.dc-stage-mark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 12px; font-weight: 700; background: #e3e5e9; color: #5f636a; }
 .dc-stages li.done { color: var(--text); }
 .dc-stages li.done .dc-stage-mark { background: var(--c-green); color: #fff; }
 .dc-stages li.now { color: var(--text); font-weight: 600; }
@@ -67,38 +82,56 @@
 
 .dc-power-t { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-dim); margin-bottom: 3px; }
 .dc-power-t b { color: var(--text); }
-.dc-empty { padding: 12px; color: var(--text-dim); border: 1px dashed #aeb2b9; border-radius: 4px; font-size: 13px; }
+.dc-empty { padding: 12px; color: var(--text-dim); border: 1px dashed #aeb2b9; border-radius: 2px; font-size: 13px; }
 .dc-gpus { width: 100%; border-collapse: collapse; font-size: 13px; }
-.dc-gpus td { padding: 3px 0; border-bottom: 1px solid var(--line-soft); }
-.dc-gpus td + td { padding-left: 8px; }
+.dc-gpus th { padding: 0 0 3px; font-size: 12px; font-weight: 400; color: var(--text-dim); text-align: left; border-bottom: 1px solid var(--line); }
+.dc-gpus th.num, .dc-gpus td.num { text-align: right; }
+.dc-gpus td { padding: 3px 0; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+.dc-gpus td + td, .dc-gpus th + th { padding-left: 10px; }
+.dc-td-thumb { width: 64px; }
+.dc-td-act { text-align: right; white-space: nowrap; }
+.dc-td-act .btn + .btn { margin-left: 6px; }
+.dc-thumb { display: block; width: 64px; height: 36px; background: #2b2d30; border-radius: 2px; overflow: hidden; }
+.dc-thumb img { display: block; }
 .dc-order td { color: #1f62b8; }
 
-/* Диалоги (выводятся в document.body). */
+/* ---------- Диалоги (выводятся в document.body) ---------- */
 .dc-dialog { display: flex; flex-direction: column; gap: 12px; font-variant-numeric: tabular-nums; }
+.dialog:has(.dc-dialog .gch) { width: min(900px, calc(100vw - 32px)); }
+.dialog:has(.dc-build-dialog) { width: min(620px, calc(100vw - 32px)); }
+.dc-build-preview { position: relative; height: 200px; border: 1px solid var(--line); border-radius: 2px; overflow: hidden; background: #dfe1e4; }
+.dc-build-view { position: absolute; inset: 0; }
 .dc-sizes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .dc-size {
   display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px; background: #fff;
   border: 1px solid var(--line); border-radius: 2px; cursor: pointer; color: var(--text);
 }
 .dc-size span { font-size: 12px; color: #b32f2f; }
-.dc-size.is-selected, .dc-gpu-row.is-selected { border-color: var(--accent); background: #e3eefc; }
-.dc-sum { padding: 10px 12px; background: #fff; border: 1px solid var(--line-soft); border-radius: 4px; }
+.dc-size.is-selected { border-color: var(--accent); background: #e3eefc; }
+.dc-sum { padding: 10px 12px; background: #fff; border: 1px solid var(--line-soft); border-radius: 2px; }
+.dc-sum-2 { grid-template-columns: auto 1fr auto 1fr; }
 .dc-hint { margin: 0; font-size: 13px; color: var(--text-dim); }
 /* Место под ошибку занято всегда: окно не меняет размер. */
 .dc-err { min-height: 22px; }
 .dc-err .error { margin: 0; }
-.dc-gpu-list { display: flex; flex-direction: column; gap: 4px; }
-.dc-gpu-row {
-  display: grid; grid-template-columns: minmax(0, 1fr) 64px 84px 84px; gap: 8px; align-items: center; padding: 6px 10px;
-  background: #fff; border: 1px solid var(--line); border-radius: 2px; text-align: left; color: var(--text); cursor: pointer;
-}
-.dc-gpu-row span:not(:first-child) { text-align: right; }
-.dc-gpu-row.head { background: none; border: none; padding: 0 10px; font-size: 12px; color: var(--text-dim); cursor: default; }
-.dc-qty { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.dc-qty { display: grid; grid-template-columns: 96px minmax(0, 1fr) 110px; align-items: center; gap: 4px 12px; }
 .dc-qty > label { color: var(--text-dim); }
 .dc-qty .range { width: 100%; }
-.dc-qty-note { min-height: 19px; font-size: 13px; color: var(--text-dim); }
+.dc-qty > input { width: 110px; }
+.dc-qty-note { grid-column: 2 / -1; min-height: 19px; font-size: 13px; color: var(--text-dim); }
+.dc-qty-note.bad { color: var(--bad); font-weight: 600; }
 .dc-confirm { margin: 0; max-width: 460px; }
+
+/* Узкое окно: площадки строкой сверху, сведения ниже, всё прокручивается целиком. */
+@container (max-width: 760px) {
+  .dc-head { flex-wrap: wrap; align-items: flex-start; }
+  .dc-body { grid-template-columns: 1fr; overflow: auto; }
+  .dc-sites { flex-direction: row; overflow-x: auto; padding-bottom: 0; }
+  .dc-site { min-width: 170px; }
+  .dc-detail { margin: 8px 12px 12px; }
+  .dc-detail-body { overflow: visible; }
+  .dc-build { grid-template-columns: 1fr; }
+}
 
 /* Значок «Новое» на ярлыке рабочего стола. */
 .desk-icon .desk-new { position: absolute; top: 4px; right: 4px; margin: 0; }

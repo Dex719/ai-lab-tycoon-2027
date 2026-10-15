@@ -1,0 +1,39 @@
+/* Выбор видеокарты: список слева, 3D-превью справа на графитовой подложке (как утверждённый эталон арта).
+   Диалоги выводятся в document.body, поэтому стили не привязаны к окну. */
+.gch { display: grid; grid-template-columns: 292px minmax(0, 1fr); gap: 14px; height: 300px; font-variant-numeric: tabular-nums; }
+.gch-list { display: flex; flex-direction: column; gap: 5px; min-height: 0; overflow: auto; padding: 1px; }
+.gch-pick {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'name price' 'bar bar' 'meta meta';
+  gap: 4px 8px; width: 100%; padding: 6px 10px 7px; text-align: left; color: var(--text); background: #fff;
+  border: 1px solid var(--line); border-radius: 2px; cursor: pointer;
+}
+.gch-pick:hover { background: #f1f4f8; }
+.gch-pick.is-selected { border-color: var(--accent); background: #e3eefc; }
+.gch-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.gch-name { grid-area: name; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gch-price { grid-area: price; align-self: baseline; font-size: 12.5px; color: var(--text-dim); white-space: nowrap; }
+.gch-bar { grid-area: bar; display: block; height: 5px; background: #e3e5e9; border-radius: 1px; overflow: hidden; }
+.gch-bar i { display: block; height: 100%; background: #5f646c; }
+.gch-pick.is-selected .gch-bar i { background: var(--accent-dark); }
+.gch-meta { grid-area: meta; display: flex; gap: 10px; font-size: 12.5px; }
+.gch-tag { font-weight: 600; color: #1d6b36; }
+.gch-note { color: #1f62b8; }
+
+.gch-stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.gch-view { flex: 1; min-height: 0; background: #2b2d30; border-radius: 2px; }
+.gch-cap { flex: none; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 8px; }
+.gch-title { font-size: 18px; font-weight: 600; white-space: nowrap; }
+.gch-facts { display: grid; grid-template-columns: auto auto; gap: 0 10px; margin: 0; font-size: 12.5px; }
+.gch-fact { display: contents; }
+.gch-facts dt { color: var(--text-dim); }
+.gch-facts dd { margin: 0; color: var(--text); white-space: nowrap; }
+
+
+/* Узкий экран: превью над списком, список по высоте содержимого. */
+@media (max-width: 640px) {
+  .gch { grid-template-columns: 1fr; height: auto; }
+  .gch-stage { order: -1; }
+  .gch-view { flex: none; height: 170px; }
+  .gch-cap { flex-wrap: wrap; }
+  .gch-list { overflow: visible; }
+}

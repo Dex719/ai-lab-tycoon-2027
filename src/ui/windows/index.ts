@@ -74,7 +74,7 @@ export interface WindowDef {
 
 export const WINDOWS: WindowDef[] = [
   { id: 'research', title: 'Исследования', icon: IconResearch, side: 'left', w: 1060, h: 660, Component: ResearchWindow },
-  { id: 'compute', title: 'Мощности', icon: IconCompute, side: 'left', w: 760, h: 600, Component: ComputeWindow },
+  { id: 'compute', title: 'Мощности', icon: IconCompute, side: 'left', w: 1000, h: 700, Component: ComputeWindow },
   { id: 'newModel', title: 'Новая модель', icon: IconNewModel, side: 'left', w: 1000, h: 680, Component: TrainingWindow },
   { id: 'contracts', title: 'Контракты', icon: IconContracts, side: 'left', w: 1000, h: 620, Component: ContractsWindow },
   { id: 'investors', title: 'Инвесторы', icon: IconInvestors, side: 'left', w: 820, h: 600, Component: InvestorsWindow },
@@ -84,7 +84,7 @@ export const WINDOWS: WindowDef[] = [
     icon: IconDatacenters,
     side: 'left',
     w: 1000,
-    h: 640,
+    h: 680,
     Component: DatacentersWindow,
     openedDay: (s) => s.datacenters.unlockedDay,
   },

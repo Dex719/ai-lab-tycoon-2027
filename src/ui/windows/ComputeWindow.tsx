@@ -1,7 +1,9 @@
-// Окно «Мощности» (FR-2): сведения, арендованные карты, диалог аренды и распределение мощности.
-// Раскладка по образцу «Производство» и «Управление линиями» в Processor Tycoon.
+// Окно «Мощности»: сверху тёмная полоса с 3D-фермой арендованных карт и главным числом - мощностью;
+// ниже список арендованных карт с картинками и панель распределения мощности.
+// Аренда - одна кнопка «Арендовать»: диалог выбора карты с 3D-превью, количеством и итогом.
+// Будущее не раскрывается: в выборе только вышедшие карты, мощность сравнивается с самой мощной из них.
 
-import { Fragment, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
 import { GPUS } from '../../data/gpus';
@@ -9,7 +11,6 @@ import {
   availableGpus,
   isGpuAvailable,
   ownedH100e,
-  pool,
   rentCapFor,
   rentCostPerDay,
   rentMaxFor,
@@ -17,10 +18,11 @@ import {
   rentPerGpuDay,
   totalH100e,
 } from '../../sim/compute';
-import { RENT_HARD_CAP_MULT, RENT_OVER_CAP_MULT } from '../../sim/constants';
+import { RENT_OVER_CAP_MULT } from '../../sim/constants';
 import { ownedCards } from '../../sim/datacenters';
+import { idleWarnings } from '../../sim/idle';
 import { CHAT_MOMENT_DAY, inferenceNeed, marketSnapshot, subsOpen } from '../../sim/market';
-import { dateToDay } from '../../sim/time';
+import { timesWord } from '../../sim/text';
 import type { GameState, GpuDef, GpuId } from '../../sim/types';
 import {
   ALLOC_ROWS,
@@ -38,70 +40,60 @@ import {
   type SoldChannels,
 } from '../alloc';
 import { Cards } from '../components/Cards';
-import { Alert, ConfirmDialog, Dialog, ErrorText, NewBadge, Range } from '../components/common';
-import { fmtH100e as fmtH, fmtInt, fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
-import { idleWarnings } from '../../sim/idle';
+import { ConfirmDialog, Dialog, GuardButton, NewBadge, Range } from '../components/common';
+import { fmtH100e as fmtH, fmtInt, fmtMoney, fmtNum, fmtPct, ruPlural } from '../format';
 import { IconAlert } from '../icons';
-import { timesWord } from '../../sim/text';
+import { playSound } from '../sound';
 import { actions, store } from '../store';
+import { farmLayout, rentedFarm } from '../three/specs';
+import { GpuChooser, powerFact } from '../three/GpuChooser';
+import { useGpuThumb, View3D } from '../three/View3D';
 import './ComputeWindow.css';
 
 /** Аренда списывается каждый день; в интерфейсе стоимость показана за 30 дней. */
 const DAYS_IN_MONTH = 30;
+/** «в 1,8 раза» - надбавка к цене за карты сверх лимита. */
+const OVER_TIMES = timesWord(RENT_OVER_CAP_MULT);
 
-/** «×1,8» - надбавка к цене за карты сверх лимита. */
-const OVER_MULT_TEXT = `×${fmtMult(RENT_OVER_CAP_MULT)}`;
-/** Подсказка к лимиту: что будет сверх него и где жёсткий потолок. */
-const CAP_HINT = `Карты сверх лимита стоят дороже: ${OVER_MULT_TEXT}. Больше ×${fmtMult(RENT_HARD_CAP_MULT)} от лимита арендовать нельзя`;
+function cardsWord(n: number): string {
+  return ruPlural(n, 'карта', 'карты', 'карт');
+}
+
+/** «96 карт», «1 карта», «12,5 тыс. карт». */
+function fmtCardsCount(n: number): string {
+  return `${n >= 10_000 ? fmtNum(n) : fmtInt(n)} ${cardsWord(n)}`;
+}
 
 /** Аренда count карт за 30 дней с надбавкой за карты сверх лимита (rentCostPerDay). */
 function monthlyCost(s: GameState, id: GpuId, count: number): number {
   return rentCostPerDay(s, id, count) * DAYS_IN_MONTH;
 }
 
-/** Сколько из count карт - сверх лимита по обычной цене. */
-function overCap(count: number, cap: number): number {
-  return Math.max(0, count - cap);
-}
-
-/** Разница со знаком, две части: деньги («+$1,2 тыс. в месяц», красным при росте расхода) и мощность («+4,5 H100e», зелёным при росте). */
-function fmtChange(costDelta: number, hDelta: number): { money: string; power: string; moneyBad: boolean; powerGood: boolean } {
-  const money = costDelta > 0 ? `+${fmtMoney(costDelta)}` : fmtMoney(costDelta);
-  const h = hDelta > 0 ? `+${fmtH(hDelta)}` : hDelta < 0 ? `−${fmtH(-hDelta)}` : fmtH(0);
-  return { money: `${money} в месяц`, power: `${h} H100e`, moneyBad: costDelta > 0, powerGood: hDelta > 0 };
-}
-
-/** Мощность одной карты в процентах от H100: «2,1 %», «100 %», «140 %». */
-function fmtCardPower(h100e: number): string {
-  const p = h100e * 100;
-  return `${p < 10 ? String(Math.round(p * 10) / 10).replace('.', ',') : fmtInt(p)} %`;
-}
-
 /** Цена аренды одной карты в месяц: «$1 368». */
 function fmtCardMonth(perDay: number): string {
-  return `$${fmtInt(perDay * 30)}`;
+  return `$${fmtInt(perDay * DAYS_IN_MONTH)}`;
 }
 
-/** Самая дешёвая по цене за H100e в день среди доступных; пока доступна одна карта, сравнивать не с чем. */
+/** Самая дешёвая по цене за единицу мощности среди доступных; пока доступна одна карта, сравнивать не с чем. */
 function cheapestGpuId(s: GameState): GpuId | null {
   const list = availableGpus(s);
   if (list.length < 2) return null;
   let best = list[0];
-  for (const g of list) {
-    if (rentPerGpuDay(s, g.id) / g.h100e < rentPerGpuDay(s, best.id) / best.h100e) best = g;
-  }
+  for (const g of list) if (rentPerGpuDay(s, g.id) / g.h100e < rentPerGpuDay(s, best.id) / best.h100e) best = g;
   return best.id;
 }
 
-/**
- * Строки долей, которые видит игрок: «Подписки» - только после открытия канала подписок
- * (или если доля почему-то уже не нулевая, чтобы её можно было убрать).
- */
+/** Сколько карт предложить в диалоге, если этих карт ещё нет: около 3/16 лимита, кратно 8 (целые серверы). */
+function suggestedCount(s: GameState, id: GpuId): number {
+  const cap = rentCapFor(s, id);
+  return Math.max(8, Math.min(rentMaxFor(s, id), Math.round((cap * 3) / 16 / 8) * 8));
+}
+
+/** Строки долей, которые видит игрок: «Подписки» - только после открытия канала (или если доля уже не нулевая). */
 function visibleRows(s: GameState) {
   return ALLOC_ROWS.filter((r) => r.key !== 'subs' || subsOpen(s.day) || s.compute.alloc.subs > 0);
 }
 
-/** Подпись доли со значком «Новое» у «Подписок» в первые дни после открытия канала. */
 function RowLabel({ s, r }: { s: GameState; r: (typeof ALLOC_ROWS)[number] }) {
   return (
     <>
@@ -111,99 +103,94 @@ function RowLabel({ s, r }: { s: GameState; r: (typeof ALLOC_ROWS)[number] }) {
   );
 }
 
-// ---------- Сведения ----------
+// ---------- Полоса с фермой ----------
 
-function Summary({ s, onRent }: { s: GameState; onRent: () => void }) {
-  const cards = GPUS.reduce((sum, g) => sum + s.compute.rented[g.id], 0);
+interface RentFlash {
+  key: number;
+  text: string;
+}
+
+function Hero({ s, onRent, flash }: { s: GameState; onRent: () => void; flash: RentFlash | null }) {
+  const farm = { ...rentedFarm(s), wide: true };
+  const layout = farmLayout(farm.groups);
+  const total = totalH100e(s);
+  const own = ownedCards(s);
   const caps = availableGpus(s).map((g) => rentCapFor(s, g.id));
-  const capMin = caps.length ? Math.min(...caps) : 0;
-  const capMax = caps.length ? Math.max(...caps) : 0;
-  const capText = capMin === capMax ? fmtNum(capMin) : `${fmtNum(capMin)}-${fmtNum(capMax)}`;
-  const over = GPUS.reduce((sum, g) => sum + overCap(s.compute.rented[g.id], rentCapFor(s, g.id)), 0);
-
+  const cap = caps.length ? Math.min(...caps) : 0;
+  const racks = `${fmtInt(layout.totalRacks)} ${ruPlural(layout.totalRacks, 'стойка', 'стойки', 'стоек')}`;
   return (
-    <header className="cw-info">
-      <div className="cw-info-head">
-        <h2 className="cw-h">Сведения о мощностях</h2>
-        <button className="btn primary" onClick={onRent} data-tutorial="rent-button">
-          Арендовать
-        </button>
-      </div>
-      <div className="cw-info-grid">
-        <dl className="cw-kv">
-          <dt title="H100e: мощность в эквивалентах одной карты H100">Всего мощности</dt>
-          <dd>
-            {fmtH(totalH100e(s))} H100e
-            <Cards s={s} h100e={totalH100e(s)} />
-          </dd>
-          <dt>Арендовано карт</dt>
-          <dd>{fmtNum(cards)}</dd>
-          {s.datacenters.unlockedDay !== null && (
+    <header className="cw-head">
+      <figure className="cw-farm">
+        <View3D spec={farm} label={`Арендованные карты в облаке: ${fmtCardsCount(layout.cards)}, ${racks}`} className="cw-farm-view" />
+        {layout.cards === 0 && <figcaption className="cw-farm-empty">Карт пока нет</figcaption>}
+        {layout.scale > 1 && <figcaption className="cw-farm-scale">На схеме одна стойка за {fmtInt(layout.scale)}</figcaption>}
+        {flash && (
+          <div key={flash.key} className="cw-flash" role="status">
+            {flash.text}
+          </div>
+        )}
+      </figure>
+      <div className="cw-figures">
+        <div className="cw-fig-label" title="Единица мощности: в ней считаются обучение, исследования и работа для клиентов">
+          Мощность
+        </div>
+        <div className={`cw-fig-value${total > 0 ? '' : ' dim'}`}>
+          {fmtH(total)}
+          <span>H100e</span>
+        </div>
+        <div className="cw-fig-sub">{layout.cards > 0 ? `${fmtCardsCount(layout.cards)} в аренде, ${racks}` : 'Карт в аренде нет'}</div>
+        <dl className="cw-fig-kv">
+          <dt>Аренда в месяц</dt>
+          <dd className={rentPerDay(s) > 0 ? 'bad' : undefined}>{rentPerDay(s) > 0 ? fmtMoney(rentPerDay(s) * DAYS_IN_MONTH) : '-'}</dd>
+          <dt title={`До лимита - обычная цена, сверх него карты дороже ${OVER_TIMES}. Лимит растёт каждый год`}>Лимит аренды</dt>
+          <dd>{fmtInt(cap)} на тип</dd>
+          {own > 0 && (
             <>
-              <dt title="Карты в своих дата-центрах: входят во «Всего мощности», лимит аренды на них не действует">Свои карты</dt>
-              <dd className="cw-own">
-                {fmtNum(ownedCards(s))} шт., {fmtH(ownedH100e(s))} H100e
-              </dd>
+              <dt>Свои карты</dt>
+              <dd>{fmtInt(own)}</dd>
             </>
           )}
-          <dt title="Аренда за сутки × 30, с надбавкой за карты сверх лимита">Аренда в месяц</dt>
-          <dd className="cw-cost">{fmtMoney(rentPerDay(s) * DAYS_IN_MONTH)}</dd>
-          <dt title={CAP_HINT}>Лимит по обычной цене</dt>
-          <dd className={over > 0 ? 'warn' : undefined}>{capText}</dd>
         </dl>
-        <dl className="cw-kv">
-          {visibleRows(s).map((r) => (
-            <Fragment key={r.key}>
-              <dt title={r.hint}>
-                <span className="cw-dot" style={{ background: r.color }} />
-                <RowLabel s={s} r={r} />
-              </dt>
-              <dd>
-                {fmtH(pool(s, r.key))} H100e
-                <Cards s={s} h100e={pool(s, r.key)} />
-              </dd>
-            </Fragment>
-          ))}
-        </dl>
+        <button className="btn primary cw-rent-btn" onClick={onRent} data-tutorial="rent-button">
+          Арендовать
+        </button>
       </div>
     </header>
   );
 }
 
-// ---------- Карточки арендованных карт ----------
+// ---------- Арендованные карты ----------
 
-/** Карточка арендованного типа карт. «Изменить» и «Вернуть» открывают диалог аренды: возврат всех карт - с нулём в поле. */
-function RentedCard({ s, g, onEdit, onGiveBack }: { s: GameState; g: GpuDef; onEdit: () => void; onGiveBack: () => void }) {
+function GpuThumb({ id, w, h }: { id: GpuId; w: number; h: number }) {
+  const url = useGpuThumb(id, w, h);
+  return (
+    <span className="cw-thumb" style={{ width: w, height: h }}>
+      {url && <img src={url} alt="" width={w} height={h} draggable={false} />}
+    </span>
+  );
+}
+
+function RentedRow({ s, g, onEdit, onGiveBack }: { s: GameState; g: GpuDef; onEdit: () => void; onGiveBack: () => void }) {
   const count = s.compute.rented[g.id];
   const cap = rentCapFor(s, g.id);
-  const over = overCap(count, cap);
-  const perDay = rentPerGpuDay(s, g.id);
-
+  const over = Math.max(0, count - cap);
   return (
-    <div className="cw-card">
-      <div>
-        <div className="cw-card-name">{g.name}</div>
-        <div className="muted small">{fmtCardMonth(perDay)} за карту в месяц</div>
+    <div className="cw-row">
+      <GpuThumb id={g.id} w={88} h={50} />
+      <div className="cw-row-main">
+        <div className="cw-row-name">{g.name}</div>
+        <div className="cw-row-meta">
+          <b>{fmtInt(count)} шт.</b>, {fmtH(count * g.h100e)} H100e, {fmtCardMonth(rentPerGpuDay(s, g.id))} за карту в месяц
+        </div>
+        <div className={`cw-row-over${over > 0 ? '' : ' cw-hide'}`}>
+          Сверх лимита {fmtInt(over)} шт.: цена {OVER_TIMES} выше
+        </div>
       </div>
-      <dl className="cw-kv">
-        <dt>Карт</dt>
-        <dd>{fmtNum(count)}</dd>
-        <dt>Мощность</dt>
-        <dd>{fmtH(count * g.h100e)} H100e</dd>
-        <dt title="Аренда за сутки × 30, с надбавкой за карты сверх лимита">В месяц</dt>
-        <dd className="cw-cost">{fmtMoney(monthlyCost(s, g.id, count))}</dd>
-        <dt title={CAP_HINT}>Лимит по обычной цене</dt>
-        <dd className={over > 0 ? 'warn' : undefined}>{fmtNum(cap)}</dd>
-        {over > 0 && (
-          <>
-            <dt title={`Эти карты стоят ${OVER_MULT_TEXT} от обычной цены`}>Сверх лимита</dt>
-            <dd className="warn">
-              {fmtNum(over)} шт. по цене {OVER_MULT_TEXT}
-            </dd>
-          </>
-        )}
-      </dl>
-      <div className="cw-card-actions">
+      <div className="cw-row-cost">
+        {fmtMoney(monthlyCost(s, g.id, count))}
+        <small>в месяц</small>
+      </div>
+      <div className="cw-row-actions">
         <button className="btn small" onClick={onEdit}>
           Изменить
         </button>
@@ -215,35 +202,34 @@ function RentedCard({ s, g, onEdit, onGiveBack }: { s: GameState; g: GpuDef; onE
   );
 }
 
-// ---------- Диалог «Аренда мощностей» ----------
+// ---------- Диалог аренды ----------
 
-/** Что открыть в диалоге аренды: тип карты и число в поле (по умолчанию - сколько уже арендовано). */
 interface RentTarget {
   id: GpuId;
+  /** Число в поле; по умолчанию - сколько уже арендовано или предложенное количество для новых карт. */
   count?: number;
 }
 
-function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; onClose: () => void }) {
+function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: RentTarget; onClose: () => void; onDone: (text: string) => void }) {
+  const initial = (id: GpuId, count?: number) => String(count ?? (s.compute.rented[id] > 0 ? s.compute.rented[id] : suggestedCount(s, id)));
   const [id, setId] = useState<GpuId>(target.id);
-  const [text, setText] = useState(String(target.count ?? s.compute.rented[target.id]));
+  const [text, setText] = useState(initial(target.id, target.count));
   const [error, setError] = useState<string | null>(null);
 
+  const list = GPUS.filter((x) => isGpuAvailable(s, x.id));
   const g = GPUS.find((x) => x.id === id) ?? GPUS[0];
   const rented = s.compute.rented[g.id];
   const cap = rentCapFor(s, g.id);
-  // Если потолок упал ниже уже арендованного, текущее число остаётся допустимым.
   const max = Math.max(rentMaxFor(s, g.id), rented);
   const parsed = text.trim() === '' ? NaN : Number(text);
   const count = Number.isInteger(parsed) && parsed >= 0 && parsed <= max ? parsed : null;
-  const atMax = count === max;
-  const over = count === null ? 0 : overCap(count, cap);
+  const over = count === null ? 0 : Math.max(0, count - cap);
   const cheapest = cheapestGpuId(s);
-  // Где на ползунке кончается обычная цена (доля длины дорожки); при лимите не ниже потолка отметки нет.
   const capFrac = cap < max ? cap / max : null;
 
   const pick = (next: GpuDef) => {
     setId(next.id);
-    setText(String(s.compute.rented[next.id]));
+    setText(initial(next.id));
     setError(null);
   };
   const setCount = (raw: string) => {
@@ -254,83 +240,68 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
     const n = Math.floor(Number(text));
     setText(String(Number.isFinite(n) ? Math.min(max, Math.max(0, n)) : rented));
   };
-  const submit = () => {
-    if (count === null || count === rented) return;
-    const r = store.dispatch(actions.setRent, g.id, count);
-    if (r.ok) onClose();
-    else setError(r.error);
-  };
 
   const lowering = count !== null && count < rented;
-  const submitLabel = lowering ? 'Вернуть' : 'Арендовать';
-  // Надбавка за карты сверх лимита в месяц: вся аренда минус аренда карт по обычной цене.
+  const label = count === 0 && rented > 0 ? 'Вернуть все' : lowering ? 'Вернуть' : 'Арендовать';
+  const reason = count === null ? `Введите целое число от 0 до ${fmtInt(max)}` : count === rented ? (rented === 0 ? 'Укажите количество' : 'Количество не изменилось') : null;
+  const submit = () => {
+    if (reason || count === null) return;
+    const r = store.dispatch(actions.setRent, g.id, count);
+    if (!r.ok) {
+      setError(r.error);
+      return;
+    }
+    const diff = count - rented;
+    onDone(diff > 0 ? `+${fmtCardsCount(diff)} ${g.name}` : `Возвращено ${fmtCardsCount(-diff)} ${g.name}`);
+  };
+
+  const cost = count === null ? null : monthlyCost(s, g.id, count);
+  const delta = count === null ? null : { money: monthlyCost(s, g.id, count) - monthlyCost(s, g.id, rented), power: (count - rented) * g.h100e };
   const overCost = count === null || over === 0 ? 0 : monthlyCost(s, g.id, count) - monthlyCost(s, g.id, cap);
 
   return (
     <Dialog
-      title="Аренда мощностей"
+      title="Аренда видеокарт"
+      wide
       onClose={onClose}
       footer={
         <>
-          {count !== null && count === rented && (
-            <span className="cw-foot-note">{rented === 0 ? 'Укажите количество' : 'Количество не изменено'}</span>
-          )}
           <button className="btn" onClick={onClose}>
             Отмена
           </button>
-          <button className="btn primary" onClick={submit} disabled={count === null || count === rented}>
-            {submitLabel}
-          </button>
+          <GuardButton className="btn primary cw-rd-submit" reason={reason} onClick={submit}>
+            {label}
+          </GuardButton>
         </>
       }
     >
-      <div className="col" style={{ gap: 14 }}>
-        <div className="cw-gpus" role="radiogroup" aria-label="Тип карты">
-          <div className="cw-gpu-head">
-            <span>Карта</span>
-            <span title="Мощность одной карты по сравнению с H100">% от H100</span>
-            <span title="Аренда одной карты за 30 дней">$ в месяц</span>
-          </div>
-          {/* Карты, которые ещё не вышли, не показываются вовсе: игрок не должен знать будущее. */}
-          {GPUS.filter((x) => isGpuAvailable(s, x.id)).map((x) => (
-            <button
-              key={x.id}
-              type="button"
-              role="radio"
-              aria-checked={x.id === id}
-              className={`cw-gpu${x.id === id ? ' is-selected' : ''}`}
-              onClick={() => pick(x)}
-            >
-              <span className="cw-gpu-name">
-                <span>
-                  {x.name}
-                  <NewBadge day={s.day} since={dateToDay(x.availableFrom)} />
-                </span>
-                {x.id === cheapest && <span className="cw-gpu-tag">Выгоднее всего</span>}
-              </span>
-              <span className="n">{fmtCardPower(x.h100e)}</span>
-              <span className="n">{fmtCardMonth(rentPerGpuDay(s, x.id))}</span>
-            </button>
-          ))}
-        </div>
+      <div className="cw-rd">
+        <GpuChooser
+          day={s.day}
+          items={list.map((x) => ({
+            gpu: x,
+            price: `${fmtCardMonth(rentPerGpuDay(s, x.id))} в месяц`,
+            tag: x.id === cheapest ? 'Выгоднее всего' : null,
+            note: s.compute.rented[x.id] > 0 ? `в аренде ${fmtInt(s.compute.rented[x.id])}` : null,
+          }))}
+          value={g.id}
+          onPick={(next) => pick(GPUS.find((x) => x.id === next) ?? g)}
+          facts={[
+            { label: 'Мощность', value: powerFact(g, list) },
+            { label: 'Цена', value: `${fmtCardMonth(rentPerGpuDay(s, g.id))} за карту в месяц` },
+            { label: 'На рынке', value: `с ${g.availableFrom.slice(0, 4)} года` },
+          ]}
+        />
 
         <div className="cw-qty">
           <label htmlFor="cw-qty-num">Количество</label>
-          <div
-            className={`cw-qty-range${capFrac === null ? '' : ' has-cap'}`}
-            style={{ '--cap': capFrac ?? 1 } as CSSProperties}
-          >
+          <div className={`cw-qty-range${capFrac === null ? '' : ' has-cap'}`} style={{ '--cap': capFrac ?? 1 } as CSSProperties}>
             <Range value={count ?? 0} min={0} max={max} label="Количество карт" onChange={(v) => setCount(String(v))} />
-            {capFrac !== null && (
-              <span className="cw-cap-label" aria-hidden="true">
-                {fmtNum(cap)} шт.: дальше {OVER_MULT_TEXT}
-              </span>
-            )}
           </div>
           <input
             id="cw-qty-num"
             type="number"
-            inputMode="decimal"
+            inputMode="numeric"
             min={0}
             max={max}
             step={1}
@@ -339,59 +310,52 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
             onBlur={normalize}
             onKeyDown={(e) => e.key === 'Enter' && submit()}
           />
-          {/* Строка зарезервирована всегда: «Максимум» появляется у правого края ползунка, размер диалога не меняется. */}
-          <div className="cw-qty-legend">
-            <span className={capFrac === null ? 'cw-hide' : undefined}>
-              <span className="cw-sw over" />
-              Сверх лимита - {timesWord(RENT_OVER_CAP_MULT)} дороже.
-            </span>
-            <span className={`cw-qty-max${atMax ? '' : ' cw-hide'}`} aria-hidden={!atMax}>
-              Максимум {fmtInt(max)} шт.
-            </span>
-          </div>
-          <div className={`cw-qty-note${count === null ? ' bad' : ''}`}>
-            {count === null ? (
-              `Введите целое число от 0 до ${fmtInt(max)}`
-            ) : (
-              over > 0 && (
-                <span className="warn">
-                  Сверх лимита: {fmtNum(over)} шт. по цене {OVER_MULT_TEXT}
-                </span>
-              )
-            )}
+          {/* Строка зарезервирована всегда: подсказка меняется, высота диалога - нет. */}
+          <div className={`cw-qty-note${count === null || error ? ' bad' : over > 0 ? ' warn' : ''}`} role="status">
+            {error ??
+              (count === null
+                ? `Введите целое число от 0 до ${fmtInt(max)}`
+                : over > 0
+                  ? `Сверх лимита ${fmtInt(over)} шт.: цена ${OVER_TIMES} выше, надбавка ${fmtMoney(overCost)} в месяц`
+                  : `По обычной цене - до ${fmtCardsCount(cap)}, всего можно ${fmtInt(max)}`)}
           </div>
         </div>
 
-        <div className="card cw-sum">
-          <dl className="cw-kv">
-            <dt>Мощность</dt>
-            <dd>{count === null ? '-' : `${fmtH(count * g.h100e)} H100e`}</dd>
-            <dt title="Аренда за сутки × 30, с надбавкой за карты сверх лимита">Стоимость</dt>
-            <dd className="cw-cost">{count === null ? '-' : `${fmtMoney(monthlyCost(s, g.id, count))} в месяц`}</dd>
-            {/* Строки есть всегда (с прочерком), чтобы диалог не менял высоту при движении ползунка. */}
-            <dt title={`Надбавка за карты сверх лимита: цена ${OVER_MULT_TEXT}`}>Из них надбавка</dt>
-            <dd className={over > 0 ? 'warn' : undefined}>{over > 0 ? `${fmtMoney(overCost)} в месяц` : '-'}</dd>
-            <dt>Сейчас в аренде</dt>
-            <dd>{fmtNum(rented)} шт.</dd>
-            <dt title="Разница с текущей арендой этого типа карт">Изменение</dt>
-            {count !== null && count !== rented ? (
-              (() => {
-                const ch = fmtChange(monthlyCost(s, g.id, count) - monthlyCost(s, g.id, rented), (count - rented) * g.h100e);
-                return (
-                  <dd>
-                    <span className={ch.moneyBad ? 'bad' : 'good'}>{ch.money}</span>,{' '}
-                    <span className={ch.powerGood ? 'good' : 'bad'}>{ch.power}</span>
-                  </dd>
-                );
-              })()
-            ) : (
-              <dd>-</dd>
-            )}
-          </dl>
+        <div className="cw-sum">
+          <div className="cw-sum-i">
+            <span>Мощность {g.name}</span>
+            <b>{count === null ? '-' : `${fmtH(count * g.h100e)} H100e`}</b>
+            <Delta value={delta && count !== rented ? delta.power : null} good={(v) => v > 0} fmt={(v) => `${fmtH(v)} H100e`} />
+          </div>
+          <div className="cw-sum-i">
+            <span>Аренда этих карт в месяц</span>
+            <b className={cost ? 'bad' : undefined}>{cost === null ? '-' : fmtMoney(cost)}</b>
+            <Delta value={delta && count !== rented ? delta.money : null} good={(v) => v < 0} fmt={fmtMoney} />
+          </div>
+          <div className="cw-sum-i">
+            <span>Карт</span>
+            <b>{count === null ? '-' : `${fmtInt(count)} шт.`}</b>
+            <small>сейчас {fmtInt(rented)} шт.</small>
+          </div>
+          <div className="cw-sum-i">
+            <span>На счёте</span>
+            <b className={s.cash < 0 ? 'bad' : undefined}>{fmtMoney(s.cash)}</b>
+            <small title="Аренда всех карт после изменения">вся аренда {count === null ? '-' : fmtMoney(rentPerDay(s) * DAYS_IN_MONTH + (delta?.money ?? 0))} в месяц</small>
+          </div>
         </div>
-        <ErrorText error={error} />
       </div>
     </Dialog>
+  );
+}
+
+/** Строка изменения под числом: «+2,05 H100e» зелёным или красным; без изменения - прочерк. */
+function Delta({ value, good, fmt }: { value: number | null; good: (v: number) => boolean; fmt: (v: number) => string }) {
+  if (value === null || value === 0) return <small>без изменений</small>;
+  return (
+    <small className={good(value) ? 'good' : 'bad'}>
+      {value > 0 ? '+' : '−'}
+      {fmt(Math.abs(value))}
+    </small>
   );
 }
 
@@ -399,7 +363,6 @@ function RentDialog({ s, target, onClose }: { s: GameState; target: RentTarget; 
 
 type NeedChannel = 'api' | 'subs';
 
-/** Мощность, которая нужна клиентам по каналам; если расчёт рынка недоступен, null. */
 function safeInferenceNeed(s: GameState): Record<NeedChannel, number> | null {
   try {
     const need = inferenceNeed(s, marketSnapshot(s));
@@ -409,10 +372,7 @@ function safeInferenceNeed(s: GameState): Record<NeedChannel, number> | null {
   }
 }
 
-/**
- * Подсказка «Нужно клиентам» под строкой API или «Подписки». Одна строка постоянной высоты: нехватка при перетаскивании
- * ползунка только меняет цвет и добавляет слово справа, ошибкой не считается и размер окна не меняет.
- */
+/** «Нужно клиентам» под строкой API или «Подписки»: одна строка постоянной высоты, нехватка - оранжевым справа. */
 function ClientNeed({ s, need, have }: { s: GameState; need: number | undefined; have: number }) {
   if (need === undefined || !(need > 0)) return null;
   const short = need > have * (1 + 1e-9) + 1e-9;
@@ -427,16 +387,7 @@ function ClientNeed({ s, need, have }: { s: GameState; need: number | undefined;
   );
 }
 
-/** Поле процента рядом с ползунком: пока в нём печатают, показывается набранный текст, после ухода из поля - долю. */
-function PercentInput(props: {
-  value: number;
-  /** Наибольшее значение: 100 минус сумма остальных долей. Больше набрать нельзя, число зажимается. */
-  max: number;
-  label: string;
-  changed: boolean;
-  onChange: (v: number) => void;
-  onEnter: () => void;
-}) {
+function PercentInput(props: { value: number; max: number; label: string; changed: boolean; onChange: (v: number) => void; onEnter: () => void }) {
   const [text, setText] = useState<string | null>(null);
   return (
     <label className={`cw-pct${props.changed ? ' changed' : ''}`}>
@@ -471,10 +422,8 @@ function PercentInput(props: {
 
 function AllocPanel({ s }: { s: GameState }) {
   const [draft, setDraft] = useState<Percents | null>(null);
-  // Ошибка показывается только после «Распределить»; любое изменение долей её убирает.
   const [error, setError] = useState<string | null>(null);
   const [zero, setZero] = useState<(keyof SoldChannels)[] | null>(null);
-  // Доля упёрлась в остаток: вместо молчаливого обнуления говорим, сколько можно.
   const [limit, setLimit] = useState<number | null>(null);
   const current = percentsOf(s.compute.alloc);
   const shown = draft ?? current;
@@ -490,7 +439,11 @@ function AllocPanel({ s }: { s: GameState }) {
     setLimit(Math.round(value) > cap ? cap : null);
     setDraft(setPercent(shown, key, value));
   };
-
+  const reset = () => {
+    setDraft(null);
+    setError(null);
+    setLimit(null);
+  };
   const commit = () => {
     if (!draft) return;
     const r = store.dispatch(actions.setAllocation, toAllocation(draft));
@@ -500,8 +453,6 @@ function AllocPanel({ s }: { s: GameState }) {
       setLimit(null);
     }
   };
-
-  // «Распределить»: сумма не больше 100 % (остаток простаивает); нулевую долю API или подписок при продажах в канале игрок подтверждает.
   const apply = () => {
     if (!draft || !changed) return;
     const check = checkAllocation(draft, soldChannels(s.models));
@@ -516,6 +467,8 @@ function AllocPanel({ s }: { s: GameState }) {
     commit();
   };
 
+  const msg = error ? { tone: 'bad' as const, text: error } : limit !== null ? { tone: 'warn' as const, text: `Максимум ${limit} %: сначала уменьшите другую долю.` } : null;
+
   return (
     <section className="cw-panel" data-tutorial="alloc">
       <div className="cw-panel-head">
@@ -525,79 +478,58 @@ function AllocPanel({ s }: { s: GameState }) {
             <div key={r.key} style={{ width: `${shown[r.key]}%`, background: r.color }} />
           ))}
         </div>
-        <div
-          className={`cw-occ ${total > 0 ? occ.tone : 'idle'}`}
-          role="status"
-          title={occ.tone === 'idle' ? 'Свободная мощность простаивает, а аренда за неё всё равно списывается.' : undefined}
-        >
-          {total > 0 ? occ.text : 'Мощности пока нет: арендуйте карты.'}
+        <div className={`cw-occ ${total > 0 ? occ.tone : 'none'}`} role="status">
+          {total > 0 ? occ.text : 'Мощности пока нет: доли заработают после аренды.'}
         </div>
       </div>
-      {rows.map((r) => {
-        const h = (total * shown[r.key]) / 100;
-        const cap = maxPercent(shown, r.key);
-        return (
-          <div key={r.key} className="cw-alloc-row" title={r.hint}>
-            <div className="cw-alloc-top">
-              <span className="cw-dot" style={{ background: r.color }} />
-              <span className="cw-alloc-name">
-                <RowLabel s={s} r={r} />
-              </span>
-              <span className="cw-alloc-val">
-                {fmtH(h)} H100e
-                <Cards s={s} h100e={h} />
-              </span>
+      <div className="cw-alloc-rows">
+        {rows.map((r) => {
+          const h = (total * shown[r.key]) / 100;
+          return (
+            <div key={r.key} className="cw-alloc-row" title={r.hint}>
+              <div className="cw-alloc-top">
+                <span className="cw-dot" style={{ background: r.color }} />
+                <span className="cw-alloc-name">
+                  <RowLabel s={s} r={r} />
+                </span>
+                <span className="cw-alloc-val">
+                  {fmtH(h)} H100e
+                  <Cards s={s} h100e={h} />
+                </span>
+              </div>
+              <div className="cw-alloc-ctl">
+                <Range value={shown[r.key]} min={0} max={100} color={r.color} label={r.label} valueText={fmtPct(shown[r.key], 0)} onChange={(v) => edit(r.key, v)} />
+                <PercentInput
+                  value={shown[r.key]}
+                  max={maxPercent(shown, r.key)}
+                  label={r.label}
+                  changed={draft !== null && shown[r.key] !== current[r.key]}
+                  onChange={(v) => edit(r.key, v)}
+                  onEnter={apply}
+                />
+              </div>
+              {(r.key === 'api' || r.key === 'subs') && <ClientNeed s={s} need={need?.[r.key]} have={h} />}
             </div>
-            <div className="cw-alloc-ctl">
-              <Range
-                value={shown[r.key]}
-                min={0}
-                max={100}
-                color={r.color}
-                label={r.label}
-                valueText={fmtPct(shown[r.key], 0)}
-                onChange={(v) => edit(r.key, v)}
-              />
-              <PercentInput
-                value={shown[r.key]}
-                max={cap}
-                label={r.label}
-                changed={draft !== null && shown[r.key] !== current[r.key]}
-                onChange={(v) => edit(r.key, v)}
-                onEnter={apply}
-              />
-            </div>
-            {(r.key === 'api' || r.key === 'subs') && <ClientNeed s={s} need={need?.[r.key]} have={h} />}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
       <div className="cw-panel-foot">
-        <div className="cw-alloc-msg" title={error ?? undefined}>
-            {error ? (
-              <Alert tone="bad">{error}</Alert>
-            ) : (
-              limit !== null && <Alert tone="warn">Максимум {limit} %: сначала уменьшите другую долю.</Alert>
-            )}
-          </div>
-        <div className="cw-alloc-foot">
-          {changed ? (
-            <button
-              className="btn"
-              onClick={() => {
-                setDraft(null);
-                setError(null);
-                setLimit(null);
-              }}
-            >
-              Сбросить
-            </button>
-          ) : (
-            <span className="cw-alloc-hint">Двигайте ползунки</span>
-          )}
-          <button className="btn primary" disabled={!changed} onClick={apply}>
-            Распределить
-          </button>
+        <div className={`cw-alloc-msg${msg ? ` ${msg.tone}` : changed ? ' pending' : ''}`} role="status" title={msg?.text}>
+          {msg ? (
+            <>
+              <IconAlert size={14} />
+              <span>{msg.text}</span>
+            </>
+          ) : changed ? (
+            'Новые доли ещё не применены'
+          ) : null}
         </div>
+        <button className={`btn${changed ? '' : ' cw-hide'}`} onClick={reset} tabIndex={changed ? 0 : -1}>
+          Сбросить
+        </button>
+        <GuardButton className="btn primary" reason={changed ? null : 'Доли не изменились: передвиньте ползунок или введите процент'} onClick={apply}>
+          Распределить
+        </GuardButton>
       </div>
       {zero && (
         <ConfirmDialog
@@ -620,14 +552,8 @@ function AllocPanel({ s }: { s: GameState }) {
   );
 }
 
-// ---------- Окно ----------
+// ---------- Простой мощности ----------
 
-/** Тип карты, выбранный в диалоге по умолчанию: самый выгодный из доступных. */
-function defaultRentId(s: GameState): GpuId {
-  return cheapestGpuId(s) ?? availableGpus(s)[0]?.id ?? GPUS[0].id;
-}
-
-/** Простой мощности: доля выделена, а работы для неё нет. Одна рамка, в ней строки с кнопкой, которая ведёт к исправлению. */
 function IdleStrip({ s, open }: { s: GameState; open: WindowProps['open'] }) {
   const items = idleWarnings(s);
   if (items.length === 0) return null;
@@ -649,49 +575,71 @@ function IdleStrip({ s, open }: { s: GameState; open: WindowProps['open'] }) {
             )}
           </div>
         ))}
-        {rest > 0 && <div className="cw-idle-more">Ещё {rest}: {items.slice(2).map((i) => i.reason).join(', ')}</div>}
+        {rest > 0 && (
+          <div className="cw-idle-more">
+            Ещё {rest}: {items.slice(2).map((i) => i.reason).join(', ')}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
+// ---------- Окно ----------
+
+/** Карта, выбранная в диалоге по умолчанию: самая выгодная из вышедших. */
+function defaultRentId(s: GameState): GpuId {
+  return cheapestGpuId(s) ?? availableGpus(s)[0]?.id ?? GPUS[0].id;
+}
+
+/** Плашка после аренды видна 2,6 с. */
+const FLASH_MS = 2600;
+
 export default function ComputeWindow({ s, open }: WindowProps) {
   const [dialog, setDialog] = useState<RentTarget | null>(null);
+  const [flash, setFlash] = useState<RentFlash | null>(null);
+  const timer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(timer.current), []);
   const rentedGpus = GPUS.filter((g) => s.compute.rented[g.id] > 0);
+
+  const done = (text: string) => {
+    setDialog(null);
+    playSound('rack');
+    setFlash({ key: Date.now(), text });
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setFlash(null), FLASH_MS);
+  };
 
   return (
     <div className="cw">
-      <Summary s={s} onRent={() => setDialog({ id: defaultRentId(s) })} />
-      <IdleStrip s={s} open={open} />
-      <div className="cw-scroll">
-        <div className="cw-main">
-          <section className="cw-rented">
-            <h2 className="cw-h">Арендованные карты</h2>
-            {rentedGpus.length === 0 ? (
-              <div className="cw-empty">
-                <button className="btn primary cw-empty-btn" onClick={() => setDialog({ id: defaultRentId(s) })}>
-                  Арендовать первые карты
-                </button>
-                <span>Без карт нельзя обучать модели и исследовать.</span>
-              </div>
-            ) : (
-              <div className="cw-cards">
-                {rentedGpus.map((g) => (
-                  <RentedCard
-                    key={g.id}
-                    s={s}
-                    g={g}
-                    onEdit={() => setDialog({ id: g.id })}
-                    onGiveBack={() => setDialog({ id: g.id, count: 0 })}
-                  />
-                ))}
-              </div>
-            )}
-          </section>
-          <AllocPanel s={s} />
-        </div>
+      <Hero s={s} flash={flash} onRent={() => setDialog({ id: defaultRentId(s) })} />
+      <div className="cw-body">
+        <section className="cw-rented">
+          <h2 className="cw-h">Арендованные карты</h2>
+          <IdleStrip s={s} open={open} />
+          {rentedGpus.length === 0 ? (
+            <div className="cw-empty">Карт пока нет. Без них нельзя обучать модели и исследовать.</div>
+          ) : (
+            <div className="cw-rows">
+              {rentedGpus.map((g) => (
+                <RentedRow key={g.id} s={s} g={g} onEdit={() => setDialog({ id: g.id })} onGiveBack={() => setDialog({ id: g.id, count: 0 })} />
+              ))}
+            </div>
+          )}
+          {ownedH100e(s) > 0 && (
+            <div className="cw-own">
+              <span>
+                Свои карты в дата-центрах: <b>{fmtCardsCount(ownedCards(s))}</b>, {fmtH(ownedH100e(s))} H100e
+              </span>
+              <button type="button" className="btn small" onClick={() => open('datacenters')}>
+                Открыть дата-центры
+              </button>
+            </div>
+          )}
+        </section>
+        <AllocPanel s={s} />
       </div>
-      {dialog && createPortal(<RentDialog s={s} target={dialog} onClose={() => setDialog(null)} />, document.body)}
+      {dialog && createPortal(<RentDialog s={s} target={dialog} onClose={() => setDialog(null)} onDone={done} />, document.body)}
     </div>
   );
 }
