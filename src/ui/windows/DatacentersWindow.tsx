@@ -1,10 +1,11 @@
-// Окно «Дата-центры» (.kiro/specs/datacenters/design.md): сводка своей мощности, четыре площадки,
-// стройка через подтверждение, покупка карт и списание.
+// Окно «Дата-центры»: сверху своя мощность одним числом и короткий список расходов; ниже слева четыре площадки,
+// справа выбранная площадка в 3D (кампус, который достраивается по этапам, или машинный зал с картами)
+// и её сведения: условия, этапы стройки или стоящие карты. Стройка и покупка - через подтверждение.
 
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
-import { DC_SITES, DC_SIZES, DC_STAGE_NAMES, DC_UPKEEP_PER_MW_MONTH, type DcSiteDef, type DcSiteId } from '../../data/datacenters';
+import { DC_SITES, DC_SIZES, DC_STAGE_NAMES, DC_STAGES, DC_UPKEEP_PER_MW_MONTH, type DcSiteDef, type DcSiteId } from '../../data/datacenters';
 import { GPUS } from '../../data/gpus';
 import { availableGpus, gpuDef, ownedH100e, rentPerGpuDay } from '../../sim/compute';
 import {
@@ -23,17 +24,22 @@ import {
   gpuKwAt,
   gpusPerMw,
   ownedCards,
+  ownedRentEquivalentPerDay,
   resaleFactor,
   resalePrice,
-  ownedRentEquivalentPerDay,
   stageProgress,
   usedKw,
 } from '../../sim/datacenters';
 import { formatDate } from '../../sim/time';
 import type { Datacenter, GameState, GpuId } from '../../sim/types';
-import { ConfirmDialog, Dialog, ErrorText, ProgressBar, Range } from '../components/common';
-import { fmtH100e as fmtH, fmtInt, fmtMoney, fmtNum, ruPlural } from '../format';
+import { ConfirmDialog, Dialog, ErrorText, GuardButton, ProgressBar, Range } from '../components/common';
+import { fmtDays, fmtH100e as fmtH, fmtInt, fmtMoney, fmtNum, ruPlural } from '../format';
+import { IconCheck } from '../icons';
+import { playSound } from '../sound';
 import { actions, store } from '../store';
+import { GpuChooser, powerFact } from '../three/GpuChooser';
+import { campusSpec, dcFarm, farmLayout, type CampusSpec } from '../three/specs';
+import { useGpuThumb, View3D } from '../three/View3D';
 import './DatacentersWindow.css';
 
 const MONTH = 30;
@@ -54,53 +60,81 @@ function monthsText(n: number): string {
   return `${n} ${ruPlural(n, 'месяц', 'месяца', 'месяцев')}`;
 }
 
+function cardsText(n: number): string {
+  return `${fmtInt(n)} ${ruPlural(n, 'карта', 'карты', 'карт')}`;
+}
+
 /** «3,2 МВт». */
 function fmtMw(kw: number): string {
   return `${fmtNum(Math.round(kw / 100) / 10)} МВт`;
 }
 
-// ---------- Сводка ----------
+/** Что сейчас на площадке: свободна, стройка (этап), готов. */
+function siteStatus(s: GameState, def: DcSiteDef): { tone: 'free' | 'building' | 'ready'; text: string; progress: number | null } {
+  const dc = findDc(s, def.id);
+  if (!dc) return { tone: 'free', text: 'Свободна', progress: null };
+  if (!dcReady(dc)) return { tone: 'building', text: `${DC_STAGE_NAMES[dc.stage]}, этап ${dc.stage + 1} из ${DC_STAGES}`, progress: stageProgress(s, dc) };
+  const used = usedKw(dc) / (dc.mw * 1000);
+  return { tone: 'ready', text: `${dc.mw} МВт, занято ${fmtInt(Math.round(used * 100))} %`, progress: used };
+}
 
-function Summary({ s }: { s: GameState }) {
+// ---------- Шапка ----------
+
+function Head({ s }: { s: GameState }) {
   const own = ownedH100e(s);
   const cost = dcCostPerDay(s) * MONTH;
   const rentEq = ownedRentEquivalentPerDay(s) * MONTH;
   const building = s.datacenters.list.filter((d) => !dcReady(d)).length;
+  const transit = cardsInTransit(s);
   const saving = rentEq - cost;
   return (
-    <header className="dc-info">
-      <h2 className="dc-h">Свои дата-центры</h2>
-      <div className="dc-kpis">
-        <div className="dc-kpi">
-          <span className="dc-kpi-l">Своя мощность, H100e</span>
-          <span className="dc-kpi-v blue">{fmtH(own)}</span>
-          <span className="dc-kpi-s">
-            {cardsInTransit(s) > 0
-              ? `${fmtInt(cardsInTransit(s))} карт в пути`
-              : `${fmtInt(ownedCards(s))} ${ruPlural(ownedCards(s), 'карта', 'карты', 'карт')}`}
-          </span>
+    <header className="dc-head">
+      <div className="dc-main">
+        <div className="dc-main-l" title="Мощность карт в своих дата-центрах; входит во «Всего мощности» в окне «Мощности»">
+          Своя мощность
         </div>
-        <div className="dc-kpi">
-          <span className="dc-kpi-l">Строится</span>
-          <span className="dc-kpi-v">{building}</span>
-          <span className="dc-kpi-s">из {DC_SITES.length} площадок</span>
+        <div className={`dc-main-v${own > 0 ? '' : ' dim'}`}>
+          {fmtH(own)}
+          <span>H100e</span>
         </div>
-        <div className="dc-kpi">
-          <span className="dc-kpi-l">Расходы в месяц</span>
-          <span className="dc-kpi-v red">{fmtMoney(cost)}</span>
-          <span className="dc-kpi-s">без стройки и карт</span>
-        </div>
-        <div className="dc-kpi">
-          <span className="dc-kpi-l">Экономия</span>
-          <span className={`dc-kpi-v ${saving > 0 ? 'green' : ''}`}>{own > 0 ? fmtMoney(saving) : '-'}</span>
-          <span className="dc-kpi-s">{own > 0 ? `против аренды ${fmtMoney(rentEq)}` : 'нет своих карт'}</span>
+        <div className="dc-main-s">
+          {ownedCards(s) > 0 ? cardsText(ownedCards(s)) : 'Своих карт нет'}
+          {transit > 0 && `, в пути ${fmtInt(transit)}`}
         </div>
       </div>
+      <dl className="dc-head-kv">
+        <dt>Строится</dt>
+        <dd>
+          {building} из {DC_SITES.length} площадок
+        </dd>
+        <dt title="Электричество и обслуживание готовых дата-центров, без стройки и покупки карт">Расходы в месяц</dt>
+        <dd className={cost > 0 ? 'bad' : undefined}>{cost > 0 ? fmtMoney(cost) : '-'}</dd>
+        <dt title="Сколько стоили бы те же карты в аренде, минус расходы своих дата-центров">Экономия против аренды</dt>
+        <dd className={own > 0 ? (saving > 0 ? 'good' : 'bad') : undefined}>{own > 0 ? `${saving < 0 ? '−' : ''}${fmtMoney(Math.abs(saving))} в месяц` : '-'}</dd>
+      </dl>
     </header>
   );
 }
 
-// ---------- Карточка площадки ----------
+// ---------- Список площадок ----------
+
+function SiteRow({ s, def, selected, onSelect }: { s: GameState; def: DcSiteDef; selected: boolean; onSelect: () => void }) {
+  const st = siteStatus(s, def);
+  return (
+    <button type="button" role="tab" aria-selected={selected} className={`dc-site${selected ? ' is-selected' : ''}`} onClick={onSelect}>
+      <span className="dc-site-name">{def.name}</span>
+      <span className={`dc-site-st ${st.tone}`}>
+        <span className="dc-dot" aria-hidden="true" />
+        {st.text}
+      </span>
+      <span className={`dc-site-bar${st.progress === null ? ' dc-hide' : ''}`}>
+        <ProgressBar value={st.progress ?? 0} />
+      </span>
+    </button>
+  );
+}
+
+// ---------- Сведения о площадке ----------
 
 function SiteFacts({ s, def }: { s: GameState; def: DcSiteDef }) {
   const risk = riskOf(def);
@@ -114,11 +148,9 @@ function SiteFacts({ s, def }: { s: GameState; def: DcSiteDef }) {
       <dt>Риск задержки</dt>
       <dd className={`dc-risk ${risk.tone}`}>{risk.text}</dd>
       <dt>На 1 МВт</dt>
-      <dd>
-        {fmtInt(gpusPerMw(def.id, g))} карт {gpuDef(g).name.replace('Fermi ', '')}
-      </dd>
+      <dd>{cardsText(gpusPerMw(def.id, g))} {gpuDef(g).name}</dd>
       <dt>Стройка 1 МВт</dt>
-      <dd className="red">{fmtMoney(buildCost(s, def.id, 1))}</dd>
+      <dd className="bad">{fmtMoney(buildCost(s, def.id, 1))}</dd>
     </dl>
   );
 }
@@ -131,7 +163,7 @@ function Stages({ s, dc }: { s: GameState; dc: Datacenter }) {
         return (
           <li key={name} className={state}>
             <span className="dc-stage-mark" aria-hidden="true">
-              {state === 'done' ? '✓' : i + 1}
+              {state === 'done' ? <IconCheck size={12} /> : i + 1}
             </span>
             <span className="dc-stage-name">{name}</span>
             {state === 'now' && (
@@ -146,7 +178,13 @@ function Stages({ s, dc }: { s: GameState; dc: Datacenter }) {
   );
 }
 
-function ReadyBody({ s, dc, onBuy, onSell, onWriteOff }: { s: GameState; dc: Datacenter; onBuy: () => void; onSell: (gpu: GpuId) => void; onWriteOff: (gpu: GpuId) => void }) {
+function GpuThumb({ id }: { id: GpuId }) {
+  const url = useGpuThumb(id, 64, 36);
+  return <span className="dc-thumb">{url && <img src={url} alt="" width={64} height={36} draggable={false} />}</span>;
+}
+
+function ReadyBody(props: { s: GameState; dc: Datacenter; onBuy: () => void; onSell: (gpu: GpuId) => void; onWriteOff: (gpu: GpuId) => void }) {
+  const { s, dc } = props;
   const used = usedKw(dc);
   const total = dc.mw * 1000;
   const types = GPUS.filter((g) => (dc.gpus[g.id] ?? 0) > 0);
@@ -155,7 +193,7 @@ function ReadyBody({ s, dc, onBuy, onSell, onWriteOff }: { s: GameState; dc: Dat
     <>
       <div className="dc-power">
         <div className="dc-power-t">
-          <span>Занято</span>
+          <span>Занято электричества</span>
           <b>
             {fmtMw(used)} из {dc.mw} МВт
           </b>
@@ -165,24 +203,35 @@ function ReadyBody({ s, dc, onBuy, onSell, onWriteOff }: { s: GameState; dc: Dat
         </div>
       </div>
       {types.length === 0 && dc.orders.length === 0 ? (
-        <div className="dc-empty">Дата-центр пустой: купите карты.</div>
+        <div className="dc-empty">Карт ещё нет: зал пустой, обслуживание уже идёт.</div>
       ) : (
         <table className="dc-gpus">
+          <thead>
+            <tr>
+              <th colSpan={2}>Карта</th>
+              <th className="num">Штук</th>
+              <th className="num">Мощность</th>
+              <th />
+            </tr>
+          </thead>
           <tbody>
             {types.map((g) => (
               <tr key={g.id}>
+                <td className="dc-td-thumb">
+                  <GpuThumb id={g.id} />
+                </td>
                 <td>{g.name}</td>
-                <td className="num">{fmtInt(dc.gpus[g.id])} шт.</td>
+                <td className="num">{fmtInt(dc.gpus[g.id])}</td>
                 <td className="num">{fmtH(dc.gpus[g.id] * g.h100e)} H100e</td>
-                <td className="num">
+                <td className="dc-td-act">
                   <button
                     className="btn small"
-                    onClick={() => onSell(g.id)}
+                    onClick={() => props.onSell(g.id)}
                     title={`Продать за ${fmtMoney(dc.gpus[g.id] * resalePrice(s, g.id))}: ${fmtNum(Math.round(resaleFactor(s, g.id) * 100))} % от цены новой карты`}
                   >
                     Продать
-                  </button>{' '}
-                  <button className="btn small" onClick={() => onWriteOff(g.id)} title="Убрать карты без денег, чтобы освободить место">
+                  </button>
+                  <button className="btn small" onClick={() => props.onWriteOff(g.id)} title="Убрать карты без денег, чтобы освободить место">
                     Списать
                   </button>
                 </td>
@@ -190,8 +239,11 @@ function ReadyBody({ s, dc, onBuy, onSell, onWriteOff }: { s: GameState; dc: Dat
             ))}
             {dc.orders.map((o, i) => (
               <tr key={`o${i}`} className="dc-order">
+                <td className="dc-td-thumb">
+                  <GpuThumb id={o.gpu} />
+                </td>
                 <td>{gpuDef(o.gpu).name}</td>
-                <td className="num">{fmtInt(o.count)} шт.</td>
+                <td className="num">{fmtInt(o.count)}</td>
                 <td className="num" colSpan={2}>
                   в пути до {formatDate(o.arriveDay)}
                 </td>
@@ -202,21 +254,22 @@ function ReadyBody({ s, dc, onBuy, onSell, onWriteOff }: { s: GameState; dc: Dat
       )}
       <dl className="dc-kv">
         <dt>Электричество в месяц</dt>
-        <dd className="red">{fmtMoney(dcPowerPerDay(dc) * MONTH)}</dd>
+        <dd className="bad">{fmtMoney(dcPowerPerDay(dc) * MONTH)}</dd>
         <dt>Обслуживание в месяц</dt>
-        <dd className="red">{fmtMoney(dcUpkeepPerDay(dc) * MONTH)}</dd>
+        <dd className="bad">{fmtMoney(dcUpkeepPerDay(dc) * MONTH)}</dd>
       </dl>
       <div className="dc-actions">
-        <button className="btn primary" onClick={onBuy} disabled={full}>
+        <GuardButton className="btn primary" reason={full ? 'Места нет: продайте или спишите старые карты' : null} onClick={props.onBuy}>
           Купить карты
-        </button>
-        {full && <span className="muted small">Места нет: спишите старые карты</span>}
+        </GuardButton>
       </div>
     </>
   );
 }
 
-function SiteCard(props: {
+type SceneMode = 'campus' | 'hall';
+
+function SiteDetail(props: {
   s: GameState;
   def: DcSiteDef;
   onBuild: () => void;
@@ -226,40 +279,64 @@ function SiteCard(props: {
 }) {
   const { s, def } = props;
   const dc = findDc(s, def.id);
-  const tone = !dc ? 'free' : dcReady(dc) ? 'ready' : 'building';
+  const ready = !!dc && dcReady(dc);
+  const [mode, setMode] = useState<SceneMode>('campus');
+  const scene = ready && mode === 'hall' ? dcFarm(dc) : campusSpec(s, def.id);
+  const hallCards = ready ? farmLayout(dcFarm(dc).groups).cards : 0;
   return (
-    <section className={`dc-site ${tone}`}>
-      <div className="dc-site-head">
-        <h3 className="dc-site-name">{def.name}</h3>
-        <span className={`dc-tag ${tone}`}>{!dc ? 'Свободна' : dcReady(dc) ? `${dc.mw} МВт` : 'Стройка'}</span>
-      </div>
-      <p className="dc-note">{def.note}</p>
-      {!dc && (
-        <>
-          <SiteFacts s={s} def={def} />
-          <div className="dc-actions">
-            <button className="btn primary" onClick={props.onBuild}>
-              Построить
+    <section className="dc-detail" aria-label={def.name}>
+      <div className="dc-detail-head">
+        <div className="dc-detail-title">
+          <h3>{def.name}</h3>
+          <p>{def.note}</p>
+        </div>
+        {ready && (
+          <div className="dc-seg" role="tablist" aria-label="Что показать">
+            <button type="button" role="tab" aria-selected={mode === 'campus'} className={mode === 'campus' ? 'on' : undefined} onClick={() => setMode('campus')}>
+              Площадка
+            </button>
+            <button type="button" role="tab" aria-selected={mode === 'hall'} className={mode === 'hall' ? 'on' : undefined} onClick={() => setMode('hall')}>
+              Зал
             </button>
           </div>
-        </>
-      )}
-      {dc && !dcReady(dc) && (
-        <>
-          <Stages s={s} dc={dc} />
-          <dl className="dc-kv">
-            <dt>Мощность</dt>
-            <dd>{dc.mw} МВт</dd>
-            <dt>Готовность</dt>
-            <dd className="blue">примерно {formatDate(expectedReadyDay(dc))}</dd>
-            <dt>Задержки</dt>
-            <dd className={dc.delayDays > 0 ? 'warn' : undefined}>{dc.delayDays > 0 ? `${Math.round(dc.delayDays / MONTH)} мес.` : 'нет'}</dd>
-            <dt>Уплачено</dt>
-            <dd className="red">{fmtMoney(dc.paid)}</dd>
-          </dl>
-        </>
-      )}
-      {dc && dcReady(dc) && <ReadyBody s={s} dc={dc} onBuy={props.onBuy} onSell={props.onSell} onWriteOff={props.onWriteOff} />}
+        )}
+      </div>
+      <div className="dc-scene">
+        <View3D
+          spec={scene}
+          label={ready && mode === 'hall' ? `Машинный зал: ${cardsText(hallCards)}` : `Площадка ${def.name}: ${siteStatus(s, def).text}`}
+          className="dc-scene-view"
+        />
+        {ready && mode === 'hall' && hallCards === 0 && <div className="dc-scene-empty">Карт пока нет</div>}
+      </div>
+      <div className="dc-detail-body">
+        {!dc && (
+          <>
+            <SiteFacts s={s} def={def} />
+            <div className="dc-actions">
+              <button className="btn primary" onClick={props.onBuild}>
+                Построить
+              </button>
+            </div>
+          </>
+        )}
+        {dc && !ready && (
+          <div className="dc-build">
+            <Stages s={s} dc={dc} />
+            <dl className="dc-kv">
+              <dt>Мощность</dt>
+              <dd>{dc.mw} МВт</dd>
+              <dt>Готовность</dt>
+              <dd>примерно {formatDate(expectedReadyDay(dc))}</dd>
+              <dt>Задержки</dt>
+              <dd className={dc.delayDays > 0 ? 'warn' : undefined}>{dc.delayDays > 0 ? monthsText(Math.round(dc.delayDays / MONTH)) : 'нет'}</dd>
+              <dt>Уплачено</dt>
+              <dd className="bad">{fmtMoney(dc.paid)}</dd>
+            </dl>
+          </div>
+        )}
+        {dc && ready && <ReadyBody s={s} dc={dc} onBuy={props.onBuy} onSell={props.onSell} onWriteOff={props.onWriteOff} />}
+      </div>
     </section>
   );
 }
@@ -274,6 +351,8 @@ function BuildDialog({ s, def, onClose }: { s: GameState; def: DcSiteDef; onClos
   const cards = gpusPerMw(def.id, g) * mw;
   const powerFull = (cards * gpuKwAt(def.id, g) * 24 * MONTH * def.powerPrice) / 1000;
   const risk = riskOf(def);
+  // Готовый кампус выбранного размера, пока пустой: так будет выглядеть площадка после стройки
+  const preview: CampusSpec = { kind: 'campus', site: def.id, mw, stage: DC_STAGES, progress: 1, fill: 0, mix: [], trucks: 0 };
   return (
     <ConfirmDialog
       title={`Стройка: ${def.name}`}
@@ -281,11 +360,16 @@ function BuildDialog({ s, def, onClose }: { s: GameState; def: DcSiteDef; onClos
       onClose={onClose}
       onConfirm={() => {
         const r = store.dispatch(actions.buildDatacenter, def.id, mw);
-        if (r.ok) onClose();
-        else setError(r.error);
+        if (r.ok) {
+          playSound('rack');
+          onClose();
+        } else setError(r.error);
       }}
     >
-      <div className="dc-dialog">
+      <div className="dc-dialog dc-build-dialog">
+        <div className="dc-build-preview">
+          <View3D spec={preview} label={`Дата-центр на ${mw} МВт после стройки`} className="dc-build-view" />
+        </div>
         <div className="dc-sizes" role="radiogroup" aria-label="Мощность дата-центра">
           {DC_SIZES.map((x) => (
             <button
@@ -306,7 +390,7 @@ function BuildDialog({ s, def, onClose }: { s: GameState; def: DcSiteDef; onClos
         </div>
         <dl className="dc-kv dc-sum">
           <dt>Стоимость</dt>
-          <dd className="red">{fmtMoney(cost)}</dd>
+          <dd className="bad">{fmtMoney(cost)}</dd>
           <dt>Срок</dt>
           <dd>{monthsText(buildMonths(def.id, mw))}</dd>
           <dt>Риск задержки</dt>
@@ -314,15 +398,15 @@ function BuildDialog({ s, def, onClose }: { s: GameState; def: DcSiteDef; onClos
             {risk.text}, {Math.round(def.risk * 100)} % на этап
           </dd>
           <dt>Обслуживание после стройки</dt>
-          <dd className="red">{fmtMoney(mw * DC_UPKEEP_PER_MW_MONTH)} в месяц</dd>
+          <dd className="bad">{fmtMoney(mw * DC_UPKEEP_PER_MW_MONTH)} в месяц</dd>
           <dt>Электричество при полной загрузке</dt>
-          <dd className="red">{fmtMoney(powerFull)} в месяц</dd>
+          <dd className="bad">{fmtMoney(powerFull)} в месяц</dd>
           <dt>Поместится</dt>
           <dd>
-            {fmtInt(cards)} карт {gpuDef(g).name}
+            {cardsText(cards)} {gpuDef(g).name}
           </dd>
           <dt>Деньги после оплаты</dt>
-          <dd className={s.cash - cost < 0 ? 'red' : undefined}>{fmtMoney(s.cash - cost)}</dd>
+          <dd className={s.cash - cost < 0 ? 'bad' : undefined}>{fmtMoney(s.cash - cost)}</dd>
         </dl>
         <p className="dc-hint">Карты покупаются отдельно, когда дата-центр готов.</p>
         <div className="dc-err">
@@ -339,7 +423,12 @@ function BuyDialog({ s, site, onClose }: { s: GameState; site: DcSiteId; onClose
   const dc = findDc(s, site)!;
   const list = availableGpus(s);
   const [id, setId] = useState<GpuId>(bestGpu(s));
-  const [text, setText] = useState('');
+  // Предложенное количество: четверть свободного места, целыми серверами по 8 карт (не больше, чем хватает денег)
+  const suggest = (gpu: GpuId) => {
+    const m = Math.min(freeSlots(dc, gpu), Math.floor(s.cash / gpuBuyPrice(s, gpu)));
+    return m <= 0 ? '' : String(Math.max(1, Math.min(m, Math.round(m / 4 / 8) * 8 || m)));
+  };
+  const [text, setText] = useState(() => suggest(bestGpu(s)));
   const [error, setError] = useState<string | null>(null);
   const g = gpuDef(id);
   const price = gpuBuyPrice(s, id);
@@ -350,57 +439,64 @@ function BuyDialog({ s, site, onClose }: { s: GameState; site: DcSiteId; onClose
   const count = Number.isInteger(parsed) && parsed >= 1 && parsed <= max ? parsed : null;
   const n = count ?? 0;
   const power = (n * gpuKwAt(site, id) * 24 * MONTH * DC_SITES.find((d) => d.id === site)!.powerPrice) / 1000;
+  const reason = max === 0 ? (afford === 0 ? 'Не хватает денег даже на одну карту' : 'Места нет') : count === null ? `Введите целое число от 1 до ${fmtInt(max)}` : null;
 
   const submit = () => {
     if (count === null) return;
     const r = store.dispatch(actions.buyDcGpus, site, id, count);
-    if (r.ok) onClose();
-    else setError(r.error);
+    if (r.ok) {
+      playSound('rack');
+      onClose();
+    } else setError(r.error);
   };
 
   return (
     <Dialog
       title="Покупка карт"
+      wide
       onClose={onClose}
       footer={
         <>
           <button className="btn" onClick={onClose}>
             Отмена
           </button>
-          <button className="btn primary" onClick={submit} disabled={count === null}>
+          <GuardButton className="btn primary" reason={reason} onClick={submit}>
             Купить
-          </button>
+          </GuardButton>
         </>
       }
     >
       <div className="dc-dialog">
-        <div className="dc-gpu-list" role="radiogroup" aria-label="Тип карты">
-          <div className="dc-gpu-row head">
-            <span>Карта</span>
-            <span>H100e</span>
-            <span>Цена</span>
-            <span>Поместится</span>
-          </div>
-          {list.map((x) => (
-            <button
-              key={x.id}
-              type="button"
-              role="radio"
-              aria-checked={x.id === id}
-              className={`dc-gpu-row${x.id === id ? ' is-selected' : ''}`}
-              onClick={() => {
-                setId(x.id);
-                setText('');
-                setError(null);
-              }}
-            >
-              <span>{x.name}</span>
-              <span>{fmtH(x.h100e)}</span>
-              <span>{fmtMoney(gpuBuyPrice(s, x.id))}</span>
-              <span>{fmtInt(freeSlots(dc, x.id))}</span>
-            </button>
-          ))}
-        </div>
+        <GpuChooser
+          day={s.day}
+          items={list.map((x) => ({
+            gpu: x,
+            meta: (
+              <>
+                {fmtMoney(gpuBuyPrice(s, x.id))} за карту, поместится {fmtInt(freeSlots(dc, x.id))}
+              </>
+            ),
+          }))}
+          value={id}
+          onPick={(next) => {
+            setId(next);
+            setText(suggest(next));
+            setError(null);
+          }}
+          aside={
+            <dl className="gch-wallet">
+              <dt>На счёте</dt>
+              <dd className={s.cash < 0 ? 'bad' : undefined}>{fmtMoney(s.cash)}</dd>
+              <dt>Свободно в зале</dt>
+              <dd>{fmtMw(dc.mw * 1000 - usedKw(dc))}</dd>
+            </dl>
+          }
+          facts={[
+            { label: 'Мощность', value: powerFact(g, list) },
+            { label: 'Цена', value: `${fmtMoney(price)} за карту` },
+            { label: 'В аренде стоила бы', value: `${fmtMoney(rentPerGpuDay(s, id) * MONTH)} в месяц` },
+          ]}
+        />
         <div className="dc-qty">
           <label htmlFor="dc-qty-num">Количество</label>
           <Range value={n} min={0} max={Math.max(1, max)} label="Количество карт" onChange={(v) => setText(String(v))} disabled={max === 0} />
@@ -417,27 +513,27 @@ function BuyDialog({ s, site, onClose }: { s: GameState; site: DcSiteId; onClose
             }}
             onKeyDown={(e) => e.key === 'Enter' && submit()}
           />
+          <div className={`dc-qty-note${max === 0 ? ' bad' : ''}`}>
+            {max === 0
+              ? afford === 0
+                ? 'Не хватает денег даже на одну карту'
+                : 'Места нет'
+              : `Можно купить до ${fmtInt(max)} шт.${max === afford && afford < fit ? ': больше не хватает денег' : ''}`}
+          </div>
         </div>
-        <div className="dc-qty-note">
-          {max === 0
-            ? afford === 0
-              ? 'Не хватает денег даже на одну карту'
-              : 'Места нет'
-            : `Можно купить до ${fmtInt(max)} шт.${max === afford && afford < fit ? ': больше не хватает денег' : ''}`}
-        </div>
-        <dl className="dc-kv dc-sum">
+        <dl className="dc-kv dc-sum dc-sum-2">
           <dt>Стоимость</dt>
-          <dd className="red">{fmtMoney(n * price)}</dd>
+          <dd className={n > 0 ? 'bad' : undefined}>{n > 0 ? fmtMoney(n * price) : '-'}</dd>
           <dt>Мощность</dt>
-          <dd className="blue">+{fmtH(n * g.h100e)} H100e</dd>
+          <dd className={n > 0 ? 'good' : undefined}>{n > 0 ? `+${fmtH(n * g.h100e)} H100e` : '-'}</dd>
           <dt>Доставка</dt>
           <dd>
-            {deliveryDays(s)} дн., до {formatDate(s.day + deliveryDays(s))}
+            {fmtDays(deliveryDays(s))}, до {formatDate(s.day + deliveryDays(s))}
           </dd>
           <dt>Электричество</dt>
-          <dd className="red">{fmtMoney(power)} в месяц</dd>
+          <dd className={n > 0 ? 'bad' : undefined}>{n > 0 ? `${fmtMoney(power)} в месяц` : '-'}</dd>
           <dt>Те же карты в аренде</dt>
-          <dd>{fmtMoney(n * rentPerGpuDay(s, id) * MONTH)} в месяц</dd>
+          <dd>{n > 0 ? `${fmtMoney(n * rentPerGpuDay(s, id) * MONTH)} в месяц` : '-'}</dd>
         </dl>
         <div className="dc-err">
           <ErrorText error={error} />
@@ -451,27 +547,40 @@ function BuyDialog({ s, site, onClose }: { s: GameState; site: DcSiteId; onClose
 
 type Modal = null | { kind: 'build'; site: DcSiteId } | { kind: 'buy'; site: DcSiteId } | { kind: 'writeoff'; site: DcSiteId; gpu: GpuId } | { kind: 'sell'; site: DcSiteId; gpu: GpuId };
 
+/** Площадка по умолчанию: готовый дата-центр, иначе стройка, иначе первая свободная. */
+function defaultSite(s: GameState): DcSiteId {
+  const ready = DC_SITES.find((d) => {
+    const dc = findDc(s, d.id);
+    return dc && dcReady(dc);
+  });
+  const building = DC_SITES.find((d) => findDc(s, d.id));
+  return (ready ?? building ?? DC_SITES[0]).id;
+}
+
 export default function DatacentersWindow({ s }: WindowProps) {
   const [modal, setModal] = useState<Modal>(null);
+  const [site, setSite] = useState<DcSiteId>(() => defaultSite(s));
   const close = () => setModal(null);
   const woDc = modal?.kind === 'writeoff' || modal?.kind === 'sell' ? findDc(s, modal.site) : undefined;
+  const def = DC_SITES.find((d) => d.id === site) ?? DC_SITES[0];
   return (
     <div className="dc">
-      <Summary s={s} />
-      <div className="dc-scroll">
-        <div className="dc-grid">
-          {DC_SITES.map((def) => (
-            <SiteCard
-              key={def.id}
-              s={s}
-              def={def}
-              onBuild={() => setModal({ kind: 'build', site: def.id })}
-              onBuy={() => setModal({ kind: 'buy', site: def.id })}
-              onSell={(gpu) => setModal({ kind: 'sell', site: def.id, gpu })}
-              onWriteOff={(gpu) => setModal({ kind: 'writeoff', site: def.id, gpu })}
-            />
+      <Head s={s} />
+      <div className="dc-body">
+        <nav className="dc-sites" role="tablist" aria-label="Площадки">
+          {DC_SITES.map((d) => (
+            <SiteRow key={d.id} s={s} def={d} selected={d.id === site} onSelect={() => setSite(d.id)} />
           ))}
-        </div>
+        </nav>
+        <SiteDetail
+          key={def.id}
+          s={s}
+          def={def}
+          onBuild={() => setModal({ kind: 'build', site: def.id })}
+          onBuy={() => setModal({ kind: 'buy', site: def.id })}
+          onSell={(gpu) => setModal({ kind: 'sell', site: def.id, gpu })}
+          onWriteOff={(gpu) => setModal({ kind: 'writeoff', site: def.id, gpu })}
+        />
       </div>
       {modal?.kind === 'build' && <BuildDialog s={s} def={DC_SITES.find((d) => d.id === modal.site)!} onClose={close} />}
       {modal?.kind === 'buy' && createPortal(<BuyDialog s={s} site={modal.site} onClose={close} />, document.body)}

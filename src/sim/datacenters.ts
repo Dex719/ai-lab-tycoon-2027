@@ -342,7 +342,9 @@ export function datacentersDay(s: GameState): void {
         dc.stage = DC_STAGES;
         dc.stageDelay = 0;
         dc.stageEndDay = s.day;
-        const perMw = gpusPerMw(dc.site, 'h100');
+        // Вместимость - по самой мощной из уже вышедших карт: будущие карты в письме не называются.
+        const best = GPUS.filter((g) => isGpuAvailable(s, g.id)).reduce((m, g) => (g.h100e > m.h100e ? g : m), GPUS[0]);
+        const perMw = gpusPerMw(dc.site, best.id);
         addMail(s, {
           kind: 'finance',
           important: true,
@@ -350,7 +352,7 @@ export function datacentersDay(s: GameState): void {
           reward: true,
           body:
             `Дата-центр на ${dc.mw} МВт построен. Он пока пустой: купите карты в окне «Дата-центры». ` +
-            `Помещается до ${fmtCount(perMw * dc.mw)} карт H100. Обслуживание - ${fmtMoney(dc.mw * DC_UPKEEP_PER_MW_MONTH)} в месяц.`,
+            `Помещается до ${fmtCount(perMw * dc.mw)} карт ${best.name}. Обслуживание - ${fmtMoney(dc.mw * DC_UPKEEP_PER_MW_MONTH)} в месяц.`,
         });
       }
     }

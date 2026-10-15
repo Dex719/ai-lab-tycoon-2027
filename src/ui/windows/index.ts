@@ -68,7 +68,7 @@ export const WINDOWS: WindowDef[] = [
     icon: IconDatacenters,
     side: 'left',
     w: 1000,
-    h: 640,
+    h: 680,
     Component: DatacentersWindow,
     openedDay: (s) => s.datacenters.unlockedDay,
   },
