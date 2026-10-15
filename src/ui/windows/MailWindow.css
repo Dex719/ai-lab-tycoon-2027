@@ -79,6 +79,8 @@
   background: var(--k); color: #fff;
 }
 .mail-row.reward .mail-row-ic { background: #e0b024; color: #3b2a00; }
+/* Письмо лично от соперника: эмблема лаборатории вместо кружка со значком. */
+.mail-row-ic.from { background: none; border-radius: 0; }
 .mail-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .mail-row-title {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;

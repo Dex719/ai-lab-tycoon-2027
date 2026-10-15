@@ -11,6 +11,7 @@ import type { Mail } from '../../sim/types';
 import { fmtMoney, fmtNum } from '../format';
 import { IconChevronLeft } from '../icons';
 import { Line, type LineIconProps } from '../icons/base';
+import { LabEmblem } from '../components/LabEmblem';
 import { actions, store } from '../store';
 import './MailWindow.css';
 
@@ -315,8 +316,8 @@ export default function MailWindow({ s }: WindowProps) {
                 aria-current={m.id === selected?.id ? 'true' : undefined}
                 onClick={() => pick(m)}
               >
-                <span className="mail-row-ic">
-                  <Glyph kind={decide ? 'decide' : m.reward ? 'reward' : m.kind} size={16} />
+                <span className={`mail-row-ic${m.from ? ' from' : ''}`}>
+                  {m.from ? <LabEmblem lab={m.from} size={28} decorative /> : <Glyph kind={decide ? 'decide' : m.reward ? 'reward' : m.kind} size={16} />}
                 </span>
                 <span className="mail-row-main">
                   <span className="mail-row-title" title={m.title}>
@@ -377,7 +378,7 @@ function MailView({ mail }: { mail: Mail }) {
         <h2 className="mail-title">{mail.title}</h2>
         <div className="mail-meta">
           <span className="mail-meta-k">
-            <Glyph kind={mail.kind} size={15} />
+            {mail.from ? <LabEmblem lab={mail.from} size={16} decorative /> : <Glyph kind={mail.kind} size={15} />}
             {KIND_NAME[mail.kind]}
           </span>
           {mail.reward && <span className="mail-meta-reward">Награда</span>}

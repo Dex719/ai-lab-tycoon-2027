@@ -20,6 +20,8 @@ export interface NewMail {
   reward?: boolean;
   /** Письмо приходит прочитанным и без уведомления: событие игрок уже видел на экране. */
   read?: boolean;
+  /** Письмо лично от лаборатории-соперника (sim/duel.ts). */
+  from?: Mail['from'];
 }
 
 export function addMail(s: GameState, m: NewMail): Mail {

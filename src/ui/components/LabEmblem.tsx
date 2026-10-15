@@ -51,7 +51,8 @@ function Mark({ lab, ink }: { lab: LabId; ink: string }) {
   }
 }
 
-export function LabEmblem({ lab, size = 24, title }: { lab: LabId; size?: number; title?: string }) {
+/** decorative - рядом уже написано название: эмблему не озвучивать второй раз. */
+export function LabEmblem({ lab, size = 24, decorative = false }: { lab: LabId; size?: number; decorative?: boolean }) {
   const color = COLOR.get(lab) ?? '#888888';
   return (
     <svg
@@ -59,8 +60,9 @@ export function LabEmblem({ lab, size = 24, title }: { lab: LabId; size?: number
       width={size}
       height={size}
       viewBox="0 0 32 32"
-      role="img"
-      aria-label={title ?? NAME.get(lab) ?? lab}
+      role={decorative ? undefined : 'img'}
+      aria-hidden={decorative || undefined}
+      aria-label={decorative ? undefined : (NAME.get(lab) ?? lab)}
       style={{ flex: 'none', display: 'block' }}
     >
       <rect width="32" height="32" rx="6" fill={color} />

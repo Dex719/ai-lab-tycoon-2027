@@ -97,7 +97,7 @@ export function LabsTab({ s }: WindowProps) {
                 }}
               >
                 <span className="dos-row-n">
-                  <LabEmblem lab={lab} size={24} />
+                  <LabEmblem lab={lab} size={24} decorative />
                   <span>
                     {ownerName(s, lab)}
                     {lab === main && <small className="dos-main-s">главный соперник</small>}
@@ -132,7 +132,7 @@ function Dossier({ s, lab, main }: { s: GameState; lab: LabId; main: boolean }) 
   return (
     <div className="dos-card">
       <div className="dos-head">
-        <LabEmblem lab={lab} size={56} />
+        <LabEmblem lab={lab} size={56} decorative />
         <div className="dos-title">
           <h3>{ownerName(s, lab)}</h3>
           <div className="dos-line" title={row?.character?.description}>

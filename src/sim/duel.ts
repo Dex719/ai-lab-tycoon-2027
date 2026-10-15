@@ -220,7 +220,7 @@ function sendLetter(s: GameState, d: DuelState, lab: LabId, kind: LetterKind, v:
   const you = name ? `лаборатория «${name}»` : 'ваша лаборатория';
   const of = name ? `лаборатории «${name}»` : 'вашей лаборатории';
   const t = letterText(lab, kind, { ...v, you, You: you[0].toUpperCase() + you.slice(1), of }, n);
-  addMail(s, { kind: 'rival', title: t.title, body: t.body });
+  addMail(s, { kind: 'rival', title: t.title, body: t.body, from: lab });
   d.letterDay = s.day;
 }
 

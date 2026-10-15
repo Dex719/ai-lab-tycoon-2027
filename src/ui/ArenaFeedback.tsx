@@ -248,7 +248,7 @@ export function ArenaBanner({ s, open }: { s: GameState; open: (id: WindowId | W
           }}
           title="Открыть досье лаборатории"
         >
-          <LabEmblem lab={banner.rival.lab} size={16} />
+          <LabEmblem lab={banner.rival.lab} size={16} decorative />
           <span>
             Главный соперник {LAB_NAME.get(banner.rival.lab)}. Обгоны: вы {banner.rival.youPassed}, они {banner.rival.passedYou}
           </span>

@@ -254,7 +254,7 @@ function MainRival({ s, open }: { s: GameState; open: (id: WindowId | WindowAlia
       }}
     >
       Главный соперник:
-      <LabEmblem lab={lab} size={14} />
+      <LabEmblem lab={lab} size={14} decorative />
       <b>{name}</b>
       <span className="sr-score">
         {d.youPassed}:{d.passedYou}

@@ -262,6 +262,7 @@ const mail = shapeOf<Mail>({
   autoChosen: optional(bool),
   outcome: optional(shapeOf<NonNullable<Mail['outcome']>>({ lucky: bool, text: str })),
   reward: optional(bool),
+  from: optional(oneOf(LAB_IDS)),
 });
 
 const modifier = shapeOf<Modifier>({
