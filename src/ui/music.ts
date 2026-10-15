@@ -37,6 +37,8 @@ interface Voices {
   pad: GainNode; // аккорды -> фильтр -> шина музыки
   filter: BiquadFilterNode;
   notes: GainNode; // редкие ноты, бас, перебор, пульс -> шина музыки
+  padWave: PeriodicWave; // тёплый тон аккордов: основной тон и тихие обертоны
+  bellWave: PeriodicWave; // колокольчик: основной тон и тихая октава
 }
 
 /** Состояние композитора: что уже запланировано. */
@@ -65,16 +67,20 @@ function voices(g: AudioGraph): Voices {
   pad.connect(filter).connect(g.music);
   const notes = c.createGain();
   notes.connect(g.music);
-  return { pad, filter, notes };
+  // Один генератор со своей формой волны вместо пары «синус + треугольник»: вдвое меньше узлов на ноту.
+  const padWave = c.createPeriodicWave(new Float32Array([0, 0, 0, 0, 0, 0]), new Float32Array([0, 1, 0.3, 0.12, 0.05, 0.02]));
+  const bellWave = c.createPeriodicWave(new Float32Array([0, 0, 0, 0]), new Float32Array([0, 1, 0.2, 0.04]));
+  return { pad, filter, notes, padWave, bellWave };
 }
 
 export function newComposer(g: AudioGraph, rng: Rng = Math.random): Composer {
-  return { g, v: voices(g), rng, history: [], chords: [], nextChordAt: 0, nextNoteAt: 0, nextPulseAt: 0, melody: 74, live: new Set() };
+  return { g, v: voices(g), rng, history: [], chords: [], nextChordAt: 0, nextNoteAt: 0, nextPulseAt: 0, melody: 72, live: new Set() };
 }
 
-function osc(k: Composer, type: OscillatorType, f: number, t: number, end: number, dest: AudioNode): OscillatorNode {
+function osc(k: Composer, type: OscillatorType | PeriodicWave, f: number, t: number, end: number, dest: AudioNode): OscillatorNode {
   const o = k.g.ctx.createOscillator();
-  o.type = type;
+  if (typeof type === 'string') o.type = type as OscillatorType;
+  else o.setPeriodicWave(type);
   o.frequency.setValueAtTime(f, t);
   o.connect(dest);
   o.start(t);
@@ -84,7 +90,7 @@ function osc(k: Composer, type: OscillatorType, f: number, t: number, end: numbe
   return o;
 }
 
-/** Голос аккорда: синус и чуть расстроенный треугольник, медленный наплыв и медленное затухание. */
+/** Голос аккорда: тёплый тон с медленным наплывом и медленным затуханием. */
 function padVoice(k: Composer, f: number, t: number, hold: number, attack: number, release: number, amp: number): void {
   const c = k.g.ctx;
   const env = c.createGain();
@@ -93,30 +99,19 @@ function padVoice(k: Composer, f: number, t: number, hold: number, attack: numbe
   env.gain.setValueAtTime(amp, t + hold);
   env.gain.linearRampToValueAtTime(0, t + hold + release);
   env.connect(k.v.pad);
-  const end = t + hold + release + 0.05;
-  osc(k, 'sine', f, t, end, env);
-  const tri = c.createGain();
-  tri.gain.value = 0.45;
-  tri.connect(env);
-  const o = osc(k, 'triangle', f, t, end, tri);
-  o.detune.value = (k.rng() - 0.5) * 12; // ±6 центов: живое «дыхание» без хоруса
+  const o = osc(k, k.v.padWave, f, t, t + hold + release + 0.05, env);
+  o.detune.value = (k.rng() - 0.5) * 12; // ±6 центов у каждого голоса: соседние голоса медленно «дышат»
 }
 
-/** Нота-колокольчик: синус с тихим обертоном октавой выше, быстрая атака и долгое затухание. */
-function bell(k: Composer, f: number, t: number, amp: number, decay: number, type: OscillatorType = 'sine'): void {
+/** Нота-колокольчик (или тихий треугольник для баса и перебора): быстрая атака и долгое затухание. */
+function bell(k: Composer, f: number, t: number, amp: number, decay: number, type?: OscillatorType): void {
   const c = k.g.ctx;
   const env = c.createGain();
   env.gain.setValueAtTime(0, t);
   env.gain.linearRampToValueAtTime(amp, t + 0.015);
   env.gain.exponentialRampToValueAtTime(0.0001, t + decay);
   env.connect(k.v.notes);
-  osc(k, type, f, t, t + decay + 0.05, env);
-  const hi = c.createGain();
-  hi.gain.setValueAtTime(0.0001, t);
-  hi.gain.linearRampToValueAtTime(amp * 0.22, t + 0.01);
-  hi.gain.exponentialRampToValueAtTime(0.0001, t + decay * 0.35);
-  hi.connect(k.v.notes);
-  osc(k, 'sine', f * 2, t, t + decay * 0.35 + 0.05, hi);
+  osc(k, type ?? k.v.bellWave, f, t, t + decay + 0.05, env);
 }
 
 function chordAt(k: Composer, t: number): Chord {
@@ -140,7 +135,7 @@ function scheduleChord(k: Composer, t: number, mood: Mood): void {
   const notes = voicing(chord, mood.voices, k.rng);
   const amp = 0.11 / Math.sqrt(notes.length);
   const attack = Math.min(4, len * 0.35);
-  for (const m of notes) padVoice(k, midiToHz(m), t, len, attack, 5, amp * (m < 48 ? 0.8 : 1));
+  for (const m of notes) padVoice(k, midiToHz(m), t, len, attack, 4, amp * (m < 48 ? 0.8 : 1));
   if (mood.bass) {
     const root = chord.notes[0];
     bell(k, midiToHz(root >= 48 ? root - 12 : root), t + 0.05, 0.06, Math.min(len, 6), 'triangle');
@@ -180,8 +175,8 @@ function schedulePulse(k: Composer, t: number): void {
     env.gain.linearRampToValueAtTime(a, t + dt + 0.012);
     env.gain.exponentialRampToValueAtTime(0.0001, t + dt + 0.45);
     env.connect(k.v.notes);
-    const o = osc(k, 'sine', 78, t + dt, t + dt + 0.5, env);
-    o.frequency.exponentialRampToValueAtTime(58, t + dt + 0.4);
+    const o = osc(k, 'sine', 70, t + dt, t + dt + 0.5, env);
+    o.frequency.exponentialRampToValueAtTime(52, t + dt + 0.4);
   }
   k.nextPulseAt = t + 1.3;
 }

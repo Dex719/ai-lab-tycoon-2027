@@ -73,30 +73,30 @@ export interface Chord {
   scale: number[];
 }
 
-const D_MAJOR = [2, 4, 6, 7, 9, 11, 1]; // ре мажор
-const D_MAJOR_PENTA = [2, 4, 6, 9, 11];
+const C_MAJOR = [0, 2, 4, 5, 7, 9, 11]; // до мажор: в нём же написаны звуки игры (sound.ts)
+const C_MAJOR_PENTA = [0, 2, 4, 7, 9];
 
 // Лад мелодии у каждого аккорда без звуков, которые стоят в полутоне от звука аккорда
 // (иначе редкая нота над аккордом звучит фальшиво): это проверяет тест.
 
-/** Спокойная ночь: ре мажор с септимами и нонами, без резких тяготений. */
+/** Спокойная ночь: до мажор с септимами и нонами, без резких тяготений. */
 export const CALM: Chord[] = [
-  { name: 'Dmaj9', notes: [50, 57, 64, 61, 66], scale: D_MAJOR_PENTA },
-  { name: 'Bm9', notes: [47, 54, 61, 57, 62], scale: D_MAJOR_PENTA },
-  { name: 'Gmaj7#11', notes: [43, 50, 54, 61, 57], scale: D_MAJOR },
-  { name: 'Em9', notes: [52, 59, 66, 62, 67], scale: D_MAJOR_PENTA },
-  { name: 'Asus2', notes: [45, 52, 59, 64, 61], scale: [4, 6, 9, 11, 1] },
-  { name: 'F#m7', notes: [54, 61, 64, 69, 57], scale: [6, 9, 11, 1, 4] },
+  { name: 'Cmaj9', notes: [48, 55, 62, 59, 64], scale: C_MAJOR_PENTA },
+  { name: 'Am9', notes: [45, 52, 59, 55, 60], scale: C_MAJOR_PENTA },
+  { name: 'Fmaj7#11', notes: [41, 48, 52, 59, 55], scale: C_MAJOR },
+  { name: 'Dm9', notes: [50, 57, 64, 60, 65], scale: C_MAJOR_PENTA },
+  { name: 'Gsus2', notes: [43, 50, 57, 62, 59], scale: [2, 4, 7, 9, 11] },
+  { name: 'Em7', notes: [52, 59, 62, 67, 55], scale: [4, 7, 9, 11, 2] },
 ];
 
-/** Финальный квартал: ре минор, тёмные мажорные септаккорды на шестой и второй низкой ступени. */
+/** Финальный квартал: до минор, тёмные мажорные септаккорды на шестой и второй низкой ступени. */
 export const TENSE: Chord[] = [
-  { name: 'Dm9', notes: [50, 57, 64, 60, 65], scale: [2, 4, 5, 7, 9, 0] },
-  { name: 'Bbmaj7', notes: [46, 53, 57, 62, 58], scale: [2, 5, 7, 9, 10, 0] },
-  { name: 'Gm9', notes: [43, 50, 57, 53, 58], scale: [2, 5, 7, 9, 10, 0] },
-  { name: 'Asus4', notes: [45, 52, 62, 64, 57], scale: [2, 4, 7, 9, 0] },
-  { name: 'Fmaj7', notes: [41, 48, 52, 57, 53], scale: [2, 4, 5, 7, 9, 0] },
-  { name: 'Ebmaj7', notes: [51, 58, 62, 67, 55], scale: [2, 3, 5, 7, 10, 0] },
+  { name: 'Cm9', notes: [48, 55, 62, 58, 63], scale: [0, 2, 3, 5, 7, 10] },
+  { name: 'Abmaj7', notes: [44, 51, 55, 60, 56], scale: [0, 3, 5, 7, 8, 10] },
+  { name: 'Fm9', notes: [41, 48, 55, 51, 56], scale: [0, 3, 5, 7, 8, 10] },
+  { name: 'Gsus4', notes: [43, 50, 60, 62, 55], scale: [0, 2, 5, 7, 10] },
+  { name: 'Ebmaj7', notes: [39, 46, 50, 55, 51], scale: [0, 2, 3, 5, 7, 10] },
+  { name: 'Dbmaj7', notes: [49, 56, 60, 65, 53], scale: [0, 1, 3, 5, 8, 10] },
 ];
 
 /** Следующий аккорд: случайный, но не один из двух последних (без «качелей» туда-обратно). */
@@ -111,12 +111,12 @@ export function pickChord(rng: Rng, count: number, history: number[]): number {
 /** Голоса аккорда: первые n нот по важности; верхние иногда переносятся на октаву вверх для разнообразия. */
 export function voicing(chord: Chord, voices: number, rng: Rng): number[] {
   const n = Math.max(2, Math.min(voices, chord.notes.length));
-  return chord.notes.slice(0, n).map((m, i) => (i >= 2 && m < 62 && rng() < 0.35 ? m + 12 : m));
+  return chord.notes.slice(0, n).map((m, i) => (i >= 2 && m < 60 && rng() < 0.35 ? m + 12 : m));
 }
 
-/** Диапазон редких нот: от ре первой октавы до ре третьей. */
-export const MELODY_LOW = 62;
-export const MELODY_HIGH = 86;
+/** Диапазон редких нот: от до первой октавы до до третьей. */
+export const MELODY_LOW = 60;
+export const MELODY_HIGH = 84;
 
 /** Ноты лада в диапазоне мелодии, по возрастанию. */
 export function scaleNotes(scale: number[]): number[] {

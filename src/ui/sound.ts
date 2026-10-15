@@ -83,6 +83,18 @@ export function buildGraph(ctx: BaseAudioContext): AudioGraph {
   return { ctx, sfx, music, room };
 }
 
+/**
+ * Контекст на 24 кГц: все тембры игры мягкие (выше 5 кГц ничего нет), а работы у звукового потока вдвое
+ * меньше, чем на 48 кГц. Если браузер не умеет такую частоту - обычный контекст.
+ */
+function newContext(AC: typeof AudioContext): AudioContext {
+  try {
+    return new AC({ latencyHint: 'playback', sampleRate: 24000 });
+  } catch {
+    return new AC({ latencyHint: 'playback' });
+  }
+}
+
 /** Общий граф игры. Контекст создаётся при первом звуке или первом нажатии (политика автозапуска браузеров). */
 export function audio(): AudioGraph | null {
   if (typeof window === 'undefined') return null;
@@ -90,7 +102,7 @@ export function audio(): AudioGraph | null {
     if (!graph) {
       const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AC) return null;
-      graph = buildGraph(new AC({ latencyHint: 'playback' }));
+      graph = buildGraph(newContext(AC));
       graph.sfx.gain.value = Math.max(0, getSettings().volume);
     }
     const c = graph.ctx as AudioContext;

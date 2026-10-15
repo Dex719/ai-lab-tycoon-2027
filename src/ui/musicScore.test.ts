@@ -84,7 +84,7 @@ describe('аккорды и ноты', () => {
       for (const n of [3, 4, 5]) {
         const v = voicing(c, n, r);
         expect(v.length).toBe(n);
-        for (const m of v) expect(m >= 40 && m <= 76).toBe(true);
+        for (const m of v) expect(m >= 38 && m <= 74).toBe(true);
       }
     }
   });
@@ -93,7 +93,7 @@ describe('аккорды и ноты', () => {
     const r = rng(5);
     for (const c of [...CALM, ...TENSE]) {
       const allowed = new Set(scaleNotes(c.scale));
-      let m = 74;
+      let m = 72;
       for (let i = 0; i < 200; i++) {
         const next = nextMelodyNote(r, m, c);
         expect(next).not.toBe(m);
