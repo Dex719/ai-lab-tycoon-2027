@@ -56,11 +56,6 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
 @media (max-width: 767px) {
   body { font-size: 15px; }
 
-  /* Главное меню */
-  .menu-title { margin-top: 8vh; font-size: clamp(30px, 10vw, 44px); text-align: center; padding: 0 12px; }
-  .menu-items { margin-top: 10vh; gap: 8px; }
-  .menu-item { font-size: 24px; min-height: 48px; padding: 6px 20px; }
-
   /* Верхняя панель в две строки: лаборатория, деньги, изменение; дата, скорость, сводка */
   .topbar {
     height: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center;
