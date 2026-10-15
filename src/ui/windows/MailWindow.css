@@ -1,262 +1,157 @@
-/* Окно «Почта»: слева серая колонка со списком, справа белая панель чтения (как в Processor Tycoon). */
+/* Окно «Почта»: папки слева, список посередине, письмо на белом бланке справа. */
 
 .mail {
-  display: flex;
-  height: 100%;
-  min-height: 0;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
+  --k: var(--c-grey);
+  display: flex; height: 100%; min-height: 0; color: var(--text); font-variant-numeric: tabular-nums;
+  container-type: inline-size;
 }
 
-/* ---------- Левая колонка ---------- */
+/* Цвет вида письма: значок в списке, полоса бланка, метка. */
+.mail .k-training { --k: var(--c-blue); }
+.mail .k-contract { --k: #c46d12; }
+.mail .k-finance { --k: var(--c-green); }
+.mail .k-rival { --k: var(--c-purple); }
+.mail .k-research { --k: var(--c-teal); }
+.mail .k-benchmark { --k: var(--c-indigo); }
+.mail .k-event { --k: var(--accent-dark); }
+.mail .k-news { --k: #6b6f76; }
+.mail .reward { --k: #c08a00; }
+.mail .decide { --k: #d9822b; }
 
+/* ---------- Папки ---------- */
+.mail-rail {
+  flex: none; width: 196px; display: flex; flex-direction: column; gap: 2px; padding: 10px 8px;
+  background: #d9dce1; border-right: 1px solid var(--line); overflow-y: auto;
+}
+.mail-folder {
+  --f: var(--accent);
+  position: relative; display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 8px 7px 10px; flex: none;
+  background: none; border: none; border-radius: 4px; color: #3a3d42; font-size: 14px; text-align: left; cursor: pointer;
+}
+.mail-folder svg { flex: none; color: var(--f); }
+.mail-folder:hover { background: rgba(255, 255, 255, 0.55); }
+.mail-folder:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.mail-folder.on { background: #fff; color: #1f2023; font-weight: 600; }
+.mail-folder-l { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-folder-n { flex: none; font-size: 12.5px; font-weight: 600; color: #4a4d54; font-variant-numeric: tabular-nums; }
+.mail-folder.f-all { --f: var(--accent); }
+.mail-folder.f-all .mail-folder-n { color: #c62828; }
+.mail-folder.f-decide { --f: #d9822b; }
+.mail-folder.f-decide .mail-folder-n { color: #a85a00; }
+.mail-folder.f-decide:not(.on) { color: #8a4a00; font-weight: 600; }
+.mail-folder.f-reward { --f: #b07d00; }
+.mail-folder.f-lab { --f: var(--c-teal); }
+.mail-folder.f-contract { --f: #c46d12; }
+.mail-folder.f-event { --f: var(--accent-dark); }
+.mail-folder.f-rival { --f: var(--c-purple); }
+.mail-folder.f-news { --f: #6b6f76; }
+.mail-rail .grow { flex: 1; min-height: 8px; }
+.mail-markall {
+  flex: none; padding: 7px 8px; background: none; border: 1px solid #b9bec6; border-radius: 4px; color: #3a3d42;
+  font-size: 12.5px; cursor: pointer; text-align: center;
+}
+.mail-markall:hover:not(:disabled) { background: #fff; }
+.mail-markall:disabled { opacity: 0.5; cursor: default; }
+
+/* ---------- Список ---------- */
 .mail-side {
-  width: 300px;
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  background: var(--line-soft);
-  border-right: 1px solid var(--line);
+  width: 310px; flex: none; display: flex; flex-direction: column; min-height: 0;
+  background: #eceef1; border-right: 1px solid var(--line);
 }
+.mail-head { flex: none; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 12px 12px 8px; }
+.mail-head-t { font-size: 17px; font-weight: 600; color: #1f2023; }
+.mail-head-n { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+.mail-unread { color: #c62828; font-weight: 600; }
 
-.mail-head {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px 12px 10px;
-}
-
-.mail-count {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 16px;
-}
-
-.mail-unread {
-  font-size: 13px;
-  color: var(--text-dim);
-  white-space: nowrap;
-}
-
-.mail-filter {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 10px;
-}
-
-.mail-filter label {
-  color: var(--text-dim);
-}
-
-.mail-filter select {
-  width: 100%;
-  min-width: 0;
-}
-
-.mail-list {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 0 12px 10px;
-}
-
+.mail-list { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 4px; padding: 0 8px 10px; }
 .mail-row {
-  position: relative;
-  flex: none;
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: start;
-  gap: 2px 10px;
-  padding: 7px 10px 7px 14px;
-  text-align: left;
-  color: var(--text);
-  background: var(--win-body);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  cursor: pointer;
+  position: relative; flex: none; width: 100%; display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px 8px 8px;
+  text-align: left; color: var(--text); background: #fff; border: 1px solid #d4d7dc; border-radius: 3px; cursor: pointer;
   transition: background-color 100ms ease-out, border-color 100ms ease-out;
 }
-
-.mail-row:hover {
-  background: #f1f3f6;
+.mail-row:hover { border-color: #b4bac3; }
+.mail-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mail-row.is-selected { border-color: var(--accent); background: #eaf2fd; }
+.mail-row-ic {
+  flex: none; width: 28px; height: 28px; margin-top: 1px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--k); color: #fff;
 }
-
-.mail-row:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-/* Выбранное письмо - общий вид .is-selected из theme.css; свой селектор нужен, чтобы перебить рамку и фон .mail-row. */
-.mail-row.is-selected {
-  border-color: var(--accent);
-  background: #e3eefc;
-}
-
-/* Непрочитанное: жирный заголовок и точка цвета акцента в левом поле строки. */
-.mail-row.unread::before {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 13px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
+.mail-row.reward .mail-row-ic { background: #e0b024; color: #3b2a00; }
+.mail-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .mail-row-title {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-  overflow-wrap: anywhere;
-  font-weight: 400;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+  overflow-wrap: anywhere; font-size: 14px; line-height: 1.3; color: #2f3237;
 }
+.mail-row.unread .mail-row-title { font-weight: 700; color: #1f2023; }
+.mail-row-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-dim); }
+.mail-row-date { white-space: nowrap; }
+.mail-row.unread .mail-row-date::after { content: ''; display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: var(--accent); vertical-align: 1px; }
+.mail-row-note { color: #a85a00; font-weight: 700; }
+.mail-row.decide { border-color: #f0b45a; }
+.mail-row.decide.is-selected { border-color: var(--accent); }
+.mail-more, .mail-empty { flex: none; padding: 8px 2px; font-size: 13px; color: var(--text-dim); }
 
-.mail-row.unread .mail-row-title {
-  font-weight: 700;
-}
+/* ---------- Письмо ---------- */
+.mail-view { flex: 1; min-width: 0; overflow: auto; padding: 18px 22px 26px; background: #e4e6ea; user-select: text; }
+.mail-view-empty { flex: 1; min-width: 0; display: grid; place-items: center; background: #e4e6ea; color: var(--text-dim); }
+.mail-sheet { max-width: 720px; margin: 0 auto; padding: 16px 26px 24px; background: #fff; border: 1px solid var(--line); border-radius: 3px; }
+.mail-title { margin: 0; font-size: 22px; font-weight: 600; line-height: 1.25; color: #1f2023; letter-spacing: -0.01em; overflow-wrap: anywhere; text-wrap: balance; }
+.mail-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; margin-top: 4px; padding-bottom: 10px; border-bottom: 1px solid #eceef1; font-size: 13px; color: var(--text-dim); }
+.mail-meta-k { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--k); }
+.mail-meta-reward { font-weight: 700; color: #8a5f00; }
+.mail-body { margin-top: 12px; max-width: 64ch; line-height: 1.55; color: var(--text-body); font-size: 14.5px; }
+.mail-body p { margin: 0 0 8px; }
 
-.mail-row-date {
-  padding-top: 1px;
-  font-size: 13px;
-  color: var(--text-dim);
-  white-space: nowrap;
-}
+/* Итог контрактов за месяц: три числа и строки контрактов. */
+.mail-digest { margin-top: 14px; }
+.mail-digest-sum { display: flex; flex-wrap: wrap; gap: 4px 24px; font-size: 14px; color: var(--text-dim); }
+.mail-digest-sum > div { display: flex; align-items: baseline; gap: 6px; }
+.mail-digest-sum b { font-size: 18px; font-weight: 700; color: #1f2023; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mail-digest-sum .paid b { color: #1d6b36; }
+.mail-digest-rows { display: flex; flex-direction: column; margin-top: 12px; border-top: 1px solid #e3e5e8; }
+.mail-digest-row { display: grid; grid-template-columns: 86px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 9px 2px; border-bottom: 1px solid #e3e5e8; }
+.mail-digest-row .st { justify-self: start; font-size: 13px; font-weight: 700; }
+.mail-digest-row.done .st { color: #1d6b36; }
+.mail-digest-row.won .st { color: #1f5fae; }
+.mail-digest-row .who { display: flex; flex-direction: column; min-width: 0; }
+.mail-digest-row .who b { font-size: 14px; color: #1f2023; }
+.mail-digest-row .who small { font-size: 12.5px; line-height: 1.35; color: var(--text-dim); }
+.mail-digest-row .money { display: flex; flex-direction: column; align-items: flex-end; font-size: 15px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.mail-digest-row .money small { font: 400 11.5px var(--font); color: var(--text-dim); }
+.mail-digest-row.done .money { color: #1d6b36; }
+.mail-digest-row.won .money { color: #4a4d54; }
 
-.mail-row.unread .mail-row-date {
-  font-weight: 700;
-  color: var(--text);
-}
-
-.mail-row-note {
-  grid-column: 1 / -1;
-  font-size: 12px;
-  color: var(--warn);
-}
-
-.mail-more,
-.mail-empty {
-  flex: none;
-  padding: 8px 2px;
-  font-size: 13px;
-  color: var(--text-dim);
-}
-
-.mail-foot {
-  flex: none;
-  padding: 10px 12px 12px;
-  border-top: 1px solid var(--line);
-}
-
-/* ---------- Панель чтения ---------- */
-
-.mail-view {
-  flex: 1;
-  min-width: 0;
-  overflow: auto;
-  padding: 20px 28px 28px;
-  background: #fff;
-  user-select: text;
-}
-
-.mail-view-empty {
-  flex: 1;
-  min-width: 0;
-  display: grid;
-  place-items: center;
-  background: #fff;
-  color: var(--text-dim);
-}
-
-.mail-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 300;
-  line-height: 1.3;
-  color: #2a2c30;
-  overflow-wrap: anywhere;
-}
-
-.mail-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 12px;
-  margin-top: 4px;
-  color: var(--text-dim);
-}
-
-.mail-body {
-  max-width: 72ch;
-  margin-top: 16px;
-  white-space: pre-wrap;
-  line-height: 1.5;
-}
-
-.mail-decision {
-  max-width: 72ch;
-  margin-top: 20px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line-soft);
-}
-
-.mail-decision-hint {
-  margin-top: 2px;
-  font-size: 13px;
-  color: var(--text-dim);
-}
-
-.mail-decision-h {
-  margin: 0 0 10px;
-  font-size: 20px;
-  font-weight: 300;
-  line-height: 1.2;
-  color: #2a2c30;
-}
-
-.mail-decision .choice-list {
-  max-width: 480px;
-  margin-bottom: 8px;
-}
-
-/* ---------- Цвет по виду письма ---------- */
-.mail-row { --kc: var(--c-grey); border-left: 4px solid var(--kc); }
-.mail-row.k-training { --kc: var(--c-blue); }
-.mail-row.k-contract { --kc: var(--c-orange); }
-.mail-row.k-finance { --kc: var(--c-green); }
-.mail-row.k-rival { --kc: var(--c-purple); }
-.mail-row.k-research { --kc: var(--c-teal); }
-.mail-row.k-benchmark { --kc: var(--c-indigo); }
-.mail-row.k-event { --kc: var(--accent); }
-.mail-row.is-selected { border-left-color: var(--kc); }
-.mail-row.unread::before { left: 6px; }
-.mail-row-note { color: #a85a00; font-weight: 600; }
-.mail-kind { padding: 0 8px; border-radius: 9px; font-size: 12px; font-weight: 600; color: #fff; background: var(--c-grey); line-height: 20px; }
-.mail-kind.k-training { background: var(--c-blue); }
-.mail-kind.k-contract { background: #bd6a15; }
-.mail-kind.k-finance { background: #248243; }
-.mail-kind.k-rival { background: var(--c-purple); }
-.mail-kind.k-research { background: #178983; }
-.mail-kind.k-benchmark { background: var(--c-indigo); }
-.mail-kind.k-event { background: var(--accent-dark); }
-.mail-title { color: var(--text-title); font-weight: 400; }
-.mail-body { color: var(--text-body); }
-.mail-decision-h { color: var(--text-title); font-weight: 400; border-left: 4px solid var(--c-orange); padding-left: 10px; }
-.mail-decision-hint { color: var(--text-dim); }
-.mail-unread { color: var(--c-red); font-weight: 600; }
-.mail-meta { align-items: center; }
-.mail-row.is-selected { border-left: 4px solid var(--kc); }
-
+.mail-decision { max-width: 64ch; margin-top: 18px; padding-top: 12px; border-top: 1px solid #eceef1; }
+.mail-decided { font-size: 14.5px; }
+.mail-decision-hint { margin-top: 4px; font-size: 13px; color: var(--text-dim); }
+.mail-decision-h { margin: 0 0 10px; font-size: 17px; font-weight: 600; line-height: 1.2; color: #8a4a00; }
+.mail-decision .choice-list { max-width: 520px; margin-bottom: 8px; }
 .mail-outcome { margin-top: 6px; padding: 4px 8px; border-radius: 3px; font-weight: 600; display: inline-block; }
-.mail-outcome.good { background: #e3f6e8; color: #1d6b37; }
+.mail-outcome.good { background: #e3f6e8; color: #1d6b36; }
 .mail-outcome.bad { background: #fbe5e5; color: #a12a2a; }
+
+/* Узкое окно: папки - одни значки. */
+@container (max-width: 900px) {
+  .mail-rail { width: 52px; padding: 10px 6px; }
+  .mail-folder { justify-content: center; padding: 8px 0; }
+  .mail-folder-l { display: none; }
+  .mail-folder-n { position: absolute; top: 1px; right: 0; min-width: 16px; padding: 0 4px; font-size: 10.5px; line-height: 15px; }
+  .mail-markall { display: none; }
+  .mail-side { width: 270px; }
+  .mail-sheet { padding: 14px 18px 20px; }
+}
+
+/* Телефон: папки - строка значков над списком; открытое письмо - на весь экран без папок. */
+@media (max-width: 767px) {
+  .mail .mail-rail {
+    width: auto; flex: none; flex-direction: row; gap: 4px; padding: 6px 8px; overflow-x: auto; overflow-y: hidden;
+    border-right: none; border-bottom: 1px solid var(--line);
+  }
+  .mail .mail-folder { flex: none; width: 44px; height: 40px; justify-content: center; padding: 0; }
+  .mail .mail-rail .grow, .mail .mail-markall { display: none; }
+  .mail.show-detail .mail-rail { display: none; }
+  .mail .mail-view { padding: 10px 8px 20px; }
+  .mail .mail-sheet { padding: 12px 14px 18px; }
+  .mail .mail-digest-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .mail .mail-digest-row .st { grid-column: 1 / -1; }
+}

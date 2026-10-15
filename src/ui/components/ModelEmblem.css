@@ -1,0 +1,12 @@
+/* Эмблема модели - микросхема (ModelEmblem.tsx): плоские цвета, без теней и свечения. */
+.emb { display: block; flex: none; }
+.emb-pins rect { fill: #9ea4ad; }
+.emb-pins.gold rect { fill: #d9a514; }
+.emb-body { fill: #2b2e33; }
+.emb-key { fill: #5f646c; }
+.emb-mono { fill: #f2f2f2; font-family: var(--font); font-weight: 700; }
+.emb-exposed { fill: #e04646; }
+.emb.training .emb-body { fill: #4a4e55; }
+.emb-bar-bg { fill: #6b7079; }
+.emb-bar { fill: #8fc1ff; }
+.emb.faded { opacity: 0.55; }

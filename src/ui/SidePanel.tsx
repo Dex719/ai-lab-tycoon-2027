@@ -1,6 +1,7 @@
 // Боковая панель справа (как «Боковое окно» в Processor Tycoon): текущие проекты и модели в продаже.
 
-import { raceName, standingOf } from './ArenaFeedback';
+import { fmtGap, raceName, standingOf } from './ArenaFeedback';
+import { ModelEmblem } from './components/ModelEmblem';
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { pool } from '../sim/compute';
 import { idleWarnings, type IdleItem } from '../sim/idle';
@@ -18,7 +19,7 @@ import { ProgressBar } from './components/common';
 import { fmtH100e, fmtMoney, fmtNum, fmtPrice, fmtShare } from './format';
 import { IconChevronLeft, IconChevronRight } from './icons';
 import { GoalsPanel } from './GoalsPanel';
-import { fmtRank, reviewNote } from './labels';
+import { reviewNote } from './labels';
 import type { Viewport } from './viewport';
 import type { WindowAlias, WindowId } from './windows';
 
@@ -35,7 +36,7 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
   // Отложенные решения сверху: у них есть срок.
   for (const m of openChoices(s).filter((x) => x.deferred)) {
     items.push(
-      <div className="side-item decision" key={m.id} onClick={() => open('mail')} style={{ cursor: 'pointer' }}>
+      <div className="side-item t-decision decision" key={m.id} onClick={() => open('mail')} style={{ cursor: 'pointer' }}>
         <div className="t">Решение: {m.title}</div>
         <div className="r">
           <span>Ответить до</span>
@@ -48,7 +49,7 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
   const speed = trainingPoolPerRun(s) * TRAIN_FLOP_PER_H100E_DAY;
   for (const t of s.trainings) {
     items.push(
-      <div className="side-item" key={t.id} onClick={() => open('newModel')} style={{ cursor: 'pointer' }}>
+      <div className="side-item t-train" key={t.id} onClick={() => open('newModel')} style={{ cursor: 'pointer' }}>
         <div className="t">Обучение: {t.plan.name}</div>
         <div className="r">
           <span>Готово</span>
@@ -68,7 +69,7 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
     const pts = s.research.points[cur];
     const name = TECHS.find((x) => x.id === cur)?.name ?? cur;
     items.push(
-      <div className="side-item" key="research" onClick={() => open('research')} style={{ cursor: 'pointer' }}>
+      <div className="side-item t-research" key="research" onClick={() => open('research')} style={{ cursor: 'pointer' }}>
         <div className="t">Исследование: {name}</div>
         <div className="r">
           <span>Осталось</span>
@@ -82,7 +83,7 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
   for (const c of s.contracts) {
     const client = CLIENTS.find((x) => x.id === c.tender.clientId)?.name ?? 'Клиент';
     items.push(
-      <div className="side-item" key={c.id} onClick={() => open('contracts')} style={{ cursor: 'pointer' }}>
+      <div className="side-item t-contract" key={c.id} onClick={() => open('contracts')} style={{ cursor: 'pointer' }}>
         <div className="t">Контракт: {client}</div>
         <div className="r">
           <span>{benchDef(c.tender.benchmark).name}</span>
@@ -103,7 +104,7 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
   const waiting = s.tenders.filter((x) => x.application);
   if (waiting.length) {
     items.push(
-      <div className="side-item" key="apps" onClick={() => open('contracts')} style={{ cursor: 'pointer' }}>
+      <div className="side-item t-contract" key="apps" onClick={() => open('contracts')} style={{ cursor: 'pointer' }}>
         <div className="t">Заявки на рассмотрении: {waiting.length}</div>
         {waiting.slice(0, 4).map((x) => (
           <div className="r" key={x.id}>
@@ -137,8 +138,11 @@ function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) 
         const revenue = sales.apiRevenueDay + sales.subsRevenueDay;
         const note = reviewNote(m);
         return (
-          <div className="side-item" key={m.id} onClick={() => open('models')} style={{ cursor: 'pointer' }}>
-            <div className="t">{m.name}</div>
+          <div className="side-item t-model" key={m.id} onClick={() => open('models')} style={{ cursor: 'pointer' }}>
+            <div className="t side-model-t">
+              <ModelEmblem m={m} size={26} exposed={m.exposed} />
+              {m.name}
+            </div>
             <div className="r">
               <span>Доля рынка</span>
               <span className="v">{fmtShare(share, 1)}</span>
@@ -187,36 +191,36 @@ function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) 
   );
 }
 
-/** Строка цели: место среди моделей в продаже и сколько закрытых месяцев лаборатория была первой. */
+/** Гонка: крупное место, ближайший соперник с разрывом и месяцы на 1-м месте (на «Арене»). */
 function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
   const race = standingOf(s);
   const months = Number.isFinite(s.monthsFirst) ? s.monthsFirst : 0;
   const showSubs = subsOpen(s.day) || s.market.playerSubs > 0;
+  const first = race?.rank === 1;
+  const near = race ? (first ? race.below : race.above) : null;
   return (
-    <div
-      className="side-item"
-      style={{ padding: '0 12px 8px', border: 'none', cursor: 'pointer' }}
-      title={ARENA_PLACE_TITLE}
-      onClick={() => open('analytics')}
-    >
-      <div className="r">
-        {race ? (
-          <span>
-            {raceName(race.metric)}: {fmtRank(race.rank)}
+    <div className={`side-race${first ? ' first' : ''}`} title={ARENA_PLACE_TITLE} onClick={() => open('analytics')}>
+      {race && <span className="sr-place">{race.rank}-е</span>}
+      <span className="sr-txt">
+        <span className="sr-k">{race ? `Место: ${raceName(race.metric)}` : 'Гонка'}</span>
+        <span className="sr-v">
+          {race
+            ? near
+              ? `${first ? 'Отрыв от' : 'До'} ${near.name}: ${fmtGap(race.metric, near.gap)}${race.metric.kind === 'arena' ? ' Эло' : ' балла'}`
+              : first
+                ? 'Соперников ниже нет'
+                : 'Выше никого'
+            : s.models.some((m) => m.releasedDay !== null)
+              ? 'Соперников пока нет'
+              : 'Выпустите первую модель'}
+        </span>
+        {race?.metric.kind === 'arena' && <span className="sr-m">На 1-м месте: {fmtNum(months)} мес.</span>}
+        {showSubs && (
+          <span className="sr-m" title="Пользователи подписки, обслуженные вчера">
+            Подписчиков: <b style={{ color: SIDE_SUBS }}>{fmtNum(Math.round(finite(s.market.playerSubs)))}</b>
           </span>
-        ) : (
-          <span>Гонка: {s.models.some((m) => m.releasedDay !== null) ? 'соперников пока нет' : 'выпустите первую модель'}</span>
         )}
-        {(!race || race.metric.kind === 'arena') && <span className="v">На 1-м: {fmtNum(months)} мес.</span>}
-      </div>
-      {showSubs && (
-        <div className="r" title="Пользователи подписки, обслуженные вчера">
-          <span>Подписчиков</span>
-          <span className="v" style={{ color: SIDE_SUBS }}>
-            {fmtNum(Math.round(finite(s.market.playerSubs)))}
-          </span>
-        </div>
-      )}
+      </span>
     </div>
   );
 }
@@ -270,7 +274,9 @@ export function SidePanel({
   const content = (
     <>
       {top}
-      <div className="side-head">Сводка</div>
+      <div className="side-head">
+        <span>Сводка</span>
+      </div>
       <Goal s={s} open={open} />
       <Idle items={idleWarnings(s)} open={open} />
       <GoalsPanel s={s} open={open} />

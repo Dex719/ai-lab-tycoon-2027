@@ -1,0 +1,81 @@
+/* Оболочка партии: верхняя панель, панель задач, меню игры и боковая сводка. Плоские тёмные панели, как в
+   Processor Tycoon. Файл подключается раньше theme.css (через компоненты), поэтому правила начинаются с .game -
+   так они сильнее общих правил темы. Телефонная раскладка (responsive.css) не затрагивается: всё здесь - от 768 px. */
+
+@media (min-width: 768px) {
+  /* ---------- Верхняя панель ---------- */
+  .game .topbar-left { gap: 9px; }
+  .tb-logo { flex: none; display: grid; place-items: center; color: #a9acb2; }
+  .game .topbar-left b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tb-founder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tb-founder::before { content: '·'; margin-right: 8px; color: #5d6168; }
+  .game .topbar-center { gap: 14px; }
+  .tb-sep { flex: none; width: 1px; height: 22px; background: #3b3c41; }
+  .game .tb-money > span:first-of-type { font-weight: 700; }
+  .game .speed { gap: 2px; }
+  .game .speed button { width: 30px; height: 28px; border-radius: 3px; }
+  .game .speed button.on { background: #3a3b40; color: #fff; }
+  .game .speed button.on[aria-label^='Пауза'] { color: #f2b84b; }
+  .game .speed button:disabled { opacity: 0.35; cursor: default; }
+  .game .topbar-right { gap: 14px; }
+
+  /* ---------- Панель задач ---------- */
+  .game .task-start { width: 34px; height: 34px; border-radius: 3px; }
+  .game .task-start:hover, .game .task-start.on { background: #3a3b40; }
+  .game .task-win { height: 34px; padding: 0 12px 0 8px; gap: 8px; border-radius: 0; font-size: 13px; border-bottom: 2px solid transparent; color: #d0d3d8; }
+  .game .task-win:hover { background: rgba(255, 255, 255, 0.08); }
+  .game .task-win.active { background: rgba(255, 255, 255, 0.1); color: #fff; border-bottom-color: var(--wa, var(--accent)); }
+  .game .task-win.min { opacity: 0.55; }
+
+  /* ---------- Меню игры ---------- */
+  .game .start-menu { width: 250px; padding: 0 0 6px; overflow: hidden; background: #2a2a2d; border-radius: 3px; }
+  .start-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin-bottom: 6px; color: #a9acb2; border-bottom: 1px solid #3b3b3f; }
+  .start-head span { display: flex; flex-direction: column; min-width: 0; }
+  .start-head b { color: #fff; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .start-head small { color: #a9acb2; font-size: 12px; }
+  .game .start-menu button { gap: 12px; padding: 8px 16px; font-size: 14px; }
+  .game .start-menu button svg { color: #a9acb2; flex: none; }
+  .game .start-menu button:hover svg { color: #fff; }
+
+  /* ---------- Боковая сводка ---------- */
+  .game .side-head { padding: 9px 12px 7px; border-top: 3px solid var(--c-teal); font-size: 16px; }
+  .side-race { display: flex; align-items: center; gap: 12px; padding: 4px 12px 10px; cursor: pointer; color: #d6d8dc; border-bottom: 1px solid #36373c; }
+  .side-race:hover .sr-v { text-decoration: underline; text-underline-offset: 3px; }
+  .sr-place { flex: none; min-width: 50px; font-size: 30px; font-weight: 700; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+  .side-race.first .sr-place { color: #f2c94c; }
+  .sr-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .sr-k { font-size: 12px; color: #a9acb2; }
+  .sr-v { font-size: 13px; font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sr-m { font-size: 12px; color: #c4c7cc; }
+  .game .side-tabs { padding-top: 10px; }
+  .game .side-item { border-left: none; padding: 10px 12px; }
+  .game .side .goal-row { border-left: none; padding-left: 12px; }
+  .game .side-item.decision { border: 1px solid #f2c14e; background: #3a2f17; }
+  .game .side-item .progress { height: 5px; background: #3a3b40; border-radius: 1px; }
+  .game .side-item.t-train .progress > div { background: var(--c-blue); }
+  .game .side-item.t-research .progress > div { background: var(--c-purple); }
+  .game .side-item.t-contract .progress > div { background: var(--c-orange); }
+  .side-model-t { display: flex; align-items: center; gap: 8px; }
+}
+
+/* Числа на верхней панели - обычный шрифт с табличными цифрами (моно в игре только у кода партии). */
+.game .tb-item, .game .ar-r, .game .ls-v, .game .ar-gap, .game .fly { font-family: var(--font); font-variant-numeric: tabular-nums; }
+.game .ar-r { font-weight: 700; }
+.game .ar-r.first { color: #f2c94c; text-shadow: none; }
+.game .ar-n b { display: inline-flex; width: auto; }
+.game .ar-close { text-transform: none; font-size: 10.5px; animation: none; }
+.game .ls-d { animation: tb-fade 2200ms ease-out forwards; }
+.game .fly { box-shadow: none; }
+.game .fly.plus { animation-name: tb-fly-up; }
+.game .fly.minus { animation-name: tb-fly-down; }
+@keyframes tb-fade { 0% { opacity: 0; } 10%, 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes tb-fly-up { 0% { opacity: 0; transform: translate(-50%, 10px); } 12%, 75% { opacity: 1; transform: translate(-50%, 6px); } 100% { opacity: 0; transform: translate(-50%, -8px); } }
+@keyframes tb-fly-down { 0% { opacity: 0; transform: translate(-50%, 0); } 12%, 75% { opacity: 1; transform: translate(-50%, 6px); } 100% { opacity: 0; transform: translate(-50%, 22px); } }
+@media (prefers-reduced-motion: reduce) {
+  .game .ls-d, .game .fly.plus, .game .fly.minus { animation-duration: 2400ms; animation-timing-function: steps(1, end); }
+}
+
+@media (max-width: 767px) {
+  .tb-sep, .tb-logo { display: none; }
+  .tb-founder { display: none; }
+}

@@ -6,3 +6,5 @@
 .tier-badge.light { background: #d6f1ee; color: #0e655f; }
 .tier-badge.mid { background: #e3eefc; color: #1f5fae; }
 .tier-badge.flagship { background: #ece6fb; color: #5a3fb8; }
+.tier-plain { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tier-plain i { flex: none; width: 8px; height: 8px; border-radius: 50%; }

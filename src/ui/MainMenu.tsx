@@ -1,10 +1,13 @@
 // Главное меню и его окна: «Настройка игры», «Загрузить», «Настройки».
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { START_CASH } from '../sim/constants';
 import { DIFFICULTY, DIFFICULTY_IDS, type Difficulty } from '../sim/rivalry';
 import { formatDateShort } from '../sim/time';
-import { ConfirmDialog, Dialog, ErrorText } from './components/common';
+import { ConfirmDialog, DenyNote, Dialog, ErrorText, useFlash, useModalFocus } from './components/common';
+import { LABS } from '../data/labs';
+import { IconClose, IconLogo } from './icons';
+import './menu.css';
 import { fmtMoney } from './format';
 import { fmtRank } from './labels';
 import { deleteSlot, exportCode, formatSavedAt, importCode, latestSlot, listSlots, MANUAL_SLOTS, type SlotId, type SlotInfo } from './saves';
@@ -24,6 +27,7 @@ export function MainMenu() {
   const [dialog, setDialog] = useState<MenuDialog>(null);
   const [error, setError] = useState<string | null>(null);
   const last = latestSlot();
+  const lastMeta = last !== null ? (listSlots().find((x) => x.id === last)?.meta ?? null) : null;
 
   function cont() {
     if (last === null) return;
@@ -31,28 +35,36 @@ export function MainMenu() {
   }
 
   return (
-    <div className="menu-screen">
-      <div className="menu-title">AI Lab Tycoon</div>
-      <div className="menu-sub-title">2017-2024</div>
-      <nav className="menu-items" aria-label="Главное меню">
+    <div className="menu-screen mm">
+      <MenuRacks />
+      <h1 className="mm-title">AI Lab Tycoon</h1>
+      <div className="mm-years">2017-2024</div>
+      <nav className="mm-items" aria-label="Главное меню">
         {last !== null && (
-          <button className="menu-item" onClick={cont}>
+          <button className="mm-item" onClick={cont}>
             Продолжить
+            {lastMeta && (
+              <span className="mm-item-s">
+                {lastMeta.labName}, {formatDateShort(lastMeta.day)}
+              </span>
+            )}
           </button>
         )}
-        <button className="menu-item" onClick={() => setDialog('new')}>
+        <button className="mm-item" onClick={() => setDialog('new')}>
           Новая игра
         </button>
-        <button className="menu-item" onClick={() => setDialog('load')}>
+        <button className="mm-item" onClick={() => setDialog('load')}>
           Загрузить
         </button>
-        <button className="menu-item" onClick={() => setDialog('achievements')}>
+        <button className="mm-item" onClick={() => setDialog('achievements')}>
           Достижения
         </button>
-        <button className="menu-item" onClick={() => setDialog('settings')}>
+        <button className="mm-item" onClick={() => setDialog('settings')}>
           Настройки
         </button>
-        {error && <div className="menu-sub" style={{ color: '#ff8a8a' }}>{error}</div>}
+        <div className="mm-error" role="alert">
+          {error}
+        </div>
       </nav>
       <div className="version">{VERSION}</div>
       {dialog === 'new' && <NewGameDialog onClose={() => setDialog(null)} />}
@@ -63,82 +75,158 @@ export function MainMenu() {
   );
 }
 
+/** Ряд серверных стоек внизу экрана меню: силуэт будущей лаборатории. Рисунок неподвижный. */
+const RACKS = 26;
+const RACK_H = [150, 186, 122];
+
+function MenuRacks() {
+  const w = 46;
+  const gap = 10;
+  const total = RACKS * (w + gap) - gap;
+  const top = Math.max(...RACK_H);
+  return (
+    <svg className="mm-racks" viewBox={`0 0 ${total} ${top}`} width={total} height={top} aria-hidden="true">
+      {Array.from({ length: RACKS }, (_, i) => {
+        const h = RACK_H[i % 3];
+        const x = i * (w + gap);
+        const y = top - h;
+        const units = Math.floor((h - 6) / 18);
+        return (
+          <g key={i}>
+            <rect x={x} y={y} width={w} height={h} className="mm-rack" />
+            {Array.from({ length: units }, (_, u) => (
+              <g key={u}>
+                <rect x={x + 4} y={y + 5 + u * 18} width={w - 8} height={13} className="mm-unit" />
+                <circle cx={x + 10} cy={y + 11.5 + u * 18} r={2} className={(i * 7 + u * 3) % 11 === 0 ? 'mm-led warn' : 'mm-led'} />
+              </g>
+            ))}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/** Сколько делений у сложности: лёгкая - одно, сложная - три. */
+const DIFF_PIPS: Record<Difficulty, number> = { easy: 1, normal: 2, hard: 3 };
+
 function NewGameDialog({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('Нейрон');
   const [founder, setFounder] = useState('');
   const [tutorial, setTutorial] = useState(true);
   const [difficulty, setDifficulty] = useState<Difficulty>('normal');
+  const [note, flash] = useFlash();
   const valid = name.trim().length > 0;
+  const { ref, onKeyDown } = useModalFocus<HTMLDivElement>('new-game');
+  const nameRef = useRef<HTMLInputElement>(null);
+  // Окно получает фокус для Tab по кругу, затем курсор сразу встаёт в название лаборатории.
+  useEffect(() => nameRef.current?.select(), []);
 
   function start() {
-    if (!valid) return;
+    if (!valid) {
+      flash('Введите название лаборатории.');
+      return;
+    }
     store.newGame(name, { founderName: founder, tutorial, difficulty });
   }
 
   return (
-    <Dialog title="Настройка игры" onClose={onClose}>
-      <form
-        className="col"
-        style={{ gap: 14 }}
-        onSubmit={(e) => {
-          e.preventDefault();
-          start();
-        }}
-      >
-        <label className="col" style={{ gap: 4 }}>
-          <span>Название лаборатории</span>
-          <input type="text" value={name} maxLength={NAME_MAX} onChange={(e) => setName(e.target.value)} autoFocus />
-          <span className="small muted num">
-            {name.length}/{NAME_MAX}
-          </span>
-        </label>
-        <label className="col" style={{ gap: 4 }}>
-          <span>Имя основателя</span>
-          <input type="text" value={founder} maxLength={FOUNDER_MAX} onChange={(e) => setFounder(e.target.value)} />
-          <span className="small muted num">
-            {founder.length}/{FOUNDER_MAX}
-          </span>
-        </label>
-        <div className="kv">
-          <span>Дата начала</span>
-          <span>01.01.2017</span>
-          <span>Стартовый капитал</span>
-          <span className="good">{fmtMoney(START_CASH)}</span>
-          <span>Конец партии</span>
-          <span>31.12.2024</span>
-          <span title="Победа: ваша модель первая по Эло среди моделей, которые продаются через API, 31.12.2024">Цель</span>
-          <span>{fmtRank(1)} среди моделей в продаже</span>
-          <span>Соперники</span>
-          <span>7 лабораторий</span>
+    <div className="modal-backdrop ng-backdrop" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <div ref={ref} tabIndex={-1} className="dialog ng" role="dialog" aria-modal="true" aria-label="Настройка игры" onKeyDown={onKeyDown}>
+        <div className="titlebar">
+          <span className="t">Настройка игры</span>
+          <button className="wbtn close" onClick={onClose} aria-label="Закрыть" title="Закрыть">
+            <IconClose size={14} />
+          </button>
         </div>
-        <fieldset className="col" style={{ gap: 6, margin: 0, padding: 0, border: 0 }}>
-          <legend style={{ padding: 0, marginBottom: 4 }}>Сложность</legend>
-          <div className="row" role="radiogroup" aria-label="Сложность" style={{ gap: 18 }}>
-            {DIFFICULTY_IDS.map((d) => (
-              <label key={d} className="row" style={{ gap: 8 }} title={DIFFICULTY[d].description}>
-                <input
-                  type="radio"
-                  name="difficulty"
-                  value={d}
-                  checked={difficulty === d}
-                  onChange={() => setDifficulty(d)}
-                  style={{ accentColor: 'var(--accent)', width: 16, height: 16, margin: 0 }}
-                />
-                <span>{DIFFICULTY[d].name}</span>
+        <form
+          className="ng-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            start();
+          }}
+        >
+          <div className="ng-body">
+            <div className="ng-col">
+              <label className="ng-field">
+                <span className="ng-l">Название лаборатории</span>
+                <input ref={nameRef} className="ng-input" type="text" value={name} maxLength={NAME_MAX} onChange={(e) => setName(e.target.value)} />
+                <span className="ng-count">
+                  {name.length}/{NAME_MAX}
+                </span>
               </label>
-            ))}
+              <label className="ng-field">
+                <span className="ng-l">Имя основателя</span>
+                <input type="text" value={founder} maxLength={FOUNDER_MAX} onChange={(e) => setFounder(e.target.value)} />
+                <span className="ng-count">
+                  {founder.length}/{FOUNDER_MAX}
+                </span>
+              </label>
+              <div className="ng-l">Сложность</div>
+              <div className="ng-diffs" role="radiogroup" aria-label="Сложность">
+                {DIFFICULTY_IDS.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    role="radio"
+                    aria-checked={difficulty === d}
+                    className={`ng-diff d-${d}${difficulty === d ? ' on' : ''}`}
+                    onClick={() => setDifficulty(d)}
+                  >
+                    <span className="ng-pips" aria-hidden="true">
+                      {[1, 2, 3].map((i) => (
+                        <i key={i} className={i <= DIFF_PIPS[d] ? 'on' : undefined} />
+                      ))}
+                    </span>
+                    {DIFFICULTY[d].name}
+                  </button>
+                ))}
+              </div>
+              <div className="ng-diff-desc">{DIFFICULTY[difficulty].description}</div>
+              <label className="row ng-tutor">
+                <input type="checkbox" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />
+                <span>Обучение игре</span>
+              </label>
+            </div>
+            <div className="ng-col">
+              <div className="ng-sign" aria-hidden="true">
+                <IconLogo size={22} />
+                <b>{name.trim() || 'Лаборатория'}</b>
+              </div>
+              <dl className="ng-kv">
+                <dt>Дата начала</dt>
+                <dd>01.01.2017</dd>
+                <dt>Стартовый капитал</dt>
+                <dd className="good">{fmtMoney(START_CASH)}</dd>
+                <dt>Конец партии</dt>
+                <dd>31.12.2024</dd>
+                <dt>Соперники</dt>
+                <dd>
+                  <span className="ng-labs" aria-hidden="true">
+                    {LABS.map((l) => (
+                      <i key={l.id} style={{ background: l.color }} />
+                    ))}
+                  </span>
+                  {LABS.length} лабораторий
+                </dd>
+              </dl>
+              <div className="ng-goal">
+                <span className="ng-l">Цель</span>
+                <b>Лучшая модель на «Арене» 31.12.2024</b>
+              </div>
+            </div>
           </div>
-          <span className="small muted">{DIFFICULTY[difficulty].description}</span>
-        </fieldset>
-        <label className="row" style={{ gap: 8 }}>
-          <input type="checkbox" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />
-          <span>Обучение игре</span>
-        </label>
-        <button type="submit" className="btn primary wide" disabled={!valid}>
-          Начать
-        </button>
-      </form>
-    </Dialog>
+          <div className="ng-foot">
+            <span className="guard ng-start-wrap">
+              <button type="submit" className="btn primary wide ng-start" aria-disabled={!valid || undefined}>
+                Начать
+              </button>
+              <DenyNote text={note} />
+            </span>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 

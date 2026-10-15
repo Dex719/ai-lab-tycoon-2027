@@ -1,4 +1,4 @@
-// Общие части вкладок «Аналитики»: названия и цвета владельцев, график с тёмной областью и легендой, полоса показателей.
+// Общие части вкладок «Аналитики»: названия и цвета владельцев, светлый график с легендой-переключателем, тёмная полоса показателей.
 
 import { memo, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { LABS, PLAYER_COLOR } from '../../data/labs';
@@ -15,10 +15,22 @@ export function ownerName(s: GameState, owner: HypeOwner): string {
   return LAB_BY_ID.get(owner)?.name ?? owner;
 }
 
-/** Цвет владельца: dark - для тёмной области графика, иначе для белой таблицы. */
+/** Светлые цвета лабораторий (жёлтый Moonshoot) на белом почти не видны: такие затемняем на четверть. */
+function readableOnWhite(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  if (0.299 * r + 0.587 * g + 0.114 * b < 170) return hex;
+  const k = (x: number) => Math.round(x * 0.75).toString(16).padStart(2, '0');
+  return `#${k(r)}${k(g)}${k(b)}`;
+}
+
+/** Цвет владельца: dark - на тёмном фоне, иначе на белом (таблицы и графики). */
 export function ownerColor(owner: HypeOwner, dark = false): string {
   if (owner === 'player') return dark ? PLAYER_COLOR : PLAYER_ON_LIGHT;
-  return LAB_BY_ID.get(owner)?.color ?? PLAYER_COLOR;
+  const c = LAB_BY_ID.get(owner)?.color ?? PLAYER_COLOR;
+  return dark ? c : readableOnWhite(c);
 }
 
 /** Название владельца с цветной точкой. */
@@ -52,6 +64,7 @@ export interface StatItem {
   title?: string;
 }
 
+/** Тёмная полоса главных чисел вкладки (как полоса прогноза в «Новой модели»). */
 export function StatStrip({ items }: { items: StatItem[] }) {
   return (
     <div className="stat-strip">
@@ -141,7 +154,8 @@ const PlotSvg = memo(function PlotSvg({ width, height, labels, series, yFormat, 
   let ticks: number[];
   let y: (v: number) => number;
   if (log) {
-    const lo = Number.isFinite(min) ? Math.floor(Math.log10(min)) : 0;
+    // Чуть ниже минимума: ряд, равный круглому числу ($100), не ложится на нижнюю ось.
+    const lo = Number.isFinite(min) ? Math.floor(Math.log10(min * 0.95)) : 0;
     const hi = Math.max(lo + 1, Math.ceil(Math.log10(Math.max(max, 1e-9))));
     ticks = n === 0 ? [] : Array.from({ length: hi - lo + 1 }, (_, i) => Number((10 ** (lo + i)).toPrecision(12)));
     y = (v: number) => PAD.top + plotH - ((Math.log10(Math.max(v, 10 ** lo)) - lo) / (hi - lo)) * plotH;
@@ -197,13 +211,22 @@ const PlotSvg = memo(function PlotSvg({ width, height, labels, series, yFormat, 
         ) : null,
       )}
       {n >= 2 &&
+        series.length === 1 &&
+        segments(series[0].values).map((pts, k) => {
+          const xs = pts.split(' ');
+          const first = xs[0].split(',')[0];
+          const last = xs[xs.length - 1].split(',')[0];
+          const base = (PAD.top + plotH).toFixed(1);
+          return <polygon key={`area-${k}`} points={`${first},${base} ${pts} ${last},${base}`} fill={series[0].color} className="pl-area" />;
+        })}
+      {n >= 2 &&
         series.map((sr) =>
           segments(sr.values).map((pts, k) => (
             <polyline
               key={`${sr.id}-${k}`}
               fill="none"
               stroke={sr.color}
-              strokeWidth={2}
+              strokeWidth={2.4}
               strokeLinejoin="round"
               strokeLinecap="round"
               points={pts}
@@ -250,8 +273,8 @@ function useWidth(ref: RefObject<HTMLElement | null>): number {
 }
 
 /**
- * Тёмная область графика с осями на светлом фоне и тёмной легендой справа, как в Processor Tycoon.
- * В легенде - значения за идущий месяц (live) или за месяц под курсором.
+ * График по месяцам на белом поле, справа легенда. В легенде - значения за идущий месяц (live) или за месяц
+ * под курсором; нажатие на строку легенды прячет ряд (шкала пересчитывается по видимым рядам).
  */
 export function ChartPanel(props: {
   data: ChartData;
@@ -267,8 +290,17 @@ export function ChartPanel(props: {
   const mainRef = useRef<HTMLDivElement>(null);
   const width = useWidth(mainRef);
   const [hover, setHover] = useState<number | null>(null);
+  const [off, setOff] = useState<ReadonlySet<string>>(() => new Set());
   const hov = hover !== null && hover < data.labels.length ? hover : null;
   const plotH = height - PAD.top - PAD.bottom;
+  const shown = data.series.filter((sr) => !off.has(sr.id));
+  const toggle = (id: string) =>
+    setOff((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else if (data.series.length - next.size > 1) next.add(id); // хотя бы один ряд остаётся
+      return next;
+    });
 
   return (
     <div className="pl">
@@ -278,7 +310,7 @@ export function ChartPanel(props: {
             width={width}
             height={height}
             labels={data.labels}
-            series={data.series}
+            series={shown}
             yFormat={yFormat}
             hover={hov}
             onHover={setHover}
@@ -293,15 +325,25 @@ export function ChartPanel(props: {
       </div>
       <div className="pl-legend legend" style={{ width: legendWidth, height: plotH, marginTop: PAD.top }}>
         <div className="pl-head">{hov !== null ? data.fullLabels[hov] : liveLabel}</div>
-        {data.series.map((sr) => (
-          <div className="r" key={sr.id} title={sr.title}>
-            <span>
-              <i className="dot" style={{ background: sr.color }} />
-              {sr.label}
-            </span>
-            <span className="num">{fmtLegend(hov !== null ? sr.values[hov] : finite(live[sr.id]))}</span>
-          </div>
-        ))}
+        {data.series.map((sr) => {
+          const hidden = off.has(sr.id);
+          return (
+            <button
+              type="button"
+              className={`r pl-row${hidden ? ' off' : ''}`}
+              key={sr.id}
+              title={sr.title ?? (data.series.length > 1 ? (hidden ? 'Показать на графике' : 'Скрыть с графика') : undefined)}
+              aria-pressed={!hidden}
+              onClick={() => data.series.length > 1 && toggle(sr.id)}
+            >
+              <span className="pl-name">
+                <i className="dot" style={{ background: sr.color }} />
+                {sr.label}
+              </span>
+              <span className="num">{fmtLegend(hov !== null ? sr.values[hov] : finite(live[sr.id]))}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

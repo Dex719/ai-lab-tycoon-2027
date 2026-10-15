@@ -13,8 +13,9 @@ import { END_DAY, formatDateShort } from '../sim/time';
 /** С 1 октября 2024 года рядом с датой идёт отсчёт до конца партии. */
 const FINAL_DAYS = 92;
 import type { GameState, Speed } from '../sim/types';
-import { fmtMoney } from './format';
-import { IconAlert, IconArrowUpDown, IconBank, IconCalendar, IconFast, IconFaster, IconPause, IconPlay } from './icons';
+import { fmtDays, fmtMoney } from './format';
+import { subsOpen } from '../sim/market';
+import { IconAlert, IconArrowUpDown, IconBank, IconCalendar, IconFast, IconFaster, IconLogo, IconPause, IconPlay } from './icons';
 import { EXPENSE_KINDS, EXPENSE_LABELS, INCOME_KINDS, INCOME_LABELS } from './labels';
 import { store, useSpeed } from './store';
 import { isCoarsePointer } from './viewport';
@@ -39,13 +40,15 @@ function monthlyRate(s: GameState): number {
 
 function MoneyPopup({ s }: { s: GameState }) {
   const m = s.finance.month;
+  // Строки «Подписки» до их открытия нет: будущее не показываем.
+  const kinds = INCOME_KINDS.filter((k) => k !== 'subs' || subsOpen(s.day) || m.income.subs > 0);
   return (
     <div className="money-pop" role="tooltip">
       <div className="r" style={{ color: '#f2f2f2' }}>
         <span>С начала месяца</span>
         <span />
       </div>
-      {INCOME_KINDS.map((k) => (
+      {kinds.map((k) => (
         <div className="r" key={k} style={m.income[k] > 0 ? { color: 'var(--good-on-dark)' } : undefined}>
           <span>{INCOME_LABELS[k]}:</span>
           <span className="v">{fmtMoney(m.income[k])}</span>
@@ -105,8 +108,11 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
   return (
     <header className="topbar">
       <div className="topbar-left">
+        <span className="tb-logo" aria-hidden="true">
+          <IconLogo size={18} />
+        </span>
         <b>{s.labName}</b>
-        {s.founderName && <span>{s.founderName}</span>}
+        {s.founderName && <span className="tb-founder">{s.founderName}</span>}
         {store.autosaveError && (
           <span className="tb-bad" title={store.autosaveError} style={{ display: 'flex' }}>
             <IconAlert />
@@ -126,6 +132,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
           <MoneyFlies />
           {(hover || pinned) && <MoneyPopup s={s} />}
         </div>
+        <i className="tb-sep" aria-hidden="true" />
         <div className="tb-item tb-rate" title="Доходы (API, подписки, контракты) минус текущие расходы за прошлый месяц. Вложения инвесторов и разовые вложения (дата-центры, карты) не входят">
           <IconArrowUpDown />
           <span className={rate >= 0 ? 'tb-good' : 'tb-bad'}>
@@ -133,16 +140,17 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
             {fmtMoney(Math.abs(rate))}/мес.
           </span>
         </div>
+        <i className="tb-sep" aria-hidden="true" />
         <div className="tb-item tb-date">
           <IconCalendar />
           <span>{formatDateShort(s.day)}</span>
           {!s.outcome && END_DAY - s.day <= FINAL_DAYS && (
             <span className={`tb-final${END_DAY - s.day <= 30 ? ' hot' : ''}`} title="31.12.2024 партия заканчивается: побеждает первая модель на «Арене» среди моделей в продаже">
-              До финала {Math.max(0, END_DAY - s.day)} дн.
+              До финала {fmtDays(Math.max(0, END_DAY - s.day))}
             </span>
           )}
         </div>
-        <div className="speed">
+        <div className="speed" role="group" aria-label="Скорость">
           {SPEEDS.map(({ speed: sp, title, Icon }) => (
             <button
               key={sp}

@@ -1,0 +1,87 @@
+/* Главное меню и «Настройка игры» в духе Processor Tycoon: плоский тёмный экран, моноширинное название,
+   пункты-слова; диалог - светлое окно игры. Корень .menu-screen.mm сильнее старых правил .menu-screen в theme.css. */
+
+.menu-screen.mm {
+  position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; overflow: hidden;
+  color: #b5b5b5; background: #202124;
+}
+
+/* Ряд серверных стоек внизу (SVG в MainMenu.tsx): корпус, блоки, огоньки - плоские цвета. */
+.mm-racks { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); pointer-events: none; }
+.mm-rack { fill: #232528; stroke: #34373c; stroke-width: 2; }
+.mm-unit { fill: #2b2e33; }
+.mm-led { fill: #4f9a64; }
+.mm-led.warn { fill: #b58a35; }
+
+.mm-title { position: relative; margin: 13vh 0 0; font-size: clamp(36px, 4.2vw, 58px); font-weight: 600; color: #f2f2f2; letter-spacing: -0.02em; }
+.mm-years { position: relative; margin-top: 2px; font-size: clamp(15px, 1.3vw, 18px); color: #8e9196; font-variant-numeric: tabular-nums; }
+
+.mm-items { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 12vh; }
+.mm-item {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 2px 14px; background: none; border: none;
+  color: #c8c8c8; font-size: 23px; cursor: pointer; transition: color 120ms ease-out;
+}
+.mm-item-s { font-size: 13px; color: #8e9196; }
+.mm-item:hover, .mm-item:focus-visible {
+  outline: none; color: #fff; text-decoration: underline; text-decoration-color: var(--c-blue); text-underline-offset: 6px; text-decoration-thickness: 3px;
+}
+.mm-item:hover .mm-item-s, .mm-item:focus-visible .mm-item-s { text-decoration: none; color: #b5b5b5; }
+.mm-error { min-height: 20px; font-size: 13px; color: #ff8a8a; text-align: center; }
+
+/* ---------- «Настройка игры»: светлое окно, слева поля, справа условия партии ---------- */
+.menu-screen.mm .modal-backdrop.ng-backdrop { background: rgba(10, 11, 13, 0.7); }
+.dialog.ng { width: min(720px, calc(100vw - 32px)); outline: none; }
+.ng-form { display: flex; flex-direction: column; min-height: 0; overflow: auto; }
+.ng-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 18px 22px 6px; }
+.ng-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ng-l { font-size: 13px; color: var(--text-dim); }
+.ng-field { display: flex; flex-direction: column; gap: 4px; }
+.ng-field input { width: 100%; }
+.ng .ng-input { height: 38px; font-size: 17px; font-weight: 600; }
+.ng-count { align-self: flex-end; font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+.ng-diffs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.ng-diff {
+  --dc: #2e9b4f;
+  display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 4px 7px; cursor: pointer;
+  background: #fff; border: none; border-left: 1px solid var(--line); color: var(--text); font: inherit;
+}
+.ng-diff:first-child { border-left: none; }
+.ng-diff.d-normal { --dc: #c99a1a; }
+.ng-diff.d-hard { --dc: #d64545; }
+.ng-diff:hover { background: #f1f3f6; }
+.ng-diff:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ng-diff.on { background: #e3eefc; font-weight: 600; color: #1f5fae; }
+.ng-pips { display: flex; gap: 3px; }
+.ng-pips i { width: 14px; height: 5px; background: #d4d7dc; }
+.ng-pips i.on { background: var(--dc); }
+.ng-diff-desc { min-height: 40px; font-size: 13px; line-height: 1.4; color: var(--text-body); }
+.ng-tutor { margin-top: 4px; }
+
+/* Табличка лаборатории - та же, что встанет на рабочем столе. */
+.ng-sign {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #1c1c1e; color: #f2f2f2; border-radius: 3px;
+}
+.ng-sign svg { flex: none; color: #a9acb2; }
+.ng-sign b { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ng-kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 8px 0 0; font-size: 14px; }
+.ng-kv dt { color: var(--text-dim); }
+.ng-kv dd { margin: 0; display: flex; align-items: center; gap: 8px; justify-content: flex-end; font-variant-numeric: tabular-nums; }
+.ng-kv dd.good { color: #1d6b36; font-weight: 600; }
+.ng-labs { display: inline-flex; gap: 3px; }
+.ng-labs i { width: 8px; height: 8px; border-radius: 50%; }
+.ng-goal { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.ng-goal b { font-size: 15px; color: var(--text-title); }
+
+.ng-foot { padding: 12px 22px 18px; }
+.ng-start-wrap { display: flex; width: 100%; }
+.ng .ng-start { height: 38px; font-size: 16px; font-weight: 600; }
+
+@media (max-width: 767px) {
+  .mm-title { margin-top: 8vh; }
+  .mm-items { margin-top: 8vh; gap: 6px; }
+  .mm-item { min-height: 48px; font-size: 21px; }
+  .ng-body { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; gap: 16px; }
+  .ng-foot { padding: 10px 16px 16px; }
+}
+.menu-screen.mm .version { z-index: 1; padding: 0 6px; background: #202124; }

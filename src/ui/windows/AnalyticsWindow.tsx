@@ -1,4 +1,5 @@
-// «Аналитика» с вкладками, как в Processor Tycoon: ваши модели, рынок, бенчмарки, арена, финансы, лаборатории.
+// «Аналитика» с вкладками, как в Processor Tycoon: первой идёт «Арена» (главная цель игры), дальше ваши модели, рынок,
+// бенчмарки, финансы, лаборатории.
 
 import { Fragment, useMemo, useState } from 'react';
 import type { WindowProps } from '.';
@@ -7,6 +8,8 @@ import { contextLabel } from '../../sim/research';
 import { formatDateShort } from '../../sim/time';
 import type { GameState, PlayerModel } from '../../sim/types';
 import { Alert } from '../components/common';
+import { ModelEmblem } from '../components/ModelEmblem';
+import { IconCaret, IconTrophy } from '../icons';
 import { TierBadge } from '../components/TierBadge';
 import { fmtElo, fmtMoney, fmtNum, fmtPrice, fmtShare } from '../format';
 import { INCOME_LABELS, modelChannels, reviewNote } from '../labels';
@@ -19,19 +22,19 @@ import { ArenaTab, BenchmarksTab } from './RatingsWindow';
 type TabId = 'yours' | 'market' | 'bench' | 'arena' | 'finance' | 'labs';
 
 const TABS: { id: TabId; label: string }[] = [
+  { id: 'arena', label: 'Арена' },
   { id: 'yours', label: 'Ваши модели' },
   { id: 'market', label: 'Рынок' },
   { id: 'bench', label: 'Бенчмарки' },
-  { id: 'arena', label: 'Арена' },
   { id: 'finance', label: 'Финансы' },
   { id: 'labs', label: 'Лаборатории' },
 ];
 
 /** Вкладки, которые сами занимают всю высоту окна: таблица внутри прокручивается отдельно. */
-const FILL_TABS: ReadonlySet<TabId> = new Set(['bench', 'arena']);
+const FILL_TABS: ReadonlySet<TabId> = new Set(['bench']);
 
 export default function AnalyticsWindow(props: WindowProps) {
-  const [tab, setTab] = useState<TabId>('yours');
+  const [tab, setTab] = useState<TabId>('arena');
   const fill = FILL_TABS.has(tab);
   return (
     <div className="an">
@@ -41,9 +44,10 @@ export default function AnalyticsWindow(props: WindowProps) {
             key={t.id}
             role="tab"
             aria-selected={t.id === tab}
-            className={`tab${t.id === tab ? ' on' : ''}`}
+            className={`tab${t.id === tab ? ' on' : ''}${t.id === 'arena' ? ' an-tab-arena' : ''}`}
             onClick={() => setTab(t.id)}
           >
+            {t.id === 'arena' && <IconTrophy size={16} />}
             {t.label}
           </button>
         ))}
@@ -62,13 +66,13 @@ export default function AnalyticsWindow(props: WindowProps) {
 
 // ---------- Ваши модели ----------
 
-/** Цвет подписок на тёмном графике: бирюзовый, как значок канала «Подписка» в «Моделях». */
-const SUBS_COLOR = '#34c9bd';
+/** Цвет подписок на графике: бирюзовый, как панель канала «Подписка» в «Моделях». */
+const SUBS_COLOR = '#1fa8a0';
 
 const REVENUE_SERIES: SeriesDef[] = [
-  { id: 'api', label: INCOME_LABELS.api, color: '#4ea1ff', pick: (r) => r.income.api },
+  { id: 'api', label: INCOME_LABELS.api, color: '#2f80e4', pick: (r) => r.income.api },
   { id: 'subs', label: INCOME_LABELS.subs, color: SUBS_COLOR, pick: (r) => r.income.subs },
-  { id: 'contracts', label: INCOME_LABELS.contracts, color: '#f2c14e', pick: (r) => r.income.contracts },
+  { id: 'contracts', label: INCOME_LABELS.contracts, color: '#d9822b', pick: (r) => r.income.contracts },
 ];
 
 const SUBSCRIBERS_SERIES: SeriesDef[] = [
@@ -91,7 +95,12 @@ function lostChannels(s: GameState): { label: string; lost: number }[] {
 
 function YourModelsTab({ s, open }: WindowProps) {
   const history = s.finance.history;
-  const data = useMemo(() => buildChartData(history, REVENUE_SERIES), [history, history.length]);
+  // До открытия подписок ряда «Подписки» нет: будущее не показываем.
+  const subsEver = subsOpen(s.day) || history.some((r) => finite(r.income.subs) > 0);
+  const data = useMemo(
+    () => buildChartData(history, subsEver ? REVENUE_SERIES : REVENUE_SERIES.filter((d) => d.id !== 'subs')),
+    [history, history.length, subsEver],
+  );
   const subsData = useMemo(() => buildChartData(history, SUBSCRIBERS_SERIES), [history, history.length]);
   const view = currentMonthView(s);
   const live = {
@@ -248,7 +257,6 @@ function ModelsTable({
                 className={`an-click${isOpen ? ' open' : ''}`}
                 tabIndex={0}
                 aria-expanded={isOpen}
-                title="Нажмите, чтобы увидеть подробности"
                 onClick={() => setOpen(isOpen ? null : m.id)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -258,8 +266,14 @@ function ModelsTable({
                 }}
               >
                 <td>
-                  <span className="an-caret">{isOpen ? '▾' : '▸'}</span>
-                  {m.name} <TierBadge tier={m.plan.tier} />
+                  <span className="an-mname">
+                    <IconCaret size={14} className={`an-caret${isOpen ? ' open' : ''}`} />
+                    <ModelEmblem m={m} size={24} exposed={m.exposed} faded={!channels} />
+                    {m.name}
+                    <span className="an-tier">
+                      <TierBadge tier={m.plan.tier} plain />
+                    </span>
+                  </span>
                 </td>
                 <td>
                   {channels ? <span className="good">{channels}</span> : <span className="muted">Снята с продажи</span>}

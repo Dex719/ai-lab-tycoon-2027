@@ -172,3 +172,60 @@ export function IconInfo(p: LineIconProps) {
     </Line>
   );
 }
+
+/** Папка: «Загрузить» в меню игры. */
+export function IconFolder(p: LineIconProps) {
+  return (
+    <Line {...p}>
+      <path d="M3 6.5 A1.5 1.5 0 0 1 4.5 5 H9.5 L11.5 7.5 H19.5 A1.5 1.5 0 0 1 21 9 V18 A1.5 1.5 0 0 1 19.5 19.5 H4.5 A1.5 1.5 0 0 1 3 18 Z" />
+    </Line>
+  );
+}
+
+/** Шестерёнка: «Настройки». */
+export function IconGear(p: LineIconProps) {
+  return (
+    <Line {...p}>
+      <circle cx={12} cy={12} r={3} />
+      <path d="M12 2.5 V5 M12 19 V21.5 M2.5 12 H5 M19 12 H21.5 M5.3 5.3 L7.1 7.1 M16.9 16.9 L18.7 18.7 M5.3 18.7 L7.1 16.9 M16.9 7.1 L18.7 5.3" />
+      <circle cx={12} cy={12} r={6.5} />
+    </Line>
+  );
+}
+
+/** Дверь со стрелкой: «Выйти в главное меню». */
+export function IconExit(p: LineIconProps) {
+  return (
+    <Line {...p}>
+      <path d="M14 4 H6 A1.5 1.5 0 0 0 4.5 5.5 V18.5 A1.5 1.5 0 0 0 6 20 H14" />
+      <path d="M10 12 H20.5 M17 8.5 L20.5 12 L17 15.5" />
+    </Line>
+  );
+}
+
+/** Стрелка вверх: сосед выше в гонке, рост. */
+export function IconArrowUp(p: LineIconProps) {
+  return (
+    <Line {...p}>
+      <path d="M12 19 V5 M6 11 L12 5 L18 11" />
+    </Line>
+  );
+}
+
+/** Стрелка вниз: сосед ниже в гонке, падение. */
+export function IconArrowDown(p: LineIconProps) {
+  return (
+    <Line {...p}>
+      <path d="M12 5 V19 M6 13 L12 19 L18 13" />
+    </Line>
+  );
+}
+
+/** Уголок раскрытия: вниз - раскрыто, вправо - свёрнуто (поворот задаёт CSS). */
+export function IconCaret(p: LineIconProps) {
+  return (
+    <Line {...p}>
+      <path d="M9 6 L15 12 L9 18" />
+    </Line>
+  );
+}

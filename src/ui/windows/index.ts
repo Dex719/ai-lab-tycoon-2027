@@ -72,7 +72,7 @@ export const WINDOWS: WindowDef[] = [
     Component: DatacentersWindow,
     openedDay: (s) => s.datacenters.unlockedDay,
   },
-  { id: 'models', title: 'Модели', icon: IconModels, side: 'right', w: 900, h: 620, Component: ModelsWindow },
-  { id: 'mail', title: 'Почта', icon: IconMail, side: 'right', w: 820, h: 520, Component: MailWindow },
+  { id: 'models', title: 'Модели', icon: IconModels, side: 'right', w: 980, h: 640, Component: ModelsWindow },
+  { id: 'mail', title: 'Почта', icon: IconMail, side: 'right', w: 1000, h: 580, Component: MailWindow },
   { id: 'analytics', title: 'Аналитика', icon: IconAnalytics, side: 'right', w: 1100, h: 660, Component: AnalyticsWindow },
 ];
