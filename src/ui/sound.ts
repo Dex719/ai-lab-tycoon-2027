@@ -13,7 +13,8 @@ export type SoundId =
   | 'first' // 1-е место
   | 'goal' // цель года выполнена
   | 'research' // исследование завершено
-  | 'alert'; // важное письмо, деньги в минусе
+  | 'alert' // важное письмо, деньги в минусе
+  | 'rack'; // карты арендованы или куплены: стойка встала на место
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -123,6 +124,13 @@ const SOUNDS: Record<SoundId, () => Note[]> = {
   alert: () => [
     { f: N.A5, t: 0, d: 0.12, type: 'square', v: 0.2 },
     { f: N.E5, t: 0.16, d: 0.18, type: 'square', v: 0.2 },
+  ],
+  // Глухой стук стойки и щелчок защёлки, затем ровный подъём - «карты включились»
+  rack: () => [
+    { f: 110, t: 0, d: 0.12, type: 'triangle', v: 0.55, slide: 70 },
+    { f: 1900, t: 0.09, d: 0.03, type: 'square', v: 0.12 },
+    { f: N.C5, t: 0.16, d: 0.42, type: 'sine', v: 0.32, slide: N.G5 },
+    { f: N.E5, t: 0.22, d: 0.4, type: 'sine', v: 0.22, slide: N.C6 },
   ],
 };
 

@@ -1,5 +1,5 @@
-/* Окно «Мощности»: раскладка по образцу «Производство» в Processor Tycoon.
-   Сверху светлый блок сведений, ниже серое поле с белыми карточками и панелью распределения. */
+/* Окно «Мощности»: тёмная полоса с 3D-фермой и главным числом (как полоса прогноза в «Новой модели»),
+   ниже серое поле: слева арендованные карты с картинками, справа распределение мощности. */
 
 .cw {
   --cw-well: #d3d5d9;
@@ -9,190 +9,174 @@
   min-height: 0;
   font-variant-numeric: tabular-nums;
 }
+.cw-h { margin: 0; font-size: 18px; font-weight: 400; line-height: 1.2; color: #2a2c30; }
+.cw-hide { visibility: hidden; }
 
-.cw-h {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 300;
-  line-height: 1.2;
-  color: #2a2c30;
+/* ---------- Шапка: машинный зал и мощность ---------- */
+.cw-head {
+  flex: none; display: grid; grid-template-columns: minmax(0, 1fr) 264px; gap: 16px; height: 208px;
+  padding: 12px 16px; background: var(--win-body); border-bottom: 1px solid var(--line);
 }
+.cw-farm { position: relative; margin: 0; min-width: 0; background: #d4d7db; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.cw-farm-view { position: absolute; inset: 0; }
+.cw-farm-empty { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font-size: 13px; color: #3a3d42; pointer-events: none; }
+/* Плашка после аренды: золотая, как награды, без свечения; сама гаснет. */
+.cw-flash {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%); padding: 4px 12px; border-radius: 3px;
+  background: #f2c14e; color: #2b1d00; font-weight: 700; font-size: 13.5px; white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 3px 8px rgba(0, 0, 0, 0.18); pointer-events: none; animation: cw-flash 2600ms ease-out forwards;
+}
+@keyframes cw-flash {
+  0% { opacity: 0; transform: translate(-50%, 6px); }
+  8% { opacity: 1; transform: translate(-50%, 0); }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.cw-figures { display: flex; flex-direction: column; min-width: 0; }
+.cw-fig-label { font-size: 13px; color: var(--text-dim); }
+.cw-fig-value { display: flex; align-items: baseline; gap: 8px; font: 700 34px var(--mono); line-height: 1.1; color: var(--text); white-space: nowrap; }
+.cw-fig-value span { font: 400 15px var(--font); color: var(--text-dim); }
+.cw-fig-value.dim { color: #8a8e95; }
+.cw-fig-sub { margin-top: 2px; font-size: 13px; color: var(--text-body); }
+.cw-fig-note { font-size: 12px; color: var(--text-dim); }
+.cw-fig-kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 10px 0 0; font-size: 13px; }
+.cw-fig-kv dt { color: var(--text-dim); white-space: nowrap; }
+.cw-fig-kv dd { margin: 0; text-align: right; white-space: nowrap; color: var(--text); }
+.cw-fig-kv dd.bad { color: #b32f2f; font-weight: 600; }
+.cw-rent-btn { margin-top: auto; width: 100%; height: 34px; font-size: 15px; }
 
-/* ---------- Сведения ---------- */
-.cw-info {
-  flex: none;
-  padding: 10px 16px 14px;
-  background: var(--win-body);
-  border-bottom: 1px solid var(--line);
+/* ---------- Поле ---------- */
+.cw-body {
+  flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 372px; gap: 12px;
+  padding: 10px 14px 12px; background: var(--cw-well);
 }
-.cw-info-grid {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 8px 28px;
-  margin-top: 8px;
+.cw-rented { display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; overflow: auto; }
+.cw-rows { display: flex; flex-direction: column; gap: 6px; }
+.cw-row {
+  display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; grid-template-areas: 'thumb main cost' 'thumb main actions';
+  align-items: center; gap: 4px 12px; padding: 7px 10px 7px 7px; background: var(--panel);
+  border: 1px solid var(--line-soft); border-radius: 3px;
 }
-.cw-info-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.cw-info-head .btn { min-width: 132px; }
-.cw-info-grid .cw-kv { flex: 1 1 300px; min-width: 0; }
-.cw-info-grid .cw-kv + .cw-kv { padding-left: 28px; border-left: 1px solid var(--line); }
-
-.cw-kv {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 2px 14px;
-  margin: 0;
-}
-.cw-kv dt { color: #3a3c40; white-space: nowrap; }
-.cw-kv dt .cw-dot { display: inline-block; margin-right: 7px; vertical-align: 1px; }
-.cw-kv dd { margin: 0; text-align: right; white-space: nowrap; color: var(--text); }
-/* Расходы - красным, превышение лимита - оранжевым (--warn), хорошее - зелёным. */
-.cw-kv dd.warn { color: #a85a00; }
-.cw-kv dd.good { color: #1d6b36; }
-.cw-kv dd.bad, .cw-cost { color: #b32f2f; }
-.cw-kv dd.cw-own { color: #1f62b8; font-weight: 600; }
-
-/* ---------- Поле с карточками ---------- */
-.cw-scroll {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  /* Без отступа сверху: прилипающие заголовки встают ровно к верхнему краю, над ними не просвечивают строки. */
-  padding: 0 16px 16px;
-  background: var(--cw-well);
-}
-.cw-main {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 16px;
-}
-.cw-rented { flex: 1 1 300px; min-width: 0; }
-/* Заголовок карточек прилипает к верху поля, как шапка распределения: прокрутка не режет его наполовину. */
-.cw-rented > .cw-h { position: sticky; top: 0; z-index: 2; padding: 12px 0 8px; background: var(--cw-well); }
-.cw-rented > .cw-h + * { margin-top: 0; }
-.cw-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 10px;
-  margin-top: 8px;
-}
-.cw-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px 12px;
-  background: var(--panel);
-  border: 1px solid var(--line-soft);
-  border-radius: 4px;
-}
-.cw-card-name { font-size: 17px; line-height: 1.2; }
-.cw-card-actions { display: flex; gap: 8px; }
-.cw-card-actions .btn { flex: 1; }
+.cw-row > .cw-thumb { grid-area: thumb; }
+.cw-row-main { grid-area: main; min-width: 0; }
+.cw-row-cost { grid-area: cost; text-align: right; color: #b32f2f; font-weight: 600; white-space: nowrap; }
+.cw-row-cost small { margin-left: 4px; font-weight: 400; font-size: 12px; color: var(--text-dim); }
+.cw-row-actions { grid-area: actions; display: flex; gap: 6px; justify-content: flex-end; }
+.cw-row-name { font-size: 16px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-row-count { margin-left: 8px; font-weight: 400; color: var(--text-dim); }
+.cw-row-meta { font-size: 13px; color: var(--text-dim); }
+.cw-row-over { min-height: 17px; font-size: 12.5px; font-weight: 600; color: #a85a00; }
+/* Картинка карты на графитовой подложке, как в превью аренды. */
+.cw-thumb { display: block; flex: none; border-radius: 2px; overflow: hidden; background: #2b2d30; }
+.cw-thumb img { display: block; }
 .cw-empty {
-  margin-top: 8px;
-  padding: 18px 14px;
-  color: var(--text-dim);
-  border: 1px dashed #aeb2b9;
-  border-radius: 4px;
-  display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+  padding: 18px 14px; color: var(--text-dim); text-align: center;
+  border: 1px dashed #aeb2b9; border-radius: 4px; background: rgba(255, 255, 255, 0.35);
 }
-.cw-empty-btn { min-width: 220px; height: 44px; font-size: 16px; }
+.cw-own {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 13px; color: var(--text-dim);
+  background: var(--panel); border: 1px solid var(--line-soft); border-radius: 3px;
+}
+.cw-own b { color: #1f62b8; }
+.cw-own .btn { margin-left: auto; }
 
 /* ---------- Распределение ---------- */
 .cw-panel {
-  flex: 0 0 360px;
-  min-width: 0;
-  margin-top: 12px;
-  padding: 10px 14px 8px;
-  background: var(--panel);
-  border: 1px solid var(--line-soft);
-  border-radius: 4px;
+  display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 8px 14px 10px;
+  background: var(--panel); border: 1px solid var(--line-soft); border-radius: 4px;
 }
-/* Шапка (заголовок, полоса, «Занято») прилипает к верху прокручиваемого поля: сумму долей видно,
-   пока двигаешь нижние ползунки. */
-.cw-panel-head {
-  position: sticky; top: 0; z-index: 3; margin: -10px -14px 0; padding: 10px 14px 4px; background: var(--panel);
-  border-radius: 4px 4px 0 0; border-bottom: 1px solid var(--line-soft);
-}
-.cw-panel-head > .cw-h { margin-bottom: 4px; }
-/* Подвал: место под ошибку (занято всегда) и кнопки. */
-.cw-panel-foot { margin-top: 6px; border-top: 1px solid var(--line-soft); }
-.cw-panel-note { margin: 0 0 2px; font-size: 13px; color: var(--text-dim); }
-.cw-allocbar { display: flex; height: 12px; margin: 8px 0 4px; overflow: hidden; background: #e3e5e9; border-radius: 2px; }
+.cw-panel-head { flex: none; padding-bottom: 2px; border-bottom: 1px solid var(--line-soft); }
+.cw-allocbar { display: flex; height: 10px; margin: 6px 0 3px; overflow: hidden; background: #e3e5e9; border-radius: 2px; }
 .cw-allocbar > div { transition: width 120ms ease-out; }
-/* Занятая мощность: зелёная при 100 %, приглушённо-оранжевая, если часть простаивает (мягкое предупреждение, не ошибка).
-   Высота строки постоянная. */
-.cw-occ { min-height: 20px; font-size: 13px; line-height: 20px; color: var(--text-dim); }
+.cw-occ { min-height: 18px; font-size: 12.5px; line-height: 18px; color: var(--text-dim); }
 .cw-occ.full { color: #1d6b36; font-weight: 600; }
-.cw-occ.idle { color: #b8742a; }
-.cw-alloc-row { padding: 6px 0 4px; border-top: 1px solid var(--line-soft); }
-.cw-panel-head + .cw-alloc-row, .cw-panel-note + .cw-alloc-row { border-top: none; }
+.cw-occ.idle { color: #a85a00; }
+.cw-alloc-rows { flex: 1; min-height: 0; overflow: auto; }
+.cw-alloc-row { padding: 3px 0 2px; border-top: 1px solid var(--line-soft); }
+.cw-alloc-row:first-child { border-top: none; }
 .cw-alloc-top { display: flex; align-items: center; gap: 8px; }
 .cw-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; }
 .cw-alloc-name { flex: 1; min-width: 0; font-weight: 600; }
-.cw-alloc-val { color: var(--text-dim); white-space: nowrap; font-size: 13px; }
+.cw-alloc-val { color: var(--text-dim); white-space: nowrap; font-size: 12.5px; }
 .cw-alloc-ctl { display: flex; align-items: center; gap: 10px; }
 .cw-alloc-ctl .range { flex: 1; min-width: 0; width: auto; }
 .cw-pct { flex: none; display: inline-flex; align-items: center; gap: 4px; color: var(--text-dim); }
-.cw-pct input { width: 58px; height: 28px; padding: 0 6px; font-weight: 600; }
+.cw-pct input { width: 56px; height: 24px; padding: 0 6px; font-weight: 600; }
 .cw-pct.changed input { color: var(--accent-dark); border-color: var(--accent); }
-/* Подсказка «Нужно клиентам»: одна строка, нехватка - оранжевым словом справа, без рамки и без сдвига окна. */
-.cw-need { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-height: 18px; margin-top: 1px; font-size: 13px; color: var(--text-dim); }
+.cw-need { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-height: 17px; font-size: 12.5px; color: var(--text-dim); }
 .cw-need-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cw-need-t b { font-weight: 600; color: var(--text); }
 .cw-need-short { flex: none; color: #a85a00; font-weight: 600; white-space: nowrap; }
-/* Место под ошибку занято всегда: сообщение после «Распределить» не двигает кнопки и не меняет размер окна. */
-.cw-alloc-msg { height: 38px; margin-top: 6px; }
-.cw-alloc-msg .alert { height: 100%; padding: 0 10px; gap: 8px; font-size: 13px; line-height: 1.2; }
-.cw-alloc-msg .alert svg { width: 16px; height: 16px; }
-.cw-alloc-msg .alert .alert-text { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.cw-alloc-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 6px; }
-.cw-alloc-hint { margin-right: auto; font-size: 13px; color: var(--text-dim); }
+/* Подвал: место под сообщение занято всегда, кнопки не прыгают. */
+.cw-panel-foot { flex: none; display: flex; align-items: center; gap: 8px; padding-top: 6px; border-top: 1px solid var(--line-soft); }
+.cw-alloc-msg {
+  flex: 1; min-width: 0; height: 32px; display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; line-height: 1.2; color: var(--text-dim); overflow: hidden;
+}
+.cw-alloc-msg > span { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cw-alloc-msg svg { flex: none; }
+.cw-alloc-msg.bad { color: var(--bad); font-weight: 600; }
+.cw-alloc-msg.warn, .cw-alloc-msg.pending { color: #a85a00; font-weight: 600; }
 .cw-confirm-line { margin: 0; }
 
-/* ---------- Диалог аренды ---------- */
-/* Диалог выводится в document.body, поэтому цифры включаем здесь, а не в .cw. */
-.cw-gpus, .cw-qty, .cw-sum { font-variant-numeric: tabular-nums; }
-.cw-gpus { display: flex; flex-direction: column; gap: 4px; }
-.cw-gpu-head,
-.cw-gpu {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 92px 112px;
-  align-items: center;
-  gap: 10px;
+/* ---------- Простой мощности ---------- */
+.cw-idle {
+  flex: none; display: flex; gap: 8px; align-items: flex-start; padding: 6px 10px;
+  background: #fff8e6; border: 1px solid #e3bf62; border-radius: 3px; color: #4d3800; font-size: 13px;
 }
-.cw-gpu-head { padding: 0 10px; font-size: 12px; color: var(--text-dim); align-items: end; }
-.cw-gpu-head span:not(:first-child),
-.cw-gpu .n { text-align: right; }
-.cw-gpu {
-  width: 100%;
-  min-height: 46px;
-  padding: 6px 10px;
-  text-align: left;
-  color: var(--text);
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  cursor: pointer;
-}
-.cw-gpu:hover:not(:disabled) { background: #f1f4f8; }
-/* Выбранная карта - общий вид .is-selected из theme.css; свой селектор нужен, чтобы перебить рамку и фон .cw-gpu. */
-.cw-gpu.is-selected { border-color: var(--accent); background: #e3eefc; }
-.cw-gpu:disabled { opacity: 0.55; cursor: default; }
-.cw-gpu:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.cw-gpu-name { display: flex; flex-direction: column; min-width: 0; }
-.cw-gpu-tag { font-size: 12px; color: var(--good); font-weight: 600; }
-.cw-gpu-from { font-size: 12px; color: var(--text-dim); }
+.cw-idle > svg { flex: none; margin-top: 4px; color: var(--warn); }
+.cw-idle-rows { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cw-idle-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 28px; }
+.cw-idle-row .btn.small { height: 26px; min-height: 26px; padding: 0 12px; }
+.cw-idle-more { font-size: 12px; color: #7a5c14; padding-bottom: 2px; }
 
-.cw-qty { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; }
+/* ---------- Диалог аренды (выводится в document.body) ---------- */
+.dialog:has(.cw-rd) { width: min(900px, calc(100vw - 32px)); }
+.cw-rd { display: flex; flex-direction: column; gap: 12px; font-variant-numeric: tabular-nums; }
+.cw-rd-top { display: grid; grid-template-columns: 292px minmax(0, 1fr); gap: 14px; height: 300px; }
+.cw-rd-left { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.cw-rd-list { flex: 1; display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow: auto; padding: 1px; }
+.cw-rd-wallet {
+  flex: none; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; margin: 0; padding: 8px 10px;
+  font-size: 13px; background: #fff; border: 1px solid var(--line-soft); border-radius: 4px;
+}
+.cw-rd-wallet dt { color: var(--text-dim); }
+.cw-rd-wallet dd { margin: 0; text-align: right; font-weight: 600; white-space: nowrap; }
+.cw-rd-wallet dd.bad { color: #b32f2f; }
+.cw-pick {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'name tag' 'bar bar' 'meta meta';
+  gap: 4px 8px; width: 100%; padding: 7px 10px 8px; text-align: left; color: var(--text); background: #fff;
+  border: 1px solid var(--line); border-radius: 2px; cursor: pointer;
+}
+.cw-pick:hover { background: #f1f4f8; }
+.cw-pick.is-selected { border-color: var(--accent); background: #e3eefc; }
+.cw-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cw-pick-name { grid-area: name; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-pick-tag { grid-area: tag; align-self: center; font-size: 12px; font-weight: 600; color: #1d6b36; white-space: nowrap; }
+.cw-pick-bar { grid-area: bar; display: block; height: 5px; background: #e3e5e9; border-radius: 1px; overflow: hidden; }
+.cw-pick-bar i { display: block; height: 100%; background: #5f646c; }
+.cw-pick.is-selected .cw-pick-bar i { background: var(--accent-dark); }
+.cw-pick-meta { grid-area: meta; font-size: 12.5px; color: var(--text-dim); }
+.cw-pick-own { margin-left: 8px; color: #1f62b8; }
+/* Превью карты: графитовая подложка, как в утверждённом эталоне арта; подпись - под картинкой. */
+.cw-rd-stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.cw-rd-view { flex: 1; min-height: 0; background: #2b2d30; border-radius: 2px; }
+.cw-rd-cap { flex: none; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 8px; }
+.cw-rd-name { font-size: 18px; font-weight: 600; white-space: nowrap; }
+.cw-rd-facts { display: grid; grid-template-columns: auto auto; gap: 0 10px; margin: 0; font-size: 12.5px; }
+.cw-rd-facts dt { color: var(--text-dim); }
+.cw-rd-facts dd { margin: 0; color: var(--text); white-space: nowrap; }
+
+.cw-qty { display: grid; grid-template-columns: 96px minmax(0, 1fr) 110px; align-items: center; gap: 4px 12px; }
 .cw-qty > label { color: var(--text-dim); }
-/* Дорожка ползунка: до лимита - обычная (синяя заливка, серый остаток), сверх лимита - оранжевая зона.
-   --cap - доля длины дорожки, где кончается обычная цена (0..1). Центр бегунка ходит от 8px до «ширина − 8px» (бегунок 16px),
-   поэтому позиция лимита считается так же (--capx). --p (заполнено) задаёт сам Range. */
+.cw-qty > input { width: 110px; }
+.cw-qty-note { grid-column: 2 / -1; min-height: 19px; font-size: 13px; color: var(--text-dim); }
+.cw-qty-note.bad { color: var(--bad); font-weight: 600; }
+.cw-qty-note.warn { color: #a85a00; font-weight: 600; }
+/* Дорожка ползунка: до лимита - обычная, сверх лимита - оранжевая зона и риска на границе.
+   --cap - доля длины, где кончается обычная цена; центр бегунка ходит от 8px до «ширина − 8px». */
 .cw-qty-range { position: relative; min-width: 0; --capx: calc(8px + (100% - 16px) * var(--cap, 1)); }
-.cw-qty-range .range { position: relative; z-index: 1; }
-.cw-qty-range.has-cap { margin-bottom: 20px; }
+.cw-qty-range .range { position: relative; z-index: 1; width: 100%; }
 .cw-qty-range.has-cap .range::-webkit-slider-runnable-track {
   background: linear-gradient(
     to right,
@@ -202,44 +186,23 @@
     #f6dcae max(var(--p), var(--capx)) 100%
   );
 }
-.cw-qty-range.has-cap .range::-moz-range-track {
-  background: linear-gradient(to right, #c4c7cd 0 var(--capx), #f6dcae var(--capx) 100%);
-}
+.cw-qty-range.has-cap .range::-moz-range-track { background: linear-gradient(to right, #c4c7cd 0 var(--capx), #f6dcae var(--capx) 100%); }
 .cw-qty-range.has-cap .range::-moz-range-progress { background: var(--c); }
-/* Риска на границе лимита и подпись под ней: «512 шт.: дальше ×1,8». */
 .cw-qty-range.has-cap::after {
-  content: ''; position: absolute; top: 3px; height: 14px; width: 2px; margin-left: -1px;
-  left: var(--capx);
+  content: ''; position: absolute; top: 3px; height: 14px; width: 2px; margin-left: -1px; left: var(--capx);
   background: #a85a00; border-radius: 1px; pointer-events: none;
 }
-.cw-cap-label {
-  position: absolute; top: 21px; left: clamp(62px, var(--capx), calc(100% - 62px)); transform: translateX(-50%);
-  font-size: 12px; font-weight: 600; color: #a85a00; white-space: nowrap; pointer-events: none;
-}
-.cw-qty-legend { grid-column: 2 / -1; display: flex; justify-content: space-between; gap: 12px; min-height: 19px; font-size: 13px; line-height: 1.45; color: #4a4d54; }
-.cw-qty-max { margin-left: auto; color: var(--text-dim); white-space: nowrap; }
-.cw-hide { visibility: hidden; }
-.cw-sw { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; border-radius: 2px; background: var(--accent); }
-.cw-sw.over { background: #e8891c; }
-.cw-qty-note { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 2px 14px; min-height: 19px; font-size: 13px; color: var(--text-dim); }
-.cw-qty-note.bad { color: var(--bad); }
-.cw-qty-note .warn { color: #a85a00; font-weight: 600; }
-.card.cw-sum { background: #fff; }
-.cw-foot-note { margin-right: auto; align-self: center; font-size: 13px; color: var(--text-dim); }
 
-/* ---------- Простой мощности ---------- */
-.cw-idle {
-  flex: none; display: flex; gap: 8px; align-items: flex-start; margin: 8px 16px; padding: 6px 10px;
-  background: #fff8e6; border: 1px solid #e3bf62; border-radius: 3px; color: #4d3800; font-size: 13px;
-}
-.cw-idle > svg { flex: none; margin-top: 4px; color: var(--warn); }
-.cw-idle-rows { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.cw-idle-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 28px; }
-.cw-idle-row .btn.small { height: 26px; min-height: 26px; padding: 0 12px; }
-.cw-idle-more { font-size: 12px; color: #7a5c14; padding-bottom: 2px; }
+.cw-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cw-sum-i { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 7px 10px; background: #fff; border: 1px solid var(--line-soft); border-radius: 4px; }
+.cw-sum-i > span { font-size: 12px; color: var(--text-dim); }
+.cw-sum-i > b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-sum-i > small { font-size: 12.5px; color: var(--text-dim); white-space: nowrap; }
+.cw-sum-i .bad { color: #b32f2f; }
+.cw-sum-i .good { color: #1d6b36; }
+.cw-sum-i > small.bad, .cw-sum-i > small.good { font-weight: 600; }
 
-/* «Распределить» всегда на виду: подвал панели прилипает к низу прокручиваемого поля. */
-.cw-panel-foot {
-  position: sticky; bottom: 0; z-index: 3; margin: 6px -14px -8px; padding: 0 14px 8px; background: var(--panel);
-  border-radius: 0 0 4px 4px;
+@media (prefers-reduced-motion: reduce) {
+  .cw-flash { animation: none; }
+  .cw-allocbar > div { transition: none; }
 }
