@@ -211,7 +211,7 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
     order: 3; position: sticky; bottom: 0; z-index: 4; padding: 8px 12px 10px; background: var(--win-body);
     border-top: 1px solid var(--line); box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.12);
   }
-  .nm-start { height: 44px; }
+  .btn.nm-start { min-height: 44px; }
   .nm-block { padding: 10px 12px 14px; }
   .nm-mix-row { grid-template-columns: 96px minmax(0, 1fr) 44px; }
 

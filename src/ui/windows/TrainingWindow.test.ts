@@ -6,7 +6,8 @@ import { newGame } from '../../sim/actions';
 import { dateToDay, END_DAY, START_DAY } from '../../sim/time';
 import { tierAvailable, tierOf, validatePlan } from '../../sim/training';
 import { TIER_IDS, type GameState, type Tier, type TrainingPlan } from '../../sim/types';
-import { fitTier, normalizeDraft, pickTier, presetOf, tierSpan, type Draft } from './TrainingWindow';
+import { introduceDue } from '../../sim/benchmarks';
+import { fitTier, mixGrowth, normalizeDraft, pickTier, presetOf, tierSpan, type Draft } from './TrainingWindow';
 
 function stateOn(iso: string): GameState {
   const s = newGame('Тест', 1);
@@ -114,5 +115,22 @@ describe('черновик и смена года', () => {
   it('pickTier оставляет доступный уровень', () => {
     const s = stateOn('2020-01-01');
     for (const t of TIER_IDS) expect(pickTier(s, t)).toBe(t);
+  });
+});
+
+describe('mixGrowth: что растёт от доли области', () => {
+  it('в 2017 году называет только вышедшие тесты, будущие не раскрывает', () => {
+    const s = stateOn('2017-06-01');
+    expect(mixGrowth(s, 'language')).toBe('Растут SQuAT и Эло на «Арене»');
+    expect(mixGrowth(s, 'code')).toBe('Тестов по этой области пока нет');
+    expect(mixGrowth(s, 'reasoning')).toBe('Тестов по этой области пока нет');
+  });
+
+  it('тест появляется в списке после даты выхода', () => {
+    const s = stateOn('2021-08-01');
+    introduceDue(s);
+    expect(mixGrowth(s, 'language')).toBe('Растут SQuAT, GLUU, MMLO и Эло на «Арене»');
+    expect(mixGrowth(s, 'code')).toBe('Растёт HumanEvol');
+    expect(mixGrowth(s, 'reasoning')).toBe('Тестов по этой области пока нет');
   });
 });

@@ -70,6 +70,17 @@ const DOMAIN_WHAT: Record<DomainId, string> = {
   code: 'Программы и задачи по программированию',
   reasoning: 'Задачи с решениями: математика, физика, химия',
 };
+/**
+ * Что растёт от доли области: только тесты, которые уже вышли (будущие не называем), у языка ещё Эло на «Арене».
+ * Пример: «Растут SQuAT и Эло на «Арене»».
+ */
+export function mixGrowth(s: GameState, k: DomainId): string {
+  const items = BENCHMARKS.filter((b) => b.domain === k && s.benchmarks[b.id]?.introduced).map((b) => b.name);
+  if (k === 'language') items.push('Эло на «Арене»');
+  if (items.length === 0) return 'Тестов по этой области пока нет';
+  const list = items.length === 1 ? items[0] : `${items.slice(0, -1).join(', ')} и ${items[items.length - 1]}`;
+  return `${items.length === 1 ? 'Растёт' : 'Растут'} ${list}`;
+}
 const DOMAIN_COLOR: Record<DomainId, string> = {
   language: 'var(--nm-language)',
   code: 'var(--nm-code)',
@@ -742,10 +753,7 @@ export default function TrainingWindow({ s, open }: WindowProps) {
                   valueText={fmtPct(d.mix[k], 0)}
                   onChange={(v) => patch({ mix: rescaleMix(d.mix, k, v) })}
                 />
-                <span className="nm-mix-what">
-                  Растут {BENCHMARKS.filter((b) => b.domain === k).map((b) => b.name).join(', ')}
-                  {k === 'language' && ' и Эло на «Арене»'}
-                </span>
+                <span className="nm-mix-what">{mixGrowth(s, k)}</span>
               </div>
             ))}
           </section>
