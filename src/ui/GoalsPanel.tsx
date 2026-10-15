@@ -26,7 +26,7 @@ export function GoalsPanel({ s, open }: { s: GameState; open: (id: WindowId | Wi
   const hasGoals = !!y && y.goals.length > 0;
   const done = hasGoals ? y.goals.filter((g) => g.done).length : 0;
   return (
-    <>
+    <div className="quests-zone">
       {hasGoals && (
         <>
           <div className="goal-head">
@@ -85,7 +85,7 @@ export function GoalsPanel({ s, open }: { s: GameState; open: (id: WindowId | Wi
         </div>
       )}
       <TasksPanel s={s} open={open} />
-    </>
+    </div>
   );
 }
 
