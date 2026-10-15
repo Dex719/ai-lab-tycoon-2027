@@ -444,7 +444,7 @@ table.grid td.num, table.grid th.num { text-align: right; }
 
 /* Свои подсказки (src/ui/Tooltip.tsx): вместо встроенных браузерных */
 .tip {
-  position: fixed; z-index: 2000; max-width: 320px; padding: 6px 9px; pointer-events: none;
+  position: fixed; z-index: 20000; /* выше подложки диалогов (10000) и газеты (10050): подсказки внутри диалогов видны */ max-width: 320px; padding: 6px 9px; pointer-events: none;
   background: #1f2023; color: #f2f2f2; border-radius: 3px; font: 13px/1.35 var(--font); white-space: pre-line;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); transform: translateX(-50%);
 }
