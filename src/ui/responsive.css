@@ -11,7 +11,7 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .btn.small { min-height: 40px; height: 40px; padding: 0 12px; }
   input[type='text'], input[type='number'], select { min-height: 40px; height: 40px; font-size: 16px; }
   input[type='checkbox'], input[type='radio'] { width: 22px !important; height: 22px !important; }
-  .range { height: 40px; }
+  .range, input[type='range'] { height: 40px; }
   .range::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; }
   .range::-webkit-slider-thumb { width: 28px; height: 28px; margin-top: -11px; }
   .range::-moz-range-thumb { width: 28px; height: 28px; }
@@ -170,6 +170,8 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .slot { grid-template-columns: 40px 1fr; }
   .slot > :last-child { grid-column: 1 / -1; }
   .toasts { right: 8px; left: 8px; bottom: 56px; width: auto; }
+  /* Достижения: список на всю высоту листа, а не на 60 % экрана. */
+  .ach-list { max-height: calc(92dvh - 72px); }
   .tip { max-width: calc(100vw - 16px); }
 
   /* Общие сетки внутри окон */
