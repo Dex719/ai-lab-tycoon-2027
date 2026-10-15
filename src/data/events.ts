@@ -38,9 +38,16 @@ import { RANDOM_EVENTS } from './randomEvents';
 
 export interface EventChoiceDef {
   label: string;
-  hint: string; // коротко, что будет: «+15 репутации, −$200 тыс.»
+  hint: string; // коротко, что будет, числами: «+15 репутации, -$200 тыс.»
   /** Подсказка для сумм, которые зависят от года: считается при отправке письма и заменяет hint (тогда hint пустой). */
   hintFn?: (s: GameState) => string;
+  /**
+   * Последствие словами, одной короткой фразой: что случится в мире игры («Он остаётся, команда видит, что её ценят»).
+   * Без советов игроку. Числа - в hint. Функция - если нужна подстановка (название лаборатории, модели).
+   */
+  story?: string | ((s: GameState) => string);
+  /** Вариант с жребием: чем кончилось, словами («Журналисты не заметили утечку»). Пишется в исход письма и в уведомление. */
+  luck?: { good: string; bad: string };
   apply: (s: GameState) => void;
 }
 
@@ -187,6 +194,7 @@ export const EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Опубликовать статью',
+        story: 'Статья выйдет раньше, чем у Gogle, и первенство запомнят',
         hint: '+15 репутации, +20 шумихи',
         apply: (s) => {
           addReputation(s, 15);
@@ -195,6 +203,7 @@ export const EVENTS: EventDef[] = [
       },
       {
         label: 'Оставить в секрете',
+        story: 'Ваши улучшения метода останутся только у вас',
         hint: `+1 уровень алгоритмов, обучение эффективнее в ${String(ALGO_MULT).replace('.', ',')} раза`,
         apply: (s) => {
           s.research.algoLevel += 1;
@@ -245,6 +254,7 @@ export const EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Поддержать осторожность',
+        story: 'Лабораторию запомнят как сторонницу осторожности',
         hint: '+8 репутации',
         apply: (s) => {
           addReputation(s, 8);
@@ -252,7 +262,8 @@ export const EVENTS: EventDef[] = [
       },
       {
         label: 'Назвать это рекламным ходом',
-        hint: '+10 шумихи, −3 репутации',
+        story: 'Резкое мнение разойдётся по сети, коллеги его не одобрят',
+        hint: '+10 шумихи, -3 репутации',
         apply: (s) => {
           addHype(s, 'player', 10);
           addReputation(s, -3);
@@ -260,6 +271,7 @@ export const EVENTS: EventDef[] = [
       },
       {
         label: 'Не комментировать',
+        story: 'Спор пройдёт без лаборатории',
         hint: 'без изменений',
         apply: () => {},
       },
@@ -282,7 +294,8 @@ export const EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Запустить рекламу своего API',
-        hint: `−${money(AD_COST)}, +15 шумихи`,
+        story: 'Разработчики, которые сравнивают API, увидят и ваш',
+        hint: `-${money(AD_COST)}, +15 шумихи`,
         apply: (s) => {
           spend(s, 'overhead', AD_COST);
           addHype(s, 'player', 15);
@@ -290,6 +303,7 @@ export const EVENTS: EventDef[] = [
       },
       {
         label: 'Отказаться от рекламы',
+        story: 'Лаборатория будет держаться на качестве моделей, а не на рекламе',
         hint: '+3 репутации',
         apply: (s) => {
           addReputation(s, 3);
@@ -352,6 +366,12 @@ export const EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Объявить о своём чате',
+        story: (s) => {
+          const best = bestChatModel(s);
+          return best
+            ? `О чате «${best.name}» узнают на волне интереса к чат-ботам`
+            : 'Без своего чата анонс пройдёт незамеченным';
+        },
         hint: '+15 шумихи, если выпущена модель с RLHF',
         apply: (s) => {
           if (bestChatModel(s) !== null) addHype(s, 'player', 15);
@@ -359,6 +379,7 @@ export const EVENTS: EventDef[] = [
       },
       {
         label: 'Ждать',
+        story: 'Волна интереса к чат-ботам пройдёт мимо лаборатории',
         hint: 'без изменений',
         apply: () => {},
       },
@@ -385,6 +406,7 @@ export const EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Арендовать через посредников',
+        story: 'Карт будет сколько нужно, но заметно дороже',
         hint: 'лимит аренды возвращается к норме, цена аренды ×1,6 вместо ×1,2 до 31.03.2024',
         apply: (s) => {
           s.modifiers = s.modifiers.filter((m) => m.id !== 'gpu-shortage-cap');
@@ -393,7 +415,8 @@ export const EVENTS: EventDef[] = [
       },
       {
         label: 'Ждать',
-        hint: 'лимит аренды −50 %, цена аренды +20 % до 31.03.2024',
+        story: 'Карт станет вдвое меньше, пока дефицит не кончится',
+        hint: 'лимит аренды -50 %, цена аренды +20 % до 31.03.2024',
         apply: () => {},
       },
     ],
@@ -449,6 +472,7 @@ export const EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Принять план совета',
+        story: 'Громкие анонсы поднимут шумиху, следующий раунд пройдёт по сниженной оценке',
         hint: `+${BOARD_PLAN_HYPE} шумихи, оценка в следующем раунде ×${String(BOARD_PLAN_VALUATION_MULT).replace('.', ',')}`,
         apply: (s) => {
           addHype(s, 'player', BOARD_PLAN_HYPE);
@@ -457,13 +481,15 @@ export const EVENTS: EventDef[] = [
       },
       {
         label: 'Отстоять свой план',
-        hint: `−${Math.abs(BOARD_DEFEND_REP)} репутации`,
+        story: 'Совет уступит, но слухи о конфликте попадут в прессу',
+        hint: `-${Math.abs(BOARD_DEFEND_REP)} репутации`,
         apply: (s) => {
           addReputation(s, BOARD_DEFEND_REP);
         },
       },
       {
         label: `Выкупить ${Math.round(BOARD_BUYBACK_SHARE * 100)} % компании`,
+        story: 'Контроль вернётся к основателю, деньги уйдут инвесторам',
         hint:
           `деньги по оценке на день выкупа с надбавкой ${Math.round((BOARD_BUYBACK_PREMIUM - 1) * 100)} %, ` +
           `доля основателя +${Math.round(BOARD_BUYBACK_SHARE * 100)} п.п.`,
@@ -522,6 +548,7 @@ export const EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Вернуться к чекпоинту',
+        story: 'Часть работы придётся повторить, зато модель выйдет в полную силу',
         hint: `откат на ${Math.round(FAIL_ROLLBACK * 100)} % всего объёма`,
         apply: (s) => {
           applyFailChoice(s, 'rollback');
@@ -529,6 +556,7 @@ export const EVENTS: EventDef[] = [
       },
       {
         label: 'Продолжить',
+        story: 'Срок не сдвинется, но модель выйдет слабее',
         hint: `модель выйдет на ${FAIL_CONTINUE_PENALTY} ${pointsWord(FAIL_CONTINUE_PENALTY)} слабее`,
         apply: (s) => {
           applyFailChoice(s, 'continue');

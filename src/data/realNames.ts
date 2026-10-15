@@ -83,6 +83,14 @@ export const REAL_NAME_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['Previow', 'Preview'],
   ['Mino', 'mini'],
   ['q1', 'o1'],
+
+  // Исторические события (data/historyEvents.ts)
+  ['AlfaGo', 'AlphaGo'],
+  ['AlfaFold', 'AlphaFold'],
+  ['LLaMo', 'LLaMA'],
+  ['Soru', 'Sora'],
+  ['DALL-I', 'DALL-E'],
+  ['Stabil Diffuzion', 'Stable Diffusion'],
 ];
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

@@ -5,6 +5,7 @@
 // constants.ts (без TDZ); в vitest (vite-node) она готова, только если импорт constants завершён до входа в цикл.
 import { CHOICE_DAYS, FOREVER } from './constants';
 import { EVENTS, findEvent } from '../data/events';
+import type { EventChoiceDef, EventDef } from '../data/events';
 import { finishRollLog, hypeText, repText, startRollLog, sumText } from '../data/eventKit';
 import { dateToDay } from './time';
 import type { GameState, Mail, MailChoice, Modifier, ModifierKind, Result } from './types';
@@ -74,6 +75,16 @@ export function pruneModifiers(s: GameState): void {
   s.modifiers = s.modifiers.filter((m) => m.untilDay >= s.day);
 }
 
+/** Варианты письма на день отправки: подпись, числа (hint или hintFn) и последствие словами (story). */
+export function mailChoices(s: GameState, def: EventDef): MailChoice[] | undefined {
+  return def.choices?.map((c) => {
+    const choice: MailChoice = { label: c.label, hint: c.hintFn ? c.hintFn(s) : c.hint };
+    const story = typeof c.story === 'function' ? c.story(s) : c.story;
+    if (story) choice.story = story;
+    return choice;
+  });
+}
+
 /** Запустить событие по id (EVENTS или письма соперников): письмо, эффект onFire, выбор (если есть). */
 export function triggerEvent(s: GameState, id: string): void {
   const def = findEvent(id);
@@ -87,7 +98,7 @@ export function triggerEvent(s: GameState, id: string): void {
   const added = addMail(s, {
     ...mail,
     eventId: def.choices ? id : undefined,
-    choices: def.choices?.map((c) => ({ label: c.label, hint: c.hintFn ? c.hintFn(s) : c.hint })),
+    choices: mailChoices(s, def),
   });
   if (def.choices) {
     added.replyByDay = s.day + (def.choiceDays ?? CHOICE_DAYS);
@@ -166,6 +177,13 @@ function changesText(before: { cash: number; rep: number; hype: number }, s: Gam
   return parts.length > 0 ? parts.join(', ') : 'без последствий';
 }
 
+/** «Журналисты раскопали утечку (-8 репутации, -15 шумихи)»; без слов - только числа, как раньше. */
+function outcomeText(luck: EventChoiceDef['luck'], lucky: boolean, changes: string): string {
+  if (!luck) return changes;
+  const words = lucky ? luck.good : luck.bad;
+  return changes === 'без последствий' ? words : `${words} (${changes})`;
+}
+
 export function applyChoice(s: GameState, mailId: string, idx: number): Result {
   const mail = s.mail.find((m) => m.id === mailId);
   if (!mail || !mail.choices || !mail.eventId) return { ok: false, error: 'Письмо без выбора' };
@@ -181,7 +199,7 @@ export function applyChoice(s: GameState, mailId: string, idx: number): Result {
     choice.apply(s);
   } finally {
     const luck = finishRollLog();
-    if (luck) mail.outcome = { lucky: luck.lucky, text: changesText(before, s) };
+    if (luck) mail.outcome = { lucky: luck.lucky, text: outcomeText(choice.luck, luck.lucky, changesText(before, s)) };
   }
   return { ok: true };
 }

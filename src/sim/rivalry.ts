@@ -89,7 +89,7 @@ import { RIVAL_MODELS } from '../data/rivalModels';
 import { RIVAL_REACTIVE } from '../data/rivalReactive';
 import type { ReactiveTemplate } from '../data/rivalReactive';
 import { ALGO_HISTORY_START, ALGO_LEVEL_DAYS, CHOICE_DAYS, FOREVER, MARKET_MAX_AGE_DAYS, OVERHEAD_MONTHLY } from './constants';
-import { addMail, addModifier, modValue, pendingChoice } from './events';
+import { addMail, addModifier, mailChoices, modValue, pendingChoice } from './events';
 import { spend } from './finance';
 import { bestElo, marketArenaRank } from './leaderboard';
 import { minPrice, refContext, refPrice } from './market';
@@ -1419,7 +1419,7 @@ function fireChoiceEvent(s: RivalryGame, def: EventDef): void {
   const added = addMail(s, {
     ...mail,
     eventId: def.id,
-    choices: choices.map((c) => ({ label: c.label, hint: c.hintFn ? c.hintFn(s) : c.hint })),
+    choices: mailChoices(s, def) ?? [],
     important: true,
   });
   added.replyByDay = s.day + (def.choiceDays ?? CHOICE_DAYS);
@@ -1603,19 +1603,21 @@ const HYPE_EVENT: EventDef = {
     return {
       kind: 'rival',
       title: `${lab} запустила рекламную кампанию`,
-      body: `${lab} закупила рекламу и выступает с громкими анонсами: её шумиха выросла. Ответная кампания стоит ${fmtMoney(cost)} и даёт +15 шумихи.`,
+      body: `${lab} закупила рекламу и выступает с громкими анонсами: её шумиха выросла. Клиенты, которые выбирают модель, видят рекламу ${lab} чаще вашей. Ответная кампания стоит ${fmtMoney(cost)}.`,
     };
   },
   choices: [
     {
       label: 'Ответная кампания',
-      hint: 'стоимость указана в письме, +15 шумихи',
+      story: 'Своя реклама вернёт внимание к вашим моделям',
+      hint: '',
+      hintFn: (s) => `-${fmtMoney(HYPE_CAMPAIGN_COST * yearMult(s.day))}, +15 шумихи`,
       apply: (s) => {
         spend(s, 'overhead', HYPE_CAMPAIGN_COST * yearMult(s.day));
         s.hype.player = Math.min(100, s.hype.player + 15);
       },
     },
-    { label: 'Не отвечать', hint: 'без изменений', apply: () => {} },
+    { label: 'Не отвечать', story: 'Кампания соперника пройдёт без ответа', hint: 'без изменений', apply: () => {} },
   ],
 };
 
@@ -1634,13 +1636,14 @@ const AUDIT_EVENT: EventDef = {
       title: `${lab} сомневается в баллах модели «${name}»`,
       body:
         `Исследователи ${lab} проверили «${name}» на свежих вопросах: на целевых бенчмарках баллы завышены примерно на ${gap} п.п. ` +
-        'Можно опубликовать честные баллы, снять модель с продажи или отрицать. Отрицание удваивает шанс разоблачения на 180 дней, а позднее разоблачение стоит ещё 20 репутации.',
+        'Статью о проверке они готовят к публикации.',
     };
   },
   choices: [
     {
       label: 'Опубликовать честные баллы',
-      hint: 'модель разоблачена, −5 репутации, шумиха −20 %',
+      story: 'Модель признают подогнанной, но скандала не будет',
+      hint: 'модель разоблачена, -5 репутации, шумиха -20 %',
       apply: (s) => {
         const m = choiceModel(s);
         if (m) m.exposed = true;
@@ -1650,7 +1653,8 @@ const AUDIT_EVENT: EventDef = {
     },
     {
       label: 'Снять с продажи',
-      hint: 'модель снята с API, −10 шумихи',
+      story: 'Модель уйдёт с рынка до конца проверки',
+      hint: 'модель снята с API, -10 шумихи',
       apply: (s) => {
         const m = choiceModel(s);
         if (m) m.onApi = false;
@@ -1659,7 +1663,8 @@ const AUDIT_EVENT: EventDef = {
     },
     {
       label: 'Отрицать',
-      hint: 'шанс разоблачения ×2 на 180 дней; если разоблачат, ещё −20 репутации',
+      story: 'Соперник продолжит проверку, позднее разоблачение ударит сильнее',
+      hint: 'шанс разоблачения ×2 на 180 дней; если разоблачат, ещё -20 репутации',
       apply: (s) => {
         const m = choiceModel(s);
         if (!m) return;
@@ -1681,19 +1686,22 @@ const POACH_EVENT: EventDef = {
     return {
       kind: 'rival',
       title: `${lab} переманивает исследователей`,
-      body: `${lab} предлагает вашим ведущим исследователям зарплаты выше рыночных. Удержать людей стоит ${fmtMoney(cost)}; иначе исследования подорожают на 25 % на 180 дней.`,
+      body: `${lab} предлагает вашим ведущим исследователям зарплаты выше рыночных. Двое уже сходили на собеседование. Удержать людей стоит ${fmtMoney(cost)}.`,
     };
   },
   choices: [
     {
       label: 'Поднять зарплаты',
-      hint: 'стоимость указана в письме (три месяца накладных расходов)',
+      story: 'Исследователи остаются, соперник уходит ни с чем',
+      hint: '',
+      hintFn: (s) => `-${fmtMoney(POACH_MONTHS * OVERHEAD_MONTHLY * yearMult(s.day))}`,
       apply: (s) => {
         spend(s, 'overhead', POACH_MONTHS * OVERHEAD_MONTHLY * yearMult(s.day));
       },
     },
     {
       label: 'Отпустить',
+      story: 'Ведущие исследователи уходят к соперникам',
       hint: 'исследования дороже на 25 % на 180 дней',
       apply: (s) => {
         addModifier(s, { id: `rival-poach-${choiceLab(s)}`, kind: 'researchCost', mult: 1.25, untilDay: s.day + 180 });

@@ -20,6 +20,12 @@ describe('toRealNames', () => {
     );
   });
 
+  it('меняет названия из исторических событий', () => {
+    expect(toRealNames('AlfaGo Zeru, AlfaFold, LLaMo 2, Soru, DALL-I 2, Stabil Diffuzion, Berd, LaMBA')).toBe(
+      'AlphaGo Zero, AlphaFold, LLaMA 2, Sora, DALL-E 2, Stable Diffusion, Bard, LaMDA',
+    );
+  });
+
   it('сначала длинные совпадения', () => {
     expect(toRealNames('Gogle DeepMynd')).toBe('Google DeepMind');
     expect(toRealNames('Gogle')).toBe('Google');

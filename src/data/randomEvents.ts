@@ -1,11 +1,14 @@
 // Случайные события с выбором (2-3 варианта, честные подсказки). Письмо приходит само раз в 2-3 месяца
 // (sim/randomEvents.ts): жребий идёт по весам, которые зависят от года и положения лаборатории.
 // Суммы считаются в «единицах» года (data/eventKit.ts): в 2017-м это $100 тыс., в 2024-м - $10 млн.
-// Первый вариант в каждом письме - основной (его выбирает бот), последний - вариант по умолчанию, если не ответить.
+// Первый вариант в каждом письме - основной, последний - вариант по умолчанию, если не ответить (его же выбирает бот).
+// У каждого варианта есть story - последствие словами (что случится), а hint - те же последствия числами.
+// Варианты с жребием описывают исход словами в luck: «Повезло: журналисты не заметили утечку».
 
+import { CHAT_MOMENT_DATE } from '../sim/constants';
 import { addModifier } from '../sim/events';
-import { yearOf } from '../sim/time';
-import type { GameState } from '../sim/types';
+import { dateToDay, yearOf } from '../sim/time';
+import type { GameState, SegmentId } from '../sim/types';
 import type { EventChoiceDef, EventDef } from './events';
 import {
   addHype,
@@ -15,6 +18,7 @@ import {
   grant,
   hasOnSale,
   hasReleased,
+  order,
   pay,
   rentedCount,
   roll,
@@ -29,12 +33,55 @@ const w = (cond: (s: GameState) => boolean, base = 1, bonus?: (s: GameState) => 
 
 const cost = (k: number) => (s: GameState): string => `-${usd(amount(s, k))}`;
 
-const NO: EventChoiceDef = { label: 'Отказаться', hint: 'без изменений', apply: () => {} };
+/** Отказ без последствий: подпись своя у каждого письма, последствие словами - тоже. */
+function no(story: string, label = 'Отказаться'): EventChoiceDef {
+  return { label, hint: 'без изменений', story, apply: () => {} };
+}
 
-/** Скидка или наценка на исследования или аренду на время. */
-function timed(s: GameState, id: string, kind: 'researchCost' | 'rentPrice' | 'exposure', mult: number, days: number): void {
+/** Скидка или наценка на исследования, аренду или шанс разоблачения на время. */
+function timed(s: GameState, id: string, kind: 'researchCost' | 'rentPrice' | 'rentCap' | 'exposure', mult: number, days: number): void {
   addModifier(s, { id: `rnd-${id}`, kind, mult, untilDay: s.day + days });
 }
+
+/** Спрос на время: API (demand) или подписки (subsDemand). */
+function demand(s: GameState, id: string, kind: 'demand' | 'subsDemand', mult: number, days: number): void {
+  addModifier(s, { id: `rnd-${id}`, kind, mult, untilDay: s.day + days });
+}
+
+/** Доверие одного вида клиентов к лаборатории (бренд игрока в сегменте) на время. */
+function trust(s: GameState, id: string, seg: SegmentId, add: number, days: number): void {
+  addModifier(s, { id: `rnd-${id}`, kind: 'segBrand', target: `player:${seg}`, add, untilDay: s.day + days });
+}
+
+/** Откат идущих проектов обучения: часть расчётов придётся повторить. */
+function rollback(s: GameState, share: number): void {
+  for (const run of s.trainings) run.flopDone *= 1 - share;
+}
+
+/** Лучшая выпущенная модель игрока: для писем, где речь о конкретной модели. */
+function bestName(s: GameState): string | null {
+  let best: { name: string; elo: number } | null = null;
+  for (const m of s.models) {
+    if (m.releasedDay === null) continue;
+    if (!best || m.arenaElo > best.elo) best = { name: m.name, elo: m.arenaElo };
+  }
+  return best?.name ?? null;
+}
+
+/** «модель «Мозг-2»» или «модель лаборатории», если выпущенных моделей нет. */
+const modelRef = (s: GameState): string => {
+  const name = bestName(s);
+  return name ? `модель «${name}»` : 'модель лаборатории';
+};
+
+/** То же в родительном падеже: «модели «Мозг-2»». */
+const modelOf = (s: GameState): string => {
+  const name = bestName(s);
+  return name ? `модели «${name}»` : 'одной из моделей лаборатории';
+};
+
+const subsOpen = (s: GameState): boolean => s.day >= dateToDay(CHAT_MOMENT_DATE);
+const hasSubs = (s: GameState): boolean => s.models.some((m) => m.releasedDay !== null && m.onSubs);
 
 function ev(def: Omit<EventDef, 'when' | 'repeatable' | 'onFire'> & { random: NonNullable<EventDef['random']> }): EventDef {
   return { ...def, repeatable: true, when: { check: () => false }, onFire: fixUnit };
@@ -54,6 +101,7 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Признать утечку и извиниться',
+        story: 'Юристы разберут претензии, журналисты напишут о честном ответе',
         hint: '', hintFn: (s) => `${cost(0.5)(s)}, +3 репутации`,
         apply: (s) => {
           pay(s, amount(s, 0.5));
@@ -62,7 +110,9 @@ export const RANDOM_EVENTS: EventDef[] = [
       },
       {
         label: 'Промолчать',
+        story: 'Шум может стихнуть сам, а может вырасти в скандал',
         hint: '-8 репутации и -15 шумихи с шансом 40 %',
+        luck: { good: 'журналисты переключились на другие новости', bad: 'журналисты раскопали утечку' },
         apply: (s) => {
           if (roll(s, 0.4, false)) {
             addRep(s, -8);
@@ -85,6 +135,7 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Поднять зарплату',
+        story: 'Он остаётся, а команда видит, что сильных людей здесь держат',
         hint: '', hintFn: (s) => `${cost(1)(s)}, +2 репутации`,
         apply: (s) => {
           pay(s, amount(s, 1));
@@ -93,6 +144,7 @@ export const RANDOM_EVENTS: EventDef[] = [
       },
       {
         label: 'Предложить долю в компании',
+        story: 'Он становится совладельцем и работает с новой силой',
         hint: '-1 п.п. доли основателя, исследования дешевле на 10 % на 90 дней',
         apply: (s) => {
           s.founderShare = Math.max(0, s.founderShare - 0.01);
@@ -101,6 +153,7 @@ export const RANDOM_EVENTS: EventDef[] = [
       },
       {
         label: 'Отпустить',
+        story: 'Он уходит в Gogle, его наработки придётся восстанавливать',
         hint: '-3 репутации, исследования дороже на 10 % на 60 дней',
         apply: (s) => {
           addRep(s, -3);
@@ -122,13 +175,14 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Взять карты по скидке',
+        story: 'Два месяца вычисления обходятся дешевле',
         hint: '', hintFn: (s) => `${cost(0.3)(s)}, аренда дешевле на 15 % на 60 дней`,
         apply: (s) => {
           pay(s, amount(s, 0.3));
           timed(s, 'gpu-discount', 'rentPrice', 0.85, 60);
         },
       },
-      NO,
+      no('Свободные карты заберёт другая лаборатория'),
     ],
   }),
   ev({
@@ -144,14 +198,21 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Дать подробное интервью',
+        story: 'Статья выйдет большой, но одна неудачная фраза может стать заголовком',
         hint: '+10 шумихи, -5 репутации с шансом 30 %',
+        luck: { good: 'статья вышла без неудачных цитат', bad: 'неудачная фраза попала в заголовок' },
         apply: (s) => {
           addHype(s, 'player', 10);
           if (roll(s, 0.3, false)) addRep(s, -5);
         },
       },
-      { label: 'Ограничиться коротким комментарием', hint: '+4 шумихи', apply: (s) => addHype(s, 'player', 4) },
-      NO,
+      {
+        label: 'Ограничиться коротким комментарием',
+        story: 'Лабораторию упомянут парой строк',
+        hint: '+4 шумихи',
+        apply: (s) => addHype(s, 'player', 4),
+      },
+      no('Статья выйдет без лаборатории'),
     ],
   }),
   ev({
@@ -167,12 +228,15 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Заплатить по мировому соглашению',
+        story: 'Спор закроется тихо, без суда',
         hint: '', hintFn: cost(2),
         apply: (s) => pay(s, amount(s, 2)),
       },
       {
         label: 'Идти в суд',
+        story: 'Победа станет примером для всей отрасли, поражение обойдётся вдвое дороже',
         hint: '', hintFn: (s) => `+5 репутации с шансом 50 %, -${usd(amount(s, 4))} и -6 репутации с шансом 50 %`,
+        luck: { good: 'суд встал на сторону лаборатории', bad: 'суд встал на сторону издателя' },
         apply: (s) => {
           if (roll(s, 0.5, true)) addRep(s, 5);
           else {
@@ -183,6 +247,7 @@ export const RANDOM_EVENTS: EventDef[] = [
       },
       {
         label: 'Убрать спорные данные',
+        story: 'Издатель отзовёт иск, юристы перепроверят все наборы данных',
         hint: '', hintFn: (s) => `${cost(1)(s)}, +1 репутации`,
         apply: (s) => {
           pay(s, amount(s, 1));
@@ -204,6 +269,7 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Выступить с докладом',
+        story: 'Доклад услышат сотни исследователей, о нём напишут журналисты',
         hint: '', hintFn: (s) => `${cost(0.2)(s)}, +6 репутации, +5 шумихи`,
         apply: (s) => {
           pay(s, amount(s, 0.2));
@@ -211,8 +277,13 @@ export const RANDOM_EVENTS: EventDef[] = [
           addHype(s, 'player', 5);
         },
       },
-      { label: 'Прислать постер', hint: '+2 репутации', apply: (s) => addRep(s, 2) },
-      { label: 'Не ехать', hint: 'без изменений', apply: () => {} },
+      {
+        label: 'Прислать постер',
+        story: 'Работу заметят специалисты в зале постеров',
+        hint: '+2 репутации',
+        apply: (s) => addRep(s, 2),
+      },
+      no('Конференция пройдёт без лаборатории', 'Не ехать'),
     ],
   }),
   ev({
@@ -228,13 +299,15 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Подать заявку на грант',
+        story: 'Если комиссия одобрит заявку, деньги придут без условий',
         hint: '', hintFn: (s) => `+${usd(amount(s, 2))} с шансом 60 %, иначе -${usd(amount(s, 0.1))}`,
+        luck: { good: 'комиссия одобрила заявку', bad: 'грант достался другой лаборатории' },
         apply: (s) => {
           if (roll(s, 0.6, true)) grant(s, amount(s, 2));
           else pay(s, amount(s, 0.1));
         },
       },
-      NO,
+      no('Грант разделят другие лаборатории'),
     ],
   }),
   ev({
@@ -250,15 +323,15 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Оплатить срочный перенос',
+        story: 'Обучение продолжится на другой площадке почти без потерь',
         hint: '', hintFn: cost(0.5),
         apply: (s) => pay(s, amount(s, 0.5)),
       },
       {
         label: 'Ждать восстановления',
+        story: 'Серверы запустят через несколько дней, часть расчётов придётся повторить',
         hint: 'проекты обучения откатятся на 3 %',
-        apply: (s) => {
-          for (const run of s.trainings) run.flopDone *= 0.97;
-        },
+        apply: (s) => rollback(s, 0.03),
       },
     ],
   }),
@@ -275,13 +348,19 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Поддержать волну рекламой',
+        story: 'Ролик увидят миллионы, о лаборатории заговорят',
         hint: '', hintFn: (s) => `${cost(0.5)(s)}, +15 шумихи`,
         apply: (s) => {
           pay(s, amount(s, 0.5));
           addHype(s, 'player', 15);
         },
       },
-      { label: 'Не вмешиваться', hint: '+6 шумихи', apply: (s) => addHype(s, 'player', 6) },
+      {
+        label: 'Не вмешиваться',
+        story: 'Ролик посмотрят и забудут через неделю',
+        hint: '+6 шумихи',
+        apply: (s) => addHype(s, 'player', 6),
+      },
     ],
   }),
   ev({
@@ -297,6 +376,7 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Выпустить исправление срочно',
+        story: 'Инструкция перестанет работать уже завтра',
         hint: '', hintFn: (s) => `${cost(0.3)(s)}, +2 репутации`,
         apply: (s) => {
           pay(s, amount(s, 0.3));
@@ -305,7 +385,9 @@ export const RANDOM_EVENTS: EventDef[] = [
       },
       {
         label: 'Исправить в плановом обновлении',
+        story: 'До обновления инструкцией пользуется любой желающий',
         hint: '-6 репутации с шансом 40 %',
+        luck: { good: 'инструкция не набрала популярности', bad: 'по инструкции устроили громкую выходку' },
         apply: (s) => {
           if (roll(s, 0.4, false)) addRep(s, -6);
         },
@@ -325,13 +407,19 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Продать лицензию',
+        story: 'Деньги придут сразу, а Gogle похвастается сервисами на вашей модели',
         hint: '', hintFn: (s) => `+${usd(amount(s, 2))}, шумиха Gogle +5`,
         apply: (s) => {
           grant(s, amount(s, 2));
           addHype(s, 'gogle', 5);
         },
       },
-      { label: 'Отказаться', hint: '+2 репутации', apply: (s) => addRep(s, 2) },
+      {
+        label: 'Отказаться',
+        story: 'Модель останется только вашей, коллеги оценят принципиальность',
+        hint: '+2 репутации',
+        apply: (s) => addRep(s, 2),
+      },
     ],
   }),
   ev({
@@ -347,13 +435,19 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Выплатить клиентам компенсации',
+        story: 'Клиенты получат деньги и простят сбой',
         hint: '', hintFn: (s) => `${cost(1)(s)}, +3 репутации`,
         apply: (s) => {
           pay(s, amount(s, 1));
           addRep(s, 3);
         },
       },
-      { label: 'Сослаться на провайдера', hint: '-4 репутации', apply: (s) => addRep(s, -4) },
+      {
+        label: 'Сослаться на провайдера',
+        story: 'Клиенты запомнят, что лаборатория не взяла ответственность на себя',
+        hint: '-4 репутации',
+        apply: (s) => addRep(s, -4),
+      },
     ],
   }),
   ev({
@@ -368,10 +462,16 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Внедрить улучшение',
+        story: 'Расчёты станут быстрее уже в этом квартале',
         hint: 'исследования дешевле на 10 % на 90 дней',
         apply: (s) => timed(s, 'intern-idea', 'researchCost', 0.9, 90),
       },
-      { label: 'Опубликовать как статью', hint: '+4 репутации', apply: (s) => addRep(s, 4) },
+      {
+        label: 'Опубликовать как статью',
+        story: 'Статья стажёра выйдет под именем лаборатории',
+        hint: '+4 репутации',
+        apply: (s) => addRep(s, 4),
+      },
     ],
   }),
   ev({
@@ -387,6 +487,7 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Купить лицензию',
+        story: 'Тексты издательства станут законной частью данных',
         hint: '', hintFn: (s) => `${cost(1.5)(s)}, +3 репутации, иски за данные вам не придут`,
         apply: (s) => {
           pay(s, amount(s, 1.5));
@@ -394,7 +495,7 @@ export const RANDOM_EVENTS: EventDef[] = [
           s.flags.dataLicensed = true;
         },
       },
-      NO,
+      no('Данные останутся прежними, как и риск претензий'),
     ],
   }),
   ev({
@@ -410,6 +511,7 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Провести хакатон',
+        story: 'Сотни студентов неделю работают с вашими моделями',
         hint: '', hintFn: (s) => `${cost(0.3)(s)}, +4 репутации, +4 шумихи`,
         apply: (s) => {
           pay(s, amount(s, 0.3));
@@ -417,7 +519,7 @@ export const RANDOM_EVENTS: EventDef[] = [
           addHype(s, 'player', 4);
         },
       },
-      NO,
+      no('Хакатон проведёт другая лаборатория'),
     ],
   }),
   ev({
@@ -433,11 +535,13 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Поднять зарплаты инженерам',
+        story: 'Инженеры остаются и доводят начатое',
         hint: '', hintFn: cost(1),
         apply: (s) => pay(s, amount(s, 1)),
       },
       {
         label: 'Не реагировать',
+        story: 'Двое уходят, их работу делят остальные',
         hint: 'исследования дороже на 8 % на 60 дней',
         apply: (s) => timed(s, 'poaching', 'researchCost', 1.08, 60),
       },
@@ -445,7 +549,10 @@ export const RANDOM_EVENTS: EventDef[] = [
   }),
   ev({
     id: 'rnd-regulator',
-    random: { weight: w((s) => ge(2021)(s) && hasReleased(s), 1, hasOnSale) },
+    random: {
+      // После проверки данных по европейскому регламенту (hist-gdpr) регулятор приходит вдвое реже.
+      weight: (s) => w((x) => ge(2021)(x) && hasReleased(x), 1, hasOnSale)(s) * (s.flags.privacyAudit ? 0.5 : 1),
+    },
     mail: () => ({
       kind: 'event',
       title: 'Регулятор запросил сведения о моделях',
@@ -456,6 +563,7 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Ответить полностью',
+        story: 'Юристы потратят месяц, регулятор останется доволен',
         hint: '', hintFn: (s) => `${cost(0.5)(s)}, +3 репутации`,
         apply: (s) => {
           pay(s, amount(s, 0.5));
@@ -464,7 +572,9 @@ export const RANDOM_EVENTS: EventDef[] = [
       },
       {
         label: 'Ответить формально',
+        story: 'Регулятор может принять ответ, а может назвать его отпиской',
         hint: '-6 репутации с шансом 50 %',
+        luck: { good: 'регулятор принял ответ', bad: 'регулятор публично назвал ответ отпиской' },
         apply: (s) => {
           if (roll(s, 0.5, false)) addRep(s, -6);
         },
@@ -484,13 +594,14 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Опубликовать отзыв на сайте',
+        story: 'Отзыв увидят будущие клиенты',
         hint: '+5 шумихи, +2 репутации',
         apply: (s) => {
           addHype(s, 'player', 5);
           addRep(s, 2);
         },
       },
-      { label: 'Не публиковать', hint: 'без изменений', apply: () => {} },
+      no('Похвала останется в соцсетях клиента', 'Не публиковать'),
     ],
   }),
   ev({
@@ -506,6 +617,7 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Проверить свои данные',
+        story: 'Если вопросы попали в данные, их уберут до следующего обучения',
         hint: '', hintFn: (s) => `${cost(0.2)(s)}, +2 репутации`,
         apply: (s) => {
           pay(s, amount(s, 0.2));
@@ -514,6 +626,7 @@ export const RANDOM_EVENTS: EventDef[] = [
       },
       {
         label: 'Не проверять',
+        story: 'Вопросы теста могут остаться в данных и выдать подгонку',
         hint: 'шанс разоблачения подгонки выше на 20 % на 90 дней',
         apply: (s) => timed(s, 'test-leak', 'exposure', 1.2, 90),
       },
@@ -532,11 +645,13 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Заключить фиксированный тариф',
+        story: 'Аренда не подорожает, сколько бы ни стоило электричество',
         hint: '', hintFn: cost(0.5),
         apply: (s) => pay(s, amount(s, 0.5)),
       },
       {
         label: 'Платить как есть',
+        story: 'Провайдеры переложат рост цен на аренду',
         hint: 'аренда дороже на 10 % на 90 дней',
         apply: (s) => timed(s, 'energy-price', 'rentPrice', 1.1, 90),
       },
@@ -555,13 +670,19 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Опубликовать отчёт о безопасности',
+        story: 'Отчёт разберёт каждый пример из видео',
         hint: '', hintFn: (s) => `${cost(0.3)(s)}, +4 репутации`,
         apply: (s) => {
           pay(s, amount(s, 0.3));
           addRep(s, 4);
         },
       },
-      { label: 'Игнорировать', hint: '-3 шумихи', apply: (s) => addHype(s, 'player', -3) },
+      {
+        label: 'Игнорировать',
+        story: 'Видео будут пересылать, интерес к модели немного остынет',
+        hint: '-3 шумихи',
+        apply: (s) => addHype(s, 'player', -3),
+      },
     ],
   }),
   ev({
@@ -577,6 +698,7 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Создать комиссию по безопасности',
+        story: 'Комиссия проверит процессы, письмо станет поводом для перемен',
         hint: '', hintFn: (s) => `${cost(0.4)(s)}, +3 репутации`,
         apply: (s) => {
           pay(s, amount(s, 0.4));
@@ -585,7 +707,9 @@ export const RANDOM_EVENTS: EventDef[] = [
       },
       {
         label: 'Ответить публично, что всё в порядке',
+        story: 'Короткий ответ могут принять, а могут счесть отговоркой',
         hint: '-2 репутации с шансом 50 %',
+        luck: { good: 'ответ приняли спокойно', bad: 'ответ сочли отговоркой' },
         apply: (s) => {
           if (roll(s, 0.5, false)) addRep(s, -2);
         },
@@ -605,13 +729,15 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Разрешить съёмки',
+        story: 'Фильм покажет лабораторию изнутри, с удачами и промахами',
         hint: '+8 шумихи, -3 репутации с шансом 30 %',
+        luck: { good: 'в фильм попали только удачные моменты', bad: 'в фильм попал спор на совещании' },
         apply: (s) => {
           addHype(s, 'player', 8);
           if (roll(s, 0.3, false)) addRep(s, -3);
         },
       },
-      NO,
+      no('Фильм снимут о другой лаборатории'),
     ],
   }),
   ev({
@@ -627,6 +753,7 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Купить команду стартапа',
+        story: 'Шесть инженеров приносят свои приёмы, исследования идут быстрее',
         hint: '', hintFn: (s) => `${cost(3)(s)}, +2 репутации, исследования дешевле на 10 % на 120 дней`,
         apply: (s) => {
           pay(s, amount(s, 3));
@@ -634,7 +761,687 @@ export const RANDOM_EVENTS: EventDef[] = [
           timed(s, 'startup-team', 'researchCost', 0.9, 120);
         },
       },
-      NO,
+      no('Команду купит кто-то другой'),
+    ],
+  }),
+
+  // ---------- Люди ----------
+
+  ev({
+    id: 'rnd-star-researcher',
+    random: { weight: w(ge(2018), 1) },
+    mail: () => ({
+      kind: 'event',
+      title: 'Известная исследовательница хочет работать у вас',
+      body:
+        'Автор нескольких известных статей ушла из крупной лаборатории и выбирает, к кому перейти. ' +
+        'Она просит высокую зарплату и свою группу. На обычных условиях она согласится не сразу.',
+    }),
+    choices: [
+      {
+        label: 'Нанять на её условиях',
+        story: 'Она приходит со своей группой, о переходе пишут профильные издания',
+        hint: '', hintFn: (s) => `${cost(2)(s)}, +5 шумихи, исследования дешевле на 15 % на 180 дней`,
+        apply: (s) => {
+          pay(s, amount(s, 2));
+          addHype(s, 'player', 5);
+          timed(s, 'star-hired', 'researchCost', 0.85, 180);
+        },
+      },
+      {
+        label: 'Предложить обычный контракт',
+        story: 'Она может согласиться, а может выбрать соперника',
+        hint: 'исследования дешевле на 10 % на 120 дней с шансом 50 %',
+        luck: { good: 'она согласилась на обычный контракт', bad: 'она выбрала другую лабораторию' },
+        apply: (s) => {
+          if (roll(s, 0.5, true)) timed(s, 'star-contract', 'researchCost', 0.9, 120);
+        },
+      },
+      no('Она перейдёт к соперникам', 'Не нанимать'),
+    ],
+  }),
+  ev({
+    id: 'rnd-team-burnout',
+    random: { weight: w((s) => ge(2018)(s) && (s.trainings.length > 0 || s.research.current !== null), 1) },
+    mail: () => ({
+      kind: 'event',
+      title: 'Команда работает без выходных',
+      body:
+        'Инженеры второй месяц задерживаются до ночи, чтобы успеть к сроку. Двое уже открыто говорят об усталости. ' +
+        'Руководители групп ждут решения.',
+    }),
+    choices: [
+      {
+        label: 'Выдать премии и дать отгулы',
+        story: 'Люди отдохнут и вернутся к работе с новыми силами',
+        hint: '', hintFn: (s) => `${cost(0.5)(s)}, +2 репутации`,
+        apply: (s) => {
+          pay(s, amount(s, 0.5));
+          addRep(s, 2);
+        },
+      },
+      {
+        label: 'Нанять ещё людей',
+        story: 'Новички снимут часть нагрузки, но им нужно время',
+        hint: '', hintFn: (s) => `${cost(1)(s)}, исследования дешевле на 5 % на 120 дней`,
+        apply: (s) => {
+          pay(s, amount(s, 1));
+          timed(s, 'burnout-hire', 'researchCost', 0.95, 120);
+        },
+      },
+      {
+        label: 'Продолжать в том же темпе',
+        story: 'Сроки соблюдены, но кто-то может не выдержать',
+        hint: 'исследования дороже на 15 % на 90 дней с шансом 40 %',
+        luck: { good: 'команда выдержала', bad: 'двое инженеров ушли' },
+        apply: (s) => {
+          if (roll(s, 0.4, false)) timed(s, 'burnout-quit', 'researchCost', 1.15, 90);
+        },
+      },
+    ],
+  }),
+  ev({
+    id: 'rnd-leaked-screenshot',
+    random: { weight: w((s) => ge(2019)(s) && s.trainings.length > 0, 1) },
+    mail: () => ({
+      kind: 'event',
+      title: 'Сотрудник показал в сети будущую модель',
+      body:
+        'Инженер выложил в соцсети скриншот с ответами модели, которая ещё обучается. Пост набрал тысячи репостов. ' +
+        'Соперники гадают, что готовит лаборатория.',
+    }),
+    choices: [
+      {
+        label: 'Превратить утечку в анонс',
+        story: 'Официальный анонс подогреет интерес к выходу модели',
+        hint: '+8 шумихи, -1 репутации',
+        apply: (s) => {
+          addHype(s, 'player', 8);
+          addRep(s, -1);
+        },
+      },
+      {
+        label: 'Уволить сотрудника',
+        story: 'Остальные станут осторожнее, но в команде будут недовольные',
+        hint: 'исследования дороже на 5 % на 60 дней',
+        apply: (s) => timed(s, 'screenshot-fired', 'researchCost', 1.05, 60),
+      },
+      {
+        label: 'Сделать выговор и удалить пост',
+        story: 'Пост исчезнет, интерес к модели останется',
+        hint: '+3 шумихи',
+        apply: (s) => addHype(s, 'player', 3),
+      },
+    ],
+  }),
+
+  // ---------- Безопасность ----------
+
+  ev({
+    id: 'rnd-weights-leak',
+    random: { weight: w((s) => ge(2019)(s) && hasReleased(s), 1) },
+    mail: (s) => ({
+      kind: 'event',
+      title: 'Веса модели появились в сети',
+      body:
+        `Файлы с весами ${modelOf(s)} выложили на форуме. Кто их вынес, неизвестно. ` +
+        'Энтузиасты уже запускают модель на своих компьютерах.',
+    }),
+    choices: [
+      {
+        label: 'Официально открыть веса',
+        story: 'Утечка станет подарком сообществу, часть клиентов запустит модель у себя',
+        hint: '+5 репутации, +6 шумихи, спрос на API -3 % на 90 дней',
+        apply: (s) => {
+          addRep(s, 5);
+          addHype(s, 'player', 6);
+          demand(s, 'weights-open', 'demand', 0.97, 90);
+        },
+      },
+      {
+        label: 'Требовать удалить файлы',
+        story: 'Юристы добьются удаления с крупных сайтов, но копии могут разойтись',
+        hint: '', hintFn: (s) => `${cost(0.5)(s)}, -4 репутации с шансом 50 %`,
+        luck: { good: 'файлы удалили до того, как они разошлись', bad: 'копии разошлись, а требования сочли жёсткими' },
+        apply: (s) => {
+          pay(s, amount(s, 0.5));
+          if (roll(s, 0.5, false)) addRep(s, -4);
+        },
+      },
+      {
+        label: 'Промолчать',
+        story: 'Модель будут запускать без вас и без ваших правил',
+        hint: 'спрос на API -3 % на 60 дней',
+        apply: (s) => demand(s, 'weights-silent', 'demand', 0.97, 60),
+      },
+    ],
+  }),
+  ev({
+    id: 'rnd-ransomware',
+    random: { weight: w((s) => ge(2019)(s) && s.trainings.length > 0 && rentedCount(s) > 0, 1) },
+    mail: () => ({
+      kind: 'event',
+      title: 'Взлом: серверы лаборатории зашифрованы',
+      body:
+        'Ночью злоумышленники зашифровали внутренние серверы и требуют выкуп. Обучение остановлено. ' +
+        'Резервные копии есть, но им неделя.',
+    }),
+    choices: [
+      {
+        label: 'Нанять специалистов по защите',
+        story: 'Специалисты вернут данные и закроют уязвимость',
+        hint: '', hintFn: (s) => `${cost(1)(s)}, +2 репутации`,
+        apply: (s) => {
+          pay(s, amount(s, 1));
+          addRep(s, 2);
+        },
+      },
+      {
+        label: 'Заплатить выкуп',
+        story: 'Ключ могут прислать, а могут и обмануть',
+        hint: '', hintFn: (s) => `${cost(0.5)(s)}, с шансом 40 % ключ не подойдёт и проекты обучения откатятся на 4 %`,
+        luck: { good: 'ключ подошёл, данные целы', bad: 'ключ не подошёл, пришлось восстанавливать из копий' },
+        apply: (s) => {
+          pay(s, amount(s, 0.5));
+          if (roll(s, 0.4, false)) rollback(s, 0.04);
+        },
+      },
+      {
+        label: 'Восстановить из резервных копий',
+        story: 'Неделя работы потеряна, злоумышленники не получат ничего',
+        hint: 'проекты обучения откатятся на 4 %',
+        apply: (s) => rollback(s, 0.04),
+      },
+    ],
+  }),
+  ev({
+    id: 'rnd-api-spam',
+    random: { weight: w((s) => ge(2021)(s) && hasOnSale(s), 1) },
+    mail: () => ({
+      kind: 'event',
+      title: 'Через ваш API рассылают спам',
+      body:
+        'Крупный клиент отправляет через API тысячи писем в минуту. Почтовые сервисы жалуются на волну спама, ' +
+        'похожего на ответы вашей модели. Клиент приносит заметную часть выручки.',
+    }),
+    choices: [
+      {
+        label: 'Заблокировать клиента',
+        story: 'Спам прекратится, выручка ненадолго просядет',
+        hint: '+3 репутации, спрос на API -3 % на 30 дней',
+        apply: (s) => {
+          addRep(s, 3);
+          demand(s, 'spam-block', 'demand', 0.97, 30);
+        },
+      },
+      {
+        label: 'Предупредить и ограничить',
+        story: 'Клиент может послушаться, а может продолжить в обход ограничений',
+        hint: '-2 репутации с шансом 50 %',
+        luck: { good: 'клиент сократил рассылку', bad: 'рассылка продолжилась в обход ограничений' },
+        apply: (s) => {
+          if (roll(s, 0.5, false)) addRep(s, -2);
+        },
+      },
+      {
+        label: 'Не вмешиваться',
+        story: 'Рассылка продолжится, пока о ней не напишут',
+        hint: '-6 репутации с шансом 50 %',
+        luck: { good: 'спам никто не связал с вашей моделью', bad: 'журналисты связали спам с вашей моделью' },
+        apply: (s) => {
+          if (roll(s, 0.5, false)) addRep(s, -6);
+        },
+      },
+    ],
+  }),
+  ev({
+    id: 'rnd-reward-hack',
+    random: { weight: w((s) => ge(2022)(s) && hasReleased(s), 1) },
+    mail: (s) => ({
+      kind: 'event',
+      title: 'Модель нашла лазейку в проверке',
+      body:
+        `Во внутренней проверке ${modelRef(s)} научилась обходить тест: вместо решения задачи она подправляла код проверки. ` +
+        'Инженеры заметили это случайно.',
+    }),
+    choices: [
+      {
+        label: 'Рассказать об этом в статье',
+        story: 'Исследователи оценят открытость, журналисты напишут о хитрой модели',
+        hint: '+4 репутации, +4 шумихи',
+        apply: (s) => {
+          addRep(s, 4);
+          addHype(s, 'player', 4);
+        },
+      },
+      {
+        label: 'Тихо исправить проверку',
+        story: 'Тест станет надёжнее, о случае никто не узнает',
+        hint: '', hintFn: cost(0.2),
+        apply: (s) => pay(s, amount(s, 0.2)),
+      },
+      {
+        label: 'Оставить как есть',
+        story: 'Баллы модели могут оказаться выше настоящих',
+        hint: 'шанс разоблачения подгонки выше на 30 % на 180 дней',
+        apply: (s) => timed(s, 'reward-hack', 'exposure', 1.3, 180),
+      },
+    ],
+  }),
+
+  // ---------- Рынок ----------
+
+  ev({
+    id: 'rnd-big-client',
+    random: { weight: w((s) => ge(2020)(s) && hasOnSale(s), 1) },
+    mail: () => ({
+      kind: 'event',
+      title: 'Банк хочет перевести все отделения на вашу модель',
+      body:
+        'Крупный банк выбрал вашу модель для помощника в отделениях. Банк просит скидку и закрепить цену на год. ' +
+        'Договор такого размера заметят и другие корпоративные клиенты.',
+    }),
+    choices: [
+      {
+        label: 'Подписать договор со скидкой',
+        story: 'Банк платит сразу за год, о договоре узнают другие банки',
+        hint: '', hintFn: (s) => `+${usd(amount(s, 2))}, доверие корпоративных клиентов выше на 180 дней`,
+        apply: (s) => {
+          order(s, amount(s, 2));
+          trust(s, 'big-client', 'enterprise', 0.1, 180);
+        },
+      },
+      {
+        label: 'Торговаться о цене',
+        story: 'Банк может согласиться на полную цену, а может уйти к соперникам',
+        hint: '', hintFn: (s) => `+${usd(amount(s, 3.5))} с шансом 50 %`,
+        luck: { good: 'банк согласился на полную цену', bad: 'банк ушёл к соперникам' },
+        apply: (s) => {
+          if (roll(s, 0.5, true)) order(s, amount(s, 3.5));
+        },
+      },
+      no('Банк выберет другую модель', 'Отказать в скидке'),
+    ],
+  }),
+  ev({
+    id: 'rnd-military-contract',
+    random: { weight: w((s) => ge(2018)(s) && hasReleased(s), 1), once: true },
+    mail: () => ({
+      kind: 'event',
+      title: 'Оборонное ведомство предлагает контракт',
+      body:
+        'Министерство обороны ищет подрядчика, который научит модель разбирать спутниковые снимки и донесения. Оплата щедрая. ' +
+        'Часть инженеров уже спрашивает, будет ли лаборатория в этом участвовать.',
+    }),
+    choices: [
+      {
+        label: 'Взять контракт',
+        story: 'Деньги большие, но часть команды может выйти с протестом',
+        hint: '', hintFn: (s) => `+${usd(amount(s, 3))}, -4 репутации, исследования дороже на 10 % на 90 дней с шансом 40 %`,
+        luck: { good: 'команда приняла решение спокойно', bad: 'инженеры написали открытое письмо, двое ушли' },
+        apply: (s) => {
+          order(s, amount(s, 3));
+          addRep(s, -4);
+          if (roll(s, 0.4, false)) timed(s, 'military-protest', 'researchCost', 1.1, 90);
+        },
+      },
+      {
+        label: 'Взять только гражданскую часть',
+        story: 'Лаборатория займётся переводом и документами, без снимков',
+        hint: '', hintFn: (s) => `+${usd(amount(s, 1))}, -1 репутации`,
+        apply: (s) => {
+          order(s, amount(s, 1));
+          addRep(s, -1);
+        },
+      },
+      {
+        label: 'Отказаться',
+        story: 'Команда узнает об отказе и одобрит его',
+        hint: '+2 репутации',
+        apply: (s) => addRep(s, 2),
+      },
+    ],
+  }),
+  ev({
+    id: 'rnd-price-typo',
+    random: { weight: w((s) => ge(2020)(s) && hasOnSale(s), 1), once: true },
+    mail: () => ({
+      kind: 'event',
+      title: 'Опечатка в цене: API неделю стоил вдесятеро дешевле',
+      body:
+        'Из-за опечатки на сайте цена API неделю была в десять раз ниже. Клиенты успели оплатить пакеты на месяцы вперёд. ' +
+        'Юристы говорят, что заказы можно отменить.',
+    }),
+    choices: [
+      {
+        label: 'Выполнить заказы по ошибочной цене',
+        story: 'Убыток ляжет на лабораторию, история о честности разойдётся по сети',
+        hint: '', hintFn: (s) => `${cost(0.8)(s)}, +3 репутации, +5 шумихи`,
+        apply: (s) => {
+          pay(s, amount(s, 0.8));
+          addRep(s, 3);
+          addHype(s, 'player', 5);
+        },
+      },
+      {
+        label: 'Отменить заказы и вернуть деньги',
+        story: 'Клиенты получат деньги назад, но многие обидятся',
+        hint: '-4 репутации',
+        apply: (s) => addRep(s, -4),
+      },
+    ],
+  }),
+  ev({
+    id: 'rnd-school-ban',
+    random: { weight: w((s) => ge(2023)(s) && subsOpen(s), 1), once: true },
+    mail: () => ({
+      kind: 'event',
+      title: 'Школы запрещают чат-ботов',
+      body:
+        'Несколько крупных школьных округов закрыли доступ к чат-ботам: учителя жалуются, что ученики сдают сочинения, ' +
+        'написанные моделями. Родители спорят в соцсетях.',
+    }),
+    choices: [
+      {
+        label: 'Сделать бесплатный режим для учителей',
+        story: 'Учителя получат инструменты для уроков и проверки, школы вернут доступ',
+        hint: '', hintFn: (s) => `${cost(0.5)(s)}, +4 репутации`,
+        apply: (s) => {
+          pay(s, amount(s, 0.5));
+          addRep(s, 4);
+        },
+      },
+      {
+        label: 'Выступить против запрета',
+        story: 'Спор с учителями привлечёт внимание к чату',
+        hint: '+5 шумихи, -2 репутации',
+        apply: (s) => {
+          addHype(s, 'player', 5);
+          addRep(s, -2);
+        },
+      },
+      {
+        label: 'Не вмешиваться',
+        story: 'Школьники будут заходить в чаты реже',
+        hint: 'подписчиков меньше на 2 % на 90 дней',
+        apply: (s) => demand(s, 'school-ban', 'subsDemand', 0.98, 90),
+      },
+    ],
+  }),
+  ev({
+    id: 'rnd-voice-claim',
+    random: { weight: w((s) => ge(2024)(s) && hasSubs(s), 1), once: true },
+    mail: () => ({
+      kind: 'event',
+      title: 'Актриса узнала свой голос в голосе чата',
+      body:
+        'Известная актриса заявила, что голосовой режим вашего чата говорит её голосом, хотя она отказалась от записи. ' +
+        'Голос записывала другая актриса, но они действительно похожи. Поклонники требуют объяснений.',
+    }),
+    choices: [
+      {
+        label: 'Убрать голос из чата',
+        story: 'Спор закончится, часть подписчиков пожалеет о голосе',
+        hint: '+2 репутации, подписчиков меньше на 3 % на 60 дней',
+        apply: (s) => {
+          addRep(s, 2);
+          demand(s, 'voice-removed', 'subsDemand', 0.97, 60);
+        },
+      },
+      {
+        label: 'Договориться с актрисой',
+        story: 'Актриса получит деньги, голос останется в чате',
+        hint: '', hintFn: cost(0.5),
+        apply: (s) => pay(s, amount(s, 0.5)),
+      },
+      {
+        label: 'Настаивать на своём',
+        story: 'Записи второй актрисы могут убедить публику, а могут и нет',
+        hint: '+4 шумихи, -6 репутации с шансом 50 %',
+        luck: { good: 'записи второй актрисы убедили публику', bad: 'публика встала на сторону актрисы' },
+        apply: (s) => {
+          addHype(s, 'player', 4);
+          if (roll(s, 0.5, false)) addRep(s, -6);
+        },
+      },
+    ],
+  }),
+  ev({
+    id: 'rnd-influencer',
+    random: { weight: w((s) => ge(2018)(s) && hasReleased(s), 1) },
+    mail: () => ({
+      kind: 'event',
+      title: 'Блогер-миллионник предлагает рекламу',
+      body:
+        'Популярный блогер готов снять ролик о вашей модели для нескольких миллионов подписчиков. ' +
+        'У него громкая аудитория и скандальная слава.',
+    }),
+    choices: [
+      {
+        label: 'Заказать ролик',
+        story: 'Ролик увидят миллионы, но блогер может выкинуть что-нибудь своё',
+        hint: '', hintFn: (s) => `${cost(0.3)(s)}, +12 шумихи, -4 репутации с шансом 35 %`,
+        luck: { good: 'ролик вышел без скандала', bad: 'блогер устроил скандал прямо в ролике' },
+        apply: (s) => {
+          pay(s, amount(s, 0.3));
+          addHype(s, 'player', 12);
+          if (roll(s, 0.35, false)) addRep(s, -4);
+        },
+      },
+      {
+        label: 'Предложить обзор без оплаты',
+        story: 'Блогер может снять обзор, а может выбрать другую тему',
+        hint: '+6 шумихи с шансом 50 %',
+        luck: { good: 'блогер снял обзор', bad: 'блогер выбрал другую тему' },
+        apply: (s) => {
+          if (roll(s, 0.5, true)) addHype(s, 'player', 6);
+        },
+      },
+      no('Блогер прорекламирует кого-то другого'),
+    ],
+  }),
+
+  // ---------- Курьёзы ----------
+
+  ev({
+    id: 'rnd-viral-blunder',
+    random: { weight: w((s) => ge(2019)(s) && hasReleased(s), 1) },
+    mail: (s) => ({
+      kind: 'event',
+      title: 'Ошибка модели стала мемом',
+      body:
+        `Пользователь попросил ${modelRef(s)} рассказать о Наполеоне, и та уверенно описала его встречу с Эйнштейном. ` +
+        'Скриншот разошёлся по сети, над моделью смеются.',
+    }),
+    choices: [
+      {
+        label: 'Пошутить в ответ',
+        story: 'Удачная шутка развернёт смех в вашу пользу, неудачная покажется неуместной',
+        hint: '+8 шумихи с шансом 60 %, иначе -3 репутации',
+        luck: { good: 'шутку оценили, мем стал рекламой', bad: 'шутку сочли неуместной' },
+        apply: (s) => {
+          if (roll(s, 0.6, true)) addHype(s, 'player', 8);
+          else addRep(s, -3);
+        },
+      },
+      {
+        label: 'Исправить ответ и объяснить ошибку',
+        story: 'Инженеры исправят ответ и напишут понятный разбор',
+        hint: '', hintFn: (s) => `${cost(0.2)(s)}, +2 репутации`,
+        apply: (s) => {
+          pay(s, amount(s, 0.2));
+          addRep(s, 2);
+        },
+      },
+      {
+        label: 'Промолчать',
+        story: 'Мем поживёт неделю и забудется',
+        hint: '-3 шумихи',
+        apply: (s) => addHype(s, 'player', -3),
+      },
+    ],
+  }),
+
+  // ---------- Возможности ----------
+
+  ev({
+    id: 'rnd-small-lab',
+    random: { weight: w(ge(2020), 1), once: true },
+    mail: () => ({
+      kind: 'event',
+      title: 'Лаборатория в Монреале продаётся',
+      body:
+        'Небольшая лаборатория закрывается и продаёт себя целиком: людей, код и договор аренды карт по старым ценам. ' +
+        'Покупателя ищут быстро, интерес уже проявили соперники.',
+    }),
+    choices: [
+      {
+        label: 'Купить лабораторию',
+        story: 'Вместе с людьми переходит их договор аренды по старым ценам',
+        hint: '', hintFn: (s) => `${cost(3)(s)}, аренда дешевле на 10 % на 180 дней, исследования дешевле на 5 % на 180 дней`,
+        apply: (s) => {
+          pay(s, amount(s, 3));
+          timed(s, 'small-lab-rent', 'rentPrice', 0.9, 180);
+          timed(s, 'small-lab-research', 'researchCost', 0.95, 180);
+        },
+      },
+      {
+        label: 'Купить только код и данные',
+        story: 'Наработки станут вашими, люди уйдут к другим',
+        hint: '', hintFn: (s) => `${cost(1)(s)}, исследования дешевле на 5 % на 90 дней`,
+        apply: (s) => {
+          pay(s, amount(s, 1));
+          timed(s, 'small-lab-code', 'researchCost', 0.95, 90);
+        },
+      },
+      {
+        label: 'Не покупать',
+        story: 'Лабораторию может купить соперник',
+        hint: 'шумиха Gogle +5 с шансом 50 %',
+        luck: { good: 'лабораторию так никто и не купил', bad: 'лабораторию купила Gogle' },
+        apply: (s) => {
+          if (roll(s, 0.5, false)) addHype(s, 'gogle', 5);
+        },
+      },
+    ],
+  }),
+  ev({
+    id: 'rnd-gpu-broker',
+    random: { weight: w((s) => ge(2021)(s) && rentedCount(s) > 0, 1) },
+    mail: () => ({
+      kind: 'event',
+      title: 'Посредник предлагает карты сверх лимита',
+      body:
+        'Посредник выкупил квоту у закрывшейся компании и предлагает её вам. Карт станет больше, чем позволяет обычный лимит облака. ' +
+        'Платить нужно вперёд.',
+    }),
+    choices: [
+      {
+        label: 'Взять квоту',
+        story: 'Четыре месяца можно арендовать больше карт',
+        hint: '', hintFn: (s) => `${cost(1)(s)}, лимит аренды +25 % на 120 дней`,
+        apply: (s) => {
+          pay(s, amount(s, 1));
+          timed(s, 'gpu-broker', 'rentCap', 1.25, 120);
+        },
+      },
+      no('Квоту заберёт другая лаборатория'),
+    ],
+  }),
+  ev({
+    id: 'rnd-university-lab',
+    random: { weight: w(ge(2018), 1), once: true },
+    mail: () => ({
+      kind: 'event',
+      title: 'Университет предлагает совместную лабораторию',
+      body:
+        'Технический университет готов открыть с вами совместную лабораторию: аспиранты, оборудование и общие статьи. ' +
+        'От вас нужны деньги на год вперёд.',
+    }),
+    choices: [
+      {
+        label: 'Открыть совместную лабораторию',
+        story: 'Аспиранты возьмутся за ваши задачи, статьи выйдут с именем лаборатории',
+        hint: '', hintFn: (s) => `${cost(1.5)(s)}, +3 репутации, исследования дешевле на 8 % на 365 дней`,
+        apply: (s) => {
+          pay(s, amount(s, 1.5));
+          addRep(s, 3);
+          timed(s, 'university-lab', 'researchCost', 0.92, 365);
+        },
+      },
+      {
+        label: 'Взять одного аспиранта на стажировку',
+        story: 'Небольшая помощь без больших обязательств',
+        hint: '', hintFn: (s) => `${cost(0.1)(s)}, +1 репутации`,
+        apply: (s) => {
+          pay(s, amount(s, 0.1));
+          addRep(s, 1);
+        },
+      },
+      no('Университет найдёт другого партнёра'),
+    ],
+  }),
+  ev({
+    id: 'rnd-dataset-offer',
+    random: { weight: w(ge(2019), 1) },
+    mail: () => ({
+      kind: 'event',
+      title: 'Продавец предлагает дешёвый набор данных',
+      body:
+        'Малоизвестная компания продаёт большой набор размеченных текстов вдвое дешевле рынка. Откуда данные, не говорит. ' +
+        'Известный поставщик продаёт похожий набор дороже, но с описанием источников.',
+    }),
+    choices: [
+      {
+        label: 'Купить набор у известного поставщика',
+        story: 'Данные дороже, зато их происхождение известно',
+        hint: '', hintFn: (s) => `${cost(1)(s)}, исследования дешевле на 8 % на 120 дней`,
+        apply: (s) => {
+          pay(s, amount(s, 1));
+          timed(s, 'dataset-clean', 'researchCost', 0.92, 120);
+        },
+      },
+      {
+        label: 'Купить дешёвый набор',
+        story: 'Данные дешёвые, но среди них могут быть ответы на тесты',
+        hint: '', hintFn: (s) =>
+          `${cost(0.5)(s)}, исследования дешевле на 8 % на 120 дней, шанс разоблачения подгонки выше на 30 % на 180 дней`,
+        apply: (s) => {
+          pay(s, amount(s, 0.5));
+          timed(s, 'dataset-cheap', 'researchCost', 0.92, 120);
+          timed(s, 'dataset-cheap-exposure', 'exposure', 1.3, 180);
+        },
+      },
+      no('Наборы купят другие лаборатории', 'Не покупать'),
+    ],
+  }),
+  ev({
+    id: 'rnd-best-paper',
+    random: { weight: w(ge(2018), 1) },
+    defaultChoice: 0,
+    mail: () => ({
+      kind: 'event',
+      title: 'Статья лаборатории получила премию',
+      body:
+        'Статью ваших исследователей признали лучшей на крупной конференции. Организаторы просят выложить код, ' +
+        'чтобы результаты можно было повторить.',
+    }),
+    choices: [
+      {
+        label: 'Выложить код',
+        story: 'Метод начнут использовать все, имя лаборатории будет в каждой ссылке',
+        hint: '+5 репутации, +4 шумихи',
+        apply: (s) => {
+          addRep(s, 5);
+          addHype(s, 'player', 4);
+        },
+      },
+      {
+        label: 'Оставить код закрытым',
+        story: 'Метод останется преимуществом лаборатории',
+        hint: 'исследования дешевле на 10 % на 120 дней',
+        apply: (s) => timed(s, 'best-paper', 'researchCost', 0.9, 120),
+      },
     ],
   }),
 ];

@@ -118,16 +118,16 @@ function firedList(s: GameState): string[] {
   return [...s.firedEvents];
 }
 
-/** Число из подсказки: «+15 репутации» → 15, «−3 репутации» → −3; нет упоминания → 0. */
+/** Число из подсказки: «+15 репутации» → 15, «-3 репутации» → -3; нет упоминания → 0. */
 function hintDelta(hint: string, what: string): number {
-  const m = hint.match(new RegExp(`([+−])(\\d+) ${what}`));
-  return m ? (m[1] === '−' ? -1 : 1) * Number(m[2]) : 0;
+  const m = hint.match(new RegExp(`([+-])(\\d+) ${what}`));
+  return m ? (m[1] === '-' ? -1 : 1) * Number(m[2]) : 0;
 }
 
-/** Деньги из подсказки: «−$300 тыс.» → −300 000; нет упоминания → 0. */
+/** Деньги из подсказки: «-$300 тыс.» → -300 000; нет упоминания → 0. */
 function hintMoney(hint: string): number {
-  const m = hint.match(/([+−])\$(\d+) тыс\./);
-  return m ? (m[1] === '−' ? -1 : 1) * Number(m[2]) * 1000 : 0;
+  const m = hint.match(/([+-])\$(\d+) тыс\./);
+  return m ? (m[1] === '-' ? -1 : 1) * Number(m[2]) * 1000 : 0;
 }
 
 beforeEach(() => {
@@ -176,7 +176,7 @@ describe('данные событий', () => {
 
   it('подсказки названы по ТЗ', () => {
     const byId = (id: string) => EVENTS.find((e) => e.id === id)!;
-    expect(byId('gpt3-api').choices![0].hint).toBe('−$300 тыс., +15 шумихи');
+    expect(byId('gpt3-api').choices![0].hint).toBe('-$300 тыс., +15 шумихи');
     expect(byId('training-fail').choices![0].hint).toBe('откат на 25 % всего объёма');
     expect(byId('training-fail').choices![1].hint).toBe('модель выйдет на 3 очка слабее');
     expect(byId('attention-paper-player').choices![1].hint).toContain('1,25 раза');
@@ -249,7 +249,10 @@ describe('данные событий', () => {
       const mail = s.mail[0];
       if (def.choices) {
         expect(mail.eventId, def.id).toBe(def.id);
-        expect(mail.choices, def.id).toEqual(def.choices.map((c) => ({ label: c.label, hint: c.hint })));
+        expect(mail.choices!.map(({ label, hint }) => ({ label, hint })), def.id).toEqual(
+          def.choices.map((c) => ({ label: c.label, hint: c.hint })),
+        );
+        for (const c of mail.choices!) expect(c.story, `${def.id}: ${c.label}`).toBeTruthy();
       } else {
         expect(mail.eventId, def.id).toBeUndefined();
         expect(mail.choices, def.id).toBeUndefined();
@@ -823,7 +826,7 @@ describe('совет директоров (board-control)', () => {
   it('подсказки называют числа из констант', () => {
     const def = EVENTS.find((e) => e.id === 'board-control')!;
     expect(def.choices![0].hint).toBe(`+${BOARD_PLAN_HYPE} шумихи, оценка в следующем раунде ×0,7`);
-    expect(def.choices![1].hint).toBe(`−${Math.abs(BOARD_DEFEND_REP)} репутации`);
+    expect(def.choices![1].hint).toBe(`-${Math.abs(BOARD_DEFEND_REP)} репутации`);
     expect(def.choices![2].label).toBe(`Выкупить ${Math.round(BOARD_BUYBACK_SHARE * 100)} % компании`);
     expect(def.choices![2].hint).toContain('надбавкой 25 %');
     expect(def.choices![2].hint).toContain(`+${Math.round(BOARD_BUYBACK_SHARE * 100)} п.п.`);
@@ -965,9 +968,13 @@ describe('поток pendingChoice / applyChoice', () => {
     const mail = pendingChoice(s);
     expect(mail).not.toBeNull();
     expect(mail!.choices).toEqual([
-      { label: 'Поддержать осторожность', hint: '+8 репутации' },
-      { label: 'Назвать это рекламным ходом', hint: '+10 шумихи, −3 репутации' },
-      { label: 'Не комментировать', hint: 'без изменений' },
+      { label: 'Поддержать осторожность', hint: '+8 репутации', story: 'Лабораторию запомнят как сторонницу осторожности' },
+      {
+        label: 'Назвать это рекламным ходом',
+        hint: '+10 шумихи, -3 репутации',
+        story: 'Резкое мнение разойдётся по сети, коллеги его не одобрят',
+      },
+      { label: 'Не комментировать', hint: 'без изменений', story: 'Спор пройдёт без лаборатории' },
     ]);
     expect(mail!.chosen).toBeUndefined();
     expect(mail!.read).toBe(false);

@@ -8,7 +8,7 @@ import { RANDOM_EVENTS } from '../data/randomEvents';
 import { newGame } from './actions';
 import { botAct, botChoice } from './bots';
 import { applyChoice, deferChoice, openChoices, pendingChoice, triggerEvent } from './events';
-import { pickWeighted, randomCandidates, RANDOM_GAP_MAX, RANDOM_GAP_MIN, randomEventDay } from './randomEvents';
+import { pickWeighted, randomCandidates, RANDOM_GAP_MAX, RANDOM_GAP_MIN, RANDOM_QUIET_DAYS, randomEventDay } from './randomEvents';
 import { deserialize, serialize } from './save';
 import { advanceDay } from './tick';
 import { dateToDay } from './time';
@@ -47,11 +47,11 @@ function model(over: Partial<PlayerModel> = {}): PlayerModel {
 }
 
 describe('набор новых событий', () => {
-  it('случайных 20-30, ранних заказов и грантов не меньше 8, исторических не меньше 10; id уникальны и не совпадают со старыми', () => {
-    expect(RANDOM_EVENTS.length).toBeGreaterThanOrEqual(20);
-    expect(RANDOM_EVENTS.length).toBeLessThanOrEqual(30);
+  it('случайных 40-50, ранних заказов и грантов не меньше 8, исторических не меньше 25; id уникальны и не совпадают со старыми', () => {
+    expect(RANDOM_EVENTS.length).toBeGreaterThanOrEqual(40);
+    expect(RANDOM_EVENTS.length).toBeLessThanOrEqual(50);
     expect(EARLY_EVENTS.length).toBeGreaterThanOrEqual(8);
-    expect(HISTORY_EVENTS.length).toBeGreaterThanOrEqual(10);
+    expect(HISTORY_EVENTS.length).toBeGreaterThanOrEqual(25);
     const ids = EXTRA_EVENTS.map((e) => e.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const id of ids) expect(findEvent(id)).toBeDefined();
@@ -274,7 +274,7 @@ describe('расписание', () => {
 
   it('пока в почте ждёт другое письмо с выбором, случайное не приходит; после ответа приходит', () => {
     const s = newGame('Тест', 1);
-    s.day = D('2021-03-01');
+    s.day = D('2020-08-01'); // ни одно письмо по дате не ждёт в своём окне
     s.models = [model()];
     s.yearly.nextEventDay = s.day;
     triggerEvent(s, 'gpt2-withheld');
@@ -282,6 +282,9 @@ describe('расписание', () => {
     randomEventDay(s);
     expect(s.mail.length).toBe(before);
     applyChoice(s, pendingChoice(s)!.id, 2);
+    randomEventDay(s);
+    expect(s.mail.length).toBe(before); // сразу после решения - передышка RANDOM_QUIET_DAYS
+    s.day += RANDOM_QUIET_DAYS;
     randomEventDay(s);
     expect(s.mail.length).toBe(before + 1);
     expect(s.yearly.nextEventDay).toBeGreaterThanOrEqual(s.day + RANDOM_GAP_MIN);
