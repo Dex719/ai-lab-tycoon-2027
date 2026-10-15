@@ -10,7 +10,8 @@ import { setResearch } from '../sim/research';
 import { advanceDay } from '../sim/tick';
 import { startTraining, tierPreset } from '../sim/training';
 import type { GameState } from '../sim/types';
-import { contractsNeed, researchDaysAt, trainingDaysAt } from './forecast';
+import { contractsNeed, contractsNeedWithApplications, researchDaysAt, trainingDaysAt } from './forecast';
+import { GPUS } from '../data/gpus';
 import { bestOpenTender, NEXT_STEP_DAYS, nextStep } from './nextStep';
 
 function day(s: GameState): void {
@@ -74,6 +75,15 @@ describe('следующий шаг', () => {
     expect(tender.id).toBe('tender');
     expect(tender.open).toBe('contracts');
     expect(applyTender(s, fit.tender.id, fit.model.id).ok).toBe(true);
+    // Долям по умолчанию мало для контракта: подсказка просит мощность ещё до победы в тендере.
+    const power = nextStep(s)!;
+    expect(power.id).toBe('contract-power');
+    expect(power.title).toBe('Заявке на тендер мало мощности');
+    expect(power.open).toBe('compute');
+    const need = contractsNeedWithApplications(s)!;
+    expect(setRent(s, 'p100', Math.ceil(need / 0.5 / GPUS.find((g) => g.id === 'p100')!.h100e) + 1).ok).toBe(true);
+    s.compute.alloc = { ...s.compute.alloc, contracts: 0.5, experiments: s.compute.alloc.experiments + s.compute.alloc.contracts - 0.5 };
+    expect(nextStep(s)?.id).not.toBe('contract-power');
     // Пока идёт «Механизм внимания», доля «Обучение» свободна: подсказка - срок исследования и доли.
     const wait = nextStep(s)!;
     expect(wait.id).toBe('research-wait');

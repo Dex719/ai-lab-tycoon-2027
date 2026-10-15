@@ -42,7 +42,7 @@ import {
   type SoldChannels,
 } from '../alloc';
 import { Cards } from '../components/Cards';
-import { contractsNeed, researchDaysAt, trainingDaysAt } from '../forecast';
+import { contractsNeedWithApplications, researchDaysAt, trainingDaysAt } from '../forecast';
 import { ConfirmDialog, Dialog, GuardButton, NewBadge, Range } from '../components/common';
 import { fmtH100e as fmtH, fmtInt, fmtMoney, fmtNum, fmtPct, ruPlural } from '../format';
 import { IconAlert } from '../icons';
@@ -556,7 +556,15 @@ function AllocPanel({ s }: { s: GameState }) {
               </div>
               {(r.key === 'api' || r.key === 'subs') && <ClientNeed s={s} need={need?.[r.key]} have={h} />}
               {(r.key === 'training' || r.key === 'experiments') && total > 0 && <RowEffect s={s} k={r.key} share={shown[r.key] / 100} />}
-              {r.key === 'contracts' && <ClientNeed s={s} need={contractsNeed(s) ?? undefined} have={h} label="Нужно контрактам" />}
+              {/* Поданные заявки тоже считаются: мощность лучше добавить до победы в тендере. */}
+              {r.key === 'contracts' && (
+                <ClientNeed
+                  s={s}
+                  need={contractsNeedWithApplications(s) ?? undefined}
+                  have={h}
+                  label={s.contracts.length > 0 ? 'Нужно контрактам' : 'Нужно по заявке'}
+                />
+              )}
             </div>
           );
         })}

@@ -3,9 +3,10 @@
 // Первая модель учится сразу, на LSTM, пока идёт «Механизм внимания»: её баллов хватает для тендеров 2017 года,
 // и первые месяцы партии не проходят в ожидании исследования.
 
-import { totalH100e } from '../sim/compute';
+import { pool, totalH100e } from '../sim/compute';
 import { goalOfferOpen } from '../sim/goals';
 import type { GameState, Speed } from '../sim/types';
+import { contractsNeedWithApplications } from './forecast';
 import type { WindowId } from './windows';
 
 export interface TutorialCtx {
@@ -28,6 +29,12 @@ export function stepTargets(step: TutorialStep, s: GameState): string[] {
 }
 
 const released = (s: GameState) => s.models.some((m) => m.releasedDay !== null);
+
+/** Доли «Контракты» хватит контрактам и поданным заявкам к сроку (или заявок и контрактов нет: тендер проигран). */
+export function contractPowerEnough(s: GameState): boolean {
+  const need = contractsNeedWithApplications(s);
+  return need === null || need <= pool(s, 'contracts') * 1.02 + 1e-9;
+}
 
 export const TUTORIAL: TutorialStep[] = [
   // Окно «Цели 2017 года» открывается сразу и держит время: первый шаг - выбрать цели в нём.
@@ -91,11 +98,16 @@ export const TUTORIAL: TutorialStep[] = [
     targets: ['apply', 'icon-contracts'],
     done: (s) => s.contracts.length > 0 || s.tenders.some((t) => t.application !== null),
   },
+  // Без этого шага первый контракт срывался: долям по умолчанию (20 % от 96 карт) мало для тендеров 2017 года.
+  {
+    title: 'Мощность для контракта',
+    text: 'Контракт выполняет доля «Контракты» в «Мощностях». Окно покажет, сколько нужно: поднимите долю или арендуйте ещё карт.',
+    targets: ['alloc', 'rent-button', 'icon-compute'],
+    done: contractPowerEnough,
+  },
   {
     title: 'Дальше самостоятельно',
-    text:
-      'Выигранный контракт берёт мощность из доли «Контракты»: если её мало, арендуйте ещё карты. ' +
-      'После «Механизма внимания» обучите новую модель.',
-    targets: ['icon-compute'],
+    text: 'После «Механизма внимания» обучите новую модель: при тех же затратах она будет заметно сильнее.',
+    targets: ['icon-newModel'],
   },
 ];

@@ -41,3 +41,19 @@ export function contractsNeed(s: GameState): number | null {
   }
   return worst * s.contracts.length;
 }
+
+/**
+ * То же с поданными заявками: сколько H100e понадобится доле «Контракты», если все заявки выиграют.
+ * Заявка считается как контракт, который только начался. null - ни контрактов, ни заявок.
+ */
+export function contractsNeedWithApplications(s: GameState): number | null {
+  const apps = s.tenders.filter((t) => t.application !== null);
+  if (s.contracts.length === 0 && apps.length === 0) return null;
+  let worst = 0;
+  for (const c of s.contracts) {
+    const left = Math.max(0, c.tender.work - c.workDone);
+    worst = Math.max(worst, left / Math.max(1, c.deadlineDay - s.day));
+  }
+  for (const t of apps) worst = Math.max(worst, (t.application?.work ?? t.work) / Math.max(1, t.durationDays));
+  return worst * (s.contracts.length + apps.length);
+}
