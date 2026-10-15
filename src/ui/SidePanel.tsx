@@ -7,7 +7,7 @@ import { pool } from '../sim/compute';
 import { idleWarnings, type IdleItem } from '../sim/idle';
 import { TRAIN_FLOP_PER_H100E_DAY } from '../sim/constants';
 import { playerSales, subsOpen } from '../sim/market';
-import { rpPerDay, TECHS, techCost } from '../sim/research';
+import { researchDaysLeft, rpPerDay, TECHS, techCost } from '../sim/research';
 import { CLIENTS } from '../data/clients';
 import { benchDef } from '../sim/benchmarks';
 import { openChoices } from '../sim/events';
@@ -73,7 +73,8 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
         <div className="t">Исследование: {name}</div>
         <div className="r">
           <span>Осталось</span>
-          <span className="v">{days(Math.max(0, cost - pts) / rpPerDay(s))}</span>
+          {/* Как в окне «Исследования»: цена падает с приближением исторической даты. */}
+          <span className="v">{days(researchDaysLeft(s, cur, rpPerDay(s)))}</span>
         </div>
         <ProgressBar value={pts / cost} />
       </div>,

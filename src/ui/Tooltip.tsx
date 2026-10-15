@@ -47,12 +47,24 @@ export function TooltipLayer() {
 
   useEffect(() => {
     let timer = 0;
+    let watch = 0;
     let anchor: HTMLElement | null = null;
     const hide = () => {
       window.clearTimeout(timer);
+      window.clearInterval(watch);
+      watch = 0;
       restore(anchor);
       anchor = null;
       setTip(null);
+    };
+    // Якорь может исчезнуть из DOM без ухода курсора (письмо решено, окно закрылось само):
+    // пока подсказка видна, проверяем, что он на месте, иначе подсказка висела бы над пустым местом.
+    const show = (el: HTMLElement, text: string) => {
+      setTip(placeFor(el, text));
+      if (!watch)
+        watch = window.setInterval(() => {
+          if (!anchor || !anchor.isConnected) hide();
+        }, 300);
     };
     const target = (e: Event): HTMLElement | null => {
       const t = e.target;
@@ -72,7 +84,7 @@ export function TooltipLayer() {
       anchor = el;
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
-        if (anchor === el && el.isConnected) setTip(placeFor(el, text));
+        if (anchor === el && el.isConnected) show(el, text);
       }, DELAY_MS);
     };
     const onOut = (e: Event) => {
@@ -100,7 +112,7 @@ export function TooltipLayer() {
       }
       window.clearTimeout(timer);
       anchor = el;
-      setTip(placeFor(el, text));
+      show(el, text);
       timer = window.setTimeout(hide, TOUCH_MS);
     };
     document.addEventListener('mouseover', onOver, true);
@@ -111,6 +123,7 @@ export function TooltipLayer() {
     window.addEventListener('blur', hide);
     return () => {
       window.clearTimeout(timer);
+      window.clearInterval(watch);
       document.removeEventListener('mouseover', onOver, true);
       document.removeEventListener('mouseout', onOut, true);
       document.removeEventListener('pointerdown', onPointerDown, true);

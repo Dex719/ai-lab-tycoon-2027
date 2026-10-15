@@ -420,7 +420,7 @@ table.grid td.num, table.grid th.num { text-align: right; }
 .tutor .step { font-size: 12px; font-weight: 600; color: var(--warn); margin-bottom: 2px; }
 .tutor h3 { margin: 0 0 6px; font-size: 17px; font-weight: 600; }
 .tutor p { margin: 0 0 8px; }
-.tutor .foot { display: flex; gap: 8px; padding: 8px 16px 14px; }
+.tutor .foot { display: flex; justify-content: flex-end; gap: 8px; padding: 8px 16px 14px; }
 .tutor .foot .skip { margin-right: auto; background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 0; font-size: 13px; }
 .tutor .foot .skip:hover { color: var(--text); text-decoration: underline; }
 @keyframes tutor-pulse {

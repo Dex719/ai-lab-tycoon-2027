@@ -86,9 +86,12 @@ export function TutorialPanel({ s, open, speed }: { s: GameState; open: Readonly
             <p>{step.text}</p>
           </div>
           <div className="foot">
-            <button className="skip" onClick={() => store.dispatch(finish)}>
-              Пропустить обучение
-            </button>
+            {/* На последнем шаге есть «Завершить»: вторая кнопка с тем же действием не нужна. */}
+            {!last && (
+              <button className="skip" onClick={() => store.dispatch(finish)}>
+                Пропустить обучение
+              </button>
+            )}
             {index > 0 && (
               <button className="btn small" onClick={() => store.dispatch(setStep, index - 1)}>
                 Назад
