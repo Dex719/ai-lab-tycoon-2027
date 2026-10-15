@@ -217,10 +217,21 @@ export function marketRows(s: GameState, snap: MarketSnapshot): MarketRow[] {
 }
 
 /** Горизонтальные полосы долей: от самой большой доли к самой маленькой. Спрос, не доставшийся никому, - отдельной строкой. */
+/** Вы и лаборатории, у которых уже вышла модель (не только анонс): остальных в долях не показываем - будущее не раскрываем. */
+function releasedOwners(s: GameState): Set<HypeOwner> {
+  const out = new Set<HypeOwner>(['player']);
+  for (const id of s.rivalsReleased) {
+    const def = findRivalDefIn(id);
+    if (def && !def.announcedOnly) out.add(def.lab);
+  }
+  return out;
+}
+
 function ShareBars({ s, snap }: { s: GameState; snap: MarketSnapshot | null }) {
-  const rows = HYPE_OWNERS.map((owner) => ({ owner, share: finite(s.market.labShares[owner]) })).sort(
-    (a, b) => b.share - a.share,
-  );
+  const shown = releasedOwners(s);
+  const rows = HYPE_OWNERS.map((owner) => ({ owner, share: finite(s.market.labShares[owner]) }))
+    .filter((r) => shown.has(r.owner) || r.share > 0)
+    .sort((a, b) => b.share - a.share);
   const none = finite(s.market.labShares.none);
   const maxShare = Math.max(0.0001, ...rows.map((r) => r.share));
   const api = snap ? snap.totalTokens : s.market.totalTokens;
