@@ -247,7 +247,12 @@ function raceSignature(s: GameState): string {
  * Ни случайных чисел, ни денег, ни долей - на баланс не влияет.
  */
 export function duelDay(s: GameState): void {
-  const d = (s.duel ??= emptyDuel());
+  if (!s.duel) {
+    // Старое сохранение или первый день: ходы, которые уже есть в истории, засчитываем сразу.
+    s.duel = emptyDuel();
+    for (const h of s.rivalry.history) if (h.day < s.day) s.duel.labs[h.lab].moves += 1;
+  }
+  const d = s.duel;
 
   // Ходы против вас за сегодня (история ходов в rivalry.ts обрезается до 20 строк, поэтому считаем сами).
   for (const h of s.rivalry.history) if (h.day === s.day) d.labs[h.lab].moves += 1;

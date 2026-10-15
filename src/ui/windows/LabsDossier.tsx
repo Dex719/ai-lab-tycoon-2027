@@ -55,8 +55,18 @@ export function threatWord(total: number): string {
   return 'нет';
 }
 
+/**
+ * Лаборатории в списке: вышедшие на рынок (или уже боровшиеся с вами). Тех, кто ещё не выпустил ни одной модели,
+ * не показываем - будущее не раскрываем. Сначала те, кто борется с вами чаще (обгоны и ходы), потом по доле рынка.
+ */
+export function dossierLabs(s: GameState): ReturnType<typeof labRows> {
+  return labRows(s)
+    .filter((r) => r.owner !== 'player' && (r.count > 0 || fightScore(duelOf(s, r.owner as LabId)) > 0))
+    .sort((a, b) => fightScore(duelOf(s, b.owner as LabId)) - fightScore(duelOf(s, a.owner as LabId)) || b.share - a.share);
+}
+
 function firstLab(s: GameState): LabId {
-  return mainRival(s) ?? (labRows(s).find((r) => r.owner !== 'player')?.owner as LabId | undefined) ?? LAB_IDS[0];
+  return mainRival(s) ?? (dossierLabs(s)[0]?.owner as LabId | undefined) ?? LAB_IDS[0];
 }
 
 export function LabsTab({ s }: WindowProps) {
@@ -69,11 +79,19 @@ export function LabsTab({ s }: WindowProps) {
       }),
     [],
   );
-  // Сначала те, кто борется с вами чаще (обгоны и ходы), потом по доле рынка.
-  const rows = labRows(s)
-    .filter((r) => r.owner !== 'player')
-    .sort((a, b) => fightScore(duelOf(s, b.owner as LabId)) - fightScore(duelOf(s, a.owner as LabId)) || b.share - a.share);
+  const rows = dossierLabs(s);
   const main = mainRival(s);
+  // Выбранная лаборатория могла ещё не выйти на рынок (старый выбор): тогда первая из списка.
+  const shown = rows.some((r) => r.owner === sel) ? sel : ((rows[0]?.owner as LabId | undefined) ?? null);
+  if (!shown) {
+    return (
+      <div className="an-page">
+        <div className="an-empty">
+          <div>Соперники ещё не выпустили ни одной модели.</div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="an-page">
       <div className="dos">
@@ -85,9 +103,9 @@ export function LabsTab({ s }: WindowProps) {
               <div
                 key={lab}
                 role="option"
-                aria-selected={lab === sel}
+                aria-selected={lab === shown}
                 tabIndex={0}
-                className={`list-item dos-row${lab === sel ? ' on' : ''}`}
+                className={`list-item dos-row${lab === shown ? ' on' : ''}`}
                 onClick={() => setSel(lab)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -110,7 +128,7 @@ export function LabsTab({ s }: WindowProps) {
             );
           })}
         </div>
-        <Dossier s={s} lab={sel} main={sel === main} />
+        <Dossier s={s} lab={shown} main={shown === main} />
       </div>
       <section>
         <h2 className="an-h">Последние ходы всех соперников</h2>
