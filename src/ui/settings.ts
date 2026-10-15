@@ -11,6 +11,8 @@ export interface Settings {
   realNames: boolean; // показывать настоящие названия компаний, моделей и тестов
   volume: number; // громкость звуков 0..1, 0 - без звука
   music: number; // громкость фоновой музыки 0..1, 0 - без музыки
+  fps: number; // предел кадров 3D-сцен и анимаций, 0 - как у монитора
+  quality3d: 'low' | 'mid' | 'high'; // качество 3D: чёткость и тени
 }
 
 const KEY = 'ailab.settings';
@@ -25,6 +27,8 @@ const DEFAULTS: Settings = {
   realNames: false,
   volume: 0.5,
   music: 0.3,
+  fps: 0,
+  quality3d: 'high',
 };
 
 let cache: Settings | null = null;

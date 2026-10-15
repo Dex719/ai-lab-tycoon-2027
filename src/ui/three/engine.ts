@@ -10,6 +10,7 @@ import { buildCampus } from './campus';
 import { buildFarm } from './farm';
 import { buildGpu } from './gpuModels';
 import { disposeGeometries } from './kit';
+import { getSettings } from '../settings';
 import type { GpuId } from '../../sim/types';
 import type { ViewSpec } from './specs';
 
@@ -161,6 +162,26 @@ function scheduleRelease(): void {
   }, RELEASE_MS);
 }
 
+// ---------- Качество и предел кадров (из «Настроек») ----------
+
+/** Плотность пикселей 3D по качеству: низкое - мельче экрана, среднее - не больше 1,5, высокое - до 2. */
+function viewDpr(): number {
+  const dpr = window.devicePixelRatio || 1;
+  const q = getSettings().quality3d;
+  if (q === 'low') return Math.min(dpr, 1) * 0.75;
+  if (q === 'mid') return Math.min(dpr, 1.5);
+  return Math.min(dpr, 2);
+}
+
+function shadowsAllowed(): boolean {
+  return getSettings().quality3d !== 'low';
+}
+
+/** Применить новые настройки качества ко всем открытым 3D-видам. */
+export function applyQuality(): void {
+  for (const v of views) v.refreshSize();
+}
+
 // ---------- Цикл кадров ----------
 
 const views = new Set<View>();
@@ -173,8 +194,17 @@ function schedule(): void {
   stats.loopRunning = true;
 }
 
+let lastTick = 0;
+
 function frame(now: number): void {
   raf = 0;
+  const fps = getSettings().fps;
+  // Предел кадров: слишком ранний кадр пропускаем и ждём следующего (запас 1 мс на дрожание таймера).
+  if (fps > 0 && lastTick && now - lastTick < 1000 / fps - 1) {
+    raf = requestAnimationFrame(frame);
+    return;
+  }
+  lastTick = now;
   let again = false;
   for (const v of views) if (v.step(now)) again = true;
   stats.loopRunning = again;
@@ -285,11 +315,23 @@ export class View {
     this.markDirty();
   }
 
-  resize(cssW: number, cssH: number): void {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  private cssW = 0;
+  private cssH = 0;
+
+  refreshSize(): void {
+    if (this.cssW > 0) this.resize(this.cssW, this.cssH, true);
+  }
+
+  resize(cssW: number, cssH: number, force = false): void {
+    this.cssW = cssW;
+    this.cssH = cssH;
+    const dpr = viewDpr();
     const w = Math.max(1, Math.round(cssW * dpr));
     const h = Math.max(1, Math.round(cssH * dpr));
-    if (w === this.wPx && h === this.hPx) return;
+    if (w === this.wPx && h === this.hPx) {
+      if (force) this.markDirty();
+      return;
+    }
     this.wPx = w;
     this.hPx = h;
     this.canvas.width = w;
@@ -395,7 +437,7 @@ export class View {
     this.camera.lookAt(f.target);
     const r = getRenderer(this.wPx, this.hPx);
     this.scene.environment = envTex;
-    r.shadowMap.enabled = !!this.content.shadows;
+    r.shadowMap.enabled = !!this.content.shadows && shadowsAllowed();
     r.setViewport(0, 0, this.wPx, this.hPx);
     r.setScissor(0, 0, this.wPx, this.hPx);
     r.setClearColor(0x000000, 0);

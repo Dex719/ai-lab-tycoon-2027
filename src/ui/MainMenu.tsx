@@ -17,6 +17,8 @@ import { musicSettingsChanged } from './music';
 import { applySfxVolume, playSound } from './sound';
 import { getSettings, setSettings } from './settings';
 import { store } from './store';
+import { desktop } from './desktop';
+import { ScreenSettings } from './ScreenSettings';
 
 export const VERSION = 'v0.2';
 const NAME_MAX = 22;
@@ -63,6 +65,11 @@ export function MainMenu() {
         <button className="mm-item" onClick={() => setDialog('settings')}>
           Настройки
         </button>
+        {desktop && (
+          <button className="mm-item" onClick={() => desktop?.quit()}>
+            Выход
+          </button>
+        )}
         <div className="mm-error" role="alert">
           {error}
         </div>
@@ -362,10 +369,11 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
 
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const [settings, set] = useState(getSettings);
-  const toggle = (k: Exclude<keyof typeof settings, 'volume' | 'music'>) => set(setSettings({ [k]: !settings[k] }));
+  const toggle = (k: Exclude<keyof typeof settings, 'volume' | 'music' | 'fps' | 'quality3d'>) => set(setSettings({ [k]: !settings[k] }));
   return (
     <Dialog
       title="Настройки"
+      wide
       onClose={onClose}
       footer={
         <button className="btn primary" onClick={onClose}>
@@ -373,6 +381,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         </button>
       }
     >
+      <div className="settings-grid">
       <div className="col" style={{ gap: 12 }}>
         <div className="settings-h">Пауза, когда</div>
         <label className="row">
@@ -398,7 +407,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         <div className="settings-h">Прочее</div>
         <label className="row">
           <input type="checkbox" checked={settings.pauseOnHidden} onChange={() => toggle('pauseOnHidden')} />
-          <span>Пауза, когда вкладка браузера скрыта</span>
+          <span>{desktop ? 'Пауза, когда окно игры свёрнуто' : 'Пауза, когда вкладка браузера скрыта'}</span>
         </label>
         <label className="row">
           <input type="checkbox" checked={settings.toasts} onChange={() => toggle('toasts')} />
@@ -418,6 +427,10 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         </label>
         <div className="small muted">Показывает настоящие названия компаний, моделей и тестов. Сохранения не меняются.</div>
         <div className="small muted">Управление: пробел - пауза. Кнопки скорости - на верхней панели.</div>
+      </div>
+      <div className="col" style={{ gap: 12 }}>
+        <div className="settings-h">Экран</div>
+        <ScreenSettings />
         <div className="settings-h">Звук</div>
         <VolumeRow
           label="Музыка"
@@ -436,6 +449,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           }}
           onRelease={() => playSound('coin')}
         />
+      </div>
       </div>
     </Dialog>
   );
