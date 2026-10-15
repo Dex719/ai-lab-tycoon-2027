@@ -417,7 +417,7 @@ export function buildFarm(spec: FarmSpec, prev: FarmSpec | null): Content {
   if (n === 0) span.expandByPoint(new THREE.Vector3());
   const fw = span.max.x - span.min.x + RW + 3;
   const fd = span.max.z - span.min.z + RD + 3.4;
-  const floorMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.85, metalness: 0.1, map: floorTex().clone() });
+  const floorMat = new THREE.MeshStandardMaterial({ color: spec.backdrop ? '#7a7f88' : '#ffffff', roughness: 0.85, metalness: 0.1, map: floorTex().clone() });
   floorMat.map!.wrapS = floorMat.map!.wrapT = THREE.RepeatWrapping;
   floorMat.map!.repeat.set(fw / 0.6, fd / 1.2);
   floorMat.map!.needsUpdate = true;
@@ -505,9 +505,9 @@ export function buildFarm(spec: FarmSpec, prev: FarmSpec | null): Content {
       fov: 32,
       fill: 0.92,
     },
-    background: '#d4d7db',
+    background: spec.backdrop ?? '#d4d7db',
     envIntensity: 0.6,
-    fog: [1.15, 3.2],
+    fog: spec.backdrop ? [0.95, 2.2] : [1.15, 3.2],
     shadows: true,
     animate,
     dispose: () => {

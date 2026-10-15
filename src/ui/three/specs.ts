@@ -31,6 +31,8 @@ export interface FarmSpec {
   wide?: boolean;
   /** Чем заняты стойки: доли мощности по порядку (цвет задачи и доля 0..1); у каждой стойки - планка цвета её задачи. */
   tasks?: { color: string; share: number }[];
+  /** Цвет фона вокруг зала (тёмный экран меню); пол темнее и уходит в фон. Без него - светлый фон окон. */
+  backdrop?: string;
 }
 
 export interface CampusSpec {

@@ -1,4 +1,4 @@
-// Главное меню и его окна: «Настройка игры», «Загрузить», «Настройки».
+// Главное меню и его окна: «Новая игра», «Загрузить», «Настройки».
 
 import { useEffect, useRef, useState } from 'react';
 import { START_CASH } from '../sim/constants';
@@ -17,6 +17,10 @@ import { musicSettingsChanged } from './music';
 import { applySfxVolume, playSound } from './sound';
 import { getSettings, setSettings } from './settings';
 import { store } from './store';
+import { ALLOC_ROWS } from './alloc';
+import { DEFAULT_ALLOC } from '../sim/constants';
+import type { FarmSpec } from './three/specs';
+import { View3D } from './three/View3D';
 import { desktop } from './desktop';
 import { ScreenSettings } from './ScreenSettings';
 
@@ -39,41 +43,50 @@ export function MainMenu() {
 
   return (
     <div className="menu-screen mm">
-      <MenuRacks />
-      <h1 className="mm-title">AI Lab Tycoon</h1>
-      <div className="mm-years">2017-2024</div>
-      <nav className="mm-items" aria-label="Главное меню">
+      <div className="mm-left">
+        <h1 className="mm-title">AI Lab Tycoon</h1>
+        <div className="mm-years">Своя ИИ-лаборатория, 2017-2024</div>
         {last !== null && (
-          <button className="mm-item" onClick={cont}>
-            Продолжить
+          <button className="mm-cont" onClick={cont}>
+            <span className="mm-cont-k">Продолжить</span>
             {lastMeta && (
-              <span className="mm-item-s">
-                {lastMeta.labName}, {formatDateShort(lastMeta.day)}
-              </span>
+              <>
+                <span className="mm-cont-n">{lastMeta.labName}</span>
+                <span className="mm-cont-d">
+                  {formatDateShort(lastMeta.day)} · {fmtMoney(lastMeta.cash)} ·{' '}
+                  {lastMeta.arenaRank !== null ? `${fmtRank(lastMeta.arenaRank)} на «Арене»` : 'моделей на «Арене» нет'} ·{' '}
+                  {DIFFICULTY[lastMeta.difficulty].name.toLowerCase()}
+                </span>
+              </>
             )}
           </button>
         )}
-        <button className="mm-item" onClick={() => setDialog('new')}>
-          Новая игра
-        </button>
-        <button className="mm-item" onClick={() => setDialog('load')}>
-          Загрузить
-        </button>
-        <button className="mm-item" onClick={() => setDialog('achievements')}>
-          Достижения
-        </button>
-        <button className="mm-item" onClick={() => setDialog('settings')}>
-          Настройки
-        </button>
-        {desktop && (
-          <button className="mm-item" onClick={() => desktop?.quit()}>
-            Выход
+        <nav className="mm-items" aria-label="Главное меню">
+          <button className="mm-item" onClick={() => setDialog('new')}>
+            Новая игра
           </button>
-        )}
+          <button className="mm-item" onClick={() => setDialog('load')}>
+            Загрузить
+          </button>
+          <button className="mm-item" onClick={() => setDialog('achievements')}>
+            Достижения
+          </button>
+          <button className="mm-item" onClick={() => setDialog('settings')}>
+            Настройки
+          </button>
+          {desktop && (
+            <button className="mm-item" onClick={() => desktop?.quit()}>
+              Выход
+            </button>
+          )}
+        </nav>
         <div className="mm-error" role="alert">
           {error}
         </div>
-      </nav>
+      </div>
+      <div className="mm-right" aria-hidden="true">
+        <View3D spec={MENU_HALL} label="Машинный зал лаборатории" className="mm-hall" />
+      </div>
       <div className="version">{VERSION}</div>
       {dialog === 'new' && <NewGameDialog onClose={() => setDialog(null)} />}
       {dialog === 'load' && <SlotsDialog mode="load" onClose={() => setDialog(null)} />}
@@ -83,40 +96,25 @@ export function MainMenu() {
   );
 }
 
-/** Ряд серверных стоек внизу экрана меню: силуэт будущей лаборатории. Рисунок неподвижный. */
-const RACKS = 26;
-const RACK_H = [150, 186, 122];
+/** Зал на экране меню: несколько рядов стоек с планками задач по стартовым долям. */
+const MENU_HALL: FarmSpec = {
+  kind: 'farm',
+  groups: [{ gpu: 'v100', cards: 1100 }],
+  tasks: ALLOC_ROWS.map((r) => ({ color: r.color, share: DEFAULT_ALLOC[r.key] })),
+  backdrop: '#202124',
+};
 
-function MenuRacks() {
-  const w = 46;
-  const gap = 10;
-  const total = RACKS * (w + gap) - gap;
-  const top = Math.max(...RACK_H);
-  return (
-    <svg className="mm-racks" viewBox={`0 0 ${total} ${top}`} width={total} height={top} aria-hidden="true">
-      {Array.from({ length: RACKS }, (_, i) => {
-        const h = RACK_H[i % 3];
-        const x = i * (w + gap);
-        const y = top - h;
-        const units = Math.floor((h - 6) / 18);
-        return (
-          <g key={i}>
-            <rect x={x} y={y} width={w} height={h} className="mm-rack" />
-            {Array.from({ length: units }, (_, u) => (
-              <g key={u}>
-                <rect x={x + 4} y={y + 5 + u * 18} width={w - 8} height={13} className="mm-unit" />
-                <circle cx={x + 10} cy={y + 11.5 + u * 18} r={2} className={(i * 7 + u * 3) % 11 === 0 ? 'mm-led warn' : 'mm-led'} />
-              </g>
-            ))}
-          </g>
-        );
-      })}
-    </svg>
-  );
+/** Чем сложности отличаются, словами и числами (из DIFFICULTY). */
+function diffRows(d: Difficulty): { k: string; v: string; tone?: 'good' | 'bad' }[] {
+  const def = DIFFICULTY[d];
+  const rent = Math.round((def.rentPrice - 1) * 100);
+  const exp = Math.round((def.exposure - 1) * 100);
+  return [
+    { k: 'Аренда карт', v: rent === 0 ? 'обычная цена' : rent < 0 ? `дешевле на ${-rent} %` : `дороже на ${rent} %`, tone: rent < 0 ? 'good' : rent > 0 ? 'bad' : undefined },
+    { k: 'Ответ соперников', v: d === 'easy' ? 'редко' : d === 'normal' ? 'на ваши успехи' : 'быстро и часто', tone: d === 'easy' ? 'good' : d === 'hard' ? 'bad' : undefined },
+    { k: 'Подгонку раскрывают', v: exp === 0 ? 'обычно' : exp < 0 ? `реже на ${-exp} %` : `чаще на ${exp} %`, tone: exp < 0 ? 'good' : exp > 0 ? 'bad' : undefined },
+  ];
 }
-
-/** Сколько делений у сложности: лёгкая - одно, сложная - три. */
-const DIFF_PIPS: Record<Difficulty, number> = { easy: 1, normal: 2, hard: 3 };
 
 function NewGameDialog({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('Нейрон');
@@ -140,9 +138,9 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="modal-backdrop ng-backdrop" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
-      <div ref={ref} tabIndex={-1} className="dialog ng" role="dialog" aria-modal="true" aria-label="Настройка игры" onKeyDown={onKeyDown}>
+      <div ref={ref} tabIndex={-1} className="dialog ng" role="dialog" aria-modal="true" aria-label="Новая игра" onKeyDown={onKeyDown}>
         <div className="titlebar">
-          <span className="t">Настройка игры</span>
+          <span className="t">Новая игра</span>
           <button className="wbtn close" onClick={onClose} aria-label="Закрыть" title="Закрыть">
             <IconClose size={14} />
           </button>
@@ -155,79 +153,95 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
           }}
         >
           <div className="ng-body">
-            <div className="ng-col">
+            <section className="ng-sec">
+              <h3 className="ng-h">Лаборатория</h3>
+              <div className="ng-sign" aria-hidden="true">
+                <IconLogo size={22} />
+                <b>{name.trim() || 'Лаборатория'}</b>
+                <span>Гараж</span>
+              </div>
               <label className="ng-field">
-                <span className="ng-l">Название лаборатории</span>
+                <span className="ng-l">Название</span>
                 <input ref={nameRef} className="ng-input" type="text" value={name} maxLength={NAME_MAX} onChange={(e) => setName(e.target.value)} />
                 <span className="ng-count">
                   {name.length}/{NAME_MAX}
                 </span>
               </label>
               <label className="ng-field">
-                <span className="ng-l">Имя основателя</span>
-                <input type="text" value={founder} maxLength={FOUNDER_MAX} onChange={(e) => setFounder(e.target.value)} />
+                <span className="ng-l">Основатель</span>
+                <input type="text" value={founder} maxLength={FOUNDER_MAX} placeholder="Можно оставить пустым" onChange={(e) => setFounder(e.target.value)} />
                 <span className="ng-count">
                   {founder.length}/{FOUNDER_MAX}
                 </span>
               </label>
-              <div className="ng-l">Сложность</div>
-              <div className="ng-diffs" role="radiogroup" aria-label="Сложность">
+            </section>
+            <section className="ng-sec">
+              <h3 className="ng-h">Сложность</h3>
+              <div className="ng-cards" role="radiogroup" aria-label="Сложность">
                 {DIFFICULTY_IDS.map((d) => (
                   <button
                     key={d}
                     type="button"
                     role="radio"
                     aria-checked={difficulty === d}
-                    className={`ng-diff d-${d}${difficulty === d ? ' on' : ''}`}
+                    className={`ng-card${difficulty === d ? ' on' : ''}`}
                     onClick={() => setDifficulty(d)}
                   >
-                    <span className="ng-pips" aria-hidden="true">
-                      {[1, 2, 3].map((i) => (
-                        <i key={i} className={i <= DIFF_PIPS[d] ? 'on' : undefined} />
+                    <span className="ng-card-h">
+                      <span className="ng-radio" aria-hidden="true" />
+                      {DIFFICULTY[d].name}
+                    </span>
+                    <span className="ng-card-kv">
+                      {diffRows(d).map((r) => (
+                        <span key={r.k} className="ng-card-r">
+                          <span>{r.k}</span>
+                          <b className={r.tone}>{r.v}</b>
+                        </span>
                       ))}
                     </span>
-                    {DIFFICULTY[d].name}
                   </button>
                 ))}
               </div>
-              <div className="ng-diff-desc">{DIFFICULTY[difficulty].description}</div>
-              <label className="row ng-tutor">
-                <input type="checkbox" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />
-                <span>Обучение игре</span>
-              </label>
-            </div>
-            <div className="ng-col">
-              <div className="ng-sign" aria-hidden="true">
-                <IconLogo size={22} />
-                <b>{name.trim() || 'Лаборатория'}</b>
-              </div>
+            </section>
+            <section className="ng-sec">
+              <h3 className="ng-h">Партия</h3>
               <dl className="ng-kv">
-                <dt>Дата начала</dt>
-                <dd>01.01.2017</dd>
-                <dt>Стартовый капитал</dt>
+                <dt>Начало</dt>
+                <dd>1 января 2017</dd>
+                <dt>Конец</dt>
+                <dd>31 декабря 2024</dd>
+                <dt>На счёте</dt>
                 <dd className="good">{fmtMoney(START_CASH)}</dd>
-                <dt>Конец партии</dt>
-                <dd>31.12.2024</dd>
-                <dt>Соперники</dt>
-                <dd>
-                  <span className="ng-labs" aria-hidden="true">
-                    {LABS.map((l) => (
-                      <i key={l.id} style={{ background: l.color }} />
-                    ))}
-                  </span>
-                  {LABS.length} лабораторий
-                </dd>
               </dl>
               <div className="ng-goal">
                 <span className="ng-l">Цель</span>
-                <b>Лучшая модель на «Арене» 31.12.2024</b>
+                <b>Лучшая модель на «Арене» 31 декабря 2024 года</b>
               </div>
-            </div>
+              <div className="ng-goal">
+                <span className="ng-l">Соперники в 2017 году</span>
+                <span className="ng-rivals">
+                  {LABS.filter((l) => l.id === 'openbrain' || l.id === 'gogle').map((l) => (
+                    <span key={l.id} className="ng-rival">
+                      <i style={{ background: l.color }} />
+                      {l.name}
+                    </span>
+                  ))}
+                </span>
+                <span className="ng-l">Остальные выйдут на рынок позже.</span>
+              </div>
+              <label className="row ng-tutor">
+                <input type="checkbox" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />
+                <span>Обучение игре: подсказки по шагам</span>
+              </label>
+            </section>
           </div>
           <div className="ng-foot">
+            <button type="button" className="btn" onClick={onClose}>
+              Отмена
+            </button>
             <span className="guard ng-start-wrap">
-              <button type="submit" className="btn primary big wide ng-start" aria-disabled={!valid || undefined}>
-                Начать
+              <button type="submit" className="btn primary big ng-start" aria-disabled={!valid || undefined}>
+                Начать игру
               </button>
               <DenyNote text={note} />
             </span>

@@ -1,86 +1,97 @@
-/* Главное меню и «Настройка игры» в духе Processor Tycoon: плоский тёмный экран, моноширинное название,
-   пункты-слова; диалог - светлое окно игры. Корень .menu-screen.mm сильнее старых правил .menu-screen в theme.css. */
+/* Главное меню в духе Processor Tycoon: плоский тёмный экран, слева название и пункты, «Продолжить» с карточкой
+   последней партии; справа неподвижный 3D-зал. «Новая игра» - светлое окно игры на три колонки. */
 
 .menu-screen.mm {
-  position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; overflow: hidden;
+  position: fixed; inset: 0; display: grid; grid-template-columns: minmax(360px, 38%) minmax(0, 1fr); overflow: hidden;
   color: #b5b5b5; background: #202124;
 }
+.mm-left { display: flex; flex-direction: column; align-items: flex-start; padding: 12vh 0 40px 7vw; min-width: 0; }
+.mm-right { position: relative; min-width: 0; }
+.mm-hall { position: absolute; inset: 4vh 3vw 4vh 0; }
 
-/* Ряд серверных стоек внизу (SVG в MainMenu.tsx): корпус, блоки, огоньки - плоские цвета. */
-.mm-racks { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); pointer-events: none; }
-.mm-rack { fill: #232528; stroke: #34373c; stroke-width: 2; }
-.mm-unit { fill: #2b2e33; }
-.mm-led { fill: #4f9a64; }
-.mm-led.warn { fill: #b58a35; }
+.mm-title { margin: 0; font-size: clamp(36px, 4vw, 56px); font-weight: 600; color: #f2f2f2; letter-spacing: -0.02em; }
+.mm-years { margin-top: 4px; font-size: clamp(15px, 1.2vw, 18px); color: #8e9196; }
 
-.mm-title { position: relative; margin: 13vh 0 0; font-size: clamp(36px, 4.2vw, 58px); font-weight: 600; color: #f2f2f2; letter-spacing: -0.02em; }
-.mm-years { position: relative; margin-top: 2px; font-size: clamp(15px, 1.3vw, 18px); color: #8e9196; font-variant-numeric: tabular-nums; }
-
-.mm-items { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 12vh; }
-.mm-item {
-  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 2px 14px; background: none; border: none;
-  color: #c8c8c8; font-size: 22px; cursor: pointer; transition: color 120ms ease-out;
+/* «Продолжить»: последняя партия - лаборатория, дата, деньги, место; светлая рамка вместо заливки. */
+.mm-cont {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: min(420px, 100%); margin-top: 8vh; padding: 12px 16px;
+  background: #2a2c30; border: 1px solid #3c3f45; border-radius: 4px; color: #e8e8e8; text-align: left; cursor: pointer;
 }
-.mm-item-s { font-size: 13px; color: #8e9196; }
+.mm-cont:hover, .mm-cont:focus-visible { outline: none; border-color: var(--c-blue); background: #2e3136; }
+.mm-cont-k { font-size: 13px; color: #8ab4f8; font-weight: 600; }
+.mm-cont-n { font-size: 22px; font-weight: 600; color: #fff; }
+.mm-cont-d { font-size: 13px; color: #a9acb2; font-variant-numeric: tabular-nums; }
+
+.mm-items { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 28px; }
+.mm-cont + .mm-items { margin-top: 20px; }
+.mm-left > .mm-items:first-of-type { margin-top: 8vh; }
+.mm-item {
+  padding: 4px 0; background: none; border: none; color: #c8c8c8; font-size: 22px; cursor: pointer; transition: color 120ms ease-out;
+}
 .mm-item:hover, .mm-item:focus-visible {
   outline: none; color: #fff; text-decoration: underline; text-decoration-color: var(--c-blue); text-underline-offset: 6px; text-decoration-thickness: 3px;
 }
-.mm-item:hover .mm-item-s, .mm-item:focus-visible .mm-item-s { text-decoration: none; color: #b5b5b5; }
-.mm-error { min-height: 20px; font-size: 13px; color: #ff8a8a; text-align: center; }
+.mm-error { min-height: 20px; margin-top: 8px; font-size: 13px; color: #ff8a8a; }
 
-/* ---------- «Настройка игры»: светлое окно, слева поля, справа условия партии ---------- */
+/* ---------- «Новая игра»: лаборатория - сложность - партия ---------- */
 .menu-screen.mm .modal-backdrop.ng-backdrop { background: rgba(10, 11, 13, 0.7); }
-.dialog.ng { width: min(720px, calc(100vw - 32px)); outline: none; }
+.dialog.ng { width: min(1040px, calc(100vw - 32px)); outline: none; }
 .ng-form { display: flex; flex-direction: column; min-height: 0; overflow: auto; }
-.ng-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 16px 20px 4px; }
-.ng-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ng-body { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; padding: 18px 20px 8px; }
+.ng-sec { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ng-h { margin: 0 0 2px; font-size: 16px; font-weight: 600; color: var(--text-title); }
 .ng-l { font-size: 13px; color: var(--text-dim); }
 .ng-field { display: flex; flex-direction: column; gap: 4px; }
 .ng-field input { width: 100%; }
 .ng .ng-input { height: 38px; font-size: 16px; font-weight: 600; }
 .ng-count { align-self: flex-end; font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
-.ng-diffs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
-.ng-diff {
-  --dc: #2e9b4f;
-  display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 4px 7px; cursor: pointer;
-  background: #fff; border: none; border-left: 1px solid var(--line); color: var(--text); font: inherit;
-}
-.ng-diff:first-child { border-left: none; }
-.ng-diff.d-normal { --dc: #c99a1a; }
-.ng-diff.d-hard { --dc: #d64545; }
-.ng-diff:hover { background: #f1f3f6; }
-.ng-diff:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.ng-diff.on { background: #e3eefc; font-weight: 600; color: var(--info-ink); }
-.ng-pips { display: flex; gap: 3px; }
-.ng-pips i { width: 14px; height: 5px; background: #d4d7dc; }
-.ng-pips i.on { background: var(--dc); }
-.ng-diff-desc { min-height: 40px; font-size: 13px; line-height: 1.4; color: var(--text-body); }
-.ng-tutor { margin-top: 4px; }
-
-/* Табличка лаборатории - та же, что встанет на рабочем столе. */
-.ng-sign {
-  display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #1c1c1e; color: #f2f2f2; border-radius: 3px;
-}
+/* Табличка лаборатории - та же, что встанет на рабочем столе; справа этап. */
+.ng-sign { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #1c1c1e; color: #f2f2f2; border-radius: 3px; }
 .ng-sign svg { flex: none; color: #a9acb2; }
-.ng-sign b { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ng-kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; margin: 8px 0 0; font-size: 14px; }
+.ng-sign b { min-width: 0; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ng-sign span { margin-left: auto; font-size: 12px; color: #a9acb2; }
+
+/* Сложность: три карточки строками; у выбранной синяя рамка и отмеченный кружок. */
+.ng-cards { display: flex; flex-direction: column; gap: 8px; }
+.ng-card {
+  display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; text-align: left; cursor: pointer;
+  background: #fff; border: 1px solid var(--line); border-radius: 4px; color: var(--text);
+}
+.ng-card:hover { border-color: #9fb8dc; }
+.ng-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ng-card.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: #f5f9ff; }
+.ng-card-h { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
+.ng-radio { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #9aa0a8; background: #fff; }
+.ng-card.on .ng-radio { border: 4px solid var(--accent); }
+.ng-card-kv { display: flex; flex-direction: column; gap: 2px; padding-left: 22px; }
+.ng-card-r { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.ng-card-r > span { color: var(--text-dim); }
+.ng-card-r b { font-weight: 600; }
+.ng-card-r b.good { color: var(--good-ink); }
+.ng-card-r b.bad { color: var(--bad-ink); }
+
+.ng-kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; margin: 0; font-size: 14px; }
 .ng-kv dt { color: var(--text-dim); }
-.ng-kv dd { margin: 0; display: flex; align-items: center; gap: 8px; justify-content: flex-end; font-variant-numeric: tabular-nums; }
+.ng-kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .ng-kv dd.good { color: var(--good-ink); font-weight: 600; }
-.ng-labs { display: inline-flex; gap: 3px; }
-.ng-labs i { width: 8px; height: 8px; border-radius: 50%; }
-.ng-goal { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.ng-goal { display: flex; flex-direction: column; gap: 3px; padding-top: 10px; border-top: 1px solid var(--line); }
 .ng-goal b { font-size: 15px; color: var(--text-title); }
+.ng-rivals { display: flex; flex-wrap: wrap; gap: 4px 14px; font-weight: 600; }
+.ng-rival { display: inline-flex; align-items: center; gap: 6px; }
+.ng-rival i { width: 9px; height: 9px; border-radius: 50%; }
+.ng-tutor { margin-top: auto; padding-top: 10px; }
 
-.ng-foot { padding: 12px 20px 16px; }
-.ng-start-wrap { display: flex; width: 100%; }
+.ng-foot { display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding: 12px 20px 16px; border-top: 1px solid var(--line); }
+.ng-start-wrap { display: inline-flex; }
+.ng-start { min-width: 220px; }
 
-@media (max-width: 767px) {
-  .mm-title { margin-top: 8vh; }
-  .mm-items { margin-top: 8vh; gap: 6px; }
-  .mm-item { min-height: 48px; font-size: 22px; }
+@media (max-width: 900px) {
+  .menu-screen.mm { grid-template-columns: 1fr; }
+  .mm-right { display: none; }
+  .mm-left { padding: 8vh 24px 32px; }
   .ng-body { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; gap: 16px; }
   .ng-foot { padding: 10px 16px 16px; }
+  .ng-start { min-width: 0; flex: 1; }
 }
 .menu-screen.mm .version { z-index: 1; padding: 0 6px; background: #202124; }
