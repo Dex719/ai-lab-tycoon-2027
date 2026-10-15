@@ -37,3 +37,12 @@
 .gch-wallet dt { color: var(--text-dim); }
 .gch-wallet dd { margin: 0; text-align: right; font-weight: 600; white-space: nowrap; }
 .gch-wallet dd.bad { color: #b32f2f; }
+
+/* Узкий экран: превью над списком, список по высоте содержимого. */
+@media (max-width: 640px) {
+  .gch { grid-template-columns: 1fr; height: auto; }
+  .gch-stage { order: -1; }
+  .gch-view { flex: none; height: 170px; }
+  .gch-cap { flex-wrap: wrap; }
+  .gch-list { overflow: visible; }
+}

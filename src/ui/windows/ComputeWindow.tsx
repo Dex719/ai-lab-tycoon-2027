@@ -175,12 +175,9 @@ function RentedRow({ s, g, onEdit, onGiveBack }: { s: GameState; g: GpuDef; onEd
     <div className="cw-row">
       <GpuThumb id={g.id} w={88} h={50} />
       <div className="cw-row-main">
-        <div className="cw-row-name">
-          {g.name}
-          <span className="cw-row-count">{fmtInt(count)} шт.</span>
-        </div>
+        <div className="cw-row-name">{g.name}</div>
         <div className="cw-row-meta">
-          {fmtH(count * g.h100e)} H100e, {fmtCardMonth(rentPerGpuDay(s, g.id))} за карту в месяц
+          <b>{fmtInt(count)} шт.</b>, {fmtH(count * g.h100e)} H100e, {fmtCardMonth(rentPerGpuDay(s, g.id))} за карту в месяц
         </div>
         <div className={`cw-row-over${over > 0 ? '' : ' cw-hide'}`}>
           Сверх лимита {fmtInt(over)} шт.: цена {OVER_TIMES} выше
