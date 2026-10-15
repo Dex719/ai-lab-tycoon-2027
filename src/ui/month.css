@@ -1,7 +1,7 @@
 /* Итог месяца - в панели задач слева от часов: строка состояния, как в PT. Не перекрывает окна.
    Изменения - цветом значения, без стрелок-символов. */
 .month-strip {
-  margin-left: auto; flex: 0 1 auto; min-width: 0; height: 34px; display: flex; align-items: center; gap: 18px;
+  margin-left: auto; flex: 0 0 auto; max-width: 55%; min-width: 0; height: 34px; display: flex; align-items: center; gap: 18px;
   padding: 0 12px; overflow: hidden; cursor: pointer; background: #2a2a2d; color: var(--bar-text); border-radius: 2px;
   animation: ms-in 3500ms ease-out forwards;
 }
