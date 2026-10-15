@@ -1,8 +1,9 @@
-/* Окно «Мощности»: тёмная полоса с 3D-фермой и главным числом (как полоса прогноза в «Новой модели»),
+/* Окно «Мощности»: светлая шапка - машинный зал с арендованными стойками и главное число мощности,
    ниже серое поле: слева арендованные карты с картинками, справа распределение мощности. */
 
 .cw {
   --cw-well: #d3d5d9;
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -87,7 +88,6 @@
 }
 .cw-panel-head { flex: none; padding-bottom: 2px; border-bottom: 1px solid var(--line-soft); }
 .cw-allocbar { display: flex; height: 10px; margin: 6px 0 3px; overflow: hidden; background: #e3e5e9; border-radius: 2px; }
-.cw-allocbar > div { transition: width 120ms ease-out; }
 .cw-occ { min-height: 18px; font-size: 12.5px; line-height: 18px; color: var(--text-dim); }
 .cw-occ.full { color: #1d6b36; font-weight: 600; }
 .cw-occ.idle { color: #a85a00; }
@@ -170,5 +170,14 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cw-flash { animation: none; }
-  .cw-allocbar > div { transition: none; }
+}
+
+/* Узкое окно (телефон, маленький экран): шапка и поле в одну колонку, поле прокручивается целиком. */
+@container (max-width: 760px) {
+  .cw-head { grid-template-columns: 1fr; height: auto; }
+  .cw-farm { height: 150px; }
+  .cw-rent-btn { margin-top: 10px; }
+  .cw-body { grid-template-columns: 1fr; overflow: auto; }
+  .cw-rented { overflow: visible; }
+  .cw-alloc-rows { overflow: visible; }
 }

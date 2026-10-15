@@ -2,7 +2,7 @@
    ниже слева список площадок, справа выбранная площадка: 3D-сцена и сведения под ней.
    Цвета только по смыслу: расходы - красным, экономия - зелёным, состояние площадки - точкой. */
 
-.dc { display: flex; flex-direction: column; height: 100%; min-height: 0; font-variant-numeric: tabular-nums; }
+.dc { display: flex; flex-direction: column; height: 100%; min-height: 0; font-variant-numeric: tabular-nums; container-type: inline-size; }
 .dc-hide { visibility: hidden; }
 
 /* ---------- Шапка ---------- */
@@ -121,6 +121,17 @@
 .dc-qty-note { grid-column: 2 / -1; min-height: 19px; font-size: 13px; color: var(--text-dim); }
 .dc-qty-note.bad { color: var(--bad); font-weight: 600; }
 .dc-confirm { margin: 0; max-width: 460px; }
+
+/* Узкое окно: площадки строкой сверху, сведения ниже, всё прокручивается целиком. */
+@container (max-width: 760px) {
+  .dc-head { flex-wrap: wrap; align-items: flex-start; }
+  .dc-body { grid-template-columns: 1fr; overflow: auto; }
+  .dc-sites { flex-direction: row; overflow-x: auto; padding-bottom: 0; }
+  .dc-site { min-width: 170px; }
+  .dc-detail { margin: 8px 12px 12px; }
+  .dc-detail-body { overflow: visible; }
+  .dc-build { grid-template-columns: 1fr; }
+}
 
 /* Значок «Новое» на ярлыке рабочего стола. */
 .desk-icon .desk-new { position: absolute; top: 4px; right: 4px; margin: 0; }
