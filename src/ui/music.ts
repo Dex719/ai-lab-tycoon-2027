@@ -53,6 +53,8 @@ export interface Composer {
   nextNoteAt: number;
   nextPulseAt: number;
   melody: number;
+  /** Частота фильтра аккордов, к которой он уже идёт (меняем только при смене настроения). */
+  cutoff: number;
   /** Запущенные генераторы: при остановке музыки гасим их сразу. */
   live: Set<OscillatorNode>;
 }
@@ -74,7 +76,7 @@ function voices(g: AudioGraph): Voices {
 }
 
 export function newComposer(g: AudioGraph, rng: Rng = Math.random): Composer {
-  return { g, v: voices(g), rng, history: [], chords: [], nextChordAt: 0, nextNoteAt: 0, nextPulseAt: 0, melody: 72, live: new Set() };
+  return { g, v: voices(g), rng, history: [], chords: [], nextChordAt: 0, nextNoteAt: 0, nextPulseAt: 0, melody: 72, cutoff: 0, live: new Set() };
 }
 
 function osc(k: Composer, type: OscillatorType | PeriodicWave, f: number, t: number, end: number, dest: AudioNode): OscillatorNode {
@@ -184,7 +186,12 @@ function schedulePulse(k: Composer, t: number): void {
 /** Запланировать всё, что должно зазвучать до момента until. */
 export function compose(k: Composer, mood: Mood, until: number): void {
   const now = k.g.ctx.currentTime;
-  k.v.filter.frequency.setTargetAtTime(mood.cutoff, now, 3);
+  if (k.cutoff !== mood.cutoff) {
+    k.v.filter.frequency.cancelScheduledValues(now);
+    k.v.filter.frequency.setValueAtTime(k.v.filter.frequency.value, now);
+    k.v.filter.frequency.linearRampToValueAtTime(mood.cutoff, now + 6);
+    k.cutoff = mood.cutoff;
+  }
   if (k.nextChordAt < now) k.nextChordAt = now + 0.05;
   if (k.nextNoteAt < now) k.nextNoteAt = now + 1.5 + k.rng() * 2;
   while (k.nextChordAt < until) scheduleChord(k, k.nextChordAt, mood);
@@ -200,6 +207,8 @@ export function compose(k: Composer, mood: Mood, until: number): void {
 let composer: Composer | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let running = false;
+/** Громкость шины музыки, к которой она уже идёт: новое событие автоматизации - только при её смене. */
+let gainTarget = -1;
 /** Игрок уже нажимал на страницу: браузер разрешает звук только после этого. */
 let unlocked = false;
 
@@ -221,10 +230,18 @@ function tick(): void {
     return;
   }
   const g = audio();
-  if (!g) return;
+  if (!g) {
+    running = false; // браузер без Web Audio: молчим, следующая попытка - при следующем нажатии на ползунок
+    return;
+  }
   if (!composer || composer.g !== g) composer = newComposer(g);
   const mood = currentMood();
-  g.music.gain.setTargetAtTime(getSettings().music * mood.level * MUSIC_TRIM, g.ctx.currentTime, mood.level < 1 ? 0.8 : 1.5);
+  const target = getSettings().music * mood.level * MUSIC_TRIM;
+  if (target !== gainTarget) {
+    g.music.gain.cancelScheduledValues(g.ctx.currentTime);
+    g.music.gain.setTargetAtTime(target, g.ctx.currentTime, target < gainTarget ? 0.8 : 1.5);
+    gainTarget = target;
+  }
   compose(composer, mood, g.ctx.currentTime + AHEAD);
   timer = setTimeout(tick, TICK_MS);
 }
@@ -246,6 +263,7 @@ function stopMusic(): void {
   const now = g.ctx.currentTime;
   g.music.gain.cancelScheduledValues(now);
   g.music.gain.setTargetAtTime(0, now, 0.08);
+  gainTarget = 0;
   if (composer) {
     for (const o of composer.live) {
       try {
@@ -269,7 +287,11 @@ export function musicSettingsChanged(): void {
     return;
   }
   const g = existingAudio();
-  if (running && g) g.music.gain.setTargetAtTime(getSettings().music * currentMood().level * MUSIC_TRIM, g.ctx.currentTime, 0.05);
+  if (running && g) {
+    gainTarget = getSettings().music * currentMood().level * MUSIC_TRIM;
+    g.music.gain.cancelScheduledValues(g.ctx.currentTime);
+    g.music.gain.setTargetAtTime(gainTarget, g.ctx.currentTime, 0.05);
+  }
   startMusic();
 }
 
