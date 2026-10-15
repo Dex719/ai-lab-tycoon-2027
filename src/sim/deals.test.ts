@@ -236,6 +236,16 @@ describe('сделки: сохранение', () => {
     expect(serialize(r.state)).toBe(serialize(s));
   });
 
+  it('испорченное поле late отклоняется понятной ошибкой', () => {
+    const s = withLastRent('2023-06-10', 50e6);
+    signCloud(s, 'awz');
+    const data = JSON.parse(serialize(s));
+    data.late.cloud.id = 'нет-такого';
+    const r = deserialize(JSON.stringify(data));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain('late.cloud.id');
+  });
+
   it('старое сохранение без поля late загружается', () => {
     const s = stateOn('2023-06-10');
     expect(s.late).toBeUndefined();

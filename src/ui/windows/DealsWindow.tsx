@@ -273,14 +273,16 @@ function StartupsTab({ s }: { s: GameState }) {
 
 // ---------- Облако ----------
 
-/** Лимит аренды самых новых карт сейчас и с множителем сделки: «32,8 тыс. → 49,2 тыс. H100». active - лимит уже со сделкой. */
-function capLine(s: GameState, mult: number, active: boolean): string {
+/**
+ * Лимит аренды самых новых карт без облачной сделки и с этой сделкой: «65,5 тыс. → 85,2 тыс. H100».
+ * Сегодняшний лимит уже включает действующую сделку, поэтому база - лимит без её множителя.
+ */
+function capLine(s: GameState, mult: number): string {
   const gpu = availableGpus(s).at(-1);
   if (!gpu) return `в ${String(mult).replace('.', ',')} раза выше`;
-  const now = rentCapFor(s, gpu.id);
-  const before = active ? Math.floor(now / mult) : now;
-  const after = active ? now : Math.floor(now * mult);
-  return `${fmtNum(before)} → ${fmtNum(after)} ${gpu.name.replace(/^Fermi /, '')}`;
+  const active = s.late?.cloud ? (CLOUDS.find((x) => x.id === s.late?.cloud?.id)?.capMult ?? 1) : 1;
+  const base = Math.floor(rentCapFor(s, gpu.id) / active);
+  return `${fmtNum(base)} → ${fmtNum(Math.floor(base * mult))} ${gpu.name.replace(/^Fermi /, '')}`;
 }
 
 function CloudRow({ s, def, onSign }: { s: GameState; def: CloudDef; onSign: () => void }) {
@@ -293,7 +295,7 @@ function CloudRow({ s, def, onSign }: { s: GameState; def: CloudDef; onSign: () 
       </td>
       <td className="num">{def.months} мес.</td>
       <td className="num good">-{pct(def.discount)}</td>
-      <td className="num">{capLine(s, def.capMult, active)}</td>
+      <td className="num">{capLine(s, def.capMult)}</td>
       <td className="num">{fmtMoney(active ? (s.late?.cloud?.monthly ?? 0) : terms.monthly)}</td>
       <td className="dl-act">
         {active ? (
@@ -382,7 +384,7 @@ function CloudTab({ s }: { s: GameState }) {
             <span>Аренда</span>
             <span className="good">дешевле на {pct(signDef.discount)}</span>
             <span>Лимит аренды</span>
-            <span className="good">{capLine(s, signDef.capMult, false)}</span>
+            <span className="good">{capLine(s, signDef.capMult)}</span>
             <span>Обязательный платёж</span>
             <span className="bad">{fmtMoney(signTerms.monthly)} в месяц</span>
             <span>Расторжение</span>
