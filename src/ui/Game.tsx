@@ -311,7 +311,7 @@ export function Game({ s }: { s: GameState }) {
     </div>
 
       <Toasts s={s} open={open} />
-      <ArenaBanner s={s} />
+      <ArenaBanner s={s} open={open} />
       <MonthStrip s={s} />
       <AchievementToasts s={s} />
       <Juice s={s} onRelease={setReleased} />

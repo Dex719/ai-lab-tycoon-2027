@@ -2,6 +2,10 @@
 
 import { fmtGap, raceName, standingOf } from './ArenaFeedback';
 import { ModelEmblem } from './components/ModelEmblem';
+import { LabEmblem } from './components/LabEmblem';
+import { openDossier } from './dossier';
+import { duelOf, mainRival, timesCount } from '../sim/duel';
+import { LABS } from '../data/labs';
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { pool } from '../sim/compute';
 import { idleWarnings, type IdleItem } from '../sim/idle';
@@ -225,6 +229,40 @@ function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) =>
   );
 }
 
+/** Главный соперник в сводке: эмблема, имя и счёт обгонов; щелчок открывает досье. */
+function MainRival({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
+  const lab = mainRival(s);
+  if (!lab) return null;
+  const d = duelOf(s, lab);
+  const name = LABS.find((l) => l.id === lab)?.name ?? lab;
+  return (
+    <div
+      className="side-rival"
+      role="button"
+      tabIndex={0}
+      title={`Главный соперник: ${name}. Вы обгоняли их ${timesCount(d.youPassed)}, они вас - ${timesCount(d.passedYou)}. Щелчок открывает досье`}
+      onClick={(e) => {
+        e.stopPropagation();
+        openDossier(lab, open);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          openDossier(lab, open);
+        }
+      }}
+    >
+      Главный соперник:
+      <LabEmblem lab={lab} size={14} />
+      <b>{name}</b>
+      <span className="sr-score">
+        {d.youPassed}:{d.passedYou}
+      </span>
+    </div>
+  );
+}
+
 /** Простой мощности: оранжевые строки с кнопкой, которая ведёт туда, где это исправить. */
 function Idle({ items, open }: { items: IdleItem[]; open: (id: WindowId | WindowAlias) => void }) {
   if (items.length === 0) return null;
@@ -278,6 +316,7 @@ export function SidePanel({
         <span>Сводка</span>
       </div>
       <Goal s={s} open={open} />
+      <MainRival s={s} open={open} />
       <Idle items={idleWarnings(s)} open={open} />
       <GoalsPanel s={s} open={open} />
       <div className="side-tabs">
