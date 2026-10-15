@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: { port: 5317, strictPort: true },
+  // Зависимости ищем только от главной страницы: страницы-образцы в public/art (3D-арт) не должны сбивать сборку.
+  optimizeDeps: { entries: ['index.html'] },
   // Игра локальная, один бандл с React и Recharts — нормально.
   build: { chunkSizeWarningLimit: 1500 },
   test: { environment: 'node', include: ['src/**/*.test.ts'] },
