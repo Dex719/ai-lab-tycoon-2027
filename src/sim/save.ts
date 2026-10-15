@@ -8,6 +8,7 @@ import { CHAT_MOMENT_DATE, CHOICE_DAYS, FAIL_CHOICE_DAYS, HYPE_OWNERS, TIER_SUBS
 import { DIFFICULTY_IDS, emptyRivalry, LEVERS, MOVE_IDS } from './rivalry';
 import type { ActiveMove, HistoryRow, LabMemory, PendingMove, RivalOverride, RivalryState } from './rivalry';
 import { CLOUD_IDS, STARTUP_IDS, TEAM_IDS } from './lateState';
+import type { DuelLab, DuelState } from './duel';
 import type { CloudDeal, FinalPush, FinaleState, FinalUpdate, FinalUpdateDone, LateState, StarTeam, StartupDeal } from './lateState';
 import { emptyMarket, emptyQuests, emptySegmentShares, emptyYearly } from './state';
 import { dateToDay } from './time';
@@ -424,6 +425,20 @@ const late = shapeOf<LateState>({
   }),
 });
 
+// Личное соперничество (sim/duel.ts): счёт обгонов, главный соперник.
+const duelLab = shapeOf<DuelLab>({ passedYou: int, youPassed: int, moves: int, lastDay: nullable(num) });
+
+const duel = shapeOf<DuelState>({
+  labs: record(LAB_IDS, duelLab),
+  main: nullable(oneOf(LAB_IDS)),
+  mainSince: nullable(num),
+  race: nullable(str),
+  ahead: arrayOf(str),
+  behind: arrayOf(str),
+  letterDay: nullable(num),
+  sig: str,
+});
+
 // Короткие задачи и выбор целей года (sim/tasks.ts, sim/goals.ts).
 const task = shapeOf<TaskState>({
   id: str,
@@ -508,6 +523,7 @@ const STATE: Record<keyof GameState, Check> = {
   rivalry,
   yearly,
   late: optional(late),
+  duel: optional(duel),
   quests,
   market: shapeOf<GameState['market']>({
     shares: dict(num),
