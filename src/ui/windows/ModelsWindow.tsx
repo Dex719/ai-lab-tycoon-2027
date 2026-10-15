@@ -53,6 +53,9 @@ import { raceMetricOf, raceRows } from '../race';
 import { actions, store } from '../store';
 import './ModelsWindow.css';
 
+/** Части подписи модели не рвутся посередине («2 тыс.», «109 млрд»): перенос только между частями. */
+const nb = (part: string): string => part.replace(/ /g, String.fromCharCode(160));
+
 const MAX_PRICE = 10_000;
 
 /** Три готовые цены относительно типичной цены уровня модели. */
@@ -935,7 +938,7 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
   const forecast = s.research.done.includes('scaling')
     ? forecastElo(capsFromPlan(t.plan, t.algoLevel, t.arch, t.failPenalty, t.techs ?? []), t.plan.rlhf, t.algoLevel, t.techs ?? [])
     : null;
-  const sub = [t.arch === 'transformer' ? 'Трансформер' : 'LSTM', `${fmtParams(t.plan.paramsB)} параметров`, `контекст ${contextLabel(t.plan.context)}`].join(' · ');
+  const sub = [t.arch === 'transformer' ? 'Трансформер' : 'LSTM', `${fmtParams(t.plan.paramsB)} параметров`, `контекст ${contextLabel(t.plan.context)}`].map(nb).join(' · ');
   const items: Kpi[] = [
     { label: 'Готово', value: fmtShare(frac, 0) },
     {
@@ -1007,6 +1010,7 @@ function ModelCard(props: { s: GameState; m: PlayerModel; open: WindowProps['ope
   const rv = reviewState(m);
   const sub = [m.arch === 'transformer' ? 'Трансформер' : 'LSTM', `${fmtParams(m.plan.paramsB)} параметров`, `контекст ${contextLabel(m.plan.context)}`, m.rlhf ? 'RLHF' : '']
     .filter(Boolean)
+    .map(nb)
     .join(' · ');
 
   return (
