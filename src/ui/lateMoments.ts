@@ -35,7 +35,7 @@ function pushHeld(s: GameState, st: ArenaStanding | null): LateMoment | null {
     headline: `«${s.labName}» удержала первое место`,
     sub:
       `${lab} ${t.kind === 'push-update' ? 'обновила' : 'выпустила'} ${t.name}: ${fmtInt(t.elo)} Эло. ` +
-      `Модель «${st.modelName}» выше - ${fmtInt(st.value)} Эло.`,
+      `Модель «${st.modelName}» выше: ${fmtInt(st.value)} Эло.`,
     body:
       (pending > 0 ? `Объявлен ещё ${pushesText(pending)}. ` : 'Других объявленных рывков нет. ') +
       `До итогов гонки ${fmtDays(Math.max(0, END_DAY - s.day))}.`,
