@@ -86,7 +86,7 @@ function ReviewDialog({ s, r }: { s: GameState; r: YearReview }) {
                   <span>{fmtMoney(r.expense)}</span>
                   <span>Деньги на счёте</span>
                   <span className={r.cash < 0 ? 'bad' : undefined}>{fmtMoney(r.cash)}</span>
-                  <span>Доля рынка</span>
+                  <span>Доля рынка 31 декабря</span>
                   <span>
                     {fmtShare(r.share, 1)}
                     {prev && <small className="yr-d">в {r.year - 1} году {fmtShare(prev.share, 1)}</small>}
