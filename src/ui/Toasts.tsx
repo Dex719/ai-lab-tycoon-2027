@@ -2,7 +2,8 @@
 // Письма с выбором не показываем: их и так открывает окно решения. Исчезают через 6 секунд, пауза при наведении.
 
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
-import type { GameState, Mail } from '../sim/types';
+import type { GameState, LabId, Mail } from '../sim/types';
+import { LabEmblem } from './components/LabEmblem';
 import { IconAlert, IconArrowUpDown, IconBank, IconCalendar, IconClose, IconFast, IconInfo, IconMail, IconTrophy, type LineIconProps } from './icons';
 import { getSettings } from './settings';
 import { playSound } from './sound';
@@ -42,6 +43,8 @@ interface ToastData {
   tone?: 'reward' | 'good' | 'bad';
   /** Подпись над заголовком вместо вида письма. */
   label?: string;
+  /** Письмо лично от лаборатории-соперника: вместо значка - её эмблема. */
+  from?: LabId;
 }
 
 function mailNum(m: Mail): number {
@@ -68,8 +71,8 @@ function ToastItem({ t, onOpen, onClose }: { t: ToastData; onOpen: (t: ToastData
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      <span className="ti" aria-hidden="true">
-        <Icon size={16} />
+      <span className={`ti${t.from ? ' from' : ''}`} aria-hidden="true">
+        {t.from ? <LabEmblem lab={t.from} size={28} decorative /> : <Icon size={16} />}
       </span>
       <span className="tk">{t.label ?? (t.group ? 'Новые письма' : t.important ? `${name}, важное` : name)}</span>
       <span className="tt">{t.title}</span>
@@ -146,6 +149,7 @@ export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | Window
       group,
       tone: !group && m.reward ? 'reward' : undefined,
       label: !group && m.reward ? 'Награда' : undefined,
+      from: group ? undefined : m.from,
     });
     // Награды - каждая отдельной карточкой, их не сворачиваем. Затем важные письма, затем новости.
     const rewards = fresh.filter((m) => m.reward);

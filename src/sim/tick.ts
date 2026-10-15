@@ -4,6 +4,7 @@ import { HYPE_MONTHLY_DECAY, HYPE_OWNERS } from './constants';
 import { generateMonthly, progressDay as contractsDay } from './contracts';
 import { introduceDue } from './benchmarks';
 import { datacentersDay } from './datacenters';
+import { duelDay } from './duel';
 import { dealsDay, dealsMonthEnd } from './deals';
 import { finaleDay } from './finale';
 import { expireChoices, fireDue, pendingChoice, pruneMail, pruneModifiers } from './events';
@@ -82,6 +83,7 @@ export function advanceDay(s: GameState): void {
   marketDay(s);
   financeDay(s);
   tasksDay(s); // короткие задачи: проверка после денег и контрактов дня, новая задача
+  duelDay(s); // личное соперничество: счёт обгонов, главный соперник, письма соперников (на баланс не влияет)
 
   if (s.rivalsReleased.length !== releasedBefore) updateSaturation(s);
 

@@ -4,12 +4,16 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { LABS } from '../data/labs';
 import { arenaStanding, type ArenaNeighbor, type ArenaStanding, type RaceMetric } from '../sim/leaderboard';
-import type { GameState, HypeOwner } from '../sim/types';
+import { duelOf } from '../sim/duel';
+import type { GameState, HypeOwner, LabId } from '../sim/types';
 import { ARENA_PLACE_TITLE } from './arena';
+import { LabEmblem } from './components/LabEmblem';
+import { openDossier } from './dossier';
 import { fmtInt, fmtPct } from './format';
 import { IconArrowDown, IconArrowUp, IconClose, IconTrophy } from './icons';
 import { playSound } from './sound';
 import { store } from './store';
+import type { WindowAlias, WindowId } from './windows';
 import './arena.css';
 
 const BANNER_MS = 5000;
@@ -124,6 +128,8 @@ interface Banner {
   behind: ArenaNeighbor[];
   switched: boolean; // гонка перешла на другой тест или на «Арену»
   rows: Row[];
+  /** Главный соперник участвовал в смене места: его счёт обгонов с вами после неё. */
+  rival: { lab: LabId; youPassed: number; passedYou: number } | null;
 }
 
 function names(list: ArenaNeighbor[]): string {
@@ -151,7 +157,7 @@ function excerpt(st: ArenaStanding, passed: ArenaNeighbor[], lost: ArenaNeighbor
 }
 
 /** Баннер под верхней панелью, когда лучшая модель игрока меняет место в гонке: выдержка из таблицы вокруг модели. */
-export function ArenaBanner({ s }: { s: GameState }) {
+export function ArenaBanner({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
   const prev = useRef<{ state: GameState; day: number; st: ArenaStanding | null } | null>(null);
   const [banner, setBanner] = useState<Banner | null>(null);
   const [hover, setHover] = useState(false);
@@ -182,7 +188,14 @@ export function ArenaBanner({ s }: { s: GameState }) {
       behind: st.behind,
       switched,
       rows: excerpt(st, switched ? [] : passed, switched ? [] : lost),
+      rival: null,
     };
+    // Главный соперник в смене места: строка со счётом обгонов (sim/duel.ts уже засчитал этот день).
+    const main = s.duel?.main ?? null;
+    if (main && !switched && [...passed, ...lost].some((n) => n.lab === main)) {
+      const d = duelOf(s, main);
+      b.rival = { lab: main, youPassed: d.youPassed, passedYou: d.passedYou };
+    }
     setBanner(b);
     const up = b.from === null || b.to < b.from;
     playSound(switched ? 'research' : b.to === 1 && up ? 'first' : up ? 'rankUp' : 'rankDown');
@@ -225,6 +238,22 @@ export function ArenaBanner({ s }: { s: GameState }) {
         {banner.from !== null && !banner.switched && <span className="arb-was">было {banner.from}-е</span>}
       </div>
       <div className="arb-sub">{sub}</div>
+      {banner.rival && (
+        <button
+          type="button"
+          className="arb-rival"
+          onClick={() => {
+            if (banner.rival) openDossier(banner.rival.lab, open);
+            setBanner(null);
+          }}
+          title="Открыть досье лаборатории"
+        >
+          <LabEmblem lab={banner.rival.lab} size={16} decorative />
+          <span>
+            Главный соперник {LAB_NAME.get(banner.rival.lab)}. Обгоны: вы {banner.rival.youPassed}, они {banner.rival.passedYou}
+          </span>
+        </button>
+      )}
       <table className="arb-rows">
         <tbody>
           {banner.rows.map((r) => (

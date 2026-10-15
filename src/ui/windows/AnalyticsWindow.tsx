@@ -1,7 +1,7 @@
 // «Аналитика» с вкладками, как в Processor Tycoon: первой идёт «Арена» (главная цель игры), дальше ваши модели, рынок,
 // бенчмарки, финансы, лаборатории.
 
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import type { WindowProps } from '.';
 import { playerSales, subsOpen, type PlayerSales } from '../../sim/market';
 import { contextLabel } from '../../sim/research';
@@ -16,7 +16,9 @@ import { INCOME_LABELS, modelChannels, reviewNote } from '../labels';
 import './AnalyticsWindow.css';
 import { buildChartData, ChartPanel, currentMonthView, finite, StatStrip, type SeriesDef } from './analyticsShared';
 import FinanceTab from './FinanceWindow';
-import MarketTab, { LabsTab } from './MarketWindow';
+import MarketTab from './MarketWindow';
+import { LabsTab } from './LabsDossier';
+import { dossierPending, onDossier } from '../dossier';
 import { ArenaTab, BenchmarksTab } from './RatingsWindow';
 
 type TabId = 'yours' | 'market' | 'bench' | 'arena' | 'finance' | 'labs';
@@ -34,7 +36,9 @@ const TABS: { id: TabId; label: string }[] = [
 const FILL_TABS: ReadonlySet<TabId> = new Set(['bench']);
 
 export default function AnalyticsWindow(props: WindowProps) {
-  const [tab, setTab] = useState<TabId>('arena');
+  // Досье лаборатории из сводки или баннера гонки открывает вкладку «Лаборатории».
+  const [tab, setTab] = useState<TabId>(() => (dossierPending() ? 'labs' : 'arena'));
+  useEffect(() => onDossier(() => setTab('labs')), []);
   const fill = FILL_TABS.has(tab);
   return (
     <div className="an">

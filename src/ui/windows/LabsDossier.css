@@ -1,0 +1,46 @@
+/* «Лаборатории»: список соперников слева, досье справа. Светлое, плоское; главное число - счёт обгонов. */
+
+.dos { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 16px; align-items: start; }
+
+/* Список: белое поле, строки через тонкую линию, выбор - фоном и рамкой акцента (общие .list-item / .on). */
+.dos-list { background: #fff; border: 1px solid var(--line); }
+.dos-list .list-item:last-child { border-bottom: 0; }
+.dos-row { align-items: center; font-size: 14px; }
+.dos-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.dos-row-n { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.dos-row-n > span { display: flex; flex-direction: column; line-height: 1.25; }
+.dos-main-s { font-size: 12px; font-weight: 600; color: var(--warn); }
+.dos-row-v { font-variant-numeric: tabular-nums; color: var(--text-dim); white-space: nowrap; }
+
+/* Досье. */
+.dos-card { background: #fff; border: 1px solid var(--line); padding: 16px 20px; min-width: 0; }
+.dos-head { display: flex; gap: 14px; align-items: center; }
+.dos-title { min-width: 0; }
+.dos-title h3 { margin: 0; font-size: 22px; font-weight: 600; color: var(--text); line-height: 1.2; }
+.dos-line { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+.dos-main { font-size: 13px; font-weight: 600; color: var(--warn); margin-top: 2px; }
+
+.dos-body { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px 32px; margin-top: 16px; align-items: start; }
+.dos-score { font-size: 36px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--text); }
+.dos-score .sep { margin: 0 6px; color: var(--text-dim); font-weight: 400; }
+.dos-score-l { font-size: 13px; margin-top: 4px; }
+
+.dos-kv { font-size: 14px; grid-template-columns: max-content minmax(0, 1fr); }
+.kv.dos-kv > :nth-child(odd) { white-space: nowrap; }
+.kv.dos-kv > :nth-child(even) { text-align: left; }
+.dos-threat { display: inline-flex; align-items: center; gap: 8px; }
+.dos-meter { display: inline-block; width: 90px; height: 6px; background: var(--row-line); }
+.dos-meter i { display: block; height: 100%; background: #9aa1aa; }
+.dos-meter i.mid { background: var(--warn); }
+.dos-meter i.hi { background: var(--bad-ink); }
+
+.dos-h { margin: 16px 0 6px; font-size: 16px; font-weight: 600; color: var(--text); }
+.dos-none { font-size: 13px; }
+.dos-moves { width: 100%; font-size: 13px; }
+.dos-moves td.dos-move-t { white-space: normal; line-height: 1.3; }
+.dos-moves td.dos-d { font-variant-numeric: tabular-nums; color: var(--text-dim); }
+
+@media (max-width: 820px) {
+  .dos { grid-template-columns: 1fr; }
+  .dos-body { grid-template-columns: 1fr; }
+}

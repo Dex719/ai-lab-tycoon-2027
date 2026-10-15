@@ -5,6 +5,7 @@
 import type { Difficulty, RivalryState } from './rivalry';
 import type { DcSiteId } from '../data/datacenters';
 import type { LateState } from './lateState';
+import type { DuelState } from './duel';
 
 export type DomainId = 'language' | 'code' | 'reasoning';
 export const DOMAINS: readonly DomainId[] = ['language', 'code', 'reasoning'];
@@ -275,6 +276,8 @@ export interface Mail {
   outcome?: { lucky: boolean; text: string };
   /** Награда (цель, оплата, победа в тендере, готовое исследование): уведомление крупнее и дольше. */
   reward?: boolean;
+  /** Письмо лично от лаборатории-соперника (sim/duel.ts): в «Почте» вместо значка - её эмблема. */
+  from?: LabId;
 }
 
 /**
@@ -497,6 +500,8 @@ export interface GameState {
   yearly: YearlyState;
   /** Поздняя игра: сделки 2023-2024 и финальный квартал (sim/lateState.ts). Нет в старых сохранениях и до первой сделки. */
   late?: LateState;
+  /** Личное соперничество: счёт обгонов, главный соперник, письма соперников (sim/duel.ts). Нет в старых сохранениях. */
+  duel?: DuelState;
   /** Короткие задачи и выбор целей года (sim/tasks.ts, sim/goals.ts); старые сохранения получают пустое состояние. */
   quests: QuestState;
   market: {
