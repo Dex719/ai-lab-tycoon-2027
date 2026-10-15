@@ -10,6 +10,7 @@ import { ARENA_PLACE_TITLE, bestArenaPlace } from './arena';
 import { formatDate } from '../sim/time';
 import type { GameState, MonthRecord } from '../sim/types';
 import { useModalFocus } from './components/common';
+import { IconClose, IconTrophy } from './icons';
 import { fmtElo, fmtMoney, fmtNum, fmtShare } from './format';
 import { fmtRank } from './labels';
 import { playSound } from './sound';
@@ -102,73 +103,76 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
       <div
         ref={ref}
         tabIndex={-1}
-        className={`end ${win ? 'win' : bankrupt ? 'lost' : 'done'}`}
+        className={`dialog end ${win ? 'win' : bankrupt ? 'lost' : 'done'}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
         onKeyDown={onKeyDown}
       >
-        <div className="end-head">
-          <div className="end-title">{title}</div>
-          <div className="end-lead">{lead}</div>
+        <div className="titlebar">
+          <span className="t">{title}</span>
+          <button className="wbtn close" onClick={onWatch} aria-label="Закрыть" title="Закрыть">
+            <IconClose size={14} />
+          </button>
         </div>
-
-        <div className="end-tiles">
-          <div className="end-tile" title={ARENA_PLACE_TITLE}>
-            <span className="end-l">Место на «Арене»</span>
-            <span className={`end-big${rank === 1 ? ' gold' : ''}`}>{rank !== null ? `${rank}-е` : '-'}</span>
-            <span className="end-sub">{bestPlace !== null ? `Лучшее за игру: ${bestPlace}-е` : 'Соперников в продаже не было'}</span>
-          </div>
-          <div className="end-tile">
-            <span className="end-l">Месяцев на 1-м месте</span>
-            <span className="end-big">{fmtNum(months)}</span>
-            <span className="end-sub">Моделей выпущено: {released}</span>
-          </div>
-          <div className="end-tile">
-            <span className="end-l">Лучшая модель</span>
-            <span className="end-big small">{best ? best.name : '-'}</span>
-            <span className="end-sub">{best ? `${fmtElo(best.elo)} Эло` : 'Моделей не было'}</span>
-          </div>
-          <div className="end-tile">
-            <span className="end-l">Оценка компании</span>
-            <span className="end-big">{fmtMoney(v.total)}</span>
-            <span className="end-sub">
-              Ваша доля {fmtShare(s.founderShare)}: {fmtMoney(v.total * s.founderShare)}
-            </span>
-          </div>
-        </div>
-
-        <EloChart history={history} lab={s.labName} />
-
-        {moments.length > 0 && (
-          <div className="end-moments">
-            <span className="end-l">Ваши моменты</span>
-            <div className="end-chips">
-              {moments.map((id) => (
-                <span key={id} className="end-chip">
-                  ★ {MOMENT_TITLES[id]}
-                </span>
-              ))}
+        <div className="body end-body">
+          <div className="end-head">
+            {win && <IconTrophy size={44} className="end-cup" />}
+            <div className="end-head-t">
+              <span className="end-place" title={ARENA_PLACE_TITLE}>
+                {rank !== null ? `${rank}-е место` : 'Без места'}
+                <small>на «Арене»</small>
+              </span>
+              <span className="end-lead">{lead}</span>
             </div>
           </div>
-        )}
 
-        <div className="end-kv">
-          <span title={DIFFICULTY[s.difficulty].description}>Сложность</span>
-          <span>{DIFFICULTY[s.difficulty].name}</span>
-          <span>Выручка за игру</span>
-          <span>{fmtMoney(revenue)}</span>
-          <span>Деньги</span>
-          <span>{fmtMoney(s.cash)}</span>
-          {subsOpen(s.day) && (
-            <>
-              <span title="Пользователи подписки, обслуженные вчера">Подписчиков</span>
-              <span>{fmtNum(Math.round(Number.isFinite(s.market.playerSubs) ? s.market.playerSubs : 0))}</span>
-            </>
+          <dl className="end-stats">
+            <dt>Лучшее место за игру</dt>
+            <dd>{bestPlace !== null ? `${bestPlace}-е` : 'соперников в продаже не было'}</dd>
+            <dt>Месяцев на 1-м месте</dt>
+            <dd>{fmtNum(months)}</dd>
+            <dt>Лучшая модель</dt>
+            <dd>{best ? `${best.name}, ${fmtElo(best.elo)} Эло` : 'моделей не было'}</dd>
+            <dt>Моделей выпущено</dt>
+            <dd>{released}</dd>
+            <dt>Оценка компании</dt>
+            <dd>{fmtMoney(v.total)}</dd>
+            <dt>Ваша доля {fmtShare(s.founderShare)}</dt>
+            <dd>{fmtMoney(v.total * s.founderShare)}</dd>
+          </dl>
+
+          <EloChart history={history} lab={s.labName} />
+
+          {moments.length > 0 && (
+            <div className="end-moments">
+              <span className="end-l">Ваши моменты</span>
+              <div className="end-chips">
+                {moments.map((id) => (
+                  <span key={id} className="end-chip">
+                    {MOMENT_TITLES[id]}
+                  </span>
+                ))}
+              </div>
+            </div>
           )}
-        </div>
 
-        <div className="end-foot">
+          <div className="end-kv">
+            <span title={DIFFICULTY[s.difficulty].description}>Сложность</span>
+            <span>{DIFFICULTY[s.difficulty].name}</span>
+            <span>Выручка за игру</span>
+            <span>{fmtMoney(revenue)}</span>
+            <span>Деньги</span>
+            <span>{fmtMoney(s.cash)}</span>
+            {subsOpen(s.day) && (
+              <>
+                <span title="Пользователи подписки, обслуженные вчера">Подписчиков</span>
+                <span>{fmtNum(Math.round(Number.isFinite(s.market.playerSubs) ? s.market.playerSubs : 0))}</span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="foot end-foot">
           <button className="btn" onClick={onWatch}>
             Посмотреть игру
           </button>
