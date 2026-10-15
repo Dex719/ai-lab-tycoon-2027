@@ -8,15 +8,16 @@ import { FINALE_START, finaleThreats, pushesText } from '../sim/finale';
 import type { ArenaStanding } from '../sim/leaderboard';
 import { END_DAY } from '../sim/time';
 import type { GameState, LabId } from '../sim/types';
-import { fmtDays, fmtInt } from './format';
+import { fmtDays, fmtInt, fmtMoney, ruPlural } from './format';
+import { LAB_STAGES, metricStage, stageFlag } from './labStage';
 
 export interface LateMoment {
-  id: 'push-held' | 'main-rival' | 'startup';
+  id: 'push-held' | 'main-rival' | 'startup' | `stage-${number}`;
   kicker: string;
   headline: string;
   sub: string;
   body: string;
-  art: 'push' | 'swap' | 'deal';
+  art: 'push' | 'swap' | 'deal' | 'office' | 'floor' | 'campus';
 }
 
 const labName = (id: LabId | string): string => LABS.find((l) => l.id === id)?.name ?? id;
@@ -80,7 +81,31 @@ function startupBought(s: GameState): LateMoment | null {
   };
 }
 
+const STAGE_NEWS: Record<number, { headline: (lab: string) => string; art: LateMoment['art'] }> = {
+  1: { headline: (lab) => `«${lab}» переехала из гаража в офис`, art: 'office' },
+  2: { headline: (lab) => `«${lab}» заняла этаж в бизнес-центре`, art: 'floor' },
+  3: { headline: (lab) => `«${lab}» переезжает в свой кампус`, art: 'campus' },
+};
+
+/** Новый этап лаборатории (labStage.ts): заметка о переезде, один раз на этап. */
+function stageMoved(s: GameState): LateMoment | null {
+  if (s.outcome) return null;
+  const m = metricStage(s);
+  const news = STAGE_NEWS[m.stage];
+  const def = LAB_STAGES[m.stage];
+  if (!news || !def) return null;
+  const seats = def.desks * 2;
+  return {
+    id: stageFlag(m.stage).replace('moment:', '') as LateMoment['id'],
+    kicker: 'Компания',
+    headline: news.headline(s.labName),
+    sub: m.by === 'value' ? `Инвесторы оценивают компанию в ${fmtMoney(m.value)}.` : `Лучший месяц лаборатории - ${fmtMoney(m.month)} выручки.`,
+    body: `На новом месте ${seats} рабочих мест и серверная на ${def.racks} ${ruPlural(def.racks, 'стойку', 'стойки', 'стоек')}.`,
+    art: news.art,
+  };
+}
+
 /** Моменты новых систем, которые сейчас выполнены (показан или нет - решает флаг). */
 export function lateMoments(s: GameState, st: ArenaStanding | null): LateMoment[] {
-  return [pushHeld(s, st), mainRivalPassed(s, st), startupBought(s)].filter((m): m is LateMoment => m !== null);
+  return [pushHeld(s, st), mainRivalPassed(s, st), startupBought(s), stageMoved(s)].filter((m): m is LateMoment => m !== null);
 }

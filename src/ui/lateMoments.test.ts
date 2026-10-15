@@ -59,6 +59,18 @@ describe('газетные моменты новых систем', () => {
     expect(lateMoments(s, st)).toEqual([]);
   });
 
+  it('переезд: заметка о новом этапе лаборатории, с числами без длинного тире', () => {
+    const s = newGame('Нейрон', 1);
+    const base = s.finance.history[0];
+    s.finance.history = [{ ...(base ?? {}), year: 2020, month: 3, income: { api: 0, subs: 0, contracts: 6e6 } } as (typeof s.finance.history)[number]];
+    const [m] = lateMoments(s, null);
+    expect(m.id).toBe('stage-2');
+    expect(m.headline).toBe('«Нейрон» заняла этаж в бизнес-центре');
+    expect(m.sub).toBe('Лучший месяц лаборатории - $6 млн выручки.');
+    expect(m.body).toBe('На новом месте 10 рабочих мест и серверная на 4 стойки.');
+    expect(`${m.headline} ${m.sub} ${m.body}`).not.toMatch(BAD);
+  });
+
   it('рывок отбит: рывок состоялся, лаборатория осталась первой на «Арене»', () => {
     const s = newGame('Нейрон', 1);
     s.day = FINALE_START + 20;

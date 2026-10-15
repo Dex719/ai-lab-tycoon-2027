@@ -21,7 +21,7 @@ interface Moment {
   headline: string;
   sub: string;
   body: string;
-  art: 'attention' | 'chat' | 'trophy' | 'arena' | 'rlhf' | 'final' | 'push' | 'swap' | 'deal';
+  art: 'attention' | 'chat' | 'trophy' | 'arena' | 'rlhf' | 'final' | 'push' | 'swap' | 'deal' | 'office' | 'floor' | 'campus';
 }
 
 function standing(s: GameState): ArenaStanding | null {
@@ -259,6 +259,68 @@ const FIGS: Record<string, { caption: string; draw: () => ReactElement }> = {
           <text x={10} y={105}>2</text>
         </g>
         <path d="M34 41 H96" className="mo-line inv" />
+      </g>
+    ),
+  },
+  // Переезды лаборатории (labStage.ts): офис, этаж в бизнес-центре, кампус.
+  office: {
+    caption: 'Новый офис лаборатории',
+    draw: () => (
+      <g>
+        <g className="mo-line">
+          <path d="M20 128 H180" />
+          <rect x={48} y={44} width={104} height={84} />
+          <path d="M44 44 H156" />
+          <rect x={92} y={98} width={16} height={30} />
+        </g>
+        <g className="mo-ink">
+          {[60, 90, 120].map((x) => (
+            <rect key={`a${x}`} x={x} y={56} width={20} height={14} fillOpacity={0.75} />
+          ))}
+          {[60, 120].map((x) => (
+            <rect key={`b${x}`} x={x} y={80} width={20} height={14} fillOpacity={0.75} />
+          ))}
+        </g>
+      </g>
+    ),
+  },
+  floor: {
+    caption: 'Этаж лаборатории в бизнес-центре',
+    draw: () => (
+      <g>
+        <g className="mo-line">
+          <path d="M20 132 H180" />
+          <rect x={70} y={8} width={60} height={124} />
+          <path d="M70 20 H130 M70 32 H130 M70 44 H130 M70 56 H130 M70 68 H130 M70 80 H130 M70 92 H130 M70 104 H130 M70 116 H130" className="mo-thin" />
+        </g>
+        <g className="mo-ink">
+          <rect x={70} y={56} width={60} height={12} fillOpacity={0.88} />
+        </g>
+        <path d="M136 62 H160" className="mo-line" />
+      </g>
+    ),
+  },
+  campus: {
+    caption: 'Кампус лаборатории',
+    draw: () => (
+      <g>
+        <g className="mo-line">
+          <path d="M10 128 H190" />
+          <rect x={18} y={70} width={52} height={58} />
+          <rect x={78} y={40} width={58} height={88} />
+          <rect x={144} y={82} width={40} height={46} />
+        </g>
+        <g className="mo-ink">
+          {[48, 62, 76, 90, 104].map((y) => (
+            <rect key={`m${y}`} x={86} y={y} width={42} height={7} fillOpacity={0.7} />
+          ))}
+          {[80, 96, 112].map((y) => (
+            <rect key={`l${y}`} x={26} y={y} width={36} height={7} fillOpacity={0.45} />
+          ))}
+          {[92, 108].map((y) => (
+            <rect key={`r${y}`} x={150} y={y} width={28} height={7} fillOpacity={0.45} />
+          ))}
+        </g>
       </g>
     ),
   },

@@ -15,6 +15,24 @@
 }
 .ls-sign svg { color: #a9acb2; flex: none; }
 .ls-sign b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Этап лаборатории (labStage.ts) рядом с названием: гараж, офис, этаж, кампус. */
+.ls-stage { flex: none; padding-left: 10px; border-left: 1px solid #3b3c41; font-size: 14px; font-weight: 400; color: #a9acb2; white-space: nowrap; }
+
+/* Люди за столами слева и кубки по годам справа: полоса шириной с комнату, высота постоянная. */
+.ls-team {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; height: 44px; margin: -6px 0 -10px;
+  width: calc(4 * 186px + 3 * 18px + 52px); max-width: 100%; padding: 0 26px;
+}
+.ls-team { position: relative; }
+/* Пол под столами - как пол комнаты, только тоньше. */
+.ls-team::before { content: ''; position: absolute; left: 0; right: 0; bottom: -3px; height: 6px; background: #2c2e32; border-top: 1px solid #4a4d54; z-index: -1; }
+.ls-seats { flex: none; display: block; }
+.ls-cups { display: flex; align-items: flex-end; gap: 6px; min-width: 0; }
+.ls-ycup { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.ls-ycup svg { display: block; }
+.ls-ycup path { fill: #c9ced5; }
+.ls-ycup path.first { fill: #e8c34a; }
+.ls-ycup small { font-size: 11px; color: #a9acb2; font-variant-numeric: tabular-nums; }
 
 .ls-room { position: relative; display: flex; justify-content: center; align-items: flex-end; gap: 18px; padding: 0 26px; }
 /* Пол: тёмная полоса под станциями. */
@@ -71,13 +89,14 @@
 .ls-stand { width: 54px; height: 26px; background: #5b6676; clip-path: polygon(35% 0, 65% 0, 80% 100%, 20% 100%); }
 
 /* ---------- Витрина: место в гонке и полка с моделями в продаже ---------- */
-.ls-shelf .ls-art { flex-direction: column; align-items: center; gap: 8px; }
-.ls-cup { width: 60px; height: 60px; display: grid; place-items: center; border-radius: 50%; font-size: 22px; font-weight: 700; color: #26292e; background: #c9ced5; }
+.ls-shelf .ls-art { flex-direction: column; align-items: center; gap: 4px; }
+.ls-cup { width: 48px; height: 48px; margin-bottom: 2px; display: grid; place-items: center; border-radius: 50%; font-size: 22px; font-weight: 700; color: #26292e; background: #c9ced5; }
 .ls-cup.gold { color: #2b2000; background: #e8c34a; }
 .ls-cup.none { color: #8b8e93; background: #2f3237; border: 1px dashed #5d6168; }
-.ls-board { display: flex; align-items: flex-end; justify-content: center; gap: 4px; min-width: 120px; min-height: 52px; padding: 0 6px; }
-.ls-plank { width: 160px; height: 8px; margin-top: -8px; background: #7a5a38; border-radius: 1px; }
-.ls-board-empty { width: 100px; height: 40px; }
+/* Две полки: верхняя - лучшие модели по «Арене», нижняя - остальные выпущенные. */
+.ls-board { display: flex; align-items: flex-end; justify-content: center; gap: 4px; min-width: 120px; min-height: 40px; padding: 0 6px; }
+.ls-board.low { min-height: 30px; gap: 3px; }
+.ls-plank { width: 160px; height: 6px; margin-top: -4px; background: #7a5a38; border-radius: 1px; }
 
 /* ---------- «Следующий шаг» в первый год: табличка под станциями, вне потока сцены (сцена не сдвигается) ---------- */
 .ls-next {
