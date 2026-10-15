@@ -1,36 +1,42 @@
-// Окно «Итоги года»: звёзды за цели, главные числа отсчётом со сравнением с прошлым годом и с OpenBrain,
-// цели следующего года. Показывается один раз.
+// Окно «Итоги года» как страница годового отчёта: звёзды за цели, таблица «этот год - прошлый - изменение»,
+// место в гонке и цели следующего года. Показывается один раз.
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { goalProgress, rewardText, unseenReview } from '../sim/goals';
 import type { GameState } from '../sim/types';
 import { raceName, standingOf } from './ArenaFeedback';
 import { useModalFocus } from './components/common';
 import { fmtMoney, fmtShare } from './format';
-import { useCountUp } from './Juice';
+import { IconClose } from './icons';
 import { playSound } from './sound';
 import { actions, store } from './store';
 import './goals.css';
 
-/** Число, которое растёт от 0 до value при открытии окна. */
-function Rise({ value, fmt }: { value: number; fmt: (v: number) => string }) {
-  const [target, setTarget] = useState(0);
-  useEffect(() => {
-    const id = window.setTimeout(() => setTarget(value), 200);
-    return () => window.clearTimeout(id);
-  }, [value]);
-  return <>{fmt(useCountUp(target, 900))}</>;
+/** Звезда за цель: плоская, золотая - выполнена, серая - нет. */
+function Star({ on, i }: { on: boolean; i: number }) {
+  return (
+    <svg className={`yr-star${on ? ' on' : ''}`} style={{ animationDelay: `${0.15 + i * 0.15}s` }} viewBox="0 0 24 24" width={30} height={30} aria-hidden="true">
+      <path d="M12 2.2 L14.9 8.6 L21.8 9.3 L16.6 14 L18.1 20.9 L12 17.3 L5.9 20.9 L7.4 14 L2.2 9.3 L9.1 8.6 Z" />
+    </svg>
+  );
 }
 
-/** «▲ +24 % к прошлому году». */
-function Delta({ v }: { v: number | null }) {
-  if (v === null || !Number.isFinite(v) || Math.abs(v) < 0.5) return <span className="yr-sub">Как в прошлом году</span>;
+/** Изменение к прошлому году: «+24 %», зелёным или красным; invert - рост плохо (расходы). */
+function Change({ v, unit, invert = false }: { v: number | null; unit: string; invert?: boolean }) {
+  if (v === null || !Number.isFinite(v) || Math.abs(v) < 0.05) return <td className="num yr-ch">-</td>;
+  const good = invert ? v < 0 : v > 0;
+  const n = Math.abs(v) >= 10 ? Math.round(Math.abs(v)) : Math.abs(v).toFixed(1).replace('.', ',');
   return (
-    <span className={`yr-delta ${v > 0 ? 'good' : 'bad'}`}>
-      {v > 0 ? '▲ +' : '▼ −'}
-      {Math.round(Math.abs(v))} % к прошлому году
-    </span>
+    <td className={`num yr-ch ${good ? 'good' : 'bad'}`}>
+      {v > 0 ? '+' : '−'}
+      {n}
+      {unit}
+    </td>
   );
+}
+
+function pct(cur: number, prev: number | undefined): number | null {
+  return prev !== undefined && prev > 0 ? (cur / prev - 1) * 100 : null;
 }
 
 export function YearReviewModal({ s }: { s: GameState }) {
@@ -47,84 +53,115 @@ export function YearReviewModal({ s }: { s: GameState }) {
   const prev = idx > 0 ? s.yearly.reviews[idx - 1] : null;
   const next = s.yearly.goals;
   const title = `Итоги ${r.year} года`;
-  const revDelta = prev && prev.revenue > 0 ? (r.revenue / prev.revenue - 1) * 100 : null;
   const ob = s.market.labShares.openbrain ?? 0;
   const st = standingOf(s);
   const stars = Array.from({ length: Math.max(3, r.goalsTotal) }, (_, i) => i < r.goalsDone);
+  const ack = () => store.dispatch(actions.ackYearReview);
+  const rank = (v: number | null) => (v !== null ? `${v}-е` : '-');
+  const rankChange = prev && prev.bestRank !== null && r.bestRank !== null ? r.bestRank - prev.bestRank : null;
 
   return (
-    <div className="modal-backdrop">
+    <div className="modal-backdrop" onKeyDown={(e) => e.key === 'Escape' && ack()}>
       <div
         ref={ref}
         tabIndex={-1}
-        className={`yr${allDone ? ' all' : ''}`}
+        className={`dialog yr${allDone ? ' all' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
         onKeyDown={onKeyDown}
       >
-        <div className="yr-head">
-          <div className="yr-title">{title}</div>
-          <div className="yr-stars" aria-label={`Выполнено целей: ${r.goalsDone} из ${r.goalsTotal}`}>
-            {stars.map((on, i) => (
-              <span key={i} className={on ? 'on' : undefined} style={{ animationDelay: `${0.3 + i * 0.25}s` }}>
-                ★
-              </span>
-            ))}
-          </div>
-          <div className="yr-comment">{r.comment}</div>
+        <div className="titlebar">
+          <span className="t">{title}</span>
+          <button className="wbtn close" onClick={ack} aria-label="Закрыть" title="Закрыть">
+            <IconClose size={14} />
+          </button>
         </div>
+        <div className="body yr-body">
+          <div className="yr-score">
+            <div className="yr-stars" aria-label={`Выполнено целей: ${r.goalsDone} из ${r.goalsTotal}`}>
+              {stars.map((on, i) => (
+                <Star key={i} on={on} i={i} />
+              ))}
+            </div>
+            <div className="yr-score-t">
+              <b>
+                Цели года: {r.goalsDone} из {r.goalsTotal}
+              </b>
+              <span className="yr-comment">{r.comment}</span>
+            </div>
+          </div>
 
-        <div className="yr-tiles">
-          <div className="yr-tile">
-            <span className="yr-l">Выручка за год</span>
-            <span className="yr-big">
-              <Rise value={r.revenue} fmt={fmtMoney} />
-            </span>
-            {prev ? <Delta v={revDelta} /> : <span className="yr-sub">Первый год</span>}
+          <table className="grid yr-table">
+            <thead>
+              <tr>
+                <th />
+                <th className="num">{r.year}</th>
+                {prev && <th className="num">{prev.year}</th>}
+                {prev && <th className="num">Изменение</th>}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Выручка</td>
+                <td className="num yr-cur">{fmtMoney(r.revenue)}</td>
+                {prev && <td className="num">{fmtMoney(prev.revenue)}</td>}
+                {prev && <Change v={pct(r.revenue, prev.revenue)} unit=" %" />}
+              </tr>
+              <tr>
+                <td>Расходы</td>
+                <td className="num yr-cur">{fmtMoney(r.expense)}</td>
+                {prev && <td className="num">{fmtMoney(prev.expense)}</td>}
+                {prev && <Change v={pct(r.expense, prev.expense)} unit=" %" invert />}
+              </tr>
+              <tr>
+                <td>Доля рынка</td>
+                <td className="num yr-cur">{fmtShare(r.share, 1)}</td>
+                {prev && <td className="num">{fmtShare(prev.share, 1)}</td>}
+                {prev && <td className="num yr-ch" />}
+              </tr>
+              <tr>
+                <td>Лучшее место в продаже</td>
+                <td className={`num yr-cur${r.bestRank === 1 ? ' gold' : ''}`}>{rank(r.bestRank)}</td>
+                {prev && <td className="num">{rank(prev.bestRank)}</td>}
+                {prev && <Change v={rankChange === null ? null : -rankChange} unit="" />}
+              </tr>
+              <tr>
+                <td>Деньги на счёте</td>
+                <td className={`num yr-cur${r.cash < 0 ? ' bad' : ''}`}>{fmtMoney(r.cash)}</td>
+                {prev && <td className="num">{fmtMoney(prev.cash)}</td>}
+                {prev && <td className="num yr-ch" />}
+              </tr>
+              <tr>
+                <td>Моделей выпущено</td>
+                <td className="num yr-cur">{r.models}</td>
+                {prev && <td className="num">{prev.models}</td>}
+                {prev && <td className="num yr-ch" />}
+              </tr>
+            </tbody>
+          </table>
+          <div className="yr-note">
+            {st ? `Сейчас: ${raceName(st.metric)}, ${st.rank}-е место${st.above ? `, впереди ${st.above.name}` : ''}` : 'Соперников в гонке пока нет'}
+            {` · доля OpenBrain ${fmtShare(ob, 1)}`}
           </div>
-          <div className="yr-tile">
-            <span className="yr-l">Доля рынка</span>
-            <span className="yr-big">
-              <Rise value={r.share} fmt={(v) => fmtShare(v, 1)} />
-            </span>
-            <span className="yr-sub">
-              {prev ? `В прошлом году ${fmtShare(prev.share, 1)} · ` : ''}OpenBrain {fmtShare(ob, 1)}
-            </span>
-          </div>
-          <div className="yr-tile">
-            <span className="yr-l">{st ? `Место: ${raceName(st.metric)}` : 'Место в гонке'}</span>
-            <span className={`yr-big${st?.rank === 1 ? ' gold' : ''}`}>{st ? `${st.rank}-е` : '-'}</span>
-            <span className="yr-sub">{st ? (st.above ? `Впереди ${st.above.name}` : 'Впереди никого') : 'Соперников пока нет'}</span>
-          </div>
-          <div className="yr-tile">
-            <span className="yr-l">Деньги на счёте</span>
-            <span className={`yr-big${r.cash < 0 ? ' bad' : ''}`}>
-              <Rise value={r.cash} fmt={fmtMoney} />
-            </span>
-            <span className="yr-sub">
-              Расходы {fmtMoney(r.expense)} · моделей {r.models}
-            </span>
-          </div>
+
+          {next.length > 0 && (
+            <div className="yr-next">
+              <div className="yr-next-h">Цели на {s.yearly.year} год</div>
+              {next.map((g) => {
+                const p = goalProgress(s, g);
+                return p ? (
+                  <div className="yr-goal" key={g.id}>
+                    <span>{p.def.title(s.yearly.year)}</span>
+                    <span className="rw">{rewardText(p.def.reward, s.yearly.year)}</span>
+                  </div>
+                ) : null;
+              })}
+            </div>
+          )}
         </div>
-
-        {next.length > 0 && (
-          <div className="yr-next">
-            <div className="yr-next-h">Цели на {s.yearly.year} год</div>
-            {next.map((g) => {
-              const p = goalProgress(s, g);
-              return p ? (
-                <div className="yr-goal" key={g.id}>
-                  <span>{p.def.title(s.yearly.year)}</span>
-                  <span className="rw">{rewardText(p.def.reward, s.yearly.year)}</span>
-                </div>
-              ) : null;
-            })}
-          </div>
-        )}
-
-        <div className="yr-foot">
-          <button className="btn primary" onClick={() => store.dispatch(actions.ackYearReview)}>
+        <div className="foot">
+          <button className="btn primary" onClick={ack} autoFocus>
             Продолжить
           </button>
         </div>
