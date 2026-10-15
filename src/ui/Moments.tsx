@@ -1,7 +1,7 @@
 // «Ваши моменты»: газетная полоса на весь экран, когда лаборатория делает что-то впервые и громко.
 // Показывается один раз за партию (флаг moment:<id> в s.flags), игра встаёт на паузу.
 
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 import { FINALE_START } from '../sim/finale';
 import { arenaStanding, type ArenaStanding } from '../sim/leaderboard';
 import { ruPlural } from '../sim/text';
@@ -125,33 +125,108 @@ function currentMoments(s: GameState): Moment[] {
 
 const flag = (id: string): string => `moment:${id}`;
 
-/** Клетчатый флаг финала: плоский рисунок для газетной полосы. */
-function FinishFlag() {
-  const cells: [number, number][] = [];
-  for (let r = 0; r < 5; r++) for (let c = 0; c < 7; c++) if ((r + c) % 2 === 0) cells.push([c, r]);
-  return (
-    <svg className="mo-flag" viewBox="0 0 150 120" aria-hidden="true">
-      <rect x={14} y={6} width={6} height={110} fill="#1e1b16" />
-      <rect x={20} y={10} width={112} height={80} fill="#f4efe2" stroke="#1e1b16" strokeWidth={2} />
-      {cells.map(([c, r]) => (
-        <rect key={`${c}-${r}`} x={20 + c * 16} y={10 + r * 16} width={16} height={16} fill="#1e1b16" />
-      ))}
-    </svg>
-  );
+/** Карта внимания 8×8: диагональ и несколько дальних связей, как рисунок из статьи. */
+function AttentionFig() {
+  const n = 8;
+  const cells = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const far = (i === 5 && j === 1) || (i === 6 && j === 2) || (i === 7 && j === 4) || (i === 3 && j === 0);
+      const v = far ? 0.75 : Math.exp(-Math.abs(i - j) * 1.1);
+      cells.push(<rect key={`${i}-${j}`} x={40 + j * 15} y={8 + i * 15} width={14} height={14} fillOpacity={0.08 + 0.85 * v} />);
+    }
+  }
+  return <g className="mo-ink">{cells}</g>;
 }
 
-function Art({ kind }: { kind: Moment['art'] }) {
-  if (kind === 'final') {
-    return (
-      <div className="mo-art art-final" aria-hidden="true">
-        <FinishFlag />
-      </div>
-    );
-  }
+const FIGS: Record<string, { caption: string; draw: () => ReactElement }> = {
+  attention: { caption: 'Карта внимания модели', draw: AttentionFig },
+  chat: {
+    caption: 'Диалог с моделью',
+    draw: () => (
+      <g className="mo-line">
+        <path d="M14 14 H120 V54 H40 L28 66 V54 H14 Z" />
+        <path d="M30 28 H104 M30 40 H86" />
+        <path d="M80 72 H186 V124 H172 V136 L160 124 H80 Z" />
+        <path d="M96 86 H170 M96 98 H170 M96 110 H140" />
+      </g>
+    ),
+  },
+  trophy: {
+    caption: 'Таблица теста',
+    draw: () => (
+      <g>
+        <g className="mo-line">
+          <path d="M30 132 H170" />
+          <rect x={36} y={84} width={40} height={48} />
+          <rect x={80} y={56} width={40} height={76} />
+          <rect x={124} y={100} width={40} height={32} />
+        </g>
+        <g className="mo-ink">
+          <rect x={80} y={56} width={40} height={76} fillOpacity={0.85} />
+        </g>
+        <g className="mo-num">
+          <text x={56} y={114}>2</text>
+          <text x={144} y={122}>3</text>
+        </g>
+        <text x={100} y={102} className="mo-num inv">1</text>
+      </g>
+    ),
+  },
+  arena: {
+    caption: '«Арена»: первые места',
+    draw: () => (
+      <g className="mo-ink">
+        {[150, 132, 121, 108, 96].map((w, i) => (
+          <rect key={i} x={24} y={14 + i * 24} width={w} height={14} fillOpacity={i === 0 ? 0.9 : 0.3} />
+        ))}
+      </g>
+    ),
+  },
+  rlhf: {
+    caption: 'Люди выбирают лучший ответ',
+    draw: () => (
+      <g>
+        <g className="mo-line">
+          <rect x={18} y={14} width={76} height={86} />
+          <rect x={106} y={14} width={76} height={86} />
+          <path d="M30 34 H82 M30 48 H82 M30 62 H70 M118 34 H170 M118 48 H158" />
+          <path d="M44 116 L54 126 L72 106" className="mo-tick" />
+        </g>
+        <g className="mo-num">
+          <text x={56} y={92}>А</text>
+          <text x={144} y={92}>Б</text>
+        </g>
+      </g>
+    ),
+  },
+  final: {
+    caption: 'Последний день гонки',
+    draw: () => (
+      <g>
+        <g className="mo-line">
+          <rect x={56} y={14} width={88} height={112} />
+          <path d="M56 40 H144" />
+        </g>
+        <g className="mo-ink">
+          <rect x={56} y={14} width={88} height={26} fillOpacity={0.85} />
+        </g>
+        <text x={100} y={94} className="mo-num big">31</text>
+        <text x={100} y={116} className="mo-num small">декабря</text>
+      </g>
+    ),
+  },
+};
+
+/** Рисунок номера: простая гравюра в цвет краски, с подписью. */
+function Art({ kind }: { kind: string }) {
+  const fig = FIGS[kind];
+  if (!fig) return null;
   return (
-    <div className={`mo-art art-${kind}`} aria-hidden="true">
-      <span className="mo-glyph">{{ attention: 'Q·K·V', chat: '«…»', trophy: '1', arena: '★', rlhf: '+1', final: '' }[kind]}</span>
-    </div>
+    <figure className="mo-art" aria-hidden="true">
+      <svg viewBox="0 0 200 140">{fig.draw()}</svg>
+      <figcaption>{fig.caption}</figcaption>
+    </figure>
   );
 }
 

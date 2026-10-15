@@ -27,10 +27,10 @@ function revenueOf(h: MonthRecord | undefined): number {
   return h ? h.income.api + h.income.subs + h.income.contracts : 0;
 }
 
-function Arrow({ v, invert = false }: { v: number | null; invert?: boolean }) {
-  if (v === null || Math.abs(v) < 1e-9) return null;
-  const good = invert ? v < 0 : v > 0;
-  return <b className={`ms-ar ${good ? 'good' : 'bad'}`}>{v > 0 ? '▲' : '▼'}</b>;
+/** Цвет изменения: good / bad или пусто, если не изменилось. invert - рост плохо (место: меньше - лучше). */
+function tone(v: number | null, invert = false): string {
+  if (v === null || Math.abs(v) < 1e-9) return '';
+  return (invert ? v < 0 : v > 0) ? ' good' : ' bad';
 }
 
 export function MonthStrip({ s }: { s: GameState }) {
@@ -85,7 +85,6 @@ export function MonthStrip({ s }: { s: GameState }) {
         <span className="ms-k">Выручка</span>
         <span className="ms-v">
           {fmtMoney(strip.revenue)}
-          <Arrow v={strip.revenueDelta} />
           {strip.revenueDelta !== null && Math.abs(strip.revenueDelta) >= 0.005 && (
             <small className={strip.revenueDelta > 0 ? 'good' : 'bad'}>
               {strip.revenueDelta > 0 ? '+' : '−'}
@@ -96,15 +95,14 @@ export function MonthStrip({ s }: { s: GameState }) {
       </span>
       <span className="ms-item">
         <span className="ms-k">Доля рынка</span>
-        <span className="ms-v">
+        <span className={`ms-v${tone(strip.shareDelta !== null && Math.abs(strip.shareDelta) >= 0.0005 ? strip.shareDelta : null)}`}>
           {fmtShare(strip.share, 1)}
-          <Arrow v={strip.shareDelta !== null && Math.abs(strip.shareDelta) >= 0.0005 ? strip.shareDelta : null} />
         </span>
       </span>
       {strip.race && strip.rankTo !== null && (
         <span className="ms-item">
           <span className="ms-k">{strip.race}</span>
-          <span className="ms-v">
+          <span className={`ms-v${tone(rankDelta, true)}`}>
             {rankDelta ? (
               <>
                 {strip.rankFrom} → {strip.rankTo}-е
@@ -112,7 +110,6 @@ export function MonthStrip({ s }: { s: GameState }) {
             ) : (
               <>{strip.rankTo}-е</>
             )}
-            <Arrow v={rankDelta} invert />
           </span>
         </span>
       )}

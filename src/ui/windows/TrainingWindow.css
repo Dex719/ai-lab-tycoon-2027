@@ -1,4 +1,4 @@
-/* Окно «Новая модель»: полоса идущих проектов, тёмная полоса прогноза, три шага-карточки, нижняя полоса с кнопкой. */
+/* Окно «Новая модель»: полоса идущих проектов, полоса прогноза, три шага-карточки, нижняя полоса с кнопкой. */
 
 .nm {
   --nm-language: #2f80e4;
@@ -22,23 +22,26 @@
 .nm-run-meta b { color: var(--accent-dark); }
 .nm-run .warn { color: #a85a00; font-weight: 600; }
 
-/* ---------- Полоса прогноза ---------- */
-.nm-hero { flex: none; display: grid; grid-template-columns: 1.3fr 1fr 1fr; background: #1d2433; color: #fff; }
-.nm-kpi { padding: 12px 18px 14px; border-right: 1px solid #2f3a52; min-width: 0; }
+/* ---------- Полоса прогноза ----------
+   Светлая строка итога проекта, как у окон PT: главное число (Эло) крупнее остальных, колонки делят тонкие линии.
+   Без тёмной подложки, моноширинных цифр и плашек: предупреждения - цветом текста. */
+.nm-hero { flex: none; display: grid; grid-template-columns: 1.3fr 1fr 1fr; background: #fff; color: var(--text); border-bottom: 1px solid var(--line); }
+.nm-kpi { padding: 10px 18px 12px; border-right: 1px solid var(--line-soft); min-width: 0; }
 .nm-kpi:last-child { border-right: none; }
-.nm-kpi-l { font-size: 12px; color: #a9b3c7; }
-.nm-kpi-v { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin-top: 2px; font: 700 32px var(--mono); line-height: 1.15; }
-.nm-kpi-v.dim { color: #7d879b; }
-.nm-kpi-v.bad { color: var(--bad-on-dark); }
-.nm-kpi-s { margin-top: 2px; font-size: 13px; color: #c9d1e0; }
-.nm-kpi-s.warn { color: #ffc46b; }
-.nm-kpi-s .gold { color: #ffd34d; font-weight: 700; }
-.nm-kpi .nm-link { color: #8fc1ff; font-size: 13px; }
-.nm-delta { font: 600 15px var(--font); }
-.nm-delta.up { color: var(--good-on-dark); }
-.nm-delta.down { color: var(--bad-on-dark); }
-.nm-chip { display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: 600; background: #2a3a5c; color: #dce6ff; }
-.nm-chip.warn { background: #6b4a12; color: #ffe7b0; }
+.nm-kpi-l { font-size: 12.5px; color: var(--text-dim); }
+.nm-kpi-v { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin-top: 1px; font-size: 24px; font-weight: 700; line-height: 1.15; color: var(--text-title); letter-spacing: -0.01em; }
+.nm-kpi-main .nm-kpi-v { font-size: 34px; letter-spacing: -0.02em; }
+.nm-kpi-v.dim { color: #8a8e95; }
+.nm-kpi-v.bad { color: #b3261e; }
+.nm-kpi-s { margin-top: 2px; font-size: 13px; color: var(--text-body); }
+.nm-kpi-s.warn { color: #8a4a00; font-weight: 600; }
+.nm-kpi-s .gold { color: var(--gold-ink); font-weight: 700; }
+.nm-kpi .nm-link { font-size: 13px; }
+.nm-delta { font-size: 15px; font-weight: 600; letter-spacing: 0; }
+.nm-delta.up { color: #1d6b37; }
+.nm-delta.down { color: #a12a2a; }
+.nm-chip { display: block; margin-top: 3px; font-size: 12.5px; color: var(--text-dim); }
+.nm-chip.warn { color: #8a4a00; font-weight: 600; }
 
 /* ---------- Шаги ---------- */
 .nm-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; }
@@ -75,7 +78,7 @@
 .nm-sl { min-width: 0; }
 .nm-sl-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .nm-sl-l { font-size: 13px; color: var(--nm-label); }
-.nm-sl-v { font: 700 17px var(--mono); color: #1f2023; }
+.nm-sl-v { font-size: 17px; font-weight: 700; color: #1f2023; }
 .nm-sl-ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); }
 
 /* Данные под размер */
@@ -104,7 +107,7 @@
 .nm-mix-row { display: flex; flex-direction: column; gap: 1px; }
 .nm-mix-top { display: flex; justify-content: space-between; align-items: baseline; }
 .nm-mix-name { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #1f2023; }
-.nm-mix-pct { font: 700 13px var(--mono); }
+.nm-mix-pct { font-size: 13px; font-weight: 700; }
 .nm-mix-what { font-size: 11.5px; color: var(--text-dim); }
 .nm-dot { width: 9px; height: 9px; border-radius: 50%; }
 
@@ -136,18 +139,18 @@
 .nm-name-wrap { display: flex; flex-direction: column; gap: 2px; }
 .nm-name { width: 220px; }
 .nm-foot-info { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 12.5px; color: var(--text-dim); text-align: right; }
-.nm-start { display: flex; flex-direction: column; align-items: center; padding: 7px 22px; font-size: 15px; font-weight: 600; line-height: 1.25; }
+.nm-start { display: flex; flex-direction: column; align-items: center; height: auto; min-height: 32px; padding: 7px 22px; font-size: 15px; font-weight: 600; line-height: 1.25; }
 .nm-start small { font-size: 12px; font-weight: 400; opacity: 0.9; }
 
 /* Узкое окно: шаги в один столбец, полоса прогноза в столбик */
 @container (max-width: 820px) {
   .nm-steps { grid-template-columns: minmax(0, 1fr); }
   .nm-hero { grid-template-columns: 1fr 1fr; }
-  .nm-kpi-main { grid-column: 1 / -1; border-right: none; border-bottom: 1px solid #2f3a52; }
+  .nm-kpi-main { grid-column: 1 / -1; border-right: none; border-bottom: 1px solid var(--line-soft); }
 }
 @container (max-width: 520px) {
   .nm-hero { grid-template-columns: 1fr; }
-  .nm-kpi { border-right: none; border-bottom: 1px solid #2f3a52; }
+  .nm-kpi { border-right: none; border-bottom: 1px solid var(--line-soft); }
   .nm-foot { flex-wrap: wrap; }
   .nm-name { width: 100%; }
   .nm-run { flex-wrap: wrap; }
