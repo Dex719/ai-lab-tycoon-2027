@@ -18,6 +18,7 @@ import {
   labStance,
   lastMove,
   MOVE_IDS,
+  playerDominates,
   reactiveDefs,
   rivalContextIn,
   rivalDayIn,
@@ -808,7 +809,7 @@ describe('письма с выбором', () => {
   }
 
   it('события: вариант 0 умеренный, вариант по умолчанию пассивный, тексты без длинных тире', () => {
-    expect(RIVALRY_EVENTS.map((e) => e.id)).toEqual(['rival-hype', 'rival-audit', 'rival-poach']);
+    expect(RIVALRY_EVENTS.map((e) => e.id)).toEqual(['rival-hype', 'rival-audit', 'rival-poach', 'rival-poach-team']);
     for (const e of RIVALRY_EVENTS) {
       expect(e.repeatable).toBe(true);
       expect('check' in e.when && e.when.check(game('2023-01-01'))).toBe(false);
@@ -1065,3 +1066,33 @@ describe('долгий прогон 2021-2024', () => {
 function labName(lab: LabId): string {
   return { openbrain: 'OpenBrain', antropik: 'Antropik', gogle: 'Gogle DeepMynd', zhipo: 'Zhipo', moonshoot: 'Moonshoot', deepcent: 'DeepCent', alibabo: 'Alibabo' }[lab];
 }
+
+describe('ответ на господство игрока (2021-2022)', () => {
+  /** Два закрытых месяца с долей игрока share. */
+  function history(s: RivalryGame, share: number): void {
+    for (const month of [6, 7]) {
+      s.finance.history.push({ ...s.finance.month, year: 2022, month, cashEnd: 0, marketShare: share, tokensPerDay: 0, subscribers: 0 });
+    }
+  }
+
+  it('господство - доля не ниже 70 % два месяца подряд', () => {
+    const s = game('2022-08-01');
+    history(s, 0.69);
+    expect(playerDominates(s)).toBe(false);
+    s.finance.history = [];
+    history(s, 0.95);
+    expect(playerDominates(s)).toBe(true);
+  });
+
+  it('OpenBrain, которая обычно не снижает цены до ноября 2023 года, отвечает снижением ниже цены игрока', () => {
+    const s = game('2022-08-01');
+    addModel(s, { elo: 1190, price: 11 });
+    setShares(s, 0.95, { openbrain: 0.02 });
+    expect(availableMoves(s, 'openbrain')).not.toContain('priceCut');
+    history(s, 0.95);
+    expect(availableMoves(s, 'openbrain')).toContain('priceCut');
+    expect(executeMove(s, pend('openbrain', 'priceCut'))).toMatch(/^снизила цены на API на \d+ %$/);
+    const newest = RIVAL_MODELS.filter((m) => m.lab === 'openbrain' && m.api && s.rivalsReleased.includes(m.id)).sort((a, b) => rivalDayIn(s, b) - rivalDayIn(s, a))[0];
+    expect(rivalPriceIn(s, newest)).toBeLessThan(11);
+  });
+});

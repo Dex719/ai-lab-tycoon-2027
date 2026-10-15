@@ -4,6 +4,7 @@
 // Сложность и состояние соперников живут в rivalry.ts; импорт только типов, чтобы не было цикла модулей.
 import type { Difficulty, RivalryState } from './rivalry';
 import type { DcSiteId } from '../data/datacenters';
+import type { LateState } from './lateState';
 
 export type DomainId = 'language' | 'code' | 'reasoning';
 export const DOMAINS: readonly DomainId[] = ['language', 'code', 'reasoning'];
@@ -441,6 +442,8 @@ export interface GameState {
   rivalry: RivalryState;
   /** Цели года, итоги года и расписание случайных событий (sim/goals.ts, sim/randomEvents.ts). */
   yearly: YearlyState;
+  /** Поздняя игра: сделки 2023-2024 и финальный квартал (sim/lateState.ts). Нет в старых сохранениях и до первой сделки. */
+  late?: LateState;
   market: {
     shares: Record<string, number>; // ключ: 'player:<id>' | 'rival:<id>' | 'none'; общие доли (взвешенные по выручке сегментов), после ограничения мощностью
     labShares: Record<HypeOwner | 'none', number>; // общие, после ограничения мощностью

@@ -7,6 +7,8 @@ import { findEvent } from '../data/events';
 import { CHAT_MOMENT_DATE, CHOICE_DAYS, FAIL_CHOICE_DAYS, HYPE_OWNERS, TIER_SUBS_PRICE } from './constants';
 import { DIFFICULTY_IDS, emptyRivalry, LEVERS, MOVE_IDS } from './rivalry';
 import type { ActiveMove, HistoryRow, LabMemory, PendingMove, RivalOverride, RivalryState } from './rivalry';
+import { CLOUD_IDS, STARTUP_IDS, TEAM_IDS } from './lateState';
+import type { CloudDeal, FinalPush, FinaleState, FinalUpdate, FinalUpdateDone, LateState, StarTeam, StartupDeal } from './lateState';
 import { emptyMarket, emptySegmentShares, emptyYearly } from './state';
 import { dateToDay } from './time';
 import { tierOf } from './training';
@@ -338,7 +340,7 @@ const rivalry = shapeOf<RivalryState>({
   extraCount: record(LAB_IDS, num),
   memory: record(LAB_IDS, labMemory),
   lever: nullable(oneOf(LEVERS)),
-  choice: nullable(shape({ lab: oneOf(LAB_IDS), modelId: optional(str) })),
+  choice: nullable(shape({ lab: oneOf(LAB_IDS), modelId: optional(str), team: optional(oneOf(TEAM_IDS)) })),
   history: arrayOf(historyRow),
   shareHigh: record(LAB_IDS, num),
 });
@@ -384,6 +386,35 @@ const yearly = shapeOf<YearlyState>({
   nextEventDay: num,
   eventUnit: nonNeg,
   lastFired: dict(num),
+});
+
+// Поздняя игра: сделки и финальный квартал (lateState.ts). Поле необязательное: в старых сохранениях его нет.
+const finalPush = shapeOf<FinalPush>({
+  lab: oneOf(LAB_IDS),
+  modelId: str,
+  kind: oneOf(['update', 'release']),
+  announceDay: num,
+  fireDay: num,
+  base: num,
+  target: num,
+  playerElo: num,
+  fired: bool,
+});
+
+const late = shapeOf<LateState>({
+  teams: arrayOf(shapeOf<StarTeam>({ id: oneOf(TEAM_IDS), since: num })),
+  startups: arrayOf(
+    shapeOf<StartupDeal>({ id: oneOf(STARTUP_IDS), status: oneOf(['bought', 'rival']), day: num, lab: optional(oneOf(LAB_IDS)) }),
+  ),
+  cloud: nullable(shapeOf<CloudDeal>({ id: oneOf(CLOUD_IDS), since: num, until: num, monthly: nonNeg, shortfall: nonNeg })),
+  cloudPast: arrayOf(oneOf(CLOUD_IDS)),
+  finale: shapeOf<FinaleState>({
+    pushes: arrayOf(finalPush),
+    announced: arrayOf(str),
+    checks: int,
+    update: nullable(shapeOf<FinalUpdate>({ modelId: str, startDay: num, endDay: num, gain: num, cost: nonNeg })),
+    done: arrayOf(shapeOf<FinalUpdateDone>({ modelId: str, day: num, gain: num })),
+  }),
 });
 
 /** Каждое поле GameState обязано быть здесь: добавили поле в тип, не добавили проверку - tsc не даст собрать. */
@@ -441,6 +472,7 @@ const STATE: Record<keyof GameState, Check> = {
   difficulty: oneOf(DIFFICULTY_IDS),
   rivalry,
   yearly,
+  late: optional(late),
   market: shapeOf<GameState['market']>({
     shares: dict(num),
     labShares,

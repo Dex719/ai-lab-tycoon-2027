@@ -4,6 +4,8 @@ import { HYPE_MONTHLY_DECAY, HYPE_OWNERS } from './constants';
 import { generateMonthly, progressDay as contractsDay } from './contracts';
 import { introduceDue } from './benchmarks';
 import { datacentersDay } from './datacenters';
+import { dealsDay, dealsMonthEnd } from './deals';
+import { finaleDay } from './finale';
 import { expireChoices, fireDue, pendingChoice, pruneMail, pruneModifiers } from './events';
 import { beginDay, closeMonth, dayStep as financeDay } from './finance';
 import { goalsDay, yearEnd } from './goals';
@@ -64,6 +66,8 @@ export function advanceDay(s: GameState): void {
   const releasedBefore = s.rivalsReleased.length;
   releaseDue(s);
   rivalryDay(s); // ходы соперников по слухам, память, истечение ходов; ответные модели попадают в rivalsReleased
+  finaleDay(s); // финальный квартал: анонсы, рывки соперников, доработка моделей игрока
+  dealsDay(s); // сделки 2023-2024: стартапы на продаже, конец облачной сделки
   expireChoices(s);
   fireDue(s);
   datacentersDay(s); // свои дата-центры: этапы стройки, доставка карт (мощность нужна уже сегодня), электричество
@@ -81,6 +85,7 @@ export function advanceDay(s: GameState): void {
 
   const monthEnd = isMonthStart(s.day + 1);
   if (monthEnd) {
+    dealsMonthEnd(s); // зарплата звёздных команд и недобор по облачной сделке - в журнал этого месяца
     closeMonth(s);
     const rec = s.finance.history[s.finance.history.length - 1];
     // Лучшая модель игрока в продаже: по ней считается место, и график в итоге партии должен с ним сходиться.

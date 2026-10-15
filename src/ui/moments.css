@@ -38,3 +38,7 @@
   .mo-headline { font-size: 28px; }
 }
 @media (prefers-reduced-motion: reduce) { .mo-paper { animation: none; } }
+
+/* Финальный квартал: рисунок клетчатого флага (SVG в Moments.tsx), без растра под ним. */
+.mo-art.art-final { background-image: none; }
+.mo-flag { width: 150px; height: 120px; }

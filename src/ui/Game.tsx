@@ -115,6 +115,8 @@ const WIN_ACCENT: Record<WindowId, string> = {
   mail: 'var(--c-amber)',
   analytics: 'var(--c-indigo)',
   datacenters: 'var(--c-teal)',
+  deals: 'var(--c-amber)',
+  finale: 'var(--c-red)',
 };
 
 type GameDialog = null | 'save' | 'load' | 'settings' | 'achievements' | 'quit';

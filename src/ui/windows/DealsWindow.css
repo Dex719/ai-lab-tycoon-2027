@@ -1,0 +1,60 @@
+/* Окно «Сделки»: ведомость. Сверху деньги крупно и список того, что действует; ниже вкладки с таблицами. */
+
+.dl {
+  display: flex; flex-direction: column; height: 100%; min-height: 0;
+  container-type: inline-size; font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Верх: деньги и действующие сделки ---------- */
+.dl-top { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding: 12px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.dl-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dl-l { font-size: 12.5px; color: var(--text-dim); }
+.dl-big { font-size: 28px; font-weight: 600; line-height: 1.2; color: var(--text-title); }
+.dl-big.bad { color: var(--bad); }
+.dl-effects { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dl-effects ul { margin: 2px 0 0; padding: 0; list-style: none; columns: 2; column-gap: 16px; font-size: 13px; color: #1f7a3b; }
+.dl-effects li { break-inside: avoid; padding: 1px 0; }
+.dl-none { font-size: 13px; color: var(--text-dim); }
+
+/* ---------- Таблицы ---------- */
+.dl-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px 14px; }
+.dl-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.dl-h { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-title); }
+.dl-note { font-size: 12.5px; color: var(--text-dim); text-align: right; }
+.dl-empty { padding: 10px 0; color: var(--text-dim); }
+
+.dl-table { width: 100%; border-collapse: collapse; font-size: 13px; background: #fff; border: 1px solid var(--line); }
+.dl-table th { padding: 6px 8px; text-align: left; font-size: 12px; font-weight: 600; color: var(--text-dim); background: var(--win-title); border-bottom: 1px solid var(--line); white-space: nowrap; }
+.dl-table td { padding: 7px 8px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+.dl-table tr:last-child td { border-bottom: none; }
+.dl-table th.num, .dl-table td.num { text-align: right; white-space: nowrap; }
+.dl-table tr.on td { background: #eef7f1; }
+.dl-table tr.past td { color: var(--text-dim); }
+.dl-table tr.past td b { color: var(--text-body); }
+.dl-table .good { color: #1f7a3b; }
+.dl-table .bad { color: #c03030; }
+.dl-sub { display: block; font-size: 12px; color: var(--text-dim); }
+.dl-sub.good { color: #1f7a3b; }
+.dl-act { width: 1%; text-align: right; white-space: nowrap; }
+.dl-act-in { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+
+.dl-who { display: flex; align-items: center; gap: 8px; }
+.dl-ava { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border-radius: 50%; color: #fff; font-size: 12px; font-weight: 600; }
+.dl-who b { display: block; }
+
+.dl-when { min-width: 170px; }
+.dl-when .progress { height: 5px; margin: 4px 0 3px; }
+.dl-when .progress > div { background: var(--c-orange); }
+.dl-lab { white-space: nowrap; }
+.dl-labdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 4px 0 1px; }
+
+/* Договор с облаком */
+.dl-contract { display: flex; flex-direction: column; gap: 8px; max-width: 520px; margin-top: 14px; padding: 10px 12px; background: #fff; border: 1px solid var(--line); }
+.dl-kv { font-size: 13px; }
+.dl-contract-foot { display: flex; justify-content: flex-end; }
+
+@container (max-width: 640px) {
+  .dl-top { grid-template-columns: 1fr; }
+  .dl-effects ul { columns: 1; }
+  .dl-when { min-width: 120px; }
+}

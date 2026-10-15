@@ -62,6 +62,7 @@ import {
 import { addMail, awaitingEvent, dropChoices, triggerEvent } from './events';
 import { spend } from './finance';
 import { codeLevel, rivalCodeFrontier, rivalFrontierElo } from './leaderboard';
+import { newModelEloBonus, trainSpeedMult } from './lateState';
 import { contextLabel, maxContext } from './research';
 import { EXPOSE_CAP_WITH_RIVALS, exposureMultIn } from './rivalry';
 import { chance, randRange } from './rng';
@@ -354,7 +355,7 @@ export function estimate(s: GameState, plan: TrainingPlan): TrainingEstimate {
   const flop = planFlop(plan, overhead);
   const arch = archFor(s);
   // Новый проект разделит долю «Обучение» с уже идущими: срок считается по мощности на проект.
-  const perDay = trainingPoolPerRun(s, 1) * TRAIN_FLOP_PER_H100E_DAY;
+  const perDay = trainingPoolPerRun(s, 1) * TRAIN_FLOP_PER_H100E_DAY * trainSpeedMult(s);
   // Срок известен, только если есть мощность и объём вычислений конечен и положителен.
   const days = perDay > 0 && flop > 0 && Number.isFinite(flop) ? Math.max(1, Math.ceil(flop / perDay)) : null;
   const result: TrainingEstimate = {
@@ -383,7 +384,7 @@ export function estimate(s: GameState, plan: TrainingPlan): TrainingEstimate {
   for (const bid of introducedBenchmarks(s)) {
     scores[bid] = benchScore(bid, caps[benchDef(bid).domain], overfit[bid] ?? 0);
   }
-  result.forecast = { caps, scores, elo: arenaElo(caps, plan.rlhf, algoLevel, techs) };
+  result.forecast = { caps, scores, elo: arenaElo(caps, plan.rlhf, algoLevel, techs) + newModelEloBonus(s, plan.rlhf) };
 
   // Для того же объёма вычислений: 6·N·D = 120·N² при D = 20·N (надбавка RLHF остаётся за рамками).
   const baseFlop = flop / ((plan.rlhf ? 1 + RLHF_FLOP_EXTRA : 1) * contextFlopMult(plan.context) * overhead);
@@ -465,7 +466,8 @@ function finishTraining(s: GameState, t: TrainingRun): void {
     caps,
     overfit: overfitFromPlan(t.plan),
     rlhf: t.plan.rlhf,
-    arenaElo: arenaElo(caps, t.plan.rlhf, t.algoLevel, techs),
+    // Команда дообучения и Skale AI (сделки 2023-2024) - прибавка моделям с RLHF, если они в лаборатории в день готовности.
+    arenaElo: arenaElo(caps, t.plan.rlhf, t.algoLevel, techs) + newModelEloBonus(s, t.plan.rlhf),
     price: 0,
     onApi: false,
     exposed: false,
@@ -501,7 +503,8 @@ function finishTraining(s: GameState, t: TrainingRun): void {
  */
 export function progressDay(s: GameState): void {
   if (s.trainings.length === 0) return;
-  const perRun = trainingPoolPerRun(s) * TRAIN_FLOP_PER_H100E_DAY;
+  // Команда обучения и MozaicML (сделки 2023-2024) ускоряют все проекты.
+  const perRun = trainingPoolPerRun(s) * TRAIN_FLOP_PER_H100E_DAY * trainSpeedMult(s);
   for (const t of [...s.trainings]) {
     if (t.failed) continue;
     t.flopDone += perRun;
