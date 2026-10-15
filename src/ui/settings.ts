@@ -10,6 +10,7 @@ export interface Settings {
   toasts: boolean; // всплывающие уведомления о новых письмах
   realNames: boolean; // показывать настоящие названия компаний, моделей и тестов
   volume: number; // громкость звуков 0..1, 0 - без звука
+  music: number; // громкость фоновой музыки 0..1, 0 - без музыки
 }
 
 const KEY = 'ailab.settings';
@@ -23,6 +24,7 @@ const DEFAULTS: Settings = {
   toasts: true,
   realNames: false,
   volume: 0.5,
+  music: 0.3,
 };
 
 let cache: Settings | null = null;
