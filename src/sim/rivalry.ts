@@ -100,7 +100,7 @@ import { byYear, dateToDay, dayToDate, END_DAY, formatDate, yearOf } from './tim
 import { modelScore } from './training';
 import { LAB_IDS } from './types';
 import type { BenchmarkId, GameState, HypeOwner, LabId, Modifier, ModifierKind, PlayerModel, RivalModelDef, SegmentId, Tier } from './types';
-import { daysWord } from './text';
+import { daysWord, endSentence } from './text';
 import { TEAM_RETAIN_MONTHS, teamDef } from '../data/deals';
 import { dropTeam } from './deals';
 import type { TeamId } from './lateState';
@@ -1603,7 +1603,7 @@ const HYPE_EVENT: EventDef = {
     return {
       kind: 'rival',
       title: `${lab} запустила рекламную кампанию`,
-      body: `${lab} закупила рекламу и выступает с громкими анонсами: её шумиха выросла. Клиенты, которые выбирают модель, видят рекламу ${lab} чаще вашей. Ответная кампания стоит ${fmtMoney(cost)}.`,
+      body: `${lab} закупила рекламу и выступает с громкими анонсами: её шумиха выросла. Клиенты, которые выбирают модель, видят рекламу ${lab} чаще вашей. Ответная кампания стоит ${endSentence(fmtMoney(cost))}`,
     };
   },
   choices: [
@@ -1686,7 +1686,7 @@ const POACH_EVENT: EventDef = {
     return {
       kind: 'rival',
       title: `${lab} переманивает исследователей`,
-      body: `${lab} предлагает вашим ведущим исследователям зарплаты выше рыночных. Двое уже сходили на собеседование. Удержать людей стоит ${fmtMoney(cost)}.`,
+      body: `${lab} предлагает вашим ведущим исследователям зарплаты выше рыночных. Двое уже сходили на собеседование. Удержать людей стоит ${endSentence(fmtMoney(cost))}`,
     };
   },
   choices: [
