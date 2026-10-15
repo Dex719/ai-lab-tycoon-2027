@@ -123,10 +123,11 @@ describe('баланс', () => {
     expect(ms).toBeLessThan(12_000);
   });
 
-  it.each(REASONABLE_SEEDS)('бот «разумный»: выручка за игру $0,5…2 млрд, подписки в 2024 году есть и не больше 70 % выручки года (зерно %i)', (seed) => {
+  // Верх поднят с $2 млрд до $2,1 млрд ночью 15.10: сделки 2023-2024 и новые события добавили выручке около 0,5 %.
+  it.each(REASONABLE_SEEDS)('бот «разумный»: выручка за игру $0,5…2,1 млрд, подписки в 2024 году есть и не больше 70 % выручки года (зерно %i)', (seed) => {
     const { revenue, revenue2024, subs2024 } = summary('reasonable', seed);
     expect(revenue).toBeGreaterThanOrEqual(0.5e9);
-    expect(revenue).toBeLessThanOrEqual(2.0e9);
+    expect(revenue).toBeLessThanOrEqual(2.1e9);
     expect(subs2024).toBeGreaterThan(0);
     expect(subs2024).toBeLessThanOrEqual(0.7 * revenue2024);
   });
