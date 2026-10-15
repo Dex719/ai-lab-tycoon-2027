@@ -156,6 +156,11 @@ function salesOf(s: GameState, m: PlayerModel) {
   };
 }
 
+/** Есть ли в таблице гонки модели соперников: без них места не показываем. */
+function hasRivals(s: GameState, metric: RaceMetric | null): boolean {
+  return metric !== null && raceRows(s, metric).some((x) => x.owner !== 'player');
+}
+
 /** Подпись места в гонке: «Место на «Арене»» или «Место: GLUU». */
 function placeLabel(metric: RaceMetric | null): string {
   return metric?.kind === 'bench' ? `Место: ${metric.name}` : 'Место на «Арене»';
@@ -856,11 +861,12 @@ function kpisOf(s: GameState, m: PlayerModel, metric: RaceMetric | null, rank: n
   }
   const { share, revenue, apiRevenue, subsRevenue } = salesOf(s, m);
   const subsShown = subsOpen(s.day) || m.onSubs || m.earnedSubs > 0;
+  const rivals = hasRivals(s, metric);
   return [
     {
       label: placeLabel(metric),
       value: rank !== null ? `${fmtNum(rank)}-е` : '-',
-      sub: rank === null ? `Не в зачёте, Эло ${fmtElo(m.arenaElo)}` : `Эло ${fmtElo(m.arenaElo)}`,
+      sub: rank === null ? `${rivals ? 'Не в зачёте' : 'Соперников пока нет'}, Эло ${fmtElo(m.arenaElo)}` : `Эло ${fmtElo(m.arenaElo)}`,
       title: `${placeTitle(metric)} Подгонка под тесты Эло не повышает.`,
       tone: rank === 1 ? 'gold' : undefined,
     },
@@ -1069,7 +1075,8 @@ export default function ModelsWindow({ s, open }: WindowProps) {
   const metric = raceMetricOf(s);
   // Места моделей игрока в гонке; золотая рамка - у модели, которая держит 1-е место.
   const places = new Map<string, number>();
-  for (const x of metric ? raceRows(s, metric) : []) if (x.row.ref.kind === 'player' && x.rank !== null) places.set(x.row.ref.id, x.rank);
+  // Без соперников в таблице места нет: верхняя панель в это время пишет «Соперников пока нет».
+  if (hasRivals(s, metric)) for (const x of raceRows(s, metric!)) if (x.row.ref.kind === 'player' && x.rank !== null) places.set(x.row.ref.id, x.rank);
   const champion = models.find((m) => places.get(m.id) === 1)?.id ?? null;
 
   return (
