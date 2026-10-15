@@ -1,5 +1,5 @@
-// Окно «Мощности»: сверху тёмная полоса с 3D-фермой арендованных карт и главным числом - мощностью;
-// ниже список арендованных карт с картинками и панель распределения мощности.
+// Окно «Мощности»: слева крупно машинный зал (стойки окрашены по задачам), справа мощность, аренда и карты;
+// внизу одна полоса долей мощности: границы тянутся мышью, отпустили - доли применены; «Как нужно» - по потребностям.
 // Аренда - одна кнопка «Арендовать»: диалог выбора карты с 3D-превью, количеством и итогом.
 // Будущее не раскрывается: в выборе только вышедшие карты, мощность сравнивается с самой мощной из них.
 
@@ -28,12 +28,11 @@ import { formatDateShort } from '../../sim/time';
 import type { GameState, GpuDef, GpuId } from '../../sim/types';
 import {
   ALLOC_ROWS,
+  distribute,
   checkAllocation,
-  maxPercent,
   occupancy,
   percentsOf,
   samePercents,
-  setPercent,
   soldChannels,
   toAllocation,
   ZERO_SHARE_WARNING,
@@ -44,7 +43,7 @@ import {
 import { Cards } from '../components/Cards';
 import { contractsNeedWithApplications, researchDaysAt, trainingDaysAt } from '../forecast';
 import { ConfirmDialog, Dialog, GuardButton, NewBadge, Range } from '../components/common';
-import { fmtH100e as fmtH, fmtInt, fmtMoney, fmtNum, fmtPct, h100ePerCard, ruPlural } from '../format';
+import { fmtH100e as fmtH, fmtInt, fmtMoney, fmtNum, h100ePerCard, ruPlural } from '../format';
 import { IconAlert } from '../icons';
 import { playSound } from '../sound';
 import { actions, store } from '../store';
@@ -120,55 +119,79 @@ function unitLine(s: GameState, rented: boolean): string {
   return `1 H100e ≈ ${fmtInt(n)} ${word}`;
 }
 
-function Hero({ s, onRent, flash }: { s: GameState; onRent: () => void; flash: RentFlash | null }) {
-  const farm = { ...rentedFarm(s), wide: true };
+/** Доли мощности для окраски стоек: по порядку строк, принятые (не черновик). */
+function farmTasks(p: Percents): { color: string; share: number }[] {
+  return ALLOC_ROWS.map((r) => ({ color: r.color, share: p[r.key] / 100 }));
+}
+
+/** Машинный зал крупно: стойки окрашены планками по задачам, подписи поверх. */
+function Hall({ s, shown, flash }: { s: GameState; shown: Percents; flash: RentFlash | null }) {
+  const farm = { ...rentedFarm(s), tasks: farmTasks(shown) };
   const layout = farmLayout(farm.groups);
+  const racks = `${fmtInt(layout.totalRacks)} ${ruPlural(layout.totalRacks, 'стойка', 'стойки', 'стоек')}`;
+  return (
+    <figure className="cw-hall">
+      <View3D spec={farm} label={`Арендованные карты в облаке: ${fmtCardsCount(layout.cards)}, ${racks}`} className="cw-farm-view" />
+      {layout.cards === 0 && <figcaption className="cw-farm-empty">Карт пока нет: нажмите «Арендовать»</figcaption>}
+      {layout.scale > 1 && <figcaption className="cw-farm-scale">На схеме одна стойка за {fmtInt(layout.scale)}</figcaption>}
+      {flash && (
+        <div key={flash.key} className="cw-flash" role="status">
+          {flash.text}
+        </div>
+      )}
+    </figure>
+  );
+}
+
+/** Правая колонка: мощность крупно, аренда, кнопка и арендованные карты. */
+function Side({ s, onRent, onEdit, onGiveBack, open }: { s: GameState; onRent: () => void; onEdit: (id: GpuId) => void; onGiveBack: (id: GpuId) => void; open: WindowProps['open'] }) {
+  const layout = farmLayout(rentedFarm(s).groups);
   const total = totalH100e(s);
   const own = ownedCards(s);
   const caps = availableGpus(s).map((g) => rentCapFor(s, g.id));
   const cap = caps.length ? Math.min(...caps) : 0;
   const racks = `${fmtInt(layout.totalRacks)} ${ruPlural(layout.totalRacks, 'стойка', 'стойки', 'стоек')}`;
+  const rentedGpus = GPUS.filter((g) => s.compute.rented[g.id] > 0);
   return (
-    <header className="cw-head">
-      <figure className="cw-farm">
-        <View3D spec={farm} label={`Арендованные карты в облаке: ${fmtCardsCount(layout.cards)}, ${racks}`} className="cw-farm-view" />
-        {layout.cards === 0 && <figcaption className="cw-farm-empty">Карт пока нет</figcaption>}
-        {layout.scale > 1 && <figcaption className="cw-farm-scale">На схеме одна стойка за {fmtInt(layout.scale)}</figcaption>}
-        {flash && (
-          <div key={flash.key} className="cw-flash" role="status">
-            {flash.text}
-          </div>
-        )}
-      </figure>
-      <div className="cw-figures">
-        <div className="cw-fig-label" title="Единица мощности: в ней считаются обучение, исследования и работа для клиентов">
-          Мощность
-        </div>
-        <div className={`cw-fig-value${total > 0 ? '' : ' dim'}`}>
-          {fmtH(total)}
-          <span>H100e</span>
-        </div>
-        <div className="cw-fig-sub">{layout.cards > 0 ? `${fmtCardsCount(layout.cards)} в аренде, ${racks}` : 'Карт в аренде нет'}</div>
-        <div className="cw-fig-unit" title="H100e - общая единица мощности для карт разных лет: обучение, исследования и контракты считаются в ней">
-          {unitLine(s, layout.cards > 0)}
-        </div>
-        <dl className="cw-fig-kv">
-          <dt>Аренда в месяц</dt>
-          <dd className={rentPerDay(s) > 0 ? 'bad' : undefined}>{rentPerDay(s) > 0 ? fmtMoney(rentPerDay(s) * DAYS_IN_MONTH) : '-'}</dd>
-          <dt title={`До лимита - обычная цена, сверх него карты дороже ${OVER_TIMES}. Лимит растёт каждый год`}>Лимит аренды</dt>
-          <dd>{fmtInt(cap)} на тип</dd>
-          {own > 0 && (
-            <>
-              <dt>Свои карты</dt>
-              <dd>{fmtInt(own)}</dd>
-            </>
-          )}
-        </dl>
-        <button className="btn primary big cw-rent-btn" onClick={onRent} data-tutorial="rent-button">
-          Арендовать
-        </button>
+    <aside className="cw-side">
+      <div className="cw-fig-label" title="Единица мощности: в ней считаются обучение, исследования и работа для клиентов">
+        Мощность
       </div>
-    </header>
+      <div className={`cw-fig-value${total > 0 ? '' : ' dim'}`}>
+        {fmtH(total)}
+        <span>H100e</span>
+      </div>
+      <div className="cw-fig-sub">{layout.cards > 0 ? `${fmtCardsCount(layout.cards)} в аренде, ${racks}` : 'Карт в аренде нет'}</div>
+      <div className="cw-fig-unit" title="H100e - общая единица мощности для карт разных лет: обучение, исследования и контракты считаются в ней">
+        {unitLine(s, layout.cards > 0)}
+      </div>
+      <dl className="cw-fig-kv">
+        <dt>Аренда в месяц</dt>
+        <dd className={rentPerDay(s) > 0 ? 'bad' : undefined}>{rentPerDay(s) > 0 ? fmtMoney(rentPerDay(s) * DAYS_IN_MONTH) : '-'}</dd>
+        <dt title={`До лимита - обычная цена, сверх него карты дороже ${OVER_TIMES}. Лимит растёт каждый год`}>Лимит аренды</dt>
+        <dd>{fmtInt(cap)} на тип</dd>
+      </dl>
+      <button className="btn primary big cw-rent-btn" onClick={onRent} data-tutorial="rent-button">
+        Арендовать
+      </button>
+      {rentedGpus.length > 0 && (
+        <div className="cw-rows">
+          {rentedGpus.map((g) => (
+            <RentedRow key={g.id} s={s} g={g} onEdit={() => onEdit(g.id)} onGiveBack={() => onGiveBack(g.id)} />
+          ))}
+        </div>
+      )}
+      {own > 0 && (
+        <div className="cw-own">
+          <span>
+            Свои карты: <b>{fmtCardsCount(own)}</b>, {fmtH(ownedH100e(s))} H100e
+          </span>
+          <button type="button" className="btn small" onClick={() => open('datacenters')}>
+            Дата-центры
+          </button>
+        </div>
+      )}
+    </aside>
   );
 }
 
@@ -443,171 +466,196 @@ function RowEffect({ s, k, share }: { s: GameState; k: 'training' | 'experiments
   );
 }
 
-function PercentInput(props: { value: number; max: number; label: string; changed: boolean; onChange: (v: number) => void; onEnter: () => void }) {
-  const [text, setText] = useState<string | null>(null);
+/**
+ * Доли «как нужно»: контрактам и клиентам - сколько им нужно сейчас (+5 %), остальное - обучению и исследованиям
+ * в прежнем соотношении (если идёт только что-то одно - ему всё).
+ */
+function autoPercents(s: GameState, cur: Percents): Percents {
+  const total = totalH100e(s);
+  if (!(total > 0)) return cur;
+  const need = safeInferenceNeed(s);
+  const pct = (h: number) => (h > 0 ? Math.min(100, Math.ceil((h / total) * 105)) : 0);
+  let contracts = pct(contractsNeedWithApplications(s) ?? 0);
+  let api = need ? pct(need.api) : cur.api;
+  let subs = need ? pct(need.subs) : cur.subs;
+  const used = contracts + api + subs;
+  if (used > 100) {
+    [contracts, api, subs] = distribute([contracts, api, subs], 100);
+  }
+  const rest = 100 - contracts - api - subs;
+  const training = s.trainings.length > 0;
+  const research = s.research.current !== null;
+  const wT = training ? Math.max(1, cur.training) : 0;
+  const wE = research ? Math.max(1, cur.experiments) : 0;
+  const [t, e] = wT + wE > 0 ? distribute([wT, wE], rest) : [rest, 0];
+  return { training: t, contracts, experiments: e, api, subs };
+}
+
+/** Одна полоса долей: границы между соседними долями тянутся мышью или стрелками, отпустили - доли применены. */
+function SplitBar({ rows, shown, onDrag, onDone }: { rows: typeof ALLOC_ROWS; shown: Percents; onDrag: (p: Percents) => void; onDone: (p: Percents) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ a: AllocKey; b: AllocKey; x0: number; a0: number; b0: number; last: Percents } | null>(null);
+  const moveTo = (clientX: number) => {
+    const d = drag.current;
+    const el = ref.current;
+    if (!d || !el) return;
+    const delta = Math.round(((clientX - d.x0) / el.clientWidth) * 100);
+    const a = Math.max(0, Math.min(d.a0 + d.b0, d.a0 + delta));
+    const next = { ...shown, [d.a]: a, [d.b]: d.a0 + d.b0 - a };
+    d.last = next;
+    onDrag(next);
+  };
+  const nudge = (a: AllocKey, b: AllocKey, step: number) => {
+    if (shown[a] + step < 0 || shown[b] - step < 0) return;
+    const next = { ...shown, [a]: shown[a] + step, [b]: shown[b] - step };
+    onDrag(next);
+    onDone(next);
+  };
+  let left = 0;
   return (
-    <label className={`cw-pct${props.changed ? ' changed' : ''}`}>
-      <input
-        type="number"
-        min={0}
-        max={props.max}
-        step={1}
-        inputMode="decimal"
-        value={text ?? String(props.value)}
-        aria-label={`${props.label}, процент`}
-        onChange={(e) => {
-          const raw = e.target.value;
-          setText(raw);
-          if (raw.trim() === '') return;
-          const n = Number(raw);
-          if (!Number.isFinite(n)) return;
-          props.onChange(n);
-          if (n < 0 || n > props.max) setText(String(Math.max(0, Math.min(props.max, Math.round(n)))));
-        }}
-        onBlur={() => setText(null)}
-        onKeyDown={(e) => {
-          if (e.key !== 'Enter') return;
-          setText(null);
-          props.onEnter();
-        }}
-      />
-      <span>%</span>
-    </label>
+    <div className="cw-split" ref={ref}>
+      {rows.map((r) => {
+        const w = shown[r.key];
+        const seg = (
+          <div key={r.key} className="cw-seg" style={{ left: `${left}%`, width: `${w}%`, background: r.color }}>
+            {w >= 9 && (
+              <span>
+                {r.label} {w} %
+              </span>
+            )}
+          </div>
+        );
+        left += w;
+        return seg;
+      })}
+      {rows.slice(0, -1).map((r, i) => {
+        const b = rows[i + 1];
+        const at = rows.slice(0, i + 1).reduce((a, x) => a + shown[x.key], 0);
+        return (
+          <div
+            key={`h-${r.key}`}
+            className="cw-handle"
+            style={{ left: `${at}%` }}
+            role="slider"
+            tabIndex={0}
+            aria-label={`Граница «${r.label}» и «${b.label}»`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={shown[r.key]}
+            aria-valuetext={`${r.label} ${shown[r.key]} %, ${b.label} ${shown[b.key]} %`}
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId);
+              drag.current = { a: r.key, b: b.key, x0: e.clientX, a0: shown[r.key], b0: shown[b.key], last: shown };
+            }}
+            onPointerMove={(e) => drag.current && moveTo(e.clientX)}
+            onPointerUp={() => {
+              const d = drag.current;
+              drag.current = null;
+              if (d) onDone(d.last);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowLeft') nudge(r.key, b.key, -1);
+              else if (e.key === 'ArrowRight') nudge(r.key, b.key, 1);
+              else return;
+              e.preventDefault();
+            }}
+          />
+        );
+      })}
+    </div>
   );
 }
 
-function AllocPanel({ s }: { s: GameState }) {
+function SplitPanel({ s, open }: { s: GameState; open: WindowProps['open'] }) {
   const [draft, setDraft] = useState<Percents | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [zero, setZero] = useState<(keyof SoldChannels)[] | null>(null);
-  const [limit, setLimit] = useState<number | null>(null);
+  const [zero, setZero] = useState<{ p: Percents; keys: (keyof SoldChannels)[] } | null>(null);
   const current = percentsOf(s.compute.alloc);
   const shown = draft ?? current;
-  const changed = draft !== null && !samePercents(draft, current);
   const total = totalH100e(s);
   const occ = occupancy(shown);
   const need = safeInferenceNeed(s);
   const rows = visibleRows(s);
+  const auto = autoPercents(s, current);
+  const autoSame = samePercents(auto, current);
 
-  const edit = (key: AllocKey, value: number) => {
-    setError(null);
-    const cap = maxPercent(shown, key);
-    setLimit(Math.round(value) > cap ? cap : null);
-    setDraft(setPercent(shown, key, value));
-  };
-  const reset = () => {
-    setDraft(null);
-    setError(null);
-    setLimit(null);
-  };
-  const commit = () => {
-    if (!draft) return;
-    const r = store.dispatch(actions.setAllocation, toAllocation(draft));
+  const commit = (p: Percents) => {
+    const r = store.dispatch(actions.setAllocation, toAllocation(p));
     setError(r.ok ? null : r.error);
-    if (r.ok) {
-      setDraft(null);
-      setLimit(null);
-    }
+    setDraft(null);
   };
-  const apply = () => {
-    if (!draft || !changed) return;
-    const check = checkAllocation(draft, soldChannels(s.models));
+  const apply = (p: Percents) => {
+    if (samePercents(p, current)) {
+      setDraft(null);
+      return;
+    }
+    const check = checkAllocation(p, soldChannels(s.models));
     if (check.error) {
       setError(check.error);
+      setDraft(null);
       return;
     }
-    if (check.zero.length > 0) {
-      setZero(check.zero);
+    // Спрашиваем, только если продаваемый канал обнуляется сейчас: уже нулевая доля не мешает двигать другие.
+    const newlyZero = check.zero.filter((k) => current[k] > 0);
+    if (newlyZero.length > 0) {
+      setZero({ p, keys: newlyZero });
       return;
     }
-    commit();
+    commit(p);
   };
-
-  const msg = error ? { tone: 'bad' as const, text: error } : limit !== null ? { tone: 'warn' as const, text: `Максимум ${limit} %: сначала уменьшите другую долю.` } : null;
 
   return (
     <section className="cw-panel" data-tutorial="alloc">
       <div className="cw-panel-head">
-        <h2 className="cw-h">Распределение мощности</h2>
-        <div className="cw-allocbar" aria-hidden="true">
-          {ALLOC_ROWS.map((r) => (
-            <div key={r.key} style={{ width: `${shown[r.key]}%`, background: r.color }} />
-          ))}
-        </div>
+        <h2 className="cw-h">Чем заняты карты</h2>
         <div className={`cw-occ ${total > 0 ? occ.tone : 'none'}`} role="status">
-          {total > 0 ? occ.text : 'Мощности пока нет: доли заработают после аренды.'}
+          {error ?? (total > 0 ? occ.text : 'Мощности пока нет: доли заработают после аренды.')}
         </div>
+        <GuardButton className="btn small" reason={total > 0 ? (autoSame ? 'Доли уже такие, как нужно сейчас' : null) : 'Сначала арендуйте карты'} onClick={() => apply(auto)}>
+          Как нужно
+        </GuardButton>
       </div>
-      <div className="cw-alloc-rows">
+      <SplitBar rows={rows} shown={shown} onDrag={setDraft} onDone={apply} />
+      <div className="cw-cols" style={{ gridTemplateColumns: `repeat(${rows.length}, minmax(0, 1fr))` }}>
         {rows.map((r) => {
           const h = (total * shown[r.key]) / 100;
           return (
-            <div key={r.key} className="cw-alloc-row" title={r.hint}>
-              <div className="cw-alloc-top">
+            <div key={r.key} className="cw-col" title={r.hint}>
+              <div className="cw-col-top">
                 <span className="cw-dot" style={{ background: r.color }} />
                 <span className="cw-alloc-name">
                   <RowLabel s={s} r={r} />
                 </span>
-                <span className="cw-alloc-val">
-                  {fmtH(h)} H100e
-                  <Cards s={s} h100e={h} />
-                </span>
+                <b className="cw-col-pct">{shown[r.key]} %</b>
               </div>
-              <div className="cw-alloc-ctl">
-                <Range value={shown[r.key]} min={0} max={100} color={r.color} label={r.label} valueText={fmtPct(shown[r.key], 0)} onChange={(v) => edit(r.key, v)} />
-                <PercentInput
-                  value={shown[r.key]}
-                  max={maxPercent(shown, r.key)}
-                  label={r.label}
-                  changed={draft !== null && shown[r.key] !== current[r.key]}
-                  onChange={(v) => edit(r.key, v)}
-                  onEnter={apply}
-                />
+              <div className="cw-col-val">
+                {fmtH(h)} H100e <Cards s={s} h100e={h} />
               </div>
               {(r.key === 'api' || r.key === 'subs') && <ClientNeed s={s} need={need?.[r.key]} have={h} />}
               {(r.key === 'training' || r.key === 'experiments') && total > 0 && <RowEffect s={s} k={r.key} share={shown[r.key] / 100} />}
-              {/* Поданные заявки тоже считаются: мощность лучше добавить до победы в тендере. */}
               {r.key === 'contracts' && (
-                <ClientNeed
-                  s={s}
-                  need={contractsNeedWithApplications(s) ?? undefined}
-                  have={h}
-                  label={s.contracts.length > 0 ? 'Нужно контрактам' : 'Нужно по заявке'}
-                />
+                <ClientNeed s={s} need={contractsNeedWithApplications(s) ?? undefined} have={h} label={s.contracts.length > 0 ? 'Нужно контрактам' : 'Нужно по заявке'} />
               )}
             </div>
           );
         })}
       </div>
-      <div className="cw-panel-foot">
-        <div className={`cw-alloc-msg${msg ? ` ${msg.tone}` : changed ? ' pending' : ''}`} role="status" title={msg?.text}>
-          {msg ? (
-            <>
-              <IconAlert size={14} />
-              <span>{msg.text}</span>
-            </>
-          ) : changed ? (
-            'Новые доли ещё не применены'
-          ) : null}
-        </div>
-        <button className={`btn${changed ? '' : ' cw-hide'}`} onClick={reset} tabIndex={changed ? 0 : -1}>
-          Сбросить
-        </button>
-        <GuardButton className="btn primary" reason={changed ? null : 'Доли не изменились: передвиньте ползунок или введите процент'} onClick={apply}>
-          Распределить
-        </GuardButton>
-      </div>
+      <IdleStrip s={s} open={open} />
       {zero && (
         <ConfirmDialog
           title="Нулевая доля мощности"
           confirmLabel="Распределить"
           onConfirm={() => {
+            const p = zero.p;
             setZero(null);
-            commit();
+            commit(p);
           }}
-          onClose={() => setZero(null)}
+          onClose={() => {
+            setZero(null);
+            setDraft(null);
+          }}
         >
-          {zero.map((k) => (
+          {zero.keys.map((k) => (
             <p key={k} className="cw-confirm-line">
               {ZERO_SHARE_WARNING[k]}
             </p>
@@ -666,8 +714,6 @@ export default function ComputeWindow({ s, open }: WindowProps) {
   const [flash, setFlash] = useState<RentFlash | null>(null);
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
-  const rentedGpus = GPUS.filter((g) => s.compute.rented[g.id] > 0);
-
   const done = (text: string) => {
     setDialog(null);
     playSound('rack');
@@ -678,33 +724,17 @@ export default function ComputeWindow({ s, open }: WindowProps) {
 
   return (
     <div className="cw">
-      <Hero s={s} flash={flash} onRent={() => setDialog({ id: defaultRentId(s) })} />
-      <div className="cw-body">
-        <section className="cw-rented">
-          <h2 className="cw-h">Арендованные карты</h2>
-          <IdleStrip s={s} open={open} />
-          {rentedGpus.length === 0 ? (
-            <div className="cw-empty">Карт пока нет. Без них нельзя обучать модели и исследовать.</div>
-          ) : (
-            <div className="cw-rows">
-              {rentedGpus.map((g) => (
-                <RentedRow key={g.id} s={s} g={g} onEdit={() => setDialog({ id: g.id })} onGiveBack={() => setDialog({ id: g.id, count: 0 })} />
-              ))}
-            </div>
-          )}
-          {ownedH100e(s) > 0 && (
-            <div className="cw-own">
-              <span>
-                Свои карты в дата-центрах: <b>{fmtCardsCount(ownedCards(s))}</b>, {fmtH(ownedH100e(s))} H100e
-              </span>
-              <button type="button" className="btn small" onClick={() => open('datacenters')}>
-                Открыть дата-центры
-              </button>
-            </div>
-          )}
-        </section>
-        <AllocPanel s={s} />
+      <div className="cw-top">
+        <Hall s={s} shown={percentsOf(s.compute.alloc)} flash={flash} />
+        <Side
+          s={s}
+          open={open}
+          onRent={() => setDialog({ id: defaultRentId(s) })}
+          onEdit={(id) => setDialog({ id })}
+          onGiveBack={(id) => setDialog({ id, count: 0 })}
+        />
       </div>
+      <SplitPanel s={s} open={open} />
       {dialog && createPortal(<RentDialog s={s} target={dialog} onClose={() => setDialog(null)} onDone={done} />, document.body)}
     </div>
   );

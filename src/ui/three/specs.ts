@@ -29,6 +29,8 @@ export interface FarmSpec {
   groups: FarmGroup[];
   /** Широкий кадр (полоса в окне): ряды длиннее, их меньше. */
   wide?: boolean;
+  /** Чем заняты стойки: доли мощности по порядку (цвет задачи и доля 0..1); у каждой стойки - планка цвета её задачи. */
+  tasks?: { color: string; share: number }[];
 }
 
 export interface CampusSpec {

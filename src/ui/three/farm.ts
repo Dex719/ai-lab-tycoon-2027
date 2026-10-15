@@ -171,6 +171,9 @@ function openServer(gpu: GpuId): THREE.Group {
 // ---------- Материалы ----------
 
 function partMaterial(key: string): THREE.Material {
+  // Планка задачи на стойке: плоский цвет доли мощности, без свечения.
+  const task = /^task-(#[0-9a-f]{6})$/i.exec(key);
+  if (task) return pbr(task[1], 0.1, 0.55);
   const gen = /^(face|trim|card)-(\w+)$/.exec(key);
   if (gen) {
     const look = GPU_LOOK[gen[2] as GpuId];
@@ -246,6 +249,36 @@ function floorTex(): THREE.CanvasTexture {
 
 // ---------- Сборка зала ----------
 
+/** Цвет задачи для каждой стойки: стойки по порядку делятся между долями пропорционально (первые - первой доле). */
+function rackTasks(tasks: { color: string; share: number }[] | undefined, n: number): (string | null)[] {
+  const out: (string | null)[] = new Array(n).fill(null);
+  const live = (tasks ?? []).filter((t) => t.share > 0);
+  const sum = live.reduce((a, t) => a + t.share, 0);
+  if (n === 0 || sum <= 0) return out;
+  for (let i = 0; i < n; i++) {
+    const x = ((i + 0.5) / n) * sum;
+    let acc = 0;
+    for (const t of live) {
+      acc += t.share;
+      if (x <= acc) {
+        out[i] = t.color;
+        break;
+      }
+    }
+    out[i] ??= live[live.length - 1].color;
+  }
+  return out;
+}
+
+/** Планка над серверами на лицевой стороне стойки: во всю ширину, 9 см. */
+function taskParts(color: string): Parts {
+  return cachedParts(`task-${color}`, () => {
+    const b = new GeoBatch();
+    b.box(`task-${color}`, RW - 0.04, 0.09, 0.012, 0, 0.045, 0);
+    return b.build();
+  });
+}
+
 interface Slot {
   mesh: THREE.InstancedMesh;
   index: number;
@@ -305,6 +338,7 @@ export function buildFarm(spec: FarmSpec, prev: FarmSpec | null): Content {
   const rp = rackParts();
   const sp = switchParts();
   const bp = blankParts();
+  const taskOf = rackTasks(spec.tasks, n);
   racks.forEach((r, i) => {
     const p = pos[i];
     put(rp, 'rack', mtx(p.x, 0, p.z), i);
@@ -314,6 +348,8 @@ export function buildFarm(spec: FarmSpec, prev: FarmSpec | null): Content {
       if (i === openRack && k === r.servers - 1) continue;
       put(serverParts(r.gpu), `server-${r.gpu}`, mtx(p.x, SLOT0 + k * h, p.z + FRONT - 0.02), i);
     }
+    const color = taskOf[i];
+    if (color) put(taskParts(color), `task-${color}`, mtx(p.x, SLOT_TOP + 0.02, p.z + FRONT + 0.004), i);
     const used = SLOT0 + r.servers * h;
     const blankH = SLOT_TOP - U - used;
     if (blankH > 0.01) put(bp, 'blank', mtx(p.x, used, p.z + FRONT - 0.02, 0, 0, 0, 1, blankH, 1), i);

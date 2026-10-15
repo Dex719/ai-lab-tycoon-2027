@@ -1,5 +1,5 @@
-/* Окно «Мощности»: светлая шапка - машинный зал с арендованными стойками и главное число мощности,
-   ниже серое поле: слева арендованные карты с картинками, справа распределение мощности. */
+/* Окно «Мощности»: сверху крупно машинный зал (стойки с планками цвета задачи) и колонка с мощностью и картами,
+   внизу одна полоса долей с перетаскиваемыми границами и колонки «что даёт доля». */
 
 .cw {
   --cw-well: #d3d5d9;
@@ -13,13 +13,14 @@
 .cw-h { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.25; color: var(--text-title); }
 .cw-hide { visibility: hidden; }
 
-/* ---------- Шапка: машинный зал и мощность ---------- */
-.cw-head {
-  flex: none; display: grid; grid-template-columns: minmax(0, 1fr) 264px; gap: 16px; height: 208px;
+/* ---------- Зал и колонка ---------- */
+.cw-top {
+  flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px;
   padding: 12px 16px; background: var(--win-body); border-bottom: 1px solid var(--line);
 }
-.cw-farm { position: relative; margin: 0; min-width: 0; background: #d4d7db; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.cw-hall { position: relative; margin: 0; min-width: 0; min-height: 260px; background: #d4d7db; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
 .cw-farm-view { position: absolute; inset: 0; }
+.cw-side { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; }
 /* Подписи поверх 3D-схемы: над холстом и на плоской подложке цвета фона, чтобы стойки их не перекрывали. */
 .cw-farm-scale { position: absolute; z-index: 1; left: 6px; bottom: 6px; max-width: calc(100% - 12px); padding: 1px 4px; font-size: 12px; color: #3a3d42; background: rgba(212, 215, 219, 0.9); border-radius: 2px; pointer-events: none; }
 .cw-farm-empty { position: absolute; z-index: 1; left: 0; right: 0; bottom: 10px; text-align: center; font-size: 13px; color: #3a3d42; pointer-events: none; }
@@ -35,7 +36,6 @@
   94% { opacity: 1; }
   100% { opacity: 0; }
 }
-.cw-figures { display: flex; flex-direction: column; min-width: 0; }
 .cw-fig-label { font-size: 13px; color: var(--text-dim); }
 .cw-fig-value { display: flex; align-items: baseline; gap: 8px; font-size: 36px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; color: var(--text); white-space: nowrap; }
 .cw-fig-value span { font: 400 15px var(--font); letter-spacing: 0; color: var(--text-dim); }
@@ -46,27 +46,24 @@
 .cw-fig-kv dt { color: var(--text-dim); white-space: nowrap; }
 .cw-fig-kv dd { margin: 0; text-align: right; white-space: nowrap; color: var(--text); }
 .cw-fig-kv dd.bad { color: var(--bad-ink); font-weight: 600; }
-.cw-rent-btn { margin-top: auto; width: 100%; }
+.cw-rent-btn { width: 100%; margin: 12px 0 10px; flex: none; }
 
-/* ---------- Поле ---------- */
-.cw-body {
-  flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 12px;
-  padding: 12px 16px; background: var(--cw-well);
-}
-.cw-rented { display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; overflow: auto; }
 /* Арендованные карты - белое поле со строками через тонкую линию, как списки других окон. */
 .cw-rows { display: flex; flex-direction: column; background: #fff; border: 1px solid var(--line); }
+/* В узкой колонке: картинка слева, под названием цена и кнопки. */
 .cw-row {
-  display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; grid-template-areas: 'thumb main cost' 'thumb main actions';
-  align-items: center; gap: 4px 12px; padding: 8px 10px 8px 8px; border-bottom: 1px solid var(--row-line);
+  display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: 'thumb main' 'cost actions';
+  align-items: center; gap: 4px 10px; padding: 8px; border-bottom: 1px solid var(--row-line);
 }
+.cw-row > .cw-thumb { width: 64px !important; height: 36px !important; }
+.cw-row > .cw-thumb img { width: 64px; height: 36px; }
 .cw-row:last-child { border-bottom: none; }
 .cw-row > .cw-thumb { grid-area: thumb; }
 .cw-row-main { grid-area: main; min-width: 0; }
-.cw-row-cost { grid-area: cost; text-align: right; color: var(--bad-ink); font-weight: 600; white-space: nowrap; }
+.cw-row-cost { grid-area: cost; text-align: left; color: var(--bad-ink); font-weight: 600; white-space: nowrap; }
 .cw-row-cost small { margin-left: 4px; font-weight: 400; font-size: 12px; color: var(--text-dim); }
 .cw-row-actions { grid-area: actions; display: flex; gap: 6px; justify-content: flex-end; }
-.cw-row-name { font-size: 16px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-row-name { font-size: 15px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cw-row-meta b { font-weight: 600; color: var(--text); }
 .cw-row-meta { font-size: 13px; color: var(--text-dim); }
 .cw-row-over { min-height: 17px; font-size: 13px; font-weight: 600; color: var(--warn); }
@@ -84,46 +81,36 @@
 .cw-own b { color: var(--info-ink); }
 .cw-own .btn { margin-left: auto; }
 
-/* ---------- Распределение ---------- */
-.cw-panel {
-  display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 8px 14px 10px;
-  background: var(--panel); border: 1px solid var(--line-soft); border-radius: 4px;
-}
-.cw-panel-head { flex: none; padding-bottom: 2px; border-bottom: 1px solid var(--line-soft); }
-.cw-allocbar { display: flex; height: 10px; margin: 6px 0 3px; overflow: hidden; background: #e3e5e9; border-radius: 2px; }
-.cw-occ { min-height: 18px; font-size: 13px; line-height: 18px; color: var(--text-dim); }
+/* ---------- Распределение: одна полоса ---------- */
+.cw-panel { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 10px 16px 12px; background: var(--panel); }
+.cw-panel-head { display: flex; align-items: center; gap: 12px; }
+.cw-occ { flex: 1; min-width: 0; font-size: 13px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cw-occ.full { color: var(--good-ink); font-weight: 600; }
-.cw-occ.idle { color: var(--warn); }
-.cw-alloc-rows { flex: 1; min-height: 0; overflow: auto; }
-.cw-alloc-row { padding: 3px 0 2px; border-top: 1px solid var(--line-soft); }
-.cw-alloc-row:first-child { border-top: none; }
-.cw-alloc-top { display: flex; align-items: center; gap: 8px; }
+.cw-occ.idle { color: var(--warn); font-weight: 600; }
+/* Полоса долей: сегменты цвета задачи, между ними ручки; ручку тянут мышью или стрелками. */
+.cw-split { position: relative; height: 30px; background: #e3e5e9; border: 1px solid var(--line); border-radius: 3px; }
+.cw-seg { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; overflow: hidden; color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.cw-seg span { padding: 0 8px; }
+.cw-handle { position: absolute; top: -5px; bottom: -5px; width: 16px; margin-left: -8px; z-index: 1; cursor: ew-resize; touch-action: none; }
+.cw-handle::after { content: ''; position: absolute; left: 6px; top: 0; bottom: 0; width: 4px; background: #fff; border: 1px solid #6b7078; border-radius: 2px; }
+.cw-handle:hover::after, .cw-handle:focus-visible::after { background: var(--accent); border-color: var(--accent-dark); }
+.cw-handle:focus-visible { outline: none; }
+/* Колонки под полосой: доля, мощность и что она даёт сейчас. */
+.cw-cols { display: grid; gap: 0 16px; }
+.cw-col { min-width: 0; }
+.cw-col-top { display: flex; align-items: center; gap: 6px; }
 .cw-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; }
-.cw-alloc-name { flex: 1; min-width: 0; font-weight: 600; }
-.cw-alloc-val { color: var(--text-dim); white-space: nowrap; font-size: 13px; }
-.cw-alloc-ctl { display: flex; align-items: center; gap: 10px; }
-.cw-alloc-ctl .range { flex: 1; min-width: 0; width: auto; }
-.cw-pct { flex: none; display: inline-flex; align-items: center; gap: 4px; color: var(--text-dim); }
-.cw-pct input { width: 56px; height: 24px; padding: 0 6px; font-weight: 600; }
-.cw-pct.changed input { color: var(--accent-dark); border-color: var(--accent); }
-.cw-need { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-height: 17px; font-size: 13px; color: var(--text-dim); }
-.cw-need-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-alloc-name { min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-col-pct { margin-left: auto; font-weight: 600; }
+.cw-col-val { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+.cw-need { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-height: 17px; font-size: 13px; color: var(--text-dim); }
+.cw-need-t { min-width: 0; }
 .cw-need-t b { font-weight: 600; color: var(--text); }
-.cw-need-short { flex: none; color: var(--warn); font-weight: 600; white-space: nowrap; }
+.cw-need-short { color: var(--warn); font-weight: 600; white-space: nowrap; }
 /* Срок при новой доле: раньше - зелёным, позже - оранжевым. */
 .cw-eff { font-weight: 600; color: var(--text); }
 .cw-eff.sooner { color: var(--good-ink); }
 .cw-eff.later { color: var(--warn); }
-/* Подвал: место под сообщение занято всегда, кнопки не прыгают. */
-.cw-panel-foot { flex: none; display: flex; align-items: center; gap: 8px; padding-top: 6px; border-top: 1px solid var(--line-soft); }
-.cw-alloc-msg {
-  flex: 1; min-width: 0; height: 32px; display: flex; align-items: center; gap: 6px;
-  font-size: 13px; line-height: 1.2; color: var(--text-dim); overflow: hidden;
-}
-.cw-alloc-msg > span { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.cw-alloc-msg svg { flex: none; }
-.cw-alloc-msg.bad { color: var(--bad); font-weight: 600; }
-.cw-alloc-msg.warn, .cw-alloc-msg.pending { color: var(--warn); font-weight: 600; }
 .cw-confirm-line { margin: 0; }
 
 /* ---------- Простой мощности ---------- */
@@ -185,16 +172,9 @@
 
 /* Узкое окно (телефон, маленький экран): шапка и поле в одну колонку, поле прокручивается целиком. */
 @container (max-width: 760px) {
-  .cw-head { grid-template-columns: 1fr; height: auto; }
-  .cw-farm { height: 150px; }
-  .cw-rent-btn { margin-top: 10px; }
-  .cw-body { grid-template-columns: 1fr; overflow: auto; }
-  .cw-rented { overflow: visible; }
-  .cw-alloc-rows { overflow: visible; }
-  .cw-row { grid-template-columns: 72px minmax(0, 1fr); grid-template-areas: 'thumb main' 'cost actions'; }
-  .cw-row > .cw-thumb { width: 72px !important; height: 41px !important; }
-  .cw-row > .cw-thumb img { width: 72px; height: 41px; }
-  .cw-row-cost { text-align: left; }
+  .cw-top { grid-template-columns: 1fr; overflow: auto; }
+  .cw-hall { min-height: 180px; }
+  .cw-cols { grid-template-columns: 1fr 1fr !important; gap: 8px 16px; }
 }
 
 /* Диалог аренды на узком экране: список, превью и количество друг под другом. */

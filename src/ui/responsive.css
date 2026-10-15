@@ -206,8 +206,6 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .cw-qty { grid-template-columns: minmax(0, 1fr) auto; }
   .cw-qty > label { grid-column: 1 / -1; }
   .cw-qty-range, .cw-qty-legend, .cw-qty-note { grid-column: 1 / -1; }
-  .cw-pct input { width: 64px; height: 40px; }
-  .cw-alloc-ctl { gap: 8px; }
   /* «Нужно клиентам: …» и «не хватает …» - в две строки вместо обрезки многоточием. */
   .cw-need { flex-wrap: wrap; row-gap: 0; }
   .cw-need-t { white-space: normal; }
