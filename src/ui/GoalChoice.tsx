@@ -127,7 +127,7 @@ function GoalChoiceDialog({ s }: { s: GameState }) {
           <GoalPicker s={s} {...pick} />
         </div>
         <div className="foot">
-          <GuardButton className="btn primary" reason={reason} onClick={() => acceptGoals(s, pick.picked)}>
+          <GuardButton className="btn primary" data-tutorial="goals-accept" reason={reason} onClick={() => acceptGoals(s, pick.picked)}>
             Принять цели
           </GuardButton>
         </div>

@@ -3,7 +3,7 @@
 .ach-toasts { position: fixed; left: 110px; top: 50px; z-index: 885; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .ach-toast {
   display: flex; align-items: center; gap: 10px; min-width: 260px; max-width: 360px; padding: 8px 14px 8px 10px;
-  background: var(--gold-tint); color: var(--text-title); border: 1px solid #e6cf86; border-left: 5px solid var(--gold-line); border-radius: 3px;
+  background: #fff; color: var(--text-title); border: 1px solid var(--line); border-left: 5px solid var(--gold-line); border-radius: 3px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4); animation: ach-in 4500ms ease-out forwards;
 }
 .ach-medal { flex: none; }
@@ -15,8 +15,8 @@
 .ach-medal.on .ach-star { fill: var(--gold-ink); }
 .ach-tt { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
 .ach-tt small { font-size: 12px; font-weight: 600; color: var(--gold-ink); }
-.ach-tt b { font-size: 14.5px; font-weight: 600; }
-.ach-tt span { font-size: 12.5px; color: var(--text-body); }
+.ach-tt b { font-size: 15px; font-weight: 600; }
+.ach-tt span { font-size: 13px; color: var(--text-body); }
 @keyframes ach-in {
   0% { opacity: 0; transform: translateX(-8px); }
   5%, 90% { opacity: 1; transform: none; }
@@ -30,6 +30,6 @@
 .ach-row .ach-tt b { color: #4a4d54; }
 .ach-row .ach-tt span { color: var(--text-dim); }
 .ach-row.on .ach-tt b { color: var(--text-title); }
-.ach-when { font-size: 12.5px; color: #8a8e95; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.ach-row.on .ach-when { color: var(--gold-ink); font-weight: 600; }
+.ach-when { font-size: 13px; color: #8a8e95; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ach-row.on .ach-when { color: var(--text-dim); }
 @media (prefers-reduced-motion: reduce) { .ach-toast { animation: none; } }

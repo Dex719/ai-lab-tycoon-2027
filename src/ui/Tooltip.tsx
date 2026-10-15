@@ -57,14 +57,14 @@ export function TooltipLayer() {
       anchor = null;
       setTip(null);
     };
-    // Якорь может исчезнуть из DOM без ухода курсора (письмо решено, окно закрылось само):
-    // пока подсказка видна, проверяем, что он на месте, иначе подсказка висела бы над пустым местом.
+    // Элемент под курсором может исчезнуть без mouseout (окно закрылось, список перерисовался):
+    // пока подсказка видна, раз в 300 мс проверяем, что он ещё на странице.
     const show = (el: HTMLElement, text: string) => {
       setTip(placeFor(el, text));
-      if (!watch)
-        watch = window.setInterval(() => {
-          if (!anchor || !anchor.isConnected) hide();
-        }, 300);
+      window.clearInterval(watch);
+      watch = window.setInterval(() => {
+        if (!el.isConnected) hide();
+      }, 300);
     };
     const target = (e: Event): HTMLElement | null => {
       const t = e.target;

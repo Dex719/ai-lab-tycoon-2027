@@ -218,7 +218,7 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
           </div>
           <div className="ng-foot">
             <span className="guard ng-start-wrap">
-              <button type="submit" className="btn primary wide ng-start" aria-disabled={!valid || undefined}>
+              <button type="submit" className="btn primary big wide ng-start" aria-disabled={!valid || undefined}>
                 Начать
               </button>
               <DenyNote text={note} />
@@ -323,7 +323,7 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
                     </button>
                   </>
                 ) : (
-                  <button className="btn small primary" onClick={() => (slot.meta ? setConfirm(slot.id) : save(slot.id))}>
+                  <button className="btn small" onClick={() => (slot.meta ? setConfirm(slot.id) : save(slot.id))}>
                     Сохранить сюда
                   </button>
                 )}

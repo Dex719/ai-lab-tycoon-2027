@@ -336,7 +336,7 @@ function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
       <b className="nm-run-name" title={summary}>
         Идёт: «{p.name}»
       </b>
-      <TierBadge tier={p.tier} />
+      <TierBadge tier={p.tier} plain />
       <div className="nm-run-bar">
         <ProgressBar value={frac} title={summary} />
       </div>
@@ -532,7 +532,7 @@ function StartConfirm(props: { s: GameState; plan: TrainingPlan; est: Est; onCon
   const { s, plan, est } = props;
   const { days, power, cost, rent } = projectNumbers(s, est);
   return (
-    <ConfirmDialog title="Начать обучение" confirmLabel="Начать обучение" onConfirm={props.onConfirm} onClose={props.onClose}>
+    <ConfirmDialog title="Начать обучение" confirmLabel="Начать обучение" tutorial="train-confirm" onConfirm={props.onConfirm} onClose={props.onClose}>
       <p className="nm-confirm-name">
         «{plan.name}», {fmtParams(plan.paramsB)} параметров, уровень «{TIER_NAMES[plan.tier]}»
       </p>

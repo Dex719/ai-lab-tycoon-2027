@@ -73,7 +73,6 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
         <div className="t">Исследование: {name}</div>
         <div className="r">
           <span>Осталось</span>
-          {/* Как в окне «Исследования»: цена падает с приближением исторической даты. */}
           <span className="v">{days(researchDaysLeft(s, cur, rpPerDay(s)))}</span>
         </div>
         <ProgressBar value={pts / cost} />

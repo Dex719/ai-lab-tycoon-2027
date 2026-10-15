@@ -303,7 +303,6 @@ export default function InvestorsWindow({ s }: WindowProps) {
           <div className={`inv-cd${reason ? ' wait' : ' ready'}`}>
             <span className="inv-cd-t">
               {reason ? <IconLock size={13} /> : <IconCheck size={14} />}
-              {/* текст и дата в одном узле: иначе отступ флекса встаёт перед запятой */}
               <span>
                 {reason ?? 'Раунд можно провести сейчас'}
                 {left > 0 && <span className="inv-cd-d">, {formatDateShort(s.day + left)}</span>}
