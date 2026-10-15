@@ -62,7 +62,7 @@ body:has(.menu-screen) .modal-backdrop { background: rgba(0, 0, 0, 0.94); }
 .topbar {
   position: relative; z-index: 900; height: 40px; flex: none; display: grid;
   grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 14px;
-  background: var(--bar); color: var(--bar-text); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45); border-bottom: 2px solid var(--c-blue);
+  background: var(--bar); color: var(--bar-text); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 .topbar-left { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--bar-dim); font-size: 13px; }
 .topbar-left b { color: var(--bar-text); font-weight: 600; }

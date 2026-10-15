@@ -30,7 +30,7 @@
 
 /* ---------- «Настройка игры»: светлое окно, слева поля, справа условия партии ---------- */
 .menu-screen.mm .modal-backdrop.ng-backdrop { background: rgba(10, 11, 13, 0.7); }
-.dialog.ng { width: min(720px, calc(100vw - 32px)); }
+.dialog.ng { width: min(720px, calc(100vw - 32px)); outline: none; }
 .ng-form { display: flex; flex-direction: column; min-height: 0; overflow: auto; }
 .ng-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 18px 22px 6px; }
 .ng-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
@@ -60,8 +60,7 @@
 
 /* Табличка лаборатории - та же, что встанет на рабочем столе. */
 .ng-sign {
-  display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #1c1c1e; color: #f2f2f2;
-  border-bottom: 2px solid var(--c-blue); border-radius: 3px;
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #1c1c1e; color: #f2f2f2; border-radius: 3px;
 }
 .ng-sign svg { flex: none; color: #a9acb2; }
 .ng-sign b { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

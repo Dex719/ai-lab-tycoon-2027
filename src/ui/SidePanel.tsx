@@ -200,7 +200,7 @@ function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) =>
   const near = race ? (first ? race.below : race.above) : null;
   return (
     <div className={`side-race${first ? ' first' : ''}`} title={ARENA_PLACE_TITLE} onClick={() => open('analytics')}>
-      <span className="sr-place">{race ? `${race.rank}-е` : '-'}</span>
+      {race && <span className="sr-place">{race.rank}-е</span>}
       <span className="sr-txt">
         <span className="sr-k">{race ? `Место: ${raceName(race.metric)}` : 'Гонка'}</span>
         <span className="sr-v">

@@ -1,6 +1,6 @@
 // Главное меню и его окна: «Настройка игры», «Загрузить», «Настройки».
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { START_CASH } from '../sim/constants';
 import { DIFFICULTY, DIFFICULTY_IDS, type Difficulty } from '../sim/rivalry';
 import { formatDateShort } from '../sim/time';
@@ -118,6 +118,9 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
   const [note, flash] = useFlash();
   const valid = name.trim().length > 0;
   const { ref, onKeyDown } = useModalFocus<HTMLDivElement>('new-game');
+  const nameRef = useRef<HTMLInputElement>(null);
+  // Окно получает фокус для Tab по кругу, затем курсор сразу встаёт в название лаборатории.
+  useEffect(() => nameRef.current?.select(), []);
 
   function start() {
     if (!valid) {
@@ -147,7 +150,7 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
             <div className="ng-col">
               <label className="ng-field">
                 <span className="ng-l">Название лаборатории</span>
-                <input className="ng-input" type="text" value={name} maxLength={NAME_MAX} onChange={(e) => setName(e.target.value)} autoFocus />
+                <input ref={nameRef} className="ng-input" type="text" value={name} maxLength={NAME_MAX} onChange={(e) => setName(e.target.value)} />
                 <span className="ng-count">
                   {name.length}/{NAME_MAX}
                 </span>

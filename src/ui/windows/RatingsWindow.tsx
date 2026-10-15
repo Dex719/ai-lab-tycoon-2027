@@ -448,7 +448,7 @@ export function ArenaTab({ s }: WindowProps) {
           </span>
         </div>
         <div className="arn-cell">
-          <span className="arn-k">{first ? 'Отрыв от второго места' : 'До лидера'}</span>
+          <span className="arn-k">{first ? 'Отрыв от ближайшего соперника' : 'До лидера'}</span>
           <span className={`arn-mid ${first ? 'good' : 'bad'}`}>{gap !== null ? `${first ? '+' : '−'}${gapText(metric, gap)}` : '-'}</span>
           <span className="arn-s">
             {runner ? (
