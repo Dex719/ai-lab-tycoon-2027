@@ -177,16 +177,13 @@ function Digest({ rows }: { rows: DigestRow[] }) {
     <div className="mail-digest">
       <div className="mail-digest-sum">
         <div>
-          <span>Выполнено</span>
-          <b>{fmtNum(done.length)}</b>
+          Выполнено <b>{fmtNum(done.length)}</b>
         </div>
         <div>
-          <span>Выиграно тендеров</span>
-          <b>{fmtNum(won.length)}</b>
+          Выиграно тендеров <b>{fmtNum(won.length)}</b>
         </div>
         <div className="paid">
-          <span>Получено</span>
-          <b>{paid > 0 ? fmtMoney(paid) : '-'}</b>
+          Получено <b>{paid > 0 ? fmtMoney(paid) : '-'}</b>
         </div>
       </div>
       <div className="mail-digest-rows">
@@ -377,17 +374,15 @@ function MailView({ mail }: { mail: Mail }) {
   return (
     <article className={`mail-view k-${mail.kind}${mail.reward ? ' reward' : ''}${decide ? ' decide' : ''}`}>
       <div className="mail-sheet">
-        <header className="mail-letterhead">
-          <span className="mail-kicker">
-            <span className="mail-kicker-ic">
-              <Glyph kind={mail.kind} size={15} />
-            </span>
+        <h2 className="mail-title">{mail.title}</h2>
+        <div className="mail-meta">
+          <span className="mail-meta-k">
+            <Glyph kind={mail.kind} size={15} />
             {KIND_NAME[mail.kind]}
           </span>
-          {mail.reward && <span className="mail-ribbon">Награда</span>}
-          <span className="mail-date">{formatDate(mail.day)}</span>
-        </header>
-        <h2 className="mail-title">{mail.title}</h2>
+          {mail.reward && <span className="mail-meta-reward">Награда</span>}
+          <span>{formatDate(mail.day)}</span>
+        </div>
         <Body text={mail.body} />
         {mail.choices && (
           <div className="mail-decision">

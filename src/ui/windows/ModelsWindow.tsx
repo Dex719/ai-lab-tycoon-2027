@@ -204,6 +204,11 @@ function ModelList(props: {
             <span className="mw-item-name" title={m.name}>
               {m.name}
             </span>
+            {champion && (
+              <b className="mw-crown" title="Лучшая модель в гонке">
+                1-е
+              </b>
+            )}
             <span className="mw-item-elo" title="Рейтинг Эло">
               {fmtElo(m.arenaElo)}
             </span>
@@ -211,7 +216,6 @@ function ModelList(props: {
           <span className={`mw-item-state ${st.tone}`}>
             <i className="mw-dot" />
             {stateLabel(m)}
-            {champion && <b className="mw-crown">1-е место</b>}
           </span>
           {rv && rv.tone !== 'good' && <span className={`mw-item-state ${rv.tone}`}>{rv.text}</span>}
           {m.exposed && <span className="mw-item-state bad">Подгонка раскрыта</span>}
@@ -229,9 +233,19 @@ function ModelList(props: {
           </span>
         </div>
         <div className="mw-coll-tags">
-          <span className="mw-tag sale">В продаже: {fmtNum(onSale)}</span>
-          {waiting > 0 && <span className="mw-tag idle">Ждут выпуска: {fmtNum(waiting)}</span>}
-          {props.trainings.length > 0 && <span className="mw-tag train">Обучается: {fmtNum(props.trainings.length)}</span>}
+          <span>
+            В продаже <b className="sale">{fmtNum(onSale)}</b>
+          </span>
+          {waiting > 0 && (
+            <span>
+              ждут выпуска <b className="idle">{fmtNum(waiting)}</b>
+            </span>
+          )}
+          {props.trainings.length > 0 && (
+            <span>
+              обучается <b className="train">{fmtNum(props.trainings.length)}</b>
+            </span>
+          )}
         </div>
       </div>
       <div className="mw-list">
@@ -782,35 +796,46 @@ interface Kpi {
   tone?: 'income' | 'cost' | 'gold';
 }
 
+/**
+ * Шапка карточки как «Инспектор» в Processor Tycoon: серая панель с обложкой, название и строка состояния,
+ * под ними сведения «подпись - значение», справа одно крупное число (главное для этой модели).
+ */
 function Hero(props: {
   emblem: React.ReactNode;
   name: string;
   sub: string;
-  tier: TrainingPlan['tier'];
-  pills: React.ReactNode;
+  status: React.ReactNode;
   kpis: Kpi[];
 }) {
+  const [focus, ...facts] = props.kpis;
   return (
-    <header className={`mw-hero ${props.tier}`}>
-      <div className="mw-hero-top">
-        {props.emblem}
-        <div className="mw-head-text">
-          <h2 className="mw-name" title={props.name}>
-            {props.name}
-          </h2>
-          <div className="mw-head-sub">{props.sub}</div>
-          <div className="mw-pills">{props.pills}</div>
+    <header className="mw-insp">
+      <div className="mw-pic">{props.emblem}</div>
+      <div className="mw-insp-main">
+        <h2 className="mw-name" title={props.name}>
+          {props.name}
+        </h2>
+        <div className="mw-head-sub">{props.sub}</div>
+        <div className="mw-status">{props.status}</div>
+        <dl className="mw-facts">
+          {facts.map((k) => (
+            <Fragment key={k.label}>
+              <dt>{k.label}</dt>
+              <dd title={k.title}>
+                <span className={k.tone ? `mw-v ${k.tone}` : 'mw-v'}>{k.value}</span>
+                {k.sub && <small>{k.sub}</small>}
+              </dd>
+            </Fragment>
+          ))}
+        </dl>
+      </div>
+      {focus && (
+        <div className="mw-focus" title={focus.title}>
+          <span className={`mw-focus-v${focus.tone ? ` ${focus.tone}` : ''}`}>{focus.value}</span>
+          <span className="mw-focus-l">{focus.label}</span>
+          {focus.sub && <span className="mw-focus-s">{focus.sub}</span>}
         </div>
-      </div>
-      <div className="mw-kpis">
-        {props.kpis.map((k) => (
-          <div key={k.label} className="mw-kpi" title={k.title}>
-            <span className="mw-kpi-l">{k.label}</span>
-            <span className={`mw-kpi-v${k.tone ? ` ${k.tone}` : ''}`}>{k.value}</span>
-            <span className="mw-kpi-s">{k.sub ?? ''}</span>
-          </div>
-        ))}
-      </div>
+      )}
     </header>
   );
 }
@@ -939,10 +964,9 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
         emblem={<ModelEmblem m={{ id: t.id, name: t.plan.name, arch: t.arch, plan: t.plan }} size={92} progress={frac} />}
         name={t.plan.name}
         sub={sub}
-        tier={t.plan.tier}
-        pills={
+        status={
           <>
-            <span className="mw-pill train">Обучается</span>
+            <span className="mw-st train">Обучается</span>
             <TierBadge tier={t.plan.tier} />
           </>
         }
@@ -991,12 +1015,11 @@ function ModelCard(props: { s: GameState; m: PlayerModel; open: WindowProps['ope
         emblem={<ModelEmblem m={m} size={92} gold={champion} exposed={m.exposed} faded={st.tone === 'off'} />}
         name={m.name}
         sub={sub}
-        tier={m.plan.tier}
-        pills={
+        status={
           <>
-            <span className={`mw-pill ${st.tone}`}>{stateLabel(m)}</span>
+            <span className={`mw-st ${st.tone}`}>{stateLabel(m)}</span>
             <TierBadge tier={m.plan.tier} />
-            {rv && <span className={`mw-pill ${rv.tone}`}>{rv.text}</span>}
+            {rv && <span className={`mw-st ${rv.tone}`}>{rv.text}</span>}
           </>
         }
         kpis={kpisOf(s, m, metric, rank)}

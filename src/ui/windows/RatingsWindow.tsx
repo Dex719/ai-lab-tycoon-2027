@@ -338,8 +338,16 @@ export function expectedLeaderElo10(s: GameState): number | null {
 
 /** Значок лаборатории соперника: круг её цвета с первой буквой. */
 function LabBadge({ s, owner, size = 34 }: { s: GameState; owner: HypeOwner; size?: number }) {
+  const bg = ownerColor(owner, true);
+  const n = parseInt(bg.slice(1), 16);
+  // На светлом цвете (жёлтый Moonshoot) буква тёмная, иначе белая.
+  const light = 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) > 150;
   return (
-    <span className="arn-lab" style={{ width: size, height: size, background: ownerColor(owner, true), fontSize: size * 0.45 }} aria-hidden="true">
+    <span
+      className="arn-lab"
+      style={{ width: size, height: size, background: bg, color: light ? '#1f2023' : '#fff', fontSize: size * 0.45 }}
+      aria-hidden="true"
+    >
       {ownerName(s, owner).slice(0, 1)}
     </span>
   );

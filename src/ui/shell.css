@@ -1,122 +1,60 @@
-/* Оболочка партии: верхняя панель, панель задач, меню игры и боковая сводка.
-   Файл подключается раньше theme.css (через компоненты), поэтому правила начинаются с .game - так они сильнее
-   общих правил темы. Телефонная раскладка (responsive.css) не затрагивается: всё здесь - от 768 px. */
+/* Оболочка партии: верхняя панель, панель задач, меню игры и боковая сводка. Плоские тёмные панели, как в
+   Processor Tycoon. Файл подключается раньше theme.css (через компоненты), поэтому правила начинаются с .game -
+   так они сильнее общих правил темы. Телефонная раскладка (responsive.css) не затрагивается: всё здесь - от 768 px. */
 
 @media (min-width: 768px) {
   /* ---------- Верхняя панель ---------- */
-  .game .topbar { background: linear-gradient(180deg, #252528, #19191b); }
   .game .topbar-left { gap: 9px; }
-  .tb-logo {
-    flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 6px;
-    background: #24324d; color: #8fb8f0; box-shadow: inset 0 0 0 1px #34476e;
-  }
-  .game .topbar-left b { font-size: 14px; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tb-logo { flex: none; display: grid; place-items: center; color: #a9acb2; }
+  .game .topbar-left b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tb-founder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tb-founder::before { content: '·'; margin-right: 8px; color: #5d6168; }
   .game .topbar-center { gap: 14px; }
   .tb-sep { flex: none; width: 1px; height: 22px; background: #3b3c41; }
-  .game .tb-money > span:first-of-type { font-weight: 700; font-size: 17px; }
-  .game .tb-money svg { color: #ffd34d; }
-  .game .tb-rate > span { padding: 1px 8px; border-radius: 4px; font-size: 14px; }
-  .game .tb-rate > span.tb-good { background: rgba(94, 211, 127, 0.12); }
-  .game .tb-rate > span.tb-bad { background: rgba(255, 107, 107, 0.13); }
-  .game .tb-date svg { color: #8fb8f0; }
-  .game .speed { gap: 2px; padding: 2px; background: #2c2c30; border-radius: 6px; box-shadow: inset 0 0 0 1px #3b3c41; }
-  .game .speed button { width: 30px; height: 26px; border-radius: 4px; }
-  .game .speed button.on { background: var(--c-blue); color: #fff; }
-  .game .speed button.on[aria-label^='Пауза'] { background: #c99a1a; color: #1c1c1e; }
+  .game .tb-money > span:first-of-type { font-weight: 700; }
+  .game .speed { gap: 2px; }
+  .game .speed button { width: 30px; height: 28px; border-radius: 3px; }
+  .game .speed button.on { background: #3a3b40; color: #fff; }
+  .game .speed button.on[aria-label^='Пауза'] { color: #f2b84b; }
   .game .speed button:disabled { opacity: 0.35; cursor: default; }
   .game .topbar-right { gap: 14px; }
 
   /* ---------- Панель задач ---------- */
-  .game .taskbar { background: linear-gradient(0deg, #19191b, #252528); border-top: 1px solid #2f3034; }
-  .game .task-start { width: 34px; height: 34px; border-radius: 8px; color: #8fb8f0; }
-  .game .task-start:hover, .game .task-start.on { background: #24324d; color: #fff; }
-  .game .task-win {
-    height: 34px; padding: 0 12px 0 8px; gap: 8px; border-radius: 6px 6px 0 0; font-size: 13px;
-    border-bottom: 3px solid transparent; color: #d0d3d8;
-  }
+  .game .task-start { width: 34px; height: 34px; border-radius: 3px; }
+  .game .task-start:hover, .game .task-start.on { background: #3a3b40; }
+  .game .task-win { height: 34px; padding: 0 12px 0 8px; gap: 8px; border-radius: 0; font-size: 13px; border-bottom: 3px solid transparent; color: #d0d3d8; }
   .game .task-win:hover { background: rgba(255, 255, 255, 0.08); }
   .game .task-win.active { background: rgba(255, 255, 255, 0.1); color: #fff; border-bottom-color: var(--wa, var(--accent)); }
   .game .task-win.min { opacity: 0.55; }
-  .game .task-clock { font: 13px var(--mono); color: #a9acb2; }
 
   /* ---------- Меню игры ---------- */
-  .game .start-menu {
-    width: 260px; padding: 0 0 6px; overflow: hidden; background: #232427; border: 1px solid #3a3b40; border-radius: 8px;
-    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.6);
-  }
-  .start-head {
-    display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin-bottom: 6px; color: #8fb8f0;
-    background: radial-gradient(ellipse 70% 140% at 0% 0%, rgba(47, 128, 228, 0.45), transparent 70%), #1d2433;
-  }
+  .game .start-menu { width: 250px; padding: 0 0 6px; overflow: hidden; background: #2a2a2d; border-radius: 3px; }
+  .start-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; margin-bottom: 6px; color: #a9acb2; border-bottom: 1px solid #3b3b3f; }
   .start-head span { display: flex; flex-direction: column; min-width: 0; }
-  .start-head b { color: #fff; font: 700 15px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .start-head small { color: #a9b3c7; font-size: 12px; }
+  .start-head b { color: #fff; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .start-head small { color: #a9acb2; font-size: 12px; }
   .game .start-menu button { gap: 12px; padding: 8px 16px; font-size: 14px; }
-  .game .start-menu button svg { color: #8fb8f0; flex: none; }
-  .game .start-menu button:hover { background: rgba(143, 184, 240, 0.12); }
-  .game .start-menu .start-exit svg { color: #ff8a8a; }
+  .game .start-menu button svg { color: #a9acb2; flex: none; }
+  .game .start-menu button:hover svg { color: #fff; }
 
   /* ---------- Боковая сводка ---------- */
-  .game .side-body {
-    background: #222326; border: 1px solid #36373c; border-right: none; border-radius: 8px 0 0 8px; overflow: hidden;
-    box-shadow: -6px 0 22px rgba(0, 0, 0, 0.35);
-  }
-  .game .side-tab { background: #222326; border: 1px solid #36373c; border-right: none; }
-  .game .side-head {
-    display: flex; align-items: center; justify-content: space-between; padding: 9px 12px 7px;
-    border-top: none; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #a9acb2;
-    background: #1b1c1f; border-bottom: 1px solid #36373c;
-  }
-  .side-race {
-    display: flex; align-items: center; gap: 12px; margin: 10px 10px 8px; padding: 10px 12px; cursor: pointer;
-    border-radius: 8px; color: #fff; border: 1px solid #2f3a52;
-    background: radial-gradient(ellipse 60% 140% at 0% 0%, rgba(47, 128, 228, 0.5), transparent 70%), #1d2433;
-  }
-  .side-race:hover { border-color: #4c6ea8; }
-  .side-race.first {
-    border-color: #6b5520; background: radial-gradient(ellipse 60% 140% at 0% 0%, rgba(255, 211, 77, 0.5), transparent 70%), #2a2412;
-  }
-  .sr-place { flex: none; min-width: 54px; font: 700 30px/1 var(--mono); color: #fff; text-align: center; }
-  .side-race.first .sr-place { color: #ffd34d; text-shadow: 0 0 12px rgba(255, 211, 77, 0.5); }
+  .game .side-head { padding: 9px 12px 7px; border-top: 3px solid var(--c-teal); font-size: 16px; }
+  .side-race { display: flex; align-items: center; gap: 12px; padding: 4px 12px 10px; cursor: pointer; color: #d6d8dc; border-bottom: 1px solid #36373c; }
+  .side-race:hover .sr-v { text-decoration: underline; text-underline-offset: 3px; }
+  .sr-place { flex: none; min-width: 50px; font-size: 30px; font-weight: 700; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+  .side-race.first .sr-place { color: #f2c94c; }
   .sr-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-  .sr-k { font-size: 11.5px; color: #b9c3d6; }
+  .sr-k { font-size: 12px; color: #a9acb2; }
   .sr-v { font-size: 13px; font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .sr-m { font-size: 12px; color: #c9d1e0; }
-
-  .game .side-tabs { gap: 2px; margin: 8px 10px 8px; padding: 2px; background: #2c2d31; border-radius: 6px; }
-  .game .side-tabs button { flex: 1; padding: 4px 8px; border-radius: 4px; background: none; color: #c4c7cc; }
-  .game .side-tabs button.on { background: var(--c-blue); color: #fff; }
-  .game .side-list { padding: 0 10px 10px; border-top: none; display: flex; flex-direction: column; gap: 6px; }
-  .game .side-item {
-    --st: var(--c-teal);
-    padding: 9px 11px; background: #2a2b2f; border: 1px solid #36373c; border-left: 4px solid var(--st); border-radius: 6px;
-    transition: border-color 120ms ease-out, background-color 120ms ease-out;
-  }
-  .game .side-item:hover { background: #303136; }
-  .game .side-item .t { font-size: 14px; font-weight: 600; }
-  .game .side-item.t-train { --st: var(--c-blue); }
-  .game .side-item.t-research { --st: var(--c-purple); }
-  .game .side-item.t-contract { --st: var(--c-orange); }
-  .game .side-item.t-model { --st: var(--c-green); }
-  .game .side-item.t-decision { --st: #f2b84b; background: #3a2f17; border-color: #6b5520; border-left-color: #f2b84b; }
-  .game .side-item .progress { height: 5px; border-radius: 3px; background: #3a3b40; }
-  .game .side-item .progress > div { background: var(--st); border-radius: 3px; }
+  .sr-m { font-size: 12px; color: #c4c7cc; }
+  .game .side-tabs { padding-top: 10px; }
+  .game .side-item { border-left: none; padding: 10px 12px; }
+  .game .side-item.decision { border: 1px solid #f2c14e; background: #3a2f17; }
+  .game .side-item .progress { height: 5px; background: #3a3b40; border-radius: 1px; }
+  .game .side-item.t-train .progress > div { background: var(--c-blue); }
+  .game .side-item.t-research .progress > div { background: var(--c-purple); }
+  .game .side-item.t-contract .progress > div { background: var(--c-orange); }
   .side-model-t { display: flex; align-items: center; gap: 8px; }
-  .side-model-t .emb { box-shadow: none; }
-  .game .side-empty { padding: 14px 4px; }
-  .game .side-idle { margin: 0 10px 8px; border-radius: 6px; }
-
-  /* Цели года: те же карточки, золотая полоса. */
-  .game .side .goal-head { margin-top: 2px; padding: 8px 12px 6px; border-top: 1px solid #36373c; font-size: 14px; font-weight: 600; }
-  .game .side .goal-list { display: flex; flex-direction: column; gap: 6px; padding: 0 10px 10px; border-bottom: 1px solid #36373c; }
-  .game .side .goal-row { padding: 8px 11px; background: #2a2b2f; border: 1px solid #36373c; border-left: 4px solid var(--c-amber); border-radius: 6px; }
-  .game .side .goal-row:last-child { border-bottom: 1px solid #36373c; }
-  .game .side .goal-row:hover { background: #303136; }
-  .game .side .goal-row.done { border-left-color: var(--c-green); }
-  .game .side .goal-row.almost { border-left-color: #ffd34d; }
-  .game .side .goal-row .goal-bar { height: 5px; border-radius: 3px; }
 }
 
 @media (max-width: 767px) {

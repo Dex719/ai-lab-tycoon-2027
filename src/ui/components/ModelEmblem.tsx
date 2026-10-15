@@ -2,10 +2,9 @@
 // Цвет - уровень (лёгкая бирюзовая, средняя синяя, флагман фиолетовый), оттенок и поворот узора - от названия.
 // Узор - архитектура: у LSTM узлы связаны цепочкой по кругу (память переходит от шага к шагу),
 // у трансформера - хордами «каждый с каждым» (внимание). Число узлов растёт с размером модели,
-// число делений внешнего кольца - с длиной контекста. Золотая звезда - обучение с RLHF.
+// число делений внешнего кольца - с длиной контекста. Цвета плоские, без градиентов.
 // В центре - номер модели из названия («Модель 12» → 12) или первые буквы.
 
-import { useId } from 'react';
 import { CONTEXT_LEVELS } from '../../sim/constants';
 import type { Tier } from '../../sim/types';
 import './ModelEmblem.css';
@@ -86,13 +85,13 @@ export function ModelEmblem(props: {
   className?: string;
 }) {
   const { m, size = 64, progress, gold, exposed, faded, className } = props;
-  const uid = useId().replace(/:/g, '');
   const seed = hash(`${m.id}|${m.name}`);
   const r = rng(seed);
-  const hue = TIER_HUE[m.plan.tier] + Math.round((r() - 0.5) * 40);
-  const top = `hsl(${hue} 62% 50%)`;
-  const bottom = `hsl(${hue + 12} 58% 17%)`;
-  const glow = `hsl(${hue - 8} 90% 72%)`;
+  // Плоский цвет уровня; оттенок и яркость чуть разные у каждой модели, чтобы соседние обложки различались.
+  const hue = TIER_HUE[m.plan.tier] + Math.round((r() - 0.5) * 30);
+  const light = 30 + Math.round(r() * 10);
+  const body = `hsl(${hue} 55% ${light}%)`;
+  const core = `hsl(${hue} 45% ${light - 14}%)`;
   const turn = r() * Math.PI * 2;
   const n = nodeCount(m.plan.paramsB);
   const pts = Array.from({ length: n }, (_, i) => {
@@ -107,10 +106,8 @@ export function ModelEmblem(props: {
   } else {
     for (let i = 0; i < n; i++) links.push([i, (i + 1) % n]);
   }
-  const accent = Math.floor(r() * n);
   const ticks = contextTicks(m.plan.context);
   const gap = 0.16;
-  const motif = Math.floor(r() * 3); // фон: косые полосы, сетка точек или волны
   const tiny = size < 30;
   const small = size < 56;
   const mono = monogram(m.name);
@@ -128,25 +125,7 @@ export function ModelEmblem(props: {
       aria-hidden="true"
       focusable="false"
     >
-      <defs>
-        <linearGradient id={`eg${uid}`} x1="0" y1="0" x2="0.9" y2="1">
-          <stop offset="0" stopColor={top} />
-          <stop offset="1" stopColor={bottom} />
-        </linearGradient>
-        <radialGradient id={`er${uid}`} cx="0.5" cy="0.45" r="0.55">
-          <stop offset="0" stopColor={glow} stopOpacity="0.55" />
-          <stop offset="1" stopColor={glow} stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <rect x="0" y="0" width="64" height="64" rx="11" fill={`url(#eg${uid})`} />
-      <rect x="0" y="0" width="64" height="64" rx="11" fill={`url(#er${uid})`} />
-      <g className="emb-motif">
-        {motif === 0 &&
-          Array.from({ length: 9 }, (_, i) => <line key={i} x1={-8 + i * 10} y1="66" x2={20 + i * 10} y2="-2" />)}
-        {motif === 1 &&
-          Array.from({ length: 36 }, (_, i) => <circle key={i} cx={5.3 + (i % 6) * 10.7} cy={5.3 + Math.floor(i / 6) * 10.7} r="1.1" />)}
-        {motif === 2 && [12, 20, 28, 36, 44].map((rr) => <circle key={rr} cx={64 * (seed % 2)} cy="64" r={rr} className="ring" />)}
-      </g>
+      <rect x="0" y="0" width="64" height="64" rx="6" fill={body} />
       {!small &&
         Array.from({ length: ticks }, (_, i) => {
           const a0 = turn + (i / ticks) * Math.PI * 2 + gap / 2;
@@ -169,24 +148,17 @@ export function ModelEmblem(props: {
         )}
       </g>
       {pts.map((q, i) => (
-        <circle key={i} cx={q.x} cy={q.y} r={i === accent ? 3.1 : 2.3} className={i === accent ? 'emb-node hot' : 'emb-node'} />
+        <circle key={i} cx={q.x} cy={q.y} r={2.3} className="emb-node" />
       ))}
       {tiny ? (
-        <circle cx="32" cy="32" r="5" className="emb-core" />
+        <circle cx="32" cy="32" r="5" fill={core} />
       ) : (
         <>
-          <circle cx="32" cy="32" r={coreR} className="emb-core" />
+          <circle cx="32" cy="32" r={coreR} fill={core} />
           <text x="32" y="32.5" className="emb-mono" fontSize={monoSize} textAnchor="middle" dominantBaseline="central">
             {mono}
           </text>
         </>
-      )}
-      {m.plan.rlhf && (
-        <path
-          className="emb-star"
-          transform={small ? 'translate(52 12) scale(1.3)' : 'translate(53 11)'}
-          d="M0 -5.2 L1.5 -1.6 L5.2 -1.6 L2.2 0.7 L3.3 4.4 L0 2.2 L-3.3 4.4 L-2.2 0.7 L-5.2 -1.6 L-1.5 -1.6 Z"
-        />
       )}
       {exposed && (
         <g className="emb-exposed">
@@ -196,7 +168,7 @@ export function ModelEmblem(props: {
       )}
       {training && (
         <>
-          <rect x="0" y="0" width="64" height="64" rx="11" className="emb-veil" />
+          <rect x="0" y="0" width="64" height="64" rx="6" className="emb-veil" />
           <circle cx="32" cy="32" r="29" className="emb-ring-bg" />
           {p > 0 && (
             <path
@@ -206,7 +178,7 @@ export function ModelEmblem(props: {
           )}
         </>
       )}
-      {gold && <rect x="1.25" y="1.25" width="61.5" height="61.5" rx="10" className="emb-gold" />}
+      {gold && <rect x="1.5" y="1.5" width="61" height="61" rx="5" className="emb-gold" />}
     </svg>
   );
 }

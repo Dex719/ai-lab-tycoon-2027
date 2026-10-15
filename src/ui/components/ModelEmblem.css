@@ -1,19 +1,14 @@
-/* Эмблема модели (ModelEmblem.tsx). */
-.emb { display: block; flex: none; border-radius: 17%; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28); }
-.emb-tick { fill: none; stroke: rgba(255, 255, 255, 0.42); stroke-width: 2.2; stroke-linecap: round; }
-.emb-links line, .emb-links path { fill: none; stroke: rgba(255, 255, 255, 0.42); stroke-width: 1; }
-.emb-links.lstm path { stroke: rgba(255, 255, 255, 0.7); stroke-width: 1.7; }
+/* Эмблема модели (ModelEmblem.tsx): плоские цвета, без теней и свечения. */
+.emb { display: block; flex: none; }
+.emb-tick { fill: none; stroke: rgba(255, 255, 255, 0.45); stroke-width: 2.2; stroke-linecap: round; }
+.emb-links line, .emb-links path { fill: none; stroke: rgba(255, 255, 255, 0.45); stroke-width: 1; }
+.emb-links.lstm path { stroke: rgba(255, 255, 255, 0.75); stroke-width: 1.7; }
 .emb-node { fill: #fff; }
-.emb-node.hot { fill: #ffe9a8; }
-.emb-core { fill: rgba(8, 10, 22, 0.62); stroke: rgba(255, 255, 255, 0.4); stroke-width: 1; }
-.emb-mono { fill: #fff; font-family: var(--mono); font-weight: 700; letter-spacing: -0.02em; }
-.emb-star { fill: #ffd34d; stroke: rgba(60, 40, 0, 0.55); stroke-width: 0.6; }
-.emb-exposed circle { fill: #e04646; stroke: #fff; stroke-width: 1.2; }
+.emb-mono { fill: #fff; font-family: var(--mono); font-weight: 700; }
+.emb-exposed circle { fill: #d64545; stroke: #fff; stroke-width: 1.2; }
 .emb-exposed path { stroke: #fff; stroke-width: 2; stroke-linecap: round; }
 .emb-veil { fill: rgba(20, 22, 28, 0.42); }
-.emb-ring-bg { fill: none; stroke: rgba(255, 255, 255, 0.18); stroke-width: 2.6; }
-.emb-ring { fill: none; stroke: #8fd0ff; stroke-width: 2.6; stroke-linecap: round; }
-.emb-gold { fill: none; stroke: #ffd34d; stroke-width: 2.5; }
-.emb.faded { filter: saturate(0.25) brightness(0.92); opacity: 0.8; }
-.emb-motif line, .emb-motif .ring { fill: none; stroke: rgba(255, 255, 255, 0.07); stroke-width: 3; }
-.emb-motif circle:not(.ring) { fill: rgba(255, 255, 255, 0.1); }
+.emb-ring-bg { fill: none; stroke: rgba(255, 255, 255, 0.2); stroke-width: 2.6; }
+.emb-ring { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; }
+.emb-gold { fill: none; stroke: #e0b024; stroke-width: 3; }
+.emb.faded { filter: saturate(0.2); opacity: 0.75; }

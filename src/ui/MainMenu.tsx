@@ -6,7 +6,7 @@ import { DIFFICULTY, DIFFICULTY_IDS, type Difficulty } from '../sim/rivalry';
 import { formatDateShort } from '../sim/time';
 import { ConfirmDialog, DenyNote, Dialog, ErrorText, useFlash, useModalFocus } from './components/common';
 import { LABS } from '../data/labs';
-import { IconClose, IconLogo, IconTrophy } from './icons';
+import { IconClose, IconLogo } from './icons';
 import './menu.css';
 import { fmtMoney } from './format';
 import { fmtRank } from './labels';
@@ -36,36 +36,35 @@ export function MainMenu() {
 
   return (
     <div className="menu-screen mm">
-      <MenuBackdrop />
-      <header className="mm-head">
-        <span className="mm-logo" aria-hidden="true">
-          <IconLogo size={64} />
-        </span>
-        <h1 className="mm-title">AI Lab Tycoon</h1>
-        <div className="mm-years">2017 - 2024</div>
-      </header>
+      <div className="mm-racks" aria-hidden="true">
+        {Array.from({ length: RACKS }, (_, i) => (
+          <span key={i} className={`mm-rack h${i % 3}`} />
+        ))}
+      </div>
+      <h1 className="mm-title">AI Lab Tycoon</h1>
+      <div className="mm-years">2017-2024</div>
       <nav className="mm-items" aria-label="Главное меню">
         {last !== null && (
-          <button className="mm-item main" onClick={cont}>
-            <span className="mm-item-t">Продолжить</span>
+          <button className="mm-item" onClick={cont}>
+            Продолжить
             {lastMeta && (
               <span className="mm-item-s">
-                {lastMeta.labName} · {formatDateShort(lastMeta.day)}
+                {lastMeta.labName}, {formatDateShort(lastMeta.day)}
               </span>
             )}
           </button>
         )}
-        <button className={`mm-item${last === null ? ' main' : ''}`} onClick={() => setDialog('new')}>
-          <span className="mm-item-t">Новая игра</span>
+        <button className="mm-item" onClick={() => setDialog('new')}>
+          Новая игра
         </button>
         <button className="mm-item" onClick={() => setDialog('load')}>
-          <span className="mm-item-t">Загрузить</span>
+          Загрузить
         </button>
         <button className="mm-item" onClick={() => setDialog('achievements')}>
-          <span className="mm-item-t">Достижения</span>
+          Достижения
         </button>
         <button className="mm-item" onClick={() => setDialog('settings')}>
-          <span className="mm-item-t">Настройки</span>
+          Настройки
         </button>
         <div className="mm-error" role="alert">
           {error}
@@ -80,39 +79,10 @@ export function MainMenu() {
   );
 }
 
-/** Заставка: ряд серверных стоек с огоньками внизу экрана и сеть узлов за названием. Всё неподвижное. */
-function MenuBackdrop() {
-  return (
-    <div className="mm-backdrop" aria-hidden="true">
-      <svg className="mm-net" viewBox="0 0 1200 500" preserveAspectRatio="xMidYMid slice">
-        {NET_LINKS.map(([a, b], i) => (
-          <line key={i} x1={NET[a][0]} y1={NET[a][1]} x2={NET[b][0]} y2={NET[b][1]} />
-        ))}
-        {NET.map(([x, y], i) => (
-          <circle key={i} cx={x} cy={y} r={i % 4 === 0 ? 4 : 2.6} />
-        ))}
-      </svg>
-      <div className="mm-racks">
-        {Array.from({ length: RACKS }, (_, i) => (
-          <span key={i} className={`mm-rack h${i % 3}`} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
+/** Ряд серверных стоек внизу экрана меню: силуэт будущей лаборатории. */
 const RACKS = 26;
-/** Узлы сети за названием (координаты в рамке 1200×500). */
-const NET: [number, number][] = [
-  [80, 120], [210, 60], [330, 150], [180, 230], [420, 70], [520, 190], [640, 90], [760, 170], [880, 60], [990, 150],
-  [1110, 90], [1040, 260], [900, 240], [300, 300], [120, 330], [700, 290], [560, 330], [1150, 320],
-];
-const NET_LINKS: [number, number][] = [
-  [0, 1], [1, 2], [0, 3], [2, 3], [1, 4], [4, 5], [2, 5], [5, 6], [6, 7], [4, 6], [7, 8], [8, 9], [9, 10], [9, 11], [7, 12],
-  [12, 11], [3, 13], [13, 14], [5, 15], [15, 16], [13, 16], [12, 15], [11, 17], [10, 17],
-];
 
-/** Сколько «делений» сложности: лёгкая - одно, сложная - три. */
+/** Сколько делений у сложности: лёгкая - одно, сложная - три. */
 const DIFF_PIPS: Record<Difficulty, number> = { easy: 1, normal: 2, hard: 3 };
 
 function NewGameDialog({ onClose }: { onClose: () => void }) {
@@ -134,32 +104,32 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="modal-backdrop ng-backdrop" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
-      <div ref={ref} tabIndex={-1} className="ng" role="dialog" aria-modal="true" aria-label="Настройка игры" onKeyDown={onKeyDown}>
+      <div ref={ref} tabIndex={-1} className="dialog ng" role="dialog" aria-modal="true" aria-label="Настройка игры" onKeyDown={onKeyDown}>
+        <div className="titlebar">
+          <span className="t">Настройка игры</span>
+          <button className="wbtn close" onClick={onClose} aria-label="Закрыть" title="Закрыть">
+            <IconClose size={14} />
+          </button>
+        </div>
         <form
+          className="ng-form"
           onSubmit={(e) => {
             e.preventDefault();
             start();
           }}
         >
-          <header className="ng-head">
-            <span className="ng-kicker">Новая игра</span>
-            <h2 className="ng-title">Настройка игры</h2>
-            <button type="button" className="ng-x" onClick={onClose} aria-label="Закрыть" title="Закрыть">
-              <IconClose size={14} />
-            </button>
-          </header>
           <div className="ng-body">
             <div className="ng-col">
               <label className="ng-field">
                 <span className="ng-l">Название лаборатории</span>
-                <input className="ng-input big" type="text" value={name} maxLength={NAME_MAX} onChange={(e) => setName(e.target.value)} autoFocus />
+                <input className="ng-input" type="text" value={name} maxLength={NAME_MAX} onChange={(e) => setName(e.target.value)} autoFocus />
                 <span className="ng-count">
                   {name.length}/{NAME_MAX}
                 </span>
               </label>
               <label className="ng-field">
                 <span className="ng-l">Имя основателя</span>
-                <input className="ng-input" type="text" value={founder} maxLength={FOUNDER_MAX} onChange={(e) => setFounder(e.target.value)} />
+                <input type="text" value={founder} maxLength={FOUNDER_MAX} onChange={(e) => setFounder(e.target.value)} />
                 <span className="ng-count">
                   {founder.length}/{FOUNDER_MAX}
                 </span>
@@ -180,60 +150,52 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
                         <i key={i} className={i <= DIFF_PIPS[d] ? 'on' : undefined} />
                       ))}
                     </span>
-                    <b>{DIFFICULTY[d].name}</b>
+                    {DIFFICULTY[d].name}
                   </button>
                 ))}
               </div>
               <div className="ng-diff-desc">{DIFFICULTY[difficulty].description}</div>
+              <label className="row ng-tutor">
+                <input type="checkbox" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />
+                <span>Обучение игре</span>
+              </label>
             </div>
-            <div className="ng-col ng-dossier">
-              <div className="ng-goal">
-                <IconTrophy size={22} />
-                <span>
-                  <span className="ng-l">Цель</span>
-                  <b>Лучшая модель на «Арене» 31.12.2024</b>
-                </span>
+            <div className="ng-col">
+              <div className="ng-sign" aria-hidden="true">
+                <IconLogo size={22} />
+                <b>{name.trim() || 'Лаборатория'}</b>
               </div>
-              <div className="ng-tiles">
-                <div className="ng-tile">
-                  <span className="ng-l">Начало</span>
-                  <b>01.01.2017</b>
-                </div>
-                <div className="ng-tile">
-                  <span className="ng-l">Капитал</span>
-                  <b className="good">{fmtMoney(START_CASH)}</b>
-                </div>
-                <div className="ng-tile">
-                  <span className="ng-l">Финал</span>
-                  <b>31.12.2024</b>
-                </div>
-                <div className="ng-tile">
-                  <span className="ng-l">Соперники</span>
-                  <b>{LABS.length} лабораторий</b>
+              <dl className="ng-kv">
+                <dt>Дата начала</dt>
+                <dd>01.01.2017</dd>
+                <dt>Стартовый капитал</dt>
+                <dd className="good">{fmtMoney(START_CASH)}</dd>
+                <dt>Конец партии</dt>
+                <dd>31.12.2024</dd>
+                <dt>Соперники</dt>
+                <dd>
                   <span className="ng-labs" aria-hidden="true">
                     {LABS.map((l) => (
                       <i key={l.id} style={{ background: l.color }} />
                     ))}
                   </span>
-                </div>
+                  {LABS.length} лабораторий
+                </dd>
+              </dl>
+              <div className="ng-goal">
+                <span className="ng-l">Цель</span>
+                <b>Лучшая модель на «Арене» 31.12.2024</b>
               </div>
             </div>
           </div>
-          <footer className="ng-foot">
-            <label className={`ng-switch${tutorial ? ' on' : ''}`}>
-              <input type="checkbox" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />
-              <span className="ng-switch-track" aria-hidden="true">
-                <span />
-              </span>
-              Обучение игре
-            </label>
-            <span className="guard">
-              <button type="submit" className="ng-start" aria-disabled={!valid || undefined}>
+          <div className="ng-foot">
+            <span className="guard ng-start-wrap">
+              <button type="submit" className="btn primary wide ng-start" aria-disabled={!valid || undefined}>
                 Начать
               </button>
               <DenyNote text={note} />
             </span>
-          </footer>
+          </div>
         </form>
       </div>
     </div>

@@ -198,7 +198,7 @@ export function Game({ s }: { s: GameState }) {
     <div className="game" inert={blocked}>
       <TopBar s={s} phone={phone} sheetOpen={sheet} onToggleSheet={() => setSheet((v) => !v)} />
       <div className="desk" ref={deskRef} onPointerDown={() => setStartOpen(false)}>
-        {!phone && <DeskScene s={s} running={speed > 0 && !s.outcome} open={open} />}
+        {!phone && <DeskScene s={s} open={open} />}
         <div className="icons">
         <div className="icon-col left">
           {WINDOWS.filter((d) => d.side === 'left' && (!d.openedDay || d.openedDay(s) !== null)).map((d) => (

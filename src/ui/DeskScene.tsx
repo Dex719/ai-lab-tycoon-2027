@@ -1,6 +1,6 @@
-// Живая сцена в центре рабочего стола: лаборатория игрока в четырёх «станциях» - серверная, исследования,
+// Сцена в центре рабочего стола: лаборатория игрока в четырёх «станциях» - серверная, исследования,
 // обучение и витрина моделей. Сцена лежит под окнами (как обои) и показывает состояние лаборатории одним взглядом;
-// каждая станция открывает своё окно. Огоньки и пузырьки двигаются только пока идёт время, без постоянного цикла.
+// каждая станция открывает своё окно. Анимаций нет: сцена меняется вместе с игрой.
 
 import { memo } from 'react';
 import { GPUS } from '../data/gpus';
@@ -28,7 +28,6 @@ function cardCount(s: GameState): number {
 
 interface SceneProps {
   labName: string;
-  running: boolean;
   cards: number;
   idle: boolean;
   research: { name: string; frac: number; busy: boolean } | null;
@@ -44,7 +43,6 @@ interface SceneProps {
 function sameScene(a: SceneProps, b: SceneProps): boolean {
   return (
     a.labName === b.labName &&
-    a.running === b.running &&
     a.cards === b.cards &&
     a.idle === b.idle &&
     a.research?.name === b.research?.name &&
@@ -69,7 +67,7 @@ const Scene = memo(function Scene(p: SceneProps) {
   const ledTone = p.cards === 0 ? 'off' : p.idle ? 'idle' : 'on';
   const first = p.place === 1;
   return (
-    <div className={`lab-scene${p.running ? ' running' : ''}`} aria-label="Лаборатория">
+    <div className="lab-scene" aria-label="Лаборатория">
       <div className="ls-sign">
         <IconLogo size={26} />
         <b>{p.labName}</b>
@@ -78,7 +76,7 @@ const Scene = memo(function Scene(p: SceneProps) {
         <button type="button" className="ls-station ls-servers" onClick={() => p.open('compute')}>
           <span className="ls-art">
             {Array.from({ length: shownRacks }, (_, r) => (
-              <span key={r} className={`ls-rack${r < racks ? '' : ' empty'}`} style={{ ['--d' as string]: `${-r * 0.37}s` }}>
+              <span key={r} className={`ls-rack${r < racks ? '' : ' empty'}`}>
                 {Array.from({ length: 8 }, (_, u) => {
                   const lit = r * 8 + u < units;
                   return <i key={u} className={lit ? ledTone : 'off'} />;
@@ -97,11 +95,7 @@ const Scene = memo(function Scene(p: SceneProps) {
         <button type="button" className="ls-station ls-lab" onClick={() => p.open('research')}>
           <span className="ls-art">
             <span className={`ls-flask${p.research?.busy ? ' busy' : ''}`}>
-              <span className="ls-liquid" style={{ height: `${Math.round(20 + (p.research?.frac ?? 0) * 60)}%` }}>
-                <i />
-                <i />
-                <i />
-              </span>
+              <span className="ls-liquid" style={{ height: `${Math.round(20 + (p.research?.frac ?? 0) * 60)}%` }} />
             </span>
           </span>
           <span className="ls-cap">
@@ -155,7 +149,7 @@ const Scene = memo(function Scene(p: SceneProps) {
 }, sameScene);
 
 /** Сцена лаборатории по состоянию партии: сюда приходят только простые числа, чтобы не перерисовывать её каждый день. */
-export function DeskScene({ s, running, open }: { s: GameState; running: boolean; open: (id: WindowId | WindowAlias) => void }) {
+export function DeskScene({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
   const cur = s.research.current;
   let research: SceneProps['research'] = null;
   if (cur) {
@@ -184,7 +178,6 @@ export function DeskScene({ s, running, open }: { s: GameState; running: boolean
   return (
     <Scene
       labName={s.labName}
-      running={running}
       cards={cardCount(s)}
       idle={idleWarnings(s).length > 0}
       research={research}

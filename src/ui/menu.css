@@ -1,176 +1,99 @@
-/* Главное меню и «Настройка игры». Корень .menu-screen.mm сильнее старых правил .menu-screen в theme.css. */
+/* Главное меню и «Настройка игры» в духе Processor Tycoon: плоский тёмный экран, моноширинное название,
+   пункты-слова; диалог - светлое окно игры. Корень .menu-screen.mm сильнее старых правил .menu-screen в theme.css. */
 
 .menu-screen.mm {
-  position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; overflow: hidden; color: #c8cbd0;
-  background:
-    radial-gradient(ellipse 70% 55% at 50% 0%, rgba(47, 128, 228, 0.32), transparent 70%),
-    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(94, 211, 127, 0.1), transparent 70%),
-    linear-gradient(180deg, #18202c 0%, #121519 65%, #0d0f12 100%);
+  position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; overflow: hidden;
+  color: #b5b5b5; background: #202124;
 }
 
-/* ---------- Заставка ---------- */
-.mm-backdrop { position: absolute; inset: 0; pointer-events: none; }
-.mm-net { position: absolute; left: 0; right: 0; top: 0; width: 100%; height: 62%; opacity: 0.5; }
-.mm-net line { stroke: rgba(143, 184, 240, 0.16); stroke-width: 1.2; }
-.mm-net circle { fill: rgba(143, 184, 240, 0.4); }
-.mm-racks {
-  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); display: flex; align-items: flex-end; gap: 10px;
-  width: max(100%, 1400px); justify-content: center; padding: 0 20px;
-}
-/* Стойка: корпус, полосы блоков и огоньки рисуются фоном одного элемента. */
+/* Ряд серверных стоек внизу: корпус, полосы блоков и огоньки рисуются фоном одного элемента. */
+.mm-racks { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); display: flex; align-items: flex-end; gap: 10px; width: max(100%, 1400px); justify-content: center; pointer-events: none; }
 .mm-rack {
-  flex: none; width: 46px; height: 150px; border-radius: 4px 4px 0 0;
+  flex: none; width: 46px; height: 150px;
   background:
-    radial-gradient(circle at 9px 9px, #5ed37f 0 2.2px, transparent 2.8px) 0 6px / 100% 18px repeat-y,
-    repeating-linear-gradient(180deg, #2a2f37 0 14px, #1b1f25 14px 18px),
-    #23272e;
-  box-shadow: inset 0 0 0 2px #333944, 0 0 30px rgba(0, 0, 0, 0.6);
-  opacity: 0.55;
+    radial-gradient(circle at 9px 9px, #4f9a64 0 2px, transparent 2.6px) 0 6px / 100% 18px repeat-y,
+    repeating-linear-gradient(180deg, #2b2e33 0 14px, #232528 14px 18px);
+  border: 2px solid #34373c; border-bottom: none;
 }
-.mm-rack.h1 { height: 186px; background-position: 0 6px, 0 0, 0 0; }
+.mm-rack.h1 { height: 186px; }
 .mm-rack.h2 { height: 122px; }
 .mm-rack:nth-child(5n + 2) {
   background:
-    radial-gradient(circle at 9px 9px, #f2b84b 0 2.2px, transparent 2.8px) 0 42px / 100% 54px repeat-y,
-    radial-gradient(circle at 9px 9px, #5ed37f 0 2.2px, transparent 2.8px) 0 6px / 100% 18px repeat-y,
-    repeating-linear-gradient(180deg, #2a2f37 0 14px, #1b1f25 14px 18px),
-    #23272e;
-}
-.mm-rack:nth-child(7n + 3) {
-  background:
-    radial-gradient(circle at 9px 9px, #8fb8f0 0 2.2px, transparent 2.8px) 0 6px / 100% 18px repeat-y,
-    repeating-linear-gradient(180deg, #2a2f37 0 14px, #1b1f25 14px 18px),
-    #23272e;
+    radial-gradient(circle at 9px 9px, #b58a35 0 2px, transparent 2.6px) 0 42px / 100% 54px repeat-y,
+    radial-gradient(circle at 9px 9px, #4f9a64 0 2px, transparent 2.6px) 0 6px / 100% 18px repeat-y,
+    repeating-linear-gradient(180deg, #2b2e33 0 14px, #232528 14px 18px);
 }
 
-/* ---------- Название ---------- */
-.mm-head { position: relative; display: flex; flex-direction: column; align-items: center; margin-top: 10vh; }
-.mm-logo {
-  display: grid; place-items: center; width: 96px; height: 96px; border-radius: 22px; color: #8fb8f0;
-  background: radial-gradient(circle at 50% 35%, #2a3b5e, #161d2b); box-shadow: 0 0 0 1px #34476e, 0 10px 40px rgba(47, 128, 228, 0.35);
-}
-.mm-title {
-  margin: 18px 0 0; font: 700 clamp(38px, 4.6vw, 68px) var(--mono); color: #f2f2f2; letter-spacing: 0.02em;
-  text-shadow: 0 3px 0 #1f6ccc, 0 0 40px rgba(47, 128, 228, 0.45);
-}
-.mm-years { margin-top: 8px; font: 400 clamp(15px, 1.4vw, 20px) var(--mono); color: #8fb8f0; letter-spacing: 0.4em; }
+.mm-title { position: relative; margin: 13vh 0 0; font: 600 clamp(36px, 4.4vw, 62px) var(--mono); color: #f2f2f2; letter-spacing: -0.01em; }
+.mm-years { position: relative; margin-top: 6px; font: 400 clamp(15px, 1.4vw, 19px) var(--mono); color: #8e9196; letter-spacing: 0.2em; }
 
-/* ---------- Пункты ---------- */
-.mm-items { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 6px; margin-top: 7vh; width: 340px; }
+.mm-items { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 12vh; }
 .mm-item {
-  position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 9px 20px;
-  background: rgba(20, 24, 31, 0.55); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 8px;
-  color: #d0d3d8; cursor: pointer; transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 2px 14px; background: none; border: none;
+  color: #c8c8c8; font: 400 25px var(--mono); cursor: pointer; transition: color 120ms ease-out;
 }
-.mm-item-t { font: 400 23px var(--mono); }
-.mm-item-s { font-size: 12.5px; color: #8e95a0; }
-.mm-item::before, .mm-item::after {
-  content: '▸'; position: absolute; top: 50%; left: 16px; transform: translateY(-50%); color: var(--c-blue); font-size: 16px; opacity: 0;
-  transition: opacity 120ms ease-out;
+.mm-item-s { font: 13px var(--font); color: #8e9196; }
+.mm-item:hover, .mm-item:focus-visible {
+  outline: none; color: #fff; text-decoration: underline; text-decoration-color: var(--c-blue); text-underline-offset: 6px; text-decoration-thickness: 3px;
 }
-.mm-item::after { content: '◂'; left: auto; right: 16px; }
-.mm-item:hover, .mm-item:focus-visible { outline: none; color: #fff; background: rgba(36, 50, 77, 0.85); border-color: #4c6ea8; }
-.mm-item:hover::before, .mm-item:hover::after, .mm-item:focus-visible::before, .mm-item:focus-visible::after { opacity: 1; }
-.mm-item.main { background: linear-gradient(180deg, #2f80e4, #1f5fae); border-color: #5b9cf0; color: #fff; box-shadow: 0 6px 20px rgba(47, 128, 228, 0.35); }
-.mm-item.main .mm-item-s { color: #d6e6ff; }
-.mm-item.main:hover, .mm-item.main:focus-visible { background: linear-gradient(180deg, #3a8cf0, #2569c0); }
-.mm-item.main::before, .mm-item.main::after { color: #fff; }
+.mm-item:hover .mm-item-s, .mm-item:focus-visible .mm-item-s { text-decoration: none; color: #b5b5b5; }
 .mm-error { min-height: 20px; font-size: 13px; color: #ff8a8a; text-align: center; }
 
-/* ---------- «Настройка игры» ---------- */
-.ng {
-  width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; outline: none;
-  background: #1b1d22; color: #eef0f3; border: 1px solid #3a3d45; border-radius: 12px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
-  animation: rc-in 420ms cubic-bezier(0.2, 1.3, 0.4, 1) both;
-}
-.ng-head {
-  position: relative; padding: 18px 24px 16px;
-  background: radial-gradient(ellipse 60% 160% at 0% 0%, rgba(47, 128, 228, 0.6), transparent 70%), linear-gradient(135deg, #22304d, #161c2a);
-}
-.ng-kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #8fb8f0; }
-.ng-title { margin: 4px 0 0; font: 700 28px var(--mono); color: #fff; }
-.ng-x {
-  position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; display: grid; place-items: center; padding: 0;
-  background: none; border: none; border-radius: 6px; color: #c9d1e0; cursor: pointer;
-}
-.ng-x:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
-.ng-x:focus-visible { outline: 2px solid #8fb8f0; }
+/* ---------- «Настройка игры»: светлое окно, слева поля, справа условия партии ---------- */
+.menu-screen.mm .modal-backdrop.ng-backdrop { background: rgba(10, 11, 13, 0.7); }
+.dialog.ng { width: min(720px, calc(100vw - 32px)); }
+.ng-form { display: flex; flex-direction: column; min-height: 0; overflow: auto; }
+.ng-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 18px 22px 6px; }
+.ng-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ng-l { font-size: 13px; color: var(--text-dim); }
+.ng-field { display: flex; flex-direction: column; gap: 4px; }
+.ng-field input { width: 100%; }
+.ng .ng-input { height: 38px; font-size: 17px; font-weight: 600; }
+.ng-count { align-self: flex-end; font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
-.ng-body { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 22px; padding: 20px 24px 8px; }
-.ng-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.ng-l { font-size: 12px; font-weight: 600; color: #9aa0aa; }
-.ng-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 4px; }
-.ng .ng-input {
-  height: 40px; padding: 0 12px; background: #111317; color: #fff; border: 1px solid #3a3d45; border-radius: 6px;
-  font: 600 16px var(--font); user-select: text;
-}
-.ng .ng-input.big { height: 48px; font: 700 22px var(--mono); }
-.ng .ng-input:focus { outline: none; border-color: var(--c-blue); box-shadow: 0 0 0 3px rgba(47, 128, 228, 0.3); }
-.ng-count { align-self: flex-end; font: 12px var(--mono); color: #6b7280; }
-
-.ng-diffs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ng-diffs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
 .ng-diff {
-  --dc: #5ed37f;
-  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px 9px; cursor: pointer;
-  background: #23262d; border: 1px solid #3a3d45; border-radius: 8px; color: #c8cbd0; font: inherit;
-  transition: border-color 120ms ease-out, background-color 120ms ease-out;
+  --dc: #2e9b4f;
+  display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 4px 7px; cursor: pointer;
+  background: #fff; border: none; border-left: 1px solid var(--line); color: var(--text); font: inherit;
 }
-.ng-diff.d-normal { --dc: #f2b84b; }
-.ng-diff.d-hard { --dc: #ff6b6b; }
-.ng-diff b { font-size: 14px; }
-.ng-diff:hover { border-color: #5d6370; }
-.ng-diff:focus-visible { outline: 2px solid #8fb8f0; outline-offset: 1px; }
-.ng-diff.on { background: #2a2f3a; border-color: var(--dc); box-shadow: inset 0 0 0 1px var(--dc); color: #fff; }
-.ng-pips { display: flex; gap: 4px; }
-.ng-pips i { width: 16px; height: 6px; border-radius: 3px; background: #3a3d45; }
+.ng-diff:first-child { border-left: none; }
+.ng-diff.d-normal { --dc: #c99a1a; }
+.ng-diff.d-hard { --dc: #d64545; }
+.ng-diff:hover { background: #f1f3f6; }
+.ng-diff:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ng-diff.on { background: #e3eefc; font-weight: 600; box-shadow: inset 0 -3px 0 var(--accent); }
+.ng-pips { display: flex; gap: 3px; }
+.ng-pips i { width: 14px; height: 5px; background: #d4d7dc; }
 .ng-pips i.on { background: var(--dc); }
-.ng-diff-desc { min-height: 54px; padding: 8px 10px; font-size: 13px; line-height: 1.4; color: #c4c8cf; background: #23262d; border-radius: 6px; }
+.ng-diff-desc { min-height: 40px; font-size: 13px; line-height: 1.4; color: var(--text-body); }
+.ng-tutor { margin-top: 4px; }
 
-.ng-dossier { gap: 10px; }
-.ng-goal {
-  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 8px; color: #ffe08a;
-  background: linear-gradient(135deg, #5c4310, #2b2110); border: 1px solid #8a6a1f;
+/* Табличка лаборатории - та же, что встанет на рабочем столе. */
+.ng-sign {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #1c1c1e; color: #f2f2f2;
+  border-bottom: 2px solid var(--c-blue); border-radius: 3px;
 }
-.ng-goal > span { display: flex; flex-direction: column; gap: 2px; }
-.ng-goal .ng-l { color: #e9d7a6; }
-.ng-goal b { font-size: 15px; color: #fff; }
-.ng-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.ng-tile { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; background: #252830; border-radius: 8px; min-width: 0; }
-.ng-tile b { font: 700 18px var(--mono); color: #fff; }
-.ng-tile b.good { color: var(--good-on-dark); }
-.ng-labs { display: flex; gap: 4px; margin-top: 2px; }
-.ng-labs i { width: 10px; height: 10px; border-radius: 50%; }
+.ng-sign svg { flex: none; color: #a9acb2; }
+.ng-sign b { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ng-kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 8px 0 0; font-size: 14px; }
+.ng-kv dt { color: var(--text-dim); }
+.ng-kv dd { margin: 0; display: flex; align-items: center; gap: 8px; justify-content: flex-end; font-variant-numeric: tabular-nums; }
+.ng-kv dd.good { color: #1d6b36; font-weight: 600; }
+.ng-labs { display: inline-flex; gap: 3px; }
+.ng-labs i { width: 8px; height: 8px; border-radius: 50%; }
+.ng-goal { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.ng-goal b { font-size: 15px; color: var(--text-title); }
 
-.ng-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px 20px; }
-.ng-switch { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; color: #eef0f3; cursor: pointer; }
-.ng-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.ng-switch-track { position: relative; width: 40px; height: 22px; border-radius: 11px; background: #3a3d45; transition: background-color 120ms ease-out; }
-.ng-switch-track span { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #c8cbd0; transition: transform 120ms ease-out, background-color 120ms ease-out; }
-.ng-switch.on .ng-switch-track { background: var(--c-blue); }
-.ng-switch.on .ng-switch-track span { transform: translateX(18px); background: #fff; }
-.ng-switch input:focus-visible + .ng-switch-track { outline: 2px solid #8fb8f0; outline-offset: 2px; }
-.ng-start {
-  height: 46px; min-width: 200px; padding: 0 30px; border: none; border-radius: 8px; cursor: pointer;
-  font: 700 18px var(--mono); color: #fff; background: linear-gradient(180deg, #3a8cf0, #1f5fae);
-  box-shadow: 0 6px 20px rgba(47, 128, 228, 0.4);
-}
-.ng-start:hover { background: linear-gradient(180deg, #4b97f2, #2569c0); }
-.ng-start:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.ng-start[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
+.ng-foot { padding: 12px 22px 18px; }
+.ng-start-wrap { display: flex; width: 100%; }
+.ng .ng-start { height: 38px; font-size: 16px; font-weight: 600; }
 
 @media (max-width: 767px) {
-  .mm-head { margin-top: 6vh; }
-  .mm-logo { width: 72px; height: 72px; border-radius: 18px; }
-  .mm-logo svg { width: 48px; height: 48px; }
-  .mm-items { width: min(340px, calc(100vw - 32px)); margin-top: 5vh; }
-  .mm-item { min-height: 48px; }
+  .mm-title { margin-top: 8vh; }
+  .mm-items { margin-top: 8vh; gap: 6px; }
+  .mm-item { min-height: 48px; font-size: 23px; }
   .mm-rack { width: 34px; }
-  .ng { width: 100vw; max-width: 100vw; max-height: 92dvh; border-radius: 12px 12px 0 0; }
-  .ng-body { grid-template-columns: minmax(0, 1fr); padding: 16px; }
-  .ng-foot { padding: 12px 16px 16px; }
-  .ng-start { min-width: 0; flex: 1; }
+  .ng-body { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; gap: 16px; }
+  .ng-foot { padding: 10px 16px 16px; }
 }
-@media (prefers-reduced-motion: reduce) { .ng { animation: none; } }
-
-/* Над меню фон диалога полупрозрачный: заставка видна. */
-.menu-screen.mm .modal-backdrop.ng-backdrop { background: rgba(6, 9, 14, 0.72); }
