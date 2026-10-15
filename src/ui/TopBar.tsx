@@ -146,7 +146,8 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
           <span>{formatDateShort(s.day)}</span>
           {!s.outcome && END_DAY - s.day <= FINAL_DAYS && (
             <span className={`tb-final${END_DAY - s.day <= 30 ? ' hot' : ''}`} title="31.12.2024 партия заканчивается: побеждает первая модель на «Арене» среди моделей в продаже">
-              До финала {fmtDays(Math.max(0, END_DAY - s.day))}
+              <span className="tb-final-k">До финала </span>
+              {fmtDays(Math.max(0, END_DAY - s.day))}
             </span>
           )}
         </div>

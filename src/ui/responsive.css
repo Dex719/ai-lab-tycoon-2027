@@ -71,6 +71,10 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .tb-rate { grid-column: 3; grid-row: 1; justify-self: end; font-size: 11px; }
   .tb-date { grid-column: 1; grid-row: 2; min-height: 40px; font-size: 13px; }
   .tb-date svg { display: none; }
+  /* Отсчёт до финала - под датой и без слов «До финала» (полный текст во всплывающей подсказке): в строке ещё скорость и «Сводка». */
+  .tb-date { flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; min-width: 0; line-height: 1.15; }
+  .tb-final { margin-left: 0; padding: 0 4px; font-size: 11px; white-space: nowrap; }
+  .tb-final-k { display: none; }
   .speed { grid-column: 2; grid-row: 2; justify-self: end; gap: 0; }
   .tb-side {
     display: block; grid-column: 3; grid-row: 2; min-height: 36px; padding: 0 8px; border: 1px solid #4a4b50; border-radius: 3px;
@@ -199,6 +203,9 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .cw-qty-range, .cw-qty-legend, .cw-qty-note { grid-column: 1 / -1; }
   .cw-pct input { width: 64px; height: 40px; }
   .cw-alloc-ctl { gap: 8px; }
+  /* «Нужно клиентам: …» и «не хватает …» - в две строки вместо обрезки многоточием. */
+  .cw-need { flex-wrap: wrap; row-gap: 0; }
+  .cw-need-t { white-space: normal; }
 
   /* Новая модель: колонки друг под другом, кнопка запуска прилипает к низу */
   .nm { height: auto; min-height: 100%; }
@@ -247,6 +254,31 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .inv { height: auto; min-height: 100%; }
   .inv-hero { padding: 12px; }
   .inv-body { flex: none; overflow: visible; }
+  /* Раунд: «10 %» и суммы не переносятся по частям. */
+  .inv-table th, .inv-table td { padding-left: 6px; padding-right: 6px; }
+  .inv-table td { white-space: nowrap; }
+
+  /* Финал: таблица рывков прокручивается вбок внутри своей рамки, а не уходит за край окна. */
+  .fn-table { display: block; max-width: 100%; overflow-x: auto; }
+  .fn-body { padding: 10px; }
+
+  /* Сделки: окно прокручивается целиком, деньги и действующие сделки - друг под другом. */
+  .dl { height: auto; min-height: 100%; }
+  .dl-top { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 10px 12px; }
+  .dl-effects ul { columns: 1; }
+  .dl-body { flex: none; overflow: visible; padding: 10px; }
+  .dl-row-head { flex-wrap: wrap; }
+  .dl-note { text-align: left; }
+  /* Сделки: строки таблиц - блоками друг под другом, у чисел подпись столбца (data-label), кнопка во всю ширину. */
+  .dl-table, .dl-table tbody, .dl-table tr, .dl-table td { display: block; width: auto; }
+  .dl-table thead { display: none; }
+  .dl-table tr { padding: 10px 12px; border-bottom: 1px solid var(--row-line); }
+  .dl-table tr:last-child { border-bottom: none; }
+  .dl-table tr.on { background: var(--row-sel); }
+  .dl-table td, .dl-table th.num, .dl-table td.num { padding: 2px 0; border: none; text-align: left; white-space: normal; background: none; }
+  .dl-table td[data-label]::before { content: attr(data-label) ': '; color: var(--text-dim); }
+  .dl-table td.dl-act { margin-top: 8px; }
+  .dl-table td.dl-act .btn { width: 100%; }
 
   /* Аналитика */
   .an-body { padding: 10px; }
