@@ -1,7 +1,7 @@
 // Окно «Финал» (с 1 октября 2024 года): сколько осталось, место в гонке, объявленные рывки и выходы соперников
 // на шкале до 31 декабря и ответ игрока - доработка модели. Симуляция - sim/finale.ts.
 
-import { useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { LABS } from '../../data/labs';
 import {
   FINALE_START,
@@ -82,11 +82,27 @@ function mineSteps(s: GameState): { day: number; elo: number }[] {
     .filter((p) => p.elo > 0);
 }
 
-const CW = 860;
 const CH = 190;
 const PAD = { l: 52, r: 16, t: 20, b: 26 };
 
-function Timeline({ s, threats, mine, planned }: { s: GameState; threats: FinaleThreat[]; mine: PlayerModel | null; planned: { day: number; elo: number } | null }) {
+/** Ширина элемента в пикселях: шкала рисуется в настоящих пикселях, чтобы подписи не мельчали на узком экране. */
+function useWidth<T extends HTMLElement>(fallback: number): [RefObject<T | null>, number] {
+  const ref = useRef<T>(null);
+  const [w, setW] = useState(fallback);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const apply = () => setW(Math.max(280, Math.round(el.clientWidth)));
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w];
+}
+
+function Timeline({ s, threats, mine, planned, width }: { s: GameState; threats: FinaleThreat[]; mine: PlayerModel | null; planned: { day: number; elo: number } | null; width: number }) {
+  const CW = width;
   const x0 = FINALE_START;
   const x1 = END_DAY;
   const steps = mineSteps(s);
@@ -162,7 +178,7 @@ function Timeline({ s, threats, mine, planned }: { s: GameState; threats: Finale
         const above = mine ? t.elo > mine.arenaElo : true;
         const cx = X(t.day);
         const cy = Y(t.elo);
-        const right = cx < CW - 190;
+        const right = cx < CW - 170;
         return (
           <g key={t.modelId}>
             <circle cx={cx} cy={cy} r={6} fill={t.done ? color : '#1b1e24'} stroke={color} strokeWidth={2.5} />
@@ -197,6 +213,7 @@ export default function FinaleWindow({ s }: WindowProps) {
   const topComing = coming.reduce<FinaleThreat | null>((b, t) => (!b || t.elo > b.elo ? t : b), null);
   const planned = running && runningModel && mine && runningModel.id === mine.id ? { day: running.endDay, elo: mine.arenaElo + running.gain } : null;
   const after = chosen && quote ? chosen.arenaElo + quote.gain : 0;
+  const [plotRef, plotW] = useWidth<HTMLDivElement>(860);
 
   function doStart() {
     if (!chosen) return;
@@ -206,38 +223,38 @@ export default function FinaleWindow({ s }: WindowProps) {
 
   return (
     <div className="fn">
-      <div className="fn-hero">
-        <div className="fn-kpi">
-          <div className="fn-l">До финала</div>
-          <div className={`fn-v${daysLeft <= 30 && !s.outcome ? ' hot' : ''}`}>{s.outcome ? 'Итоги' : fmtDays(daysLeft)}</div>
-          <div className="fn-s">Итоги гонки - 31 декабря 2024 года</div>
+      <div className="fn-top">
+        <div className="fn-main">
+          <span className="fn-l">Место на «Арене» среди моделей в продаже</span>
+          <span className={`fn-big${st?.rank === 1 ? ' first' : ''}`}>{st ? `${st.rank}-е место` : 'Нет модели в продаже'}</span>
+          <span className="fn-l">{mine ? `«${mine.name}», ${fmtInt(mine.arenaElo)} Эло` : 'Место считается по лучшей модели в продаже'}</span>
         </div>
-        <div className="fn-kpi">
-          <div className="fn-l">Место на «Арене»</div>
-          <div className={`fn-v${st?.rank === 1 ? ' gold' : ''}`}>{st ? `${st.rank}-е` : '-'}</div>
-          <div className="fn-s">
+        <div className="kv fn-kv-top">
+          <span>До финала</span>
+          <span className={daysLeft <= 30 && !s.outcome ? 'bad' : undefined}>
+            {s.outcome ? 'партия окончена' : `${fmtDays(daysLeft)}, итоги 31.12.2024`}
+          </span>
+          <span>{st && st.rank > 1 ? `До ${st.rank - 1}-го места` : 'Отрыв от второго'}</span>
+          <span>
             {!st
-              ? 'Нет модели в продаже'
+              ? '-'
               : st.rank === 1
                 ? st.below
-                  ? `Отрыв ${fmtInt(st.below.gap)} Эло от ${st.below.name}`
-                  : 'Соперников ниже нет'
+                  ? `${fmtInt(st.below.gap)} Эло, ${st.below.name}`
+                  : 'соперников ниже нет'
                 : st.above
-                  ? `До ${st.rank - 1}-го места ${fmtInt(st.above.gap)} Эло: ${st.above.name}`
-                  : ''}
-          </div>
-        </div>
-        <div className="fn-kpi">
-          <div className="fn-l">Следующая угроза</div>
-          <div className="fn-v">{next ? shortDay(next.day) : '-'}</div>
-          <div className="fn-s">
-            {next ? `${next.name}, ≈ ${fmtInt(next.elo)} Эло` : threats.length > 0 ? 'Все объявленные угрозы уже вышли' : 'Объявленных угроз нет'}
-          </div>
+                  ? `${fmtInt(st.above.gap)} Эло, ${st.above.name}`
+                  : '-'}
+          </span>
+          <span>Следующая угроза</span>
+          <span className={next && mine && next.elo > mine.arenaElo ? 'bad' : undefined}>
+            {next ? `${shortDay(next.day)}, ${next.name}, ≈ ${fmtInt(next.elo)} Эло` : threats.length > 0 ? 'все объявленные уже вышли' : 'не объявлена'}
+          </span>
         </div>
       </div>
 
-      <div className="fn-plot">
-        <Timeline s={s} threats={threats} mine={mine} planned={planned} />
+      <div className="fn-plot" ref={plotRef}>
+        <Timeline s={s} threats={threats} mine={mine} planned={planned} width={plotW - 20} />
         <div className="fn-legend">
           <span>
             <i className="dot done" /> вышла

@@ -125,10 +125,32 @@ function currentMoments(s: GameState): Moment[] {
 
 const flag = (id: string): string => `moment:${id}`;
 
+/** Клетчатый флаг финала: плоский рисунок для газетной полосы. */
+function FinishFlag() {
+  const cells: [number, number][] = [];
+  for (let r = 0; r < 5; r++) for (let c = 0; c < 7; c++) if ((r + c) % 2 === 0) cells.push([c, r]);
+  return (
+    <svg className="mo-flag" viewBox="0 0 150 120" aria-hidden="true">
+      <rect x={14} y={6} width={6} height={110} fill="#1e1b16" />
+      <rect x={20} y={10} width={112} height={80} fill="#f4efe2" stroke="#1e1b16" strokeWidth={2} />
+      {cells.map(([c, r]) => (
+        <rect key={`${c}-${r}`} x={20 + c * 16} y={10 + r * 16} width={16} height={16} fill="#1e1b16" />
+      ))}
+    </svg>
+  );
+}
+
 function Art({ kind }: { kind: Moment['art'] }) {
+  if (kind === 'final') {
+    return (
+      <div className="mo-art art-final" aria-hidden="true">
+        <FinishFlag />
+      </div>
+    );
+  }
   return (
     <div className={`mo-art art-${kind}`} aria-hidden="true">
-      <span className="mo-glyph">{{ attention: 'Q·K·V', chat: '«…»', trophy: '1', arena: '★', rlhf: '+1', final: '31.12' }[kind]}</span>
+      <span className="mo-glyph">{{ attention: 'Q·K·V', chat: '«…»', trophy: '1', arena: '★', rlhf: '+1', final: '' }[kind]}</span>
     </div>
   );
 }

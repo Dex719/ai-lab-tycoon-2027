@@ -145,7 +145,7 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
 
         <EloChart history={history} lab={s.labName} />
 
-        {(moments.length > 0 || (win && pushLabs.length > 0)) && (
+        {moments.length > 0 && (
           <div className="end-moments">
             <span className="end-l">Ваши моменты</span>
             <div className="end-chips">
@@ -154,7 +154,6 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
                   ★ {MOMENT_TITLES[id]}
                 </span>
               ))}
-              {win && pushLabs.length > 0 && <span className="end-chip">★ Отбили финальный рывок: {pushLabs.join(', ')}</span>}
             </div>
           </div>
         )}
@@ -168,7 +167,7 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
             <>
               <span>Финальный квартал</span>
               <span>
-                {pushLabs.length > 0 ? `рывки: ${pushLabs.join(', ')}` : 'без рывков соперников'}, доработок: {updates}
+                {`${pushLabs.length === 0 ? 'без рывков соперников' : win ? `рывок отбит: ${pushLabs.join(', ')}` : `рывки: ${pushLabs.join(', ')}`}, доработок: ${updates}`}
               </span>
             </>
           )}
