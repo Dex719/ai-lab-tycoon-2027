@@ -1,4 +1,4 @@
-// Сцена в центре рабочего стола: лаборатория игрока в четырёх «станциях» - серверная, исследования,
+// Сцена в центре рабочего стола: лаборатория игрока в четырёх «станциях» - серверная (3D-зал арендованных стоек), исследования,
 // обучение и витрина моделей. Сцена лежит под окнами (как обои) и показывает состояние лаборатории одним взглядом;
 // каждая станция открывает своё окно. Анимаций нет: сцена меняется вместе с игрой.
 
@@ -15,6 +15,9 @@ import { nextStep, type NextStep } from './nextStep';
 import { store, useSpeed } from './store';
 import { raceMetricOf, raceRows } from './race';
 import type { WindowAlias, WindowId } from './windows';
+import { ALLOC_ROWS } from './alloc';
+import { rentedFarm, specKey, type FarmSpec } from './three/specs';
+import { View3D } from './three/View3D';
 import './desk.css';
 
 /** Карт в одной стойке на картинке; мест под стойки - по этапу лаборатории (labStage.ts), не больше шести. */
@@ -39,6 +42,8 @@ interface SceneProps {
   seats: number;
   cups: YearCup[];
   cards: number;
+  /** Машинный зал: арендованные стойки с планками цвета задачи (как в «Мощностях»). */
+  farm: FarmSpec;
   idle: boolean;
   research: { name: string; frac: number; busy: boolean } | null;
   training: { name: string; frac: number; stalled: boolean } | null;
@@ -62,6 +67,7 @@ function sameScene(a: SceneProps, b: SceneProps): boolean {
     a.seats === b.seats &&
     cupsKey(a.cups) === cupsKey(b.cups) &&
     a.cards === b.cards &&
+    specKey(a.farm) === specKey(b.farm) &&
     a.idle === b.idle &&
     a.research?.name === b.research?.name &&
     a.research?.frac === b.research?.frac &&
@@ -105,15 +111,19 @@ const Scene = memo(function Scene(p: SceneProps) {
       </div>
       <div className="ls-room">
         <button type="button" className="ls-station ls-servers" onClick={() => p.open('compute')}>
-          <span className="ls-art">
-            {Array.from({ length: shownRacks }, (_, r) => (
-              <span key={r} className={`ls-rack${r < racks ? '' : ' empty'}`}>
-                {Array.from({ length: 8 }, (_, u) => {
-                  const lit = r * 8 + u < units;
-                  return <i key={u} className={lit ? ledTone : 'off'} />;
-                })}
-              </span>
-            ))}
+          <span className="ls-art ls-hall">
+            {p.cards > 0 ? (
+              <View3D spec={p.farm} interactive={false} label="Машинный зал" className="ls-hall-view" />
+            ) : (
+              Array.from({ length: shownRacks }, (_, r) => (
+                <span key={r} className={`ls-rack${r < racks ? '' : ' empty'}`}>
+                  {Array.from({ length: 8 }, (_, u) => {
+                    const lit = r * 8 + u < units;
+                    return <i key={u} className={lit ? ledTone : 'off'} />;
+                  })}
+                </span>
+              ))
+            )}
           </span>
           <span className="ls-cap">
             <span>Серверная</span>
@@ -302,6 +312,12 @@ export function DeskScene({ s, open }: { s: GameState; open: (id: WindowId | Win
       seats={Math.min(MAX_SEATS, (LAB_STAGES[stage]?.desks ?? 1) * 2 + teams * 2)}
       cups={yearCups(s)}
       cards={cardCount(s)}
+      farm={{
+        ...rentedFarm(s),
+        // Доли округлены до 5 %: зал не перестраивается от каждого процента.
+        tasks: ALLOC_ROWS.map((r) => ({ color: r.color, share: Math.round(s.compute.alloc[r.key] * 20) / 20 })),
+        backdrop: '#3a3d42',
+      }}
       idle={idleWarnings(s).length > 0}
       research={research}
       training={training}

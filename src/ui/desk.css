@@ -21,7 +21,7 @@
 /* Люди за столами слева и кубки по годам справа: полоса шириной с комнату, высота постоянная. */
 .ls-team {
   display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; height: 44px; margin: -6px 0 -10px;
-  width: calc(4 * 186px + 3 * 18px + 52px); max-width: 100%; padding: 0 26px;
+  width: calc(380px + 3 * 186px + 3 * 18px + 52px); max-width: 100%; padding: 0 26px;
 }
 .ls-team { position: relative; }
 /* Пол под столами - как пол комнаты, только тоньше. */
@@ -53,7 +53,13 @@
 .ls-cap b.warn { color: #f2b84b; }
 .ls-station:hover .ls-cap, .ls-station:focus-visible .ls-cap { border-color: var(--c-blue); background: #23272f; }
 
-/* ---------- Серверная: стойки, огонёк блока - зелёный в работе, жёлтый при простое ---------- */
+/* ---------- Серверная: 3D-зал арендованных стоек (планки цвета задачи), до аренды - пустые места ---------- */
+.ls-station.ls-servers { width: 380px; }
+.ls-hall { position: relative; }
+.ls-station.ls-servers .ls-art { height: 236px; }
+.ls-hall-view { position: absolute; inset: -12px -24px -8px; }
+.ls-servers .ls-cap { position: relative; z-index: 1; }
+.ls-hall-view canvas { pointer-events: none; }
 .ls-rack { display: flex; flex-direction: column; gap: 3px; width: 24px; height: 150px; padding: 5px 3px; flex: none; background: #c9ced5; border-radius: 2px; }
 .ls-rack.empty { background: none; border: 1px dashed #5d6168; }
 .ls-rack.empty i { visibility: hidden; }
