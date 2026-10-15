@@ -135,7 +135,7 @@ function getRenderer(wPx: number, hPx: number): THREE.WebGLRenderer {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1;
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap; // PCFSoftShadowMap в three r18x убран и даёт предупреждение в консоли
     renderer.setScissorTest(true);
     const pmrem = new THREE.PMREMGenerator(renderer);
     envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;

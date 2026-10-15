@@ -13,7 +13,6 @@ import type { GameState, MonthRecord } from '../sim/types';
 import { useModalFocus } from './components/common';
 import { IconClose, IconTrophy } from './icons';
 import { fmtElo, fmtMoney, fmtNum, fmtShare } from './format';
-import { fmtRank } from './labels';
 import { playSound } from './sound';
 import { store } from './store';
 import './end.css';
@@ -88,7 +87,7 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
     ? `Модель лаборатории «${s.labName}» - первая среди моделей в продаже 31 декабря 2024 года.`
     : bankrupt
       ? `Лаборатория «${s.labName}» закрылась ${formatDate(s.day)}: деньги были в минусе 60 дней подряд.`
-      : `Партия закончилась 31 декабря 2024 года. Место на «Арене»: ${fmtRank(rank)}.`;
+      : 'Партия закончилась 31 декабря 2024 года.'; // место уже крупно в заголовке
   const history = s.finance.history;
   const revenue = history.reduce((sum, h) => sum + revenueOf(h), 0);
   const places = history.map((h) => h.placeEnd).filter((p): p is number => typeof p === 'number');

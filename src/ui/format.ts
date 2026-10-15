@@ -113,8 +113,9 @@ export function endSentence(text: string): string {
   return text.endsWith('.') ? text : `${text}.`;
 }
 
+/** Эло целым с разрядами, как везде в игре: «987», «1 354». */
 export function fmtElo(elo: number): string {
-  return Number.isFinite(elo) ? String(Math.round(elo)) : '-';
+  return Number.isFinite(elo) ? dec(Math.round(elo), 0) : '-';
 }
 
 export { ruPlural };
