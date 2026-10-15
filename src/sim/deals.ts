@@ -21,7 +21,7 @@ import { LABS } from '../data/labs';
 import { FOREVER } from './constants';
 import { addMail, addModifier } from './events';
 import { spend } from './finance';
-import { lateOf, type CloudId, type StartupId, type TeamId } from './lateState';
+import { hasTeam, lateOf, newModelEloBonus, trainSpeedMult, type CloudId, type StartupId, type TeamId } from './lateState';
 import { endSentence } from './text';
 import { dateToDay, dayToDate, formatDate } from './time';
 import type { GameState, LabId, Result } from './types';
@@ -374,4 +374,57 @@ export function dealsMonthEnd(s: GameState): void {
 /** Облачные партнёры по порядку данных (для окна). */
 export function cloudList(): typeof CLOUDS {
   return CLOUDS;
+}
+
+// ---------- Для окна «Сделки» ----------
+
+const SEG_WHO: Record<string, string> = { consumers: 'обычных пользователей', enterprise: 'корпоративных клиентов', developers: 'разработчиков' };
+
+/** Что сейчас дают сделки: короткие строки для полосы окна («Обучение быстрее на 35 %»). */
+export function activeEffects(s: GameState): string[] {
+  const late = s.late;
+  if (!late) return [];
+  const out: string[] = [];
+  const train = Math.round((trainSpeedMult(s) - 1) * 100);
+  if (train > 0) out.push(`Обучение быстрее на ${train} %`);
+  if (hasTeam(s, 'research')) out.push(`Исследования дешевле на ${Math.round((1 - TEAM_RESEARCH_MULT) * 100)} %`);
+  const elo = newModelEloBonus(s, true);
+  if (elo > 0) out.push(`+${elo} Эло новым моделям с RLHF`);
+  for (const d of late.startups) {
+    if (d.status !== 'bought') continue;
+    const a = startupDef(d.id).apply;
+    if (a.kind === 'segBrand') out.push(`Бренд у ${SEG_WHO[a.seg]} +${String(a.add).replace('.', ',')}`);
+  }
+  if (late.cloud) {
+    const def = cloudDef(late.cloud.id);
+    out.push(`Аренда дешевле на ${Math.round(def.discount * 100)} %`);
+    out.push(`Лимит аренды выше ${timesText(def.capMult)}`);
+  }
+  return out;
+}
+
+/** Обязательные расходы сделок в месяц: зарплата команд и платёж облака. */
+export function dealsMonthly(s: GameState): { salary: number; cloud: number } {
+  return { salary: teamsSalary(s), cloud: s.late?.cloud?.monthly ?? 0 };
+}
+
+/**
+ * Облачная сделка в текущем месяце: аренда с начала месяца, обязательный платёж за весь месяц (за дни сделки)
+ * и его часть, набежавшая к сегодняшнему дню (по ней видно, идёт ли аренда в темпе платежа). null - сделки нет.
+ */
+export function cloudMonth(s: GameState): { rent: number; owedMonth: number; owedToDate: number } | null {
+  const c = s.late?.cloud;
+  if (!c) return null;
+  const d = dayToDate(s.day);
+  const monthStart = s.day - d.day + 1;
+  const total = new Date(Date.UTC(d.year, d.month, 0)).getUTCDate();
+  const monthEnd = monthStart + total - 1;
+  const from = Math.max(monthStart, c.since);
+  const daysMonth = Math.max(0, Math.min(monthEnd, c.until) - from + 1);
+  const daysToDate = Math.max(0, Math.min(s.day, c.until) - from + 1);
+  return {
+    rent: s.finance.month.expense.rent,
+    owedMonth: (c.monthly * daysMonth) / total,
+    owedToDate: (c.monthly * daysToDate) / total,
+  };
 }

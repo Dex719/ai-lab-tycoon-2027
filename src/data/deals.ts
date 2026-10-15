@@ -18,6 +18,7 @@ export interface TeamDef {
   color: string;
   about: string; // одна строка: откуда и чем сильна
   effect: string; // что даёт, коротко
+  extra?: string; // второе следствие, мелко
   signing: number; // подъёмные при найме, $
   salary: number; // зарплата команды в месяц, $
 }
@@ -57,7 +58,8 @@ export const TEAMS: readonly TeamDef[] = [
     initials: 'ЛВ',
     color: '#1fa8a0',
     about: 'Специалисты по RLHF и оценке ответов: делали чат-модели, которые любят пользователи.',
-    effect: '+8 Эло новым моделям с RLHF, доработка в финале сильнее в 1,5 раза',
+    effect: '+8 Эло новым моделям с RLHF',
+    extra: 'Доработка моделей в финальном квартале сильнее в 1,5 раза.',
     signing: 50e6,
     salary: 4e6,
   },

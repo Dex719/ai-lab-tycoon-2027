@@ -69,8 +69,8 @@ function liveUntil(s: GameState, day: number): void {
 }
 
 describe('финальный квартал: рывки соперников', () => {
-  it('до 1 октября 2024 года ничего не происходит, поле late не появляется', () => {
-    const s = stateOn(FINALE_START - 1, 1370);
+  it('до 30 сентября 2024 года ничего не происходит, поле late не появляется', () => {
+    const s = stateOn(FINALE_START - 2, 1370);
     finaleDay(s);
     expect(s.late).toBeUndefined();
   });
@@ -129,8 +129,8 @@ describe('финальный квартал: рывки соперников', (
 
   it.each(['easy', 'normal', 'hard'] as Difficulty[])('честность на сложности %s: предупреждение не короче notice, рывки не позже 20 декабря, не больше maxPushes', (d) => {
     const s = stateOn(FINALE_START, 1365, d);
-    // Игрок растёт каждый месяц - проверки 31.10 и 20.11 видят нового лидера.
-    for (const day of [D('2024-10-30'), D('2024-11-19'), END_DAY]) {
+    // Игрок растёт перед каждой проверкой (30.10 и 19.11): они видят нового лидера.
+    for (const day of [D('2024-10-29'), D('2024-11-18'), END_DAY]) {
       liveUntil(s, day);
       s.models[0].arenaElo += 15;
     }

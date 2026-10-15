@@ -25,7 +25,11 @@ import { LAB_IDS } from './types';
 export const FINALE_START = dateToDay('2024-10-01');
 /** После этого дня рывков нет. */
 export const LAST_PUSH_DAY = dateToDay('2024-12-20');
-/** Дни проверки, нужен ли рывок: 1 октября, 31 октября, 20 ноября (рывок в последний день - не позже LAST_PUSH_DAY). */
+/**
+ * Первая проверка - в последний день сентября: 1 октября игрок уже видит объявленные рывки (газетная полоса, окно).
+ * Дальше проверки 30 октября и 19 ноября (рывок через notice дней - не позже LAST_PUSH_DAY).
+ */
+const FIRST_CHECK = FINALE_START - 1;
 const CHECK_OFFSETS = [0, 30, 50];
 
 interface FinaleDef {
@@ -231,7 +235,7 @@ function announceCatalog(s: GameState): void {
   for (const m of RIVAL_MODELS) {
     if (released.has(m.id) || f.announced.includes(m.id) || !rivalOnApi(m) || m.announcedOnly) continue;
     const day = rivalDayIn(s, m);
-    if (day < FINALE_START || day > END_DAY || day - s.day > def.notice) continue;
+    if (day < FIRST_CHECK || day > END_DAY || day - s.day > def.notice) continue;
     const elo = rivalEloIn(s, m);
     if (me && elo < me.arenaElo - ANNOUNCE_RELEVANT) continue;
     f.announced.push(m.id);
@@ -356,11 +360,11 @@ function finishUpdate(s: GameState): void {
 
 // ---------- Тик ----------
 
-/** Ежедневно в финале (после ходов соперников, до выхода новых моделей завтра): проверки, анонсы, рывки, доработка. */
+/** Ежедневно с 30 сентября 2024 года (после ходов соперников): проверки, анонсы, рывки, доработка. */
 export function finaleDay(s: GameState): void {
-  if (s.day < FINALE_START) return;
+  if (s.day < FIRST_CHECK) return;
   const f = lateOf(s).finale;
-  while (f.checks < CHECK_OFFSETS.length && s.day >= FINALE_START + CHECK_OFFSETS[f.checks]) {
+  while (f.checks < CHECK_OFFSETS.length && s.day >= FIRST_CHECK + CHECK_OFFSETS[f.checks]) {
     planPushes(s);
     f.checks += 1;
   }

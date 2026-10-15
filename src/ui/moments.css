@@ -38,3 +38,7 @@
   .mo-headline { font-size: 28px; }
 }
 @media (prefers-reduced-motion: reduce) { .mo-paper { animation: none; } }
+
+/* Финальный квартал: клетчатый флаг и дата итогов. */
+.mo-art.art-final { background-color: #d9d1bf; background-image: repeating-conic-gradient(#1e1b16 0 25%, #d9d1bf 0 50%); background-size: 30px 30px; }
+.art-final .mo-glyph { padding: 4px 12px; background: #f4efe2; border: 2px solid #1e1b16; font-size: 36px; text-shadow: none; }

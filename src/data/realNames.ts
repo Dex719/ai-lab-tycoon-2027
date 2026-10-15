@@ -24,6 +24,17 @@ export const REAL_NAME_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['Fermi Systems', 'NVIDIA'],
   ['Fermi', 'NVIDIA'],
 
+  // Сделки поздней игры (data/deals.ts): стартапы и облачные партнёры
+  ['MozaicML', 'MosaicML'],
+  ['Kodeium', 'Codeium'],
+  ['Charakter.AI', 'Character.AI'],
+  ['Inflexion AI', 'Inflection AI'],
+  ['Adapt AI', 'Adept AI'],
+  ['Skale AI', 'Scale AI'],
+  ['Mikrosoft Azura', 'Microsoft Azure'],
+  ['Amazom AWZ', 'Amazon AWS'],
+  ['Orakle Cloud', 'Oracle Cloud'],
+
   // Бенчмарки
   ['SQuAT', 'SQuAD'],
   ['GLUU', 'GLUE'],

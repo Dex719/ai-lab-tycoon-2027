@@ -1,0 +1,89 @@
+/* Окно «Сделки»: тёмная полоса (деньги, расходы сделок, что действует), ниже вкладки команд, стартапов и облака. */
+
+.dl {
+  display: flex; flex-direction: column; height: 100%; min-height: 0;
+  container-type: inline-size; font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Полоса сверху ---------- */
+.dl-hero { flex: none; display: grid; grid-template-columns: 1fr 1fr 1.6fr; background: #1d2433; color: #fff; }
+.dl-kpi { padding: 12px 18px 14px; border-right: 1px solid #2f3a52; min-width: 0; }
+.dl-kpi:last-child { border-right: none; }
+.dl-l { font-size: 12px; color: #a9b3c7; }
+.dl-v { margin-top: 2px; font: 700 32px var(--mono); line-height: 1.15; white-space: nowrap; }
+.dl-v.bad { color: var(--bad-on-dark); }
+.dl-s { margin-top: 2px; font-size: 13px; color: #c9d1e0; min-height: 18px; }
+.dl-none { margin-top: 10px; color: #7d879b; }
+.dl-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.dl-chip { padding: 3px 9px; border-radius: 3px; font-size: 12.5px; font-weight: 600; background: #1e4a33; color: #b8f2cb; }
+
+/* ---------- Тело ---------- */
+.dl-body { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px 14px; }
+.dl-h { margin: 0 0 10px; font-size: 15px; font-weight: 600; color: #1f2023; }
+.dl-h2 { margin-top: 16px; }
+.dl-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.dl-slots { font-size: 13px; color: var(--text-dim); }
+.dl-empty { padding: 10px 0; color: var(--text-dim); }
+.dl-effect { font-size: 14px; font-weight: 600; color: #1f7a3b; }
+.dl-extra { margin-top: -4px; font-size: 12.5px; color: #1f7a3b; }
+.dl-kv { font-size: 13px; }
+
+/* Команды */
+.dl-teams { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.dl-team {
+  --team: var(--accent);
+  display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px 14px 14px;
+  background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--team); border-radius: 4px;
+}
+.dl-team.on { background: #f1f8f3; border-color: #a9d8b7; border-top-color: var(--team); }
+.dl-team-top { display: flex; align-items: center; gap: 10px; }
+.dl-ava {
+  width: 44px; height: 44px; flex: none; display: grid; place-items: center; border-radius: 50%;
+  background: var(--team); color: #fff; font: 700 15px var(--font); letter-spacing: 0.04em;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.18);
+}
+.dl-team-who { display: flex; flex-direction: column; min-width: 0; }
+.dl-team-who b { font-size: 15px; color: #1f2023; }
+.dl-team-who span { font-size: 13px; color: var(--text-dim); }
+.dl-about { margin: 0; font-size: 13px; color: var(--text-body); min-height: 36px; }
+.dl-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 4px; min-height: 34px; }
+.dl-status { font-size: 13px; font-weight: 600; color: #1f7a3b; }
+
+/* Стартапы */
+.dl-offers { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.dl-offer { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 14px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--c-orange); border-radius: 4px; }
+.dl-offer-head { display: flex; align-items: baseline; gap: 4px; }
+.dl-offer-head b { font-size: 16px; color: #1f2023; }
+.dl-price { margin-left: auto; font: 700 17px var(--mono); color: #1f2023; }
+.dl-what { font-size: 13px; color: var(--text-body); }
+.dl-deadline { display: flex; flex-direction: column; gap: 4px; }
+.dl-deadline .progress > div { background: var(--c-orange); }
+.dl-left-row { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; white-space: nowrap; }
+.dl-left { color: var(--text-dim); }
+.dl-rival { color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; }
+.dl-left.hot { color: #c03030; font-weight: 600; }
+.dl-labdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 4px 0 2px; }
+.dl-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dl-table td { padding: 5px 8px 5px 0; border-bottom: 1px solid var(--line-soft); }
+.dl-past-name { font-weight: 600; white-space: nowrap; }
+
+/* Облако */
+.dl-clouds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.dl-cloud { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 14px; background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--c-blue); border-radius: 4px; }
+.dl-cloud-name { font-size: 16px; color: #1f2023; }
+.dl-cloud .guard { margin-top: auto; }
+.dl-active { display: flex; flex-direction: column; gap: 10px; max-width: 520px; padding: 12px 14px 14px; background: var(--panel); border: 1px solid var(--line); border-top: 4px solid var(--c-blue); border-radius: 4px; }
+.dl-active-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.dl-active-head b { font-size: 16px; color: #1f2023; }
+.dl-active-foot { display: flex; justify-content: flex-end; }
+
+@container (max-width: 760px) {
+  .dl-hero { grid-template-columns: 1fr 1fr; }
+  .dl-kpi-wide { grid-column: 1 / -1; border-top: 1px solid #2f3a52; }
+  .dl-teams, .dl-clouds { grid-template-columns: 1fr; }
+}
+@container (max-width: 480px) {
+  .dl-hero { grid-template-columns: 1fr; }
+  .dl-kpi { border-right: none; }
+  .dl-v { font-size: 26px; }
+}

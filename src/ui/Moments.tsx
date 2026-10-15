@@ -2,12 +2,14 @@
 // Показывается один раз за партию (флаг moment:<id> в s.flags), игра встаёт на паузу.
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { FINALE_START } from '../sim/finale';
 import { arenaStanding, type ArenaStanding } from '../sim/leaderboard';
-import { formatDateShort } from '../sim/time';
+import { ruPlural } from '../sim/text';
+import { END_DAY, formatDateShort } from '../sim/time';
 import type { GameState } from '../sim/types';
 import { fmtGap, raceName } from './ArenaFeedback';
 import { useModalFocus } from './components/common';
-import { fmtInt } from './format';
+import { fmtDays, fmtInt } from './format';
 import { playSound } from './sound';
 import { store } from './store';
 import './moments.css';
@@ -18,7 +20,7 @@ interface Moment {
   headline: string;
   sub: string;
   body: string;
-  art: 'attention' | 'chat' | 'trophy' | 'arena' | 'rlhf';
+  art: 'attention' | 'chat' | 'trophy' | 'arena' | 'rlhf' | 'final';
 }
 
 function standing(s: GameState): ArenaStanding | null {
@@ -95,6 +97,29 @@ function currentMoments(s: GameState): Moment[] {
       art: 'rlhf',
     });
   }
+  // Финальный квартал (sim/finale.ts): полоса в день старта, с местом в гонке и объявленными рывками.
+  if (s.day >= FINALE_START && !s.outcome) {
+    const pushes = s.late?.finale.pushes.length ?? 0;
+    const arena = st && st.metric.kind === 'arena' ? st : null;
+    out.push({
+      id: 'finale-start',
+      kicker: 'Финал',
+      headline: `До итогов гонки ${fmtDays(Math.max(0, END_DAY - s.day))}`,
+      sub: !arena
+        ? `У «${lab}» нет модели в продаже: место в гонке пока не считается.`
+        : arena.rank === 1
+          ? `«${lab}» на первом месте: «${arena.modelName}», ${fmtInt(arena.value)} Эло.${arena.below ? ` ${arena.below.name} отстаёт на ${fmtGap(arena.metric, arena.below.gap)} Эло.` : ''}`
+          : `«${lab}» на ${arena.rank}-м месте: до первого ${fmtGap(arena.metric, arena.ahead[0]?.gap ?? 0)} Эло (${arena.ahead[0]?.name ?? 'лидер'}).`,
+      body:
+        (pushes > 0
+          ? pushes === 1
+            ? 'Один соперник уже объявил финальный рывок. '
+            : `${pushes} ${ruPlural(pushes, 'соперник', 'соперника', 'соперников')} уже объявили финальные рывки. `
+          : 'Лаборатории готовят выпуски к концу года. ') +
+        'Победит первая модель на «Арене» 31 декабря. Рывки, анонсы и доработка моделей - в окне «Финал».',
+      art: 'final',
+    });
+  }
   return out;
 }
 
@@ -103,7 +128,7 @@ const flag = (id: string): string => `moment:${id}`;
 function Art({ kind }: { kind: Moment['art'] }) {
   return (
     <div className={`mo-art art-${kind}`} aria-hidden="true">
-      <span className="mo-glyph">{{ attention: 'Q·K·V', chat: '«…»', trophy: '1', arena: '★', rlhf: '+1' }[kind]}</span>
+      <span className="mo-glyph">{{ attention: 'Q·K·V', chat: '«…»', trophy: '1', arena: '★', rlhf: '+1', final: '31.12' }[kind]}</span>
     </div>
   );
 }

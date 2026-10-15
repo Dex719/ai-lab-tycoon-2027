@@ -13,17 +13,33 @@ import {
   IconNewModel,
   IconResearch,
 } from '../icons';
+import { IconDeals, IconFinale } from '../icons/late';
+import { dealsOpenedDay } from '../../sim/deals';
+import { finaleOpenedDay } from '../../sim/finale';
 import AnalyticsWindow from './AnalyticsWindow';
 import ComputeWindow from './ComputeWindow';
 import ContractsWindow from './ContractsWindow';
 import DatacentersWindow from './DatacentersWindow';
+import DealsWindow from './DealsWindow';
+import FinaleWindow from './FinaleWindow';
 import InvestorsWindow from './InvestorsWindow';
 import MailWindow from './MailWindow';
 import ModelsWindow from './ModelsWindow';
 import ResearchWindow from './ResearchWindow';
 import TrainingWindow from './TrainingWindow';
 
-export type WindowId = 'research' | 'compute' | 'newModel' | 'contracts' | 'investors' | 'models' | 'mail' | 'analytics' | 'datacenters';
+export type WindowId =
+  | 'research'
+  | 'compute'
+  | 'newModel'
+  | 'contracts'
+  | 'investors'
+  | 'models'
+  | 'mail'
+  | 'analytics'
+  | 'datacenters'
+  | 'deals'
+  | 'finale';
 
 /** Старые имена окон (до редизайна) - чтобы ссылки open('training') и т. п. продолжали работать. */
 export type WindowAlias = 'training' | 'market' | 'finance' | 'ratings';
@@ -72,6 +88,9 @@ export const WINDOWS: WindowDef[] = [
     Component: DatacentersWindow,
     openedDay: (s) => s.datacenters.unlockedDay,
   },
+  // Поздняя игра: сделки 2023-2024 (команды, стартапы, облако) и финальный квартал 2024 года.
+  { id: 'deals', title: 'Сделки', icon: IconDeals, side: 'left', w: 1000, h: 580, Component: DealsWindow, openedDay: dealsOpenedDay },
+  { id: 'finale', title: 'Финал', icon: IconFinale, side: 'left', w: 1000, h: 680, Component: FinaleWindow, openedDay: finaleOpenedDay },
   { id: 'models', title: 'Модели', icon: IconModels, side: 'right', w: 900, h: 620, Component: ModelsWindow },
   { id: 'mail', title: 'Почта', icon: IconMail, side: 'right', w: 820, h: 520, Component: MailWindow },
   { id: 'analytics', title: 'Аналитика', icon: IconAnalytics, side: 'right', w: 1100, h: 660, Component: AnalyticsWindow },
