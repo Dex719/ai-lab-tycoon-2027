@@ -22,7 +22,8 @@
 /* Баннер: выдержка из таблицы гонки под верхней панелью. Полоса слева - исход, как у уведомлений. */
 .ar-banner {
   --arb: var(--c-green);
-  position: fixed; top: 50px; left: 50%; z-index: 880; transform: translateX(-50%);
+  /* ниже плашки «Пауза: ...» (top 46 px), иначе она закрывает строку с местом */
+  position: fixed; top: 82px; left: 50%; z-index: 880; transform: translateX(-50%);
   width: 420px; max-width: calc(100vw - 24px); padding: 9px 36px 8px 14px;
   background: #fff; color: var(--text); border: 1px solid var(--line); border-left: 5px solid var(--arb); border-radius: 3px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
