@@ -140,7 +140,7 @@
 .nm-name-wrap { display: flex; flex-direction: column; gap: 2px; }
 .nm-name { width: 220px; }
 .nm-foot-info { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 13px; color: var(--text-dim); text-align: right; }
-/* .btn задаёт высоту 32 px и подключается позже: без .btn в селекторе вторая строка кнопки обрезалась. */
+/* .btn.nm-start: общий .btn из theme.css подключается позже и иначе возвращает высоту 32 px - вторая строка обрезалась. */
 .btn.nm-start { display: flex; flex-direction: column; align-items: center; height: auto; min-height: 32px; padding: 7px 22px; font-size: 15px; font-weight: 600; line-height: 1.25; }
 .nm-start small { font-size: 12px; font-weight: 400; opacity: 0.9; }
 

@@ -10,6 +10,8 @@ import type { GameState, PlayerModel } from '../sim/types';
 import { ModelEmblem } from './components/ModelEmblem';
 import { fmtNum, fmtShare, ruPlural } from './format';
 import { IconLogo } from './icons';
+import { nextStep, type NextStep } from './nextStep';
+import { store, useSpeed } from './store';
 import { raceMetricOf, raceRows } from './race';
 import type { WindowAlias, WindowId } from './windows';
 import './desk.css';
@@ -36,6 +38,8 @@ interface SceneProps {
   shelf: PlayerModel[];
   onSale: number;
   place: number | null;
+  /** «Следующий шаг» под станциями в первый год партии (nextStep.ts); null - не показывается. */
+  next: NextStep | null;
   open: (id: WindowId | WindowAlias) => void;
 }
 
@@ -55,6 +59,10 @@ function sameScene(a: SceneProps, b: SceneProps): boolean {
     a.shelf.map((m) => m.id).join() === b.shelf.map((m) => m.id).join() &&
     a.onSale === b.onSale &&
     a.place === b.place &&
+    a.next?.title === b.next?.title &&
+    a.next?.detail === b.next?.detail &&
+    a.next?.action === b.next?.action &&
+    a.next?.open === b.next?.open &&
     a.open === b.open
   );
 }
@@ -145,12 +153,32 @@ const Scene = memo(function Scene(p: SceneProps) {
           </span>
         </button>
       </div>
+      {p.next && <NextPlate step={p.next} open={p.open} />}
     </div>
   );
 }, sameScene);
 
+/** Табличка «Следующий шаг» под станциями: что сделать сейчас и кнопка к окну. Лежит под сценой и не сдвигает её. */
+function NextPlate({ step, open }: { step: NextStep; open: (id: WindowId | WindowAlias) => void }) {
+  return (
+    <div className="ls-next" role="note" aria-label="Следующий шаг">
+      <div className="ls-next-t">
+        <span>Следующий шаг</span>
+        <b>{step.title}</b>
+        <small>{step.detail}</small>
+      </div>
+      {step.action && (
+        <button type="button" className="btn primary" onClick={() => (step.open === 'play' ? store.setSpeed(1) : open(step.open))}>
+          {step.action}
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Сцена лаборатории по состоянию партии: сюда приходят только простые числа, чтобы не перерисовывать её каждый день. */
 export function DeskScene({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
+  const speed = useSpeed();
   const cur = s.research.current;
   let research: SceneProps['research'] = null;
   if (cur) {
@@ -187,6 +215,7 @@ export function DeskScene({ s, open }: { s: GameState; open: (id: WindowId | Win
       shelf={shelf}
       onSale={onSaleList.length}
       place={place}
+      next={nextStep(s, speed)}
       open={open}
     />
   );

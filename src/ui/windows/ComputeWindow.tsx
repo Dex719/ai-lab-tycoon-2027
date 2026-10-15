@@ -22,7 +22,9 @@ import { RENT_OVER_CAP_MULT } from '../../sim/constants';
 import { ownedCards } from '../../sim/datacenters';
 import { idleWarnings } from '../../sim/idle';
 import { CHAT_MOMENT_DAY, inferenceNeed, marketSnapshot, subsOpen } from '../../sim/market';
+import { TECHS } from '../../sim/research';
 import { timesWord } from '../../sim/text';
+import { formatDateShort } from '../../sim/time';
 import type { GameState, GpuDef, GpuId } from '../../sim/types';
 import {
   ALLOC_ROWS,
@@ -40,6 +42,7 @@ import {
   type SoldChannels,
 } from '../alloc';
 import { Cards } from '../components/Cards';
+import { contractsNeed, researchDaysAt, trainingDaysAt } from '../forecast';
 import { ConfirmDialog, Dialog, GuardButton, NewBadge, Range } from '../components/common';
 import { fmtH100e as fmtH, fmtInt, fmtMoney, fmtNum, fmtPct, ruPlural } from '../format';
 import { IconAlert } from '../icons';
@@ -269,7 +272,7 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
           <button className="btn" onClick={onClose}>
             Отмена
           </button>
-          <GuardButton className="btn primary cw-rd-submit" reason={reason} onClick={submit}>
+          <GuardButton className="btn primary cw-rd-submit" data-tutorial="rent-confirm" reason={reason} onClick={submit}>
             {label}
           </GuardButton>
         </>
@@ -373,16 +376,59 @@ function safeInferenceNeed(s: GameState): Record<NeedChannel, number> | null {
 }
 
 /** «Нужно клиентам» под строкой API или «Подписки»: одна строка постоянной высоты, нехватка - оранжевым справа. */
-function ClientNeed({ s, need, have }: { s: GameState; need: number | undefined; have: number }) {
+function ClientNeed({ s, need, have, label = 'Нужно клиентам' }: { s: GameState; need: number | undefined; have: number; label?: string }) {
   if (need === undefined || !(need > 0)) return null;
   const short = need > have * (1 + 1e-9) + 1e-9;
   return (
     <div className={`cw-need${short ? ' short' : ''}`}>
       <span className="cw-need-t">
-        Нужно клиентам: <b>{fmtH(need)} H100e</b>
+        {label}: <b>{fmtH(need)} H100e</b>
         <Cards s={s} h100e={need} />
       </span>
       {short && <span className="cw-need-short">не хватает {fmtH(need - have)}</span>}
+    </div>
+  );
+}
+
+/**
+ * Что даёт доля «Обучение» или «Исследования»: срок текущего проекта при принятой доле и, пока ползунок двигают, при новой
+ * («готово 02.05.2017 → 13.04.2017»). Строка есть всегда, поэтому окно не меняет высоту.
+ */
+function RowEffect({ s, k, share }: { s: GameState; k: 'training' | 'experiments'; share: number }) {
+  let name: string | null = null;
+  let now: number | null = null;
+  let next: number | null = null;
+  if (k === 'training') {
+    const run = s.trainings.find((x) => !x.failed);
+    if (run) {
+      name = run.plan.name;
+      now = trainingDaysAt(s, run, s.compute.alloc.training);
+      next = trainingDaysAt(s, run, share);
+    }
+  } else if (s.research.current) {
+    const cur = s.research.current;
+    name = TECHS.find((x) => x.id === cur)?.name ?? cur;
+    const a = researchDaysAt(s, cur, s.compute.alloc.experiments);
+    const b = researchDaysAt(s, cur, share);
+    now = Number.isFinite(a) ? a : null;
+    next = Number.isFinite(b) ? b : null;
+  }
+  if (name === null) {
+    return (
+      <div className="cw-need">
+        <span className="cw-need-t">{k === 'training' ? 'Обучение не идёт' : 'Исследование не выбрано'}</span>
+      </div>
+    );
+  }
+  const date = (d: number | null) => (d === null ? 'не скоро' : formatDateShort(s.day + d));
+  const moved = now !== next;
+  const tone = !moved ? '' : next === null || (now !== null && next > now) ? ' later' : ' sooner';
+  return (
+    <div className="cw-need">
+      <span className="cw-need-t">
+        «{name}»: готово <b>{date(now)}</b>
+        {moved && <span className={`cw-eff${tone}`}> → {date(next)}</span>}
+      </span>
     </div>
   );
 }
@@ -509,6 +555,8 @@ function AllocPanel({ s }: { s: GameState }) {
                 />
               </div>
               {(r.key === 'api' || r.key === 'subs') && <ClientNeed s={s} need={need?.[r.key]} have={h} />}
+              {(r.key === 'training' || r.key === 'experiments') && total > 0 && <RowEffect s={s} k={r.key} share={shown[r.key] / 100} />}
+              {r.key === 'contracts' && <ClientNeed s={s} need={contractsNeed(s) ?? undefined} have={h} label="Нужно контрактам" />}
             </div>
           );
         })}

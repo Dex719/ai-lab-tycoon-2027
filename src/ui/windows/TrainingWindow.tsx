@@ -521,7 +521,7 @@ function StartConfirm(props: { s: GameState; plan: TrainingPlan; est: Est; onCon
   const { s, plan, est } = props;
   const { days, power, cost, rent } = projectNumbers(s, est);
   return (
-    <ConfirmDialog title="Начать обучение" confirmLabel="Начать обучение" onConfirm={props.onConfirm} onClose={props.onClose}>
+    <ConfirmDialog title="Начать обучение" confirmLabel="Начать обучение" tutorial="train-confirm" onConfirm={props.onConfirm} onClose={props.onClose}>
       <p className="nm-confirm-name">
         «{plan.name}», {fmtParams(plan.paramsB)} параметров, уровень «{TIER_NAMES[plan.tier]}»
       </p>
