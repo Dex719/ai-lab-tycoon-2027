@@ -1,9 +1,9 @@
 // Окно «Обучение» внизу справа и подсветка цели текущего шага.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { GameState, Speed } from '../sim/types';
 import { store } from './store';
-import { TUTORIAL } from './tutorialSteps';
+import { stepTargets, TUTORIAL } from './tutorialSteps';
 import type { WindowId } from './windows';
 
 function setStep(s: GameState, step: number): void {
@@ -19,9 +19,15 @@ export function TutorialPanel({ s, open, speed }: { s: GameState; open: Readonly
   const index = Math.min(s.tutorial.step, TUTORIAL.length - 1);
   const step = TUTORIAL[index];
   const doneNow = active && !!step.done?.(s, { open, speed });
+  // «Назад» на выполненный шаг сразу вернул бы сюда же: кнопка нужна, только если прошлый шаг можно перечитать.
+  const prevStep = index > 0 ? TUTORIAL[index - 1] : null;
+  const canBack = !!prevStep && !prevStep.done?.(s, { open, speed });
   // Свёрнутая панель - одна строка; на новом шаге панель разворачивается сама, чтобы игрок увидел подсказку.
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => setCollapsed(false), [index]);
+  // Цели шага могут зависеть от состояния партии: таймер подсветки читает свежее состояние.
+  const latest = useRef(s);
+  latest.current = s;
 
   // Условие шага выполнено - переходим к следующему.
   useEffect(() => {
@@ -37,7 +43,7 @@ export function TutorialPanel({ s, open, speed }: { s: GameState; open: Readonly
     let el: Element | null = null;
     const update = () => {
       let next: Element | null = null;
-      for (const t of step.targets) {
+      for (const t of stepTargets(step, latest.current)) {
         next = document.querySelector(`[data-tutorial="${t}"]`);
         if (next) break;
       }
@@ -86,10 +92,15 @@ export function TutorialPanel({ s, open, speed }: { s: GameState; open: Readonly
             <p>{step.text}</p>
           </div>
           <div className="foot">
-            <button className="skip" onClick={() => store.dispatch(finish)}>
-              Пропустить обучение
-            </button>
-            {index > 0 && (
+            {/* Короткая подпись: в узкой панели три кнопки помещаются в одну строку, панель не меняет высоту. */}
+            {last ? (
+              <span className="skip" aria-hidden="true" />
+            ) : (
+              <button className="skip" title="Пропустить обучение игре" onClick={() => store.dispatch(finish)}>
+                Пропустить
+              </button>
+            )}
+            {canBack && (
               <button className="btn small" onClick={() => store.dispatch(setStep, index - 1)}>
                 Назад
               </button>

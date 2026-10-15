@@ -193,6 +193,8 @@ export function ConfirmDialog(props: {
   title: string;
   confirmLabel: string;
   danger?: boolean;
+  /** data-tutorial кнопки подтверждения: обучение игре подсвечивает её. */
+  tutorial?: string;
   onConfirm: () => void;
   onClose: () => void;
   children: ReactNode;
@@ -206,7 +208,7 @@ export function ConfirmDialog(props: {
           <button className="btn" onClick={props.onClose}>
             Отмена
           </button>
-          <button className={`btn ${props.danger ? 'danger' : 'primary'}`} onClick={props.onConfirm}>
+          <button className={`btn ${props.danger ? 'danger' : 'primary'}`} data-tutorial={props.tutorial} onClick={props.onConfirm}>
             {props.confirmLabel}
           </button>
         </>

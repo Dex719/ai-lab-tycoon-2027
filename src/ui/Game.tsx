@@ -65,7 +65,8 @@ function useWindows(deskRef: React.RefObject<HTMLDivElement | null>) {
         const h = Math.max(200, Math.min(def.h, area.h - 24));
         const n = ws.filter((x) => !x.min).length;
         const cx = LEFT_ICONS + Math.max(0, (free - w) / 2);
-        const x = Math.max(LEFT_ICONS, Math.min(area.w - w - 8, cx + n * 26));
+        // Каскад не заводит окно под боковую панель: на 1366 px кнопки справа (например, «Выпустить») уходили под сводку.
+        const x = Math.max(LEFT_ICONS, Math.min(area.w - w - 8, area.w - RIGHT_ICONS - w, cx + n * 26));
         const y = Math.max(8, Math.min(area.h - h - 8, (area.h - h) / 2 + n * 22));
         return [...ws, { id, x, y, w, h, z: top, min: false }];
       });

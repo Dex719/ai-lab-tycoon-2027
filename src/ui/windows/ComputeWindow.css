@@ -107,6 +107,10 @@
 .cw-need-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cw-need-t b { font-weight: 600; color: var(--text); }
 .cw-need-short { flex: none; color: #a85a00; font-weight: 600; white-space: nowrap; }
+/* Срок при новой доле: раньше - зелёным, позже - оранжевым. */
+.cw-eff { font-weight: 600; color: var(--text); }
+.cw-eff.sooner { color: var(--good); }
+.cw-eff.later { color: #a85a00; }
 /* Подвал: место под сообщение занято всегда, кнопки не прыгают. */
 .cw-panel-foot { flex: none; display: flex; align-items: center; gap: 8px; padding-top: 6px; border-top: 1px solid var(--line-soft); }
 .cw-alloc-msg {
