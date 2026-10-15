@@ -11,10 +11,12 @@ import './gpuChooser.css';
 
 export interface ChooserItem {
   gpu: GpuDef;
-  /** Строка под полосой: цена, сколько уже есть. */
-  meta: ReactNode;
-  /** Короткая пометка справа от названия («Выгоднее всего»). */
+  /** Цена справа от названия. */
+  price: ReactNode;
+  /** Пометка под полосой («Выгоднее всего»), зелёным. */
   tag?: string | null;
+  /** Сколько таких карт уже есть («в аренде 96»), синим. */
+  note?: ReactNode;
 }
 
 /** Мощность карты по сравнению с самой мощной из списка: «17 % от Fermi V100», «больше всех на рынке». */
@@ -31,8 +33,6 @@ export function GpuChooser(props: {
   items: ChooserItem[];
   value: GpuId;
   onPick: (id: GpuId) => void;
-  /** Блок под списком (деньги на счёте и т. п.). */
-  aside?: ReactNode;
   /** Факты под превью: подпись и значение. */
   facts: { label: string; value: ReactNode }[];
 }) {
@@ -42,9 +42,8 @@ export function GpuChooser(props: {
   const current = gpus.find((g) => g.id === value) ?? gpus[0];
   return (
     <div className="gch">
-      <div className="gch-left">
-        <div className="gch-list" role="radiogroup" aria-label="Видеокарта">
-          {items.map(({ gpu: x, meta, tag }) => (
+      <div className="gch-list" role="radiogroup" aria-label="Видеокарта">
+          {items.map(({ gpu: x, price, tag, note }) => (
             <button
               key={x.id}
               type="button"
@@ -57,15 +56,18 @@ export function GpuChooser(props: {
                 {x.name}
                 <NewBadge day={props.day} since={dateToDay(x.availableFrom)} />
               </span>
-              <span className={`gch-tag${tag ? '' : ' gch-hide'}`}>{tag ?? '-'}</span>
+              <span className="gch-price">{price}</span>
               <span className="gch-bar" title={`Мощность одной карты по сравнению с ${best?.name ?? ''}`}>
                 <i style={{ width: `${Math.max(3, best ? (x.h100e / best.h100e) * 100 : 100)}%` } as CSSProperties} />
               </span>
-              <span className="gch-meta">{meta}</span>
+              {(tag || note) && (
+                <span className="gch-meta">
+                  {tag && <span className="gch-tag">{tag}</span>}
+                  {note && <span className="gch-note">{note}</span>}
+                </span>
+              )}
             </button>
           ))}
-        </div>
-        {props.aside}
       </div>
       <div className="gch-stage">
         {current && <View3D spec={{ kind: 'gpu', gpu: current.id }} label={`Видеокарта ${current.name}, потяните мышью, чтобы повернуть`} className="gch-view" />}

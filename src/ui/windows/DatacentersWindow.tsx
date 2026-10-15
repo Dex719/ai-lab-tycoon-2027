@@ -471,11 +471,8 @@ function BuyDialog({ s, site, onClose }: { s: GameState; site: DcSiteId; onClose
           day={s.day}
           items={list.map((x) => ({
             gpu: x,
-            meta: (
-              <>
-                {fmtMoney(gpuBuyPrice(s, x.id))} за карту, поместится {fmtInt(freeSlots(dc, x.id))}
-              </>
-            ),
+            price: `${fmtMoney(gpuBuyPrice(s, x.id))} за карту`,
+            note: (dc.gpus[x.id] ?? 0) > 0 ? `в зале ${fmtInt(dc.gpus[x.id])}` : null,
           }))}
           value={id}
           onPick={(next) => {
@@ -483,17 +480,10 @@ function BuyDialog({ s, site, onClose }: { s: GameState; site: DcSiteId; onClose
             setText(suggest(next));
             setError(null);
           }}
-          aside={
-            <dl className="gch-wallet">
-              <dt>На счёте</dt>
-              <dd className={s.cash < 0 ? 'bad' : undefined}>{fmtMoney(s.cash)}</dd>
-              <dt>Свободно в зале</dt>
-              <dd>{fmtMw(dc.mw * 1000 - usedKw(dc))}</dd>
-            </dl>
-          }
           facts={[
             { label: 'Мощность', value: powerFact(g, list) },
             { label: 'Цена', value: `${fmtMoney(price)} за карту` },
+            { label: 'Поместится', value: `${fmtInt(fit)} шт., свободно ${fmtMw(dc.mw * 1000 - usedKw(dc))}` },
             { label: 'В аренде стоила бы', value: `${fmtMoney(rentPerGpuDay(s, id) * MONTH)} в месяц` },
           ]}
         />
@@ -534,6 +524,8 @@ function BuyDialog({ s, site, onClose }: { s: GameState; site: DcSiteId; onClose
           <dd className={n > 0 ? 'bad' : undefined}>{n > 0 ? `${fmtMoney(power)} в месяц` : '-'}</dd>
           <dt>Те же карты в аренде</dt>
           <dd>{n > 0 ? `${fmtMoney(n * rentPerGpuDay(s, id) * MONTH)} в месяц` : '-'}</dd>
+          <dt>Деньги после покупки</dt>
+          <dd className={s.cash - n * price < 0 ? 'bad' : undefined}>{fmtMoney(s.cash - n * price)}</dd>
         </dl>
         <div className="dc-err">
           <ErrorText error={error} />

@@ -123,6 +123,7 @@ function Hero({ s, onRent, flash }: { s: GameState; onRent: () => void; flash: R
       <figure className="cw-farm">
         <View3D spec={farm} label={`Арендованные карты в облаке: ${fmtCardsCount(layout.cards)}, ${racks}`} className="cw-farm-view" />
         {layout.cards === 0 && <figcaption className="cw-farm-empty">Карт пока нет</figcaption>}
+        {layout.scale > 1 && <figcaption className="cw-farm-scale">На схеме одна стойка за {fmtInt(layout.scale)}</figcaption>}
         {flash && (
           <div key={flash.key} className="cw-flash" role="status">
             {flash.text}
@@ -137,16 +138,18 @@ function Hero({ s, onRent, flash }: { s: GameState; onRent: () => void; flash: R
           {fmtH(total)}
           <span>H100e</span>
         </div>
-        <div className="cw-fig-sub">
-          {layout.cards > 0 ? `${fmtCardsCount(layout.cards)} в аренде, ${racks}` : 'Карт в аренде нет'}
-          {own > 0 && <>, свои: {fmtInt(own)}</>}
-        </div>
-        {layout.scale > 1 && <div className="cw-fig-note">На схеме одна стойка за {fmtInt(layout.scale)}</div>}
+        <div className="cw-fig-sub">{layout.cards > 0 ? `${fmtCardsCount(layout.cards)} в аренде, ${racks}` : 'Карт в аренде нет'}</div>
         <dl className="cw-fig-kv">
           <dt>Аренда в месяц</dt>
           <dd className={rentPerDay(s) > 0 ? 'bad' : undefined}>{rentPerDay(s) > 0 ? fmtMoney(rentPerDay(s) * DAYS_IN_MONTH) : '-'}</dd>
           <dt title={`До лимита - обычная цена, сверх него карты дороже ${OVER_TIMES}. Лимит растёт каждый год`}>Лимит аренды</dt>
           <dd>{fmtInt(cap)} на тип</dd>
+          {own > 0 && (
+            <>
+              <dt>Свои карты</dt>
+              <dd>{fmtInt(own)}</dd>
+            </>
+          )}
         </dl>
         <button className="btn primary cw-rent-btn" onClick={onRent} data-tutorial="rent-button">
           Арендовать
@@ -277,24 +280,12 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
           day={s.day}
           items={list.map((x) => ({
             gpu: x,
-            meta: (
-              <>
-                {fmtCardMonth(rentPerGpuDay(s, x.id))} в месяц
-                {s.compute.rented[x.id] > 0 && <span className="own">в аренде {fmtInt(s.compute.rented[x.id])}</span>}
-              </>
-            ),
+            price: `${fmtCardMonth(rentPerGpuDay(s, x.id))} в месяц`,
             tag: x.id === cheapest ? 'Выгоднее всего' : null,
+            note: s.compute.rented[x.id] > 0 ? `в аренде ${fmtInt(s.compute.rented[x.id])}` : null,
           }))}
           value={g.id}
           onPick={(next) => pick(GPUS.find((x) => x.id === next) ?? g)}
-          aside={
-            <dl className="gch-wallet">
-              <dt>На счёте</dt>
-              <dd className={s.cash < 0 ? 'bad' : undefined}>{fmtMoney(s.cash)}</dd>
-              <dt title="Аренда всех карт после изменения">Вся аренда в месяц</dt>
-              <dd className="bad">{count === null ? '-' : fmtMoney(rentPerDay(s) * DAYS_IN_MONTH + (delta?.money ?? 0))}</dd>
-            </dl>
-          }
           facts={[
             { label: 'Мощность', value: powerFact(g, list) },
             { label: 'Цена', value: `${fmtCardMonth(rentPerGpuDay(s, g.id))} за карту в месяц` },
@@ -345,6 +336,11 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
             <span>Карт</span>
             <b>{count === null ? '-' : `${fmtInt(count)} шт.`}</b>
             <small>сейчас {fmtInt(rented)} шт.</small>
+          </div>
+          <div className="cw-sum-i">
+            <span>На счёте</span>
+            <b className={s.cash < 0 ? 'bad' : undefined}>{fmtMoney(s.cash)}</b>
+            <small title="Аренда всех карт после изменения">вся аренда {count === null ? '-' : fmtMoney(rentPerDay(s) * DAYS_IN_MONTH + (delta?.money ?? 0))} в месяц</small>
           </div>
         </div>
       </div>
@@ -632,7 +628,9 @@ export default function ComputeWindow({ s, open }: WindowProps) {
           )}
           {ownedH100e(s) > 0 && (
             <div className="cw-own">
-              Свои карты в дата-центрах: <b>{fmtCardsCount(ownedCards(s))}</b>, {fmtH(ownedH100e(s))} H100e
+              <span>
+                Свои карты в дата-центрах: <b>{fmtCardsCount(ownedCards(s))}</b>, {fmtH(ownedH100e(s))} H100e
+              </span>
               <button type="button" className="btn small" onClick={() => open('datacenters')}>
                 Открыть дата-центры
               </button>
