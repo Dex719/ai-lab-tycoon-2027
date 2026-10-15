@@ -281,7 +281,7 @@ function SiteDetail(props: {
   const dc = findDc(s, def.id);
   const ready = !!dc && dcReady(dc);
   const [mode, setMode] = useState<SceneMode>('campus');
-  const scene = ready && mode === 'hall' ? dcFarm(dc) : campusSpec(s, def.id);
+  const scene = ready && mode === 'hall' ? { ...dcFarm(dc), wide: true } : campusSpec(s, def.id);
   const hallCards = ready ? farmLayout(dcFarm(dc).groups).cards : 0;
   return (
     <section className="dc-detail" aria-label={def.name}>

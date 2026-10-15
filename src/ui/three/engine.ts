@@ -521,4 +521,5 @@ export function gpuThumb(gpu: GpuId, cssW: number, cssH: number): string {
   return url;
 }
 
-if (typeof window !== 'undefined') (window as unknown as { __render3d: typeof stats }).__render3d = stats;
+// Только в разработке: проверка «ничего не крутится» из консоли.
+if (import.meta.env.DEV && typeof window !== 'undefined') (window as unknown as { __render3d: typeof stats }).__render3d = stats;
