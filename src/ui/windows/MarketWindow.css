@@ -58,7 +58,7 @@
 
 /* ---------- Таблица «Модели на рынке» ---------- */
 .mk-grid { font-size: 13px; }
-.an-grid.mk-grid th, .an-grid.mk-grid td { padding: 5px 8px; }
+.an-grid.mk-grid th, .an-grid.mk-grid td { padding: 5px 6px; }
 .an-grid.mk-grid thead th { white-space: normal; vertical-align: bottom; line-height: 1.25; }
 .an-grid.mk-grid thead th.num { white-space: normal; }
 .mk-grid .mk-h1 th.gh { text-align: center; border-bottom: 1px solid var(--line); padding-bottom: 3px; }
