@@ -216,7 +216,7 @@ function techProgress(s: GameState, tech: TechId): GoalProgress {
   const f = points > 0 ? clamp01(points / techCost(s, tech)) : 0;
   const miss = `изучено на ${Math.floor(f * 100)} %`;
   if (f > 0) return { done, fraction: f, text: `Изучено на ${Math.floor(f * 100)} %${s.research.current === tech ? '' : ', исследование стоит'}`, miss };
-  return { done, fraction: 0, text: s.research.current === tech ? 'Исследование началось' : 'Ещё не начато', miss: 'исследование не начато' };
+  return { done, fraction: 0, text: s.research.current === tech ? 'Исследование началось' : 'Ещё не начато', miss: 'изучено на 0 %' };
 }
 
 /**

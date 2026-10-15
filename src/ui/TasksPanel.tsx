@@ -13,6 +13,8 @@ import './goals.css';
 
 /** Сколько секунд закрытая задача видна в панели. */
 const FLASH_MS = 3200;
+/** Сколько строк итога закрытых задач видно сразу. */
+const MAX_CLOSED_SHOWN = 2;
 /** Срок от стольких дней и меньше - красным. */
 const URGENT_DAYS = 10;
 
@@ -46,7 +48,8 @@ function useClosedFlash(s: GameState): TaskState[] {
     const closed = s.quests.tasks.filter((t) => p.active.has(t.id) && t.status !== 'active');
     if (closed.length === 0) return;
     const copies = closed.map((t) => ({ ...t }));
-    setShown((cur) => [...cur.filter((x) => !copies.some((c) => c.id === x.id)), ...copies]);
+    // Не больше двух строк итога сразу: на большой скорости задачи могут закрываться чаще, чем гаснут строки.
+    setShown((cur) => [...cur.filter((x) => !copies.some((c) => c.id === x.id)), ...copies].slice(-MAX_CLOSED_SHOWN));
     const ids = copies.map((c) => c.id);
     window.setTimeout(() => setShown((cur) => cur.filter((x) => !ids.includes(x.id))), FLASH_MS);
   }, [s, activeKey]);

@@ -46,7 +46,7 @@ export function GoalsPanel({ s, open }: { s: GameState; open: (id: WindowId | Wi
               return (
                 <div
                   key={g.id}
-                  className={`goal-row${isDone ? ' done' : ''}${justDone.has(g.id) ? ' just-done' : ''}`}
+                  className={`goal-row${isDone ? ' done' : ''}${justDone.has(`${y.year}:${g.id}`) ? ' just-done' : ''}`}
                   onClick={() => open(opensFor(g.id))}
                   title={style ? `${style}. Награда: ${reward}` : `Награда: ${reward}`}
                 >
@@ -56,7 +56,7 @@ export function GoalsPanel({ s, open }: { s: GameState; open: (id: WindowId | Wi
                     <span className={`gt-reward${isDone ? ' ok' : ''}`}>{capitalize(goalRewardShort(g, y.year))}</span>
                   </div>
                   <div className="gp">
-                    {justDone.has(g.id) ? (
+                    {justDone.has(`${y.year}:${g.id}`) ? (
                       <span className="gp-flash">Цель выполнена</span>
                     ) : (
                       <>
@@ -91,7 +91,7 @@ export function GoalsPanel({ s, open }: { s: GameState; open: (id: WindowId | Wi
 
 const FLASH_MS = 2600;
 
-/** Цели, выполненные только что (в этой сессии): строка вспыхивает на 2,6 с. */
+/** Цели, выполненные только что (в этой сессии): строка вспыхивает на 2,6 с. Ключ - «год:цель»: у целей разных лет id совпадают. */
 function useJustDone(s: GameState): Set<string> {
   const seen = useRef<{ state: GameState; year: number; done: Set<string> } | null>(null);
   const [flash, setFlash] = useState<Set<string>>(new Set());
@@ -104,7 +104,7 @@ function useJustDone(s: GameState): Set<string> {
     const p = seen.current;
     seen.current = { state: s, year: s.yearly.year, done: now };
     if (!p || p.state !== s || p.year !== s.yearly.year) return;
-    const fresh = [...now].filter((id) => !p.done.has(id));
+    const fresh = [...now].filter((id) => !p.done.has(id)).map((id) => `${s.yearly.year}:${id}`);
     if (fresh.length === 0) return;
     setFlash((f) => new Set([...f, ...fresh]));
     const id = window.setTimeout(() => setFlash((f) => new Set([...f].filter((x) => !fresh.includes(x)))), FLASH_MS);
