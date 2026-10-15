@@ -12,7 +12,8 @@ export const START_REPUTATION = 20;
 export const FOREVER = Number.MAX_SAFE_INTEGER;
 /** Чат-момент (ChatGTP): с этого дня открыт канал подписок; событие в data/events.ts берёт дату отсюда. */
 export const CHAT_MOMENT_DATE = '2022-11-30';
-export const DEFAULT_ALLOC: Allocation = { training: 0.4, contracts: 0.2, experiments: 0.4, api: 0, subs: 0 };
+// API 10 % с начала: выпущенная модель сразу продаётся (при 0 % выручка API была нулевой, игроки этого не замечали).
+export const DEFAULT_ALLOC: Allocation = { training: 0.4, contracts: 0.2, experiments: 0.3, api: 0.1, subs: 0 };
 /** Одновременно идущих проектов обучения не больше. */
 export const MAX_TRAININGS = 2;
 
@@ -202,8 +203,10 @@ export const TOKENS_PER_USER_DAY = 10_000; // для оценки числа п�
 export const MARKET_MODELS_PER_LAB = 3;
 export const MARKET_MAX_AGE_DAYS = 365 * 3;
 export const DEMAND_TOKENS: [string, number][] = [
-  ['2017-01-01', 5e7], ['2019-01-01', 2e8], ['2020-06-10', 3e8], ['2020-06-11', 2e9],
-  ['2022-11-29', 4e9], ['2022-11-30', 2e10], ['2023-06-01', 3e11], ['2024-12-31', 3e12],
+  // 2017-2022 подняты (×2 до середины 2020 года, ×1,4 до ChatGTP): плейтест 15.10 - API не окупал аренду ни в один год до 2023-го,
+  // лаборатория жила только раундами инвесторов. Скачок ChatGTP (30.11.2022) и 2023-2024 годы прежние.
+  ['2017-01-01', 1e8], ['2019-01-01', 4e8], ['2020-06-10', 5e8], ['2020-06-11', 2.8e9],
+  ['2022-11-29', 5.6e9], ['2022-11-30', 2e10], ['2023-06-01', 3e11], ['2024-12-31', 3e12],
 ];
 export const REF_PRICE: [string, number][] = [
   ['2017-01-01', 100], ['2020-01-01', 60], ['2022-01-01', 20], ['2023-01-01', 10], ['2024-01-01', 3], ['2024-12-31', 2.5],
@@ -344,6 +347,8 @@ export const REV_MULT: Record<number, number> = {
 };
 export const ROUND_FRACTIONS = [0.1, 0.2, 0.3] as const;
 export const ROUND_COOLDOWN_DAYS = 365;
+/** Экстренный раунд: деньги в минусе - раунд доступен до конца перерыва, но оценка ниже (×0,6). */
+export const EMERGENCY_VALUATION_MULT = 0.6;
 // Доля основателя: ниже FOUNDER_BOARD_SHARE совет директоров берёт управление (событие 'board-control'),
 // ниже FOUNDER_WARN_SHARE приходит важное письмо-предупреждение (один раз).
 export const FOUNDER_BOARD_SHARE = 0.5;

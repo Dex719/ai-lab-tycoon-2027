@@ -612,6 +612,13 @@ describe('estimate', () => {
     const est = estimate(s, plan({ paramsB: 175, tokensB: 300 }));
     expect(est.forecast).toBeNull();
     expect(est.optimal).toBeNull();
+    // Грубая оценка есть с первого дня и совпадает с точным Эло, которое откроет исследование.
+    expect(est.roughElo).not.toBeNull();
+    s.research.done.push('scaling');
+    const exact = estimate(s, plan({ paramsB: 175, tokensB: 300 }));
+    expect(exact.roughElo).toBeNull();
+    expect(est.roughElo!).toBeCloseTo(exact.forecast!.elo, 9);
+    s.research.done.pop();
     expect(est.flop).toBeCloseTo(3.15e23, -18);
     expect(est.arch).toBe('transformer');
     expect(est.error).toBeNull();

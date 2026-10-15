@@ -4,6 +4,7 @@ import {
   BOARD_BUYBACK_PREMIUM,
   BOARD_BUYBACK_SHARE,
   BOARD_PLAN_VALUATION_MULT,
+  EMERGENCY_VALUATION_MULT,
   FOUNDER_WARN_SHARE,
   MANIA,
   REV_MULT,
@@ -29,6 +30,13 @@ export interface Valuation {
   repMult: number;
   /** Множитель плана совета директоров (BOARD_PLAN_VALUATION_MULT до следующего раунда), иначе 1. */
   boardMult: number;
+  /** Экстренный раунд (деньги в минусе, перерыв не прошёл): EMERGENCY_VALUATION_MULT, иначе 1. */
+  emergencyMult: number;
+}
+
+/** Деньги в минусе, а годовой перерыв между раундами не прошёл: можно провести экстренный раунд со скидкой. */
+export function emergencyRound(s: GameState): boolean {
+  return s.cash < 0 && s.lastRoundDay !== null && s.day < s.lastRoundDay + ROUND_COOLDOWN_DAYS;
 }
 
 /** Флаг состояния: принят план совета директоров, следующий раунд пройдёт по сниженной оценке. */
@@ -75,8 +83,9 @@ export function valuation(s: GameState): Valuation {
   const hypeMult = 1 + s.hype.player / 100;
   const repMult = 0.6 + s.reputation / 125;
   const boardMult = s.flags[BOARD_PLAN_FLAG] ? BOARD_PLAN_VALUATION_MULT : 1;
-  const total = Math.max(VALUATION_FLOOR, revenuePart + techPart) * hypeMult * repMult * boardMult;
-  return { total, annualRevenue, revenuePart, techPart, rankFactor, bestRank, hypeMult, repMult, boardMult };
+  const emergencyMult = emergencyRound(s) ? EMERGENCY_VALUATION_MULT : 1;
+  const total = Math.max(VALUATION_FLOOR, revenuePart + techPart) * hypeMult * repMult * boardMult * emergencyMult;
+  return { total, annualRevenue, revenuePart, techPart, rankFactor, bestRank, hypeMult, repMult, boardMult, emergencyMult };
 }
 
 /** Цена выкупа BOARD_BUYBACK_SHARE компании: доля × оценка × надбавка инвесторам. */
@@ -121,7 +130,7 @@ function warnFounderShare(s: GameState): void {
 
 /** Причина, почему раунд недоступен (кулдаун - «через N дней»), или null. */
 export function canRaise(s: GameState): string | null {
-  if (s.lastRoundDay === null) return null;
+  if (s.lastRoundDay === null || emergencyRound(s)) return null;
   const left = s.lastRoundDay + ROUND_COOLDOWN_DAYS - s.day;
   if (left > 0) return `Следующий раунд - через ${left} дн.`;
   return null;
@@ -138,6 +147,7 @@ export function raiseRound(s: GameState, fraction: number): Result {
   }
   const reason = canRaise(s);
   if (reason !== null) return { ok: false, error: reason };
+  const emergency = emergencyRound(s);
   const value = valuation(s).total;
   const money = value * f;
   earn(s, 'investors', money);
@@ -147,7 +157,7 @@ export function raiseRound(s: GameState, fraction: number): Result {
   if (s.flags[BOARD_PLAN_FLAG]) delete s.flags[BOARD_PLAN_FLAG];
   addMail(s, {
     kind: 'finance',
-    title: `Раунд инвестиций закрыт: ${fmtMoney(money)}`,
+    title: `${emergency ? 'Экстренный раунд закрыт' : 'Раунд инвестиций закрыт'}: ${fmtMoney(money)}`,
     reward: true,
     body:
       `При оценке лаборатории в ${fmtMoney(value)} инвесторы вложили ${fmtMoney(money)} ` +

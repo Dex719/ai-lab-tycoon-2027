@@ -37,6 +37,7 @@ import {
   tierRange,
   trainingPoolPerRun,
   trainOverhead,
+  ROUGH_ELO_SPREAD,
 } from '../../sim/training';
 import { DOMAINS, TIER_IDS, TIER_NAMES } from '../../sim/types';
 import type { BenchmarkId, DomainId, GameState, Tier, TrainingPlan, TrainingRun } from '../../sim/types';
@@ -170,7 +171,8 @@ function initialDraft(s: GameState): Draft {
       : { language: 50, code: 25, reasoning: 25 },
     share: 0,
     targets: [],
-    rlhf: prev?.rlhf ?? false,
+    // После исследования RLHF включён по умолчанию (плейтест 15.10: игроки не замечали выключенный тумблер); снять можно у каждой модели.
+    rlhf: (prev?.rlhf ?? false) || s.research.done.includes('rlhf'),
     context: null,
     autoData: true,
   };
@@ -412,6 +414,13 @@ function raceForecast(s: GameState, fc: NonNullable<Est['forecast']>) {
   return { metric: m, value, place, passes };
 }
 
+/** Вилка грубой оценки до «Законов масштабирования»: «≈ 480-560», края округлены до 10. */
+function roughRange(elo: number): string {
+  const lo = Math.floor((elo * (1 - ROUGH_ELO_SPREAD)) / 10) * 10;
+  const hi = Math.ceil((elo * (1 + ROUGH_ELO_SPREAD)) / 10) * 10;
+  return `≈ ${fmtElo(lo)}-${fmtElo(hi)}`;
+}
+
 function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
   const { s, est, open } = props;
   if (!est) {
@@ -464,9 +473,9 @@ function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
           </>
         ) : (
           <>
-            <div className="nm-kpi-v dim">?</div>
+            <div className={`nm-kpi-v${est.roughElo === null ? ' dim' : ''}`}>{est.roughElo === null ? '?' : roughRange(est.roughElo)}</div>
             <div className="nm-kpi-s">
-              Прогноз откроется после исследования{' '}
+              {est.roughElo === null ? 'Прогноз откроется после исследования' : 'Грубо. Точный прогноз и место в гонке откроет исследование'}{' '}
               <button className="nm-link" onClick={() => open('research')}>
                 «Законы масштабирования»
               </button>

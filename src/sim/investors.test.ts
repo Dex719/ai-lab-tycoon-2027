@@ -627,3 +627,29 @@ describe('предупреждение о доле основателя', () => 
     expect(warnings(s)).toHaveLength(0);
   });
 });
+
+describe('экстренный раунд', () => {
+  it('деньги в минусе: раунд доступен до конца перерыва, оценка ×0,6, письмо «Экстренный раунд закрыт»', () => {
+    const s = createInitialState('Тест', 1);
+    s.day = 500;
+    s.lastRoundDay = 400; // перерыв не прошёл
+    s.cash = 1_000;
+    expect(canRaise(s)).not.toBeNull();
+    const normal = valuation(s).total;
+    s.cash = -1_000;
+    expect(canRaise(s)).toBeNull();
+    expect(valuation(s).emergencyMult).toBe(0.6);
+    expect(valuation(s).total).toBeCloseTo(normal * 0.6, 6);
+    expect(raiseRound(s, 0.1).ok).toBe(true);
+    expect(s.mail[s.mail.length - 1].title).toMatch(/^Экстренный раунд закрыт/);
+    expect(s.cash).toBeGreaterThan(0);
+  });
+
+  it('после годового перерыва скидки нет, даже если денег нет', () => {
+    const s = createInitialState('Тест', 1);
+    s.day = 900;
+    s.lastRoundDay = 400;
+    s.cash = -1_000;
+    expect(valuation(s).emergencyMult).toBe(1);
+  });
+});

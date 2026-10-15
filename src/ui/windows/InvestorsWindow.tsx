@@ -111,6 +111,7 @@ export function valuationParts(s: GameState, v: Valuation): Part[] {
   const hype = base * (v.hypeMult - 1);
   const rep = base * v.hypeMult * (v.repMult - 1);
   const board = base * v.hypeMult * v.repMult * (v.boardMult - 1);
+  const emergency = base * v.hypeMult * v.repMult * v.boardMult * (v.emergencyMult - 1);
   const rank =
     v.bestRank === null
       ? 'нет моделей в продаже'
@@ -122,6 +123,7 @@ export function valuationParts(s: GameState, v: Valuation): Part[] {
     { key: 'hype', label: 'Шумиха', sub: `уровень ${fmtNum(s.hype.player)} из 100`, value: hype },
     { key: 'rep', label: 'Репутация', sub: `уровень ${fmtNum(s.reputation)} из 100`, value: rep },
     { key: 'board', label: 'План совета директоров', sub: 'скидка до следующего раунда', value: board },
+    { key: 'emergency', label: 'Экстренный раунд', sub: 'деньги в минусе: инвесторы дают меньше', value: emergency },
   ];
   return parts.filter((p) => Math.abs(p.value) >= 1);
 }

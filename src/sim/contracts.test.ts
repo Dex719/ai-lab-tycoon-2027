@@ -100,6 +100,12 @@ function newState(seed = 1): GameState {
   return createInitialState('Тест', seed);
 }
 
+/** Много мощности целиком на контракты: автоподбор не упирается в свободную мощность. */
+function withPower(s: GameState): GameState {
+  poolValue = 1e9; // pool замокан: возвращает poolValue
+  return s;
+}
+
 function makeModel(over: Partial<PlayerModel> = {}): PlayerModel {
   return {
     id: 'p1',
@@ -1320,8 +1326,19 @@ describe('autoApplyTenders', () => {
     s.day = 100;
     s.reputation = 20;
     s.models.push(makeModel());
-    return s;
+    return withPower(s);
   }
+
+  it('мощности на контракты нет: заявка не подаётся, в письме - «не хватает мощности»', () => {
+    shownScore = 66;
+    honestScore = 66;
+    const s = stateWithModel();
+    poolValue = 0;
+    const t = makeTender({ requirement: 60, appearedDay: 100, expiresDay: 130 });
+    autoApplyTenders(s, [t]);
+    expect(t.application).toBeNull();
+    expect(lastMail(s).body).toMatch(/Не хватает мощности в доле «Контракты»: 1/);
+  });
 
   it('заявка с пометкой auto, шанс и день решения как у ручной заявки', () => {
     shownScore = 66;
@@ -1400,7 +1417,7 @@ describe('generateMonthly: автоподбор', () => {
     s.autoApply = autoApply;
     s.day = dateToDay('2021-03-01');
     s.models.push(makeModel());
-    return s;
+    return withPower(s);
   }
 
   it('выключен: заявок и писем нет', () => {
@@ -1516,7 +1533,7 @@ describe('сохранение: автоподбор', () => {
   });
 
   it('флаг и пометка auto у заявки переживают сохранение; испорченная пометка отклоняется', () => {
-    const s = newState();
+    const s = withPower(newState());
     s.autoApply = true;
     s.models.push(makeModel());
     const t = makeTender();

@@ -44,8 +44,8 @@ describe('ALLOC_ROWS и percentsOf', () => {
     expect(totalPercent(odd)).toBe(100);
   });
 
-  it('percentsOf стартовых долей: 40 / 20 / 40 / 0 / 0', () => {
-    expect(percentsOf(DEFAULT_ALLOC)).toEqual({ training: 40, contracts: 20, experiments: 40, api: 0, subs: 0 });
+  it('percentsOf стартовых долей: 40 / 20 / 30 / 10 / 0', () => {
+    expect(percentsOf(DEFAULT_ALLOC)).toEqual({ training: 40, contracts: 20, experiments: 30, api: 10, subs: 0 });
   });
 
   it('toAllocation переводит проценты в доли и обратно без потерь', () => {

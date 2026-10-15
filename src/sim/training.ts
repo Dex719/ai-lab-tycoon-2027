@@ -73,6 +73,9 @@ import type { BenchmarkId, DomainId, GameState, PlayerModel, Result, TechId, Tie
 
 export type Arch = 'lstm' | 'transformer';
 
+/** Разброс грубой оценки Эло до «Законов масштабирования»: ±12 %. */
+export const ROUGH_ELO_SPREAD = 0.12;
+
 export interface TrainingEstimate {
   flop: number;
   days: number | null; // null - доля «Обучение» = 0
@@ -84,6 +87,8 @@ export interface TrainingEstimate {
     scores: Partial<Record<BenchmarkId, number>>; // показанные (с подгонкой), по вышедшим бенчмаркам
     elo: number;
   }; // null, если не исследованы «Законы масштабирования»
+  /** Эло без «Законов масштабирования»: интерфейс показывает его вилкой ±ROUGH_ELO_SPREAD; после исследования - null. */
+  roughElo: number | null;
   optimal: null | { paramsB: number; tokensB: number }; // подсказка по Шиншилле для того же FLOP (только со scaling)
 }
 
@@ -365,6 +370,7 @@ export function estimate(s: GameState, plan: TrainingPlan): TrainingEstimate {
     labelers: labelersCost(plan),
     error: validatePlan(s, plan),
     forecast: null,
+    roughElo: null,
     optimal: null,
   };
   // Прогноз считаем только для осмысленных чисел: иначе в форме появились бы NaN.
@@ -374,11 +380,16 @@ export function estimate(s: GameState, plan: TrainingPlan): TrainingEstimate {
     Number.isFinite(flop) &&
     Number.isFinite(plan.benchShare) &&
     DOMAINS.every((d) => Number.isFinite(plan.mix[d]));
-  if (!sane || !s.research.done.includes('scaling')) return result;
+  if (!sane) return result;
 
   const algoLevel = s.research.algoLevel;
   const techs = modelTechs(s);
   const caps = capsFromPlan(plan, algoLevel, arch, 0, techs);
+  if (!s.research.done.includes('scaling')) {
+    // Грубая оценка с первого дня (плейтест 15.10: без прогноза почти 3 года игры шли вслепую).
+    result.roughElo = arenaElo(caps, plan.rlhf, algoLevel, techs) + newModelEloBonus(s, plan.rlhf);
+    return result;
+  }
   const overfit = overfitFromPlan(plan);
   const scores: Partial<Record<BenchmarkId, number>> = {};
   for (const bid of introducedBenchmarks(s)) {

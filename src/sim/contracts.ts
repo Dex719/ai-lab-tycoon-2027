@@ -200,10 +200,20 @@ export function bestAutoModel(s: GameState, tender: Tender): PlayerModel | null 
  */
 export function autoApplyTenders(s: GameState, tenders: Tender[]): void {
   const lines: string[] = [];
+  let noPower = 0;
+  // Авто-заявки только под свободную мощность: плейтест 15.10 - автоподбор набирал 5-7 контрактов, и все срывались.
+  let load = contractLoadPerDay(s);
+  const capacity = pool(s, 'contracts');
   for (const t of tenders) {
     if (t.application !== null) continue;
     const model = bestAutoModel(s, t);
     if (!model) continue;
+    const add = contractWorkFor(s, t, model) / Math.max(1, t.durationDays);
+    if (load + add > capacity * 1.02) {
+      noPower++;
+      continue;
+    }
+    load += add;
     placeApplication(s, t, model, true);
     const chance = Math.round(t.application!.chance * 100);
     lines.push(
@@ -211,16 +221,28 @@ export function autoApplyTenders(s: GameState, tenders: Tender[]): void {
         `модель «${model.name}», оплата ${fmtMoney(t.payment)}, шанс ${chance} %.`,
     );
   }
-  if (lines.length === 0) return;
-  const skipped = tenders.length - lines.length;
+  if (lines.length === 0 && noPower === 0) return;
+  const skipped = tenders.length - lines.length - noPower;
   addMail(s, {
     kind: 'contract',
     title: `Заявки поданы: ${lines.length} из ${tenders.length}`,
     body:
       `Новых тендеров: ${tenders.length}, заявок подано: ${lines.length}. Решение - при закрытии тендера.\n` +
       lines.join('\n') +
+      (noPower > 0 ? `\nНе хватает мощности в доле «Контракты»: ${noPower}.` : '') +
       (skipped > 0 ? `\nБез подходящей модели: ${skipped}.` : ''),
   });
+}
+
+/**
+ * Сколько H100e в день нужно идущим контрактам (остаток работы до срока) и поданным заявкам (работа за срок тендера).
+ * По этой сумме автоподбор решает, хватит ли доли «Контракты» ещё на один контракт.
+ */
+export function contractLoadPerDay(s: GameState): number {
+  let load = 0;
+  for (const c of s.contracts) load += Math.max(0, c.tender.work - c.workDone) / Math.max(1, c.deadlineDay - s.day);
+  for (const t of s.tenders) if (t.application) load += (t.application.work ?? t.work) / Math.max(1, t.durationDays);
+  return load;
 }
 
 /**

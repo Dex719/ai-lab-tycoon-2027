@@ -496,9 +496,9 @@ describe('setRent', () => {
 });
 
 describe('доли мощности v2: пять ключей', () => {
-  it('ALLOC_KEYS: обучение, контракты, исследования, API, подписки; DEFAULT_ALLOC без мощности на клиентов', () => {
+  it('ALLOC_KEYS: обучение, контракты, исследования, API, подписки; DEFAULT_ALLOC с 10 % на API', () => {
     expect(ALLOC_KEYS).toEqual(['training', 'contracts', 'experiments', 'api', 'subs']);
-    expect(DEFAULT_ALLOC).toEqual({ training: 0.4, contracts: 0.2, experiments: 0.4, api: 0, subs: 0 });
+    expect(DEFAULT_ALLOC).toEqual({ training: 0.4, contracts: 0.2, experiments: 0.3, api: 0.1, subs: 0 });
     expect(ALLOC_KEYS.reduce((a, k) => a + DEFAULT_ALLOC[k], 0)).toBeCloseTo(1, 12);
   });
 
