@@ -83,6 +83,8 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .tb-side.on { background: var(--c-blue); border-color: var(--c-blue); }
   .money-pop { position: fixed; left: 8px; right: 8px; top: 44px; min-width: 0; transform: none; }
   .pause-note { top: 100%; margin-top: 6px; max-width: calc(100vw - 16px); white-space: normal; text-align: center; }
+  /* Открыто окно на весь экран: плашка паузы закрывала бы его заголовок; о паузе говорит нажатая кнопка скорости. */
+  .game:has(.window.fs:not(.fs-off)) .pause-note { display: none; }
   /* верхняя панель на телефоне в две строки, под ней плашка паузы: баннер гонки ниже обеих */
   .ar-banner { top: 132px; }
 
