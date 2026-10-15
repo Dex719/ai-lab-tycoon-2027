@@ -151,64 +151,66 @@ export default function FinanceTab({ s }: WindowProps) {
 
       <section>
         <h2 className="an-h">Последние 12 месяцев</h2>
-        <table className="grid an-grid flat an-wrap">
-          <thead>
-            <tr className="grp">
-              <th />
-              <th colSpan={incomeCols.length} className="good">
-                Доходы
-              </th>
-              <th colSpan={EXPENSE_COLS.length} className="bad">
-                Расходы
-              </th>
-              <th />
-              {subs && <th />}
-            </tr>
-            <tr>
-              <th>Месяц</th>
-              {incomeCols.map((c) => (
-                <th key={c.kind} className="num" title={c.title}>
-                  {c.label}
+        <div className="an-hscroll">
+          <table className="grid an-grid flat an-wrap">
+            <thead>
+              <tr className="grp">
+                <th />
+                <th colSpan={incomeCols.length} className="good">
+                  Доходы
                 </th>
-              ))}
-              {EXPENSE_COLS.map((c) => (
-                <th key={c.kind} className="num" title={c.title}>
-                  {c.label}
+                <th colSpan={EXPENSE_COLS.length} className="bad">
+                  Расходы
                 </th>
-              ))}
-              <th
-                className="num"
-                title={`${subs ? 'Продажа API, подписки и контракты' : 'Продажа API и контракты'} минус текущие расходы за месяц, без вложений инвесторов и разовых вложений`}
-              >
-                Итог без инвесторов
-              </th>
-              {subs && (
-                <th className="num" title="Обслуженные подписчики в последний день месяца">
-                  Подписчики
+                <th />
+                {subs && <th />}
+              </tr>
+              <tr>
+                <th>Месяц</th>
+                {incomeCols.map((c) => (
+                  <th key={c.kind} className="num" title={c.title}>
+                    {c.label}
+                  </th>
+                ))}
+                {EXPENSE_COLS.map((c) => (
+                  <th key={c.kind} className="num" title={c.title}>
+                    {c.label}
+                  </th>
+                ))}
+                <th
+                  className="num"
+                  title={`${subs ? 'Продажа API, подписки и контракты' : 'Продажа API и контракты'} минус текущие расходы за месяц, без вложений инвесторов и разовых вложений`}
+                >
+                  Итог без инвесторов
                 </th>
+                {subs && (
+                  <th className="num" title="Обслуженные подписчики в последний день месяца">
+                    Подписчики
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {!view.closed && (
+              <LedgerRow
+                label={
+                  <>
+                    {formatMonth(cur.year, cur.month)}
+                    <small className="an-note">идёт</small>
+                  </>
+                }
+                ledger={s.finance.month}
+                subscribers={finite(s.market.playerSubs)}
+                current
+                subs={subs}
+              />
               )}
-            </tr>
-          </thead>
-          <tbody>
-            {!view.closed && (
-            <LedgerRow
-              label={
-                <>
-                  {formatMonth(cur.year, cur.month)}
-                  <small className="an-note">идёт</small>
-                </>
-              }
-              ledger={s.finance.month}
-              subscribers={finite(s.market.playerSubs)}
-              current
-              subs={subs}
-            />
-            )}
-            {closed.map((r) => (
-              <LedgerRow key={`${r.year}-${r.month}`} label={formatMonth(r.year, r.month)} ledger={r} subscribers={finite(r.subscribers)} subs={subs} />
-            ))}
-          </tbody>
-        </table>
+              {closed.map((r) => (
+                <LedgerRow key={`${r.year}-${r.month}`} label={formatMonth(r.year, r.month)} ledger={r} subscribers={finite(r.subscribers)} subs={subs} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </div>
   );
