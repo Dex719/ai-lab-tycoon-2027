@@ -133,7 +133,7 @@
   .dc-head { flex-wrap: wrap; align-items: flex-start; }
   .dc-body { grid-template-columns: 1fr; overflow: auto; }
   .dc-sites { flex-direction: row; overflow-x: auto; align-self: stretch; max-height: none; margin: 10px 12px 0; }
-  .dc-site, .dc-site.is-selected { min-width: 170px; border-bottom: none; border-right: 1px solid var(--row-line); }
+  .dc-site, .dc-site.is-selected { width: auto; flex: none; min-width: 170px; border-bottom: none; border-right: 1px solid var(--row-line); }
   .dc-detail { margin: 8px 12px 12px; }
   .dc-detail-body { overflow: visible; }
   .dc-build { grid-template-columns: 1fr; }

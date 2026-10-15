@@ -3,7 +3,7 @@
 .ach-toasts { position: fixed; left: 110px; top: 50px; z-index: 885; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .ach-toast {
   display: flex; align-items: center; gap: 10px; min-width: 260px; max-width: 360px; padding: 8px 14px 8px 10px;
-  background: var(--gold-tint); color: var(--text-title); border: 1px solid #e6cf86; border-left: 5px solid var(--gold-line); border-radius: 3px;
+  background: #fff; color: var(--text-title); border: 1px solid var(--line); border-left: 5px solid var(--gold-line); border-radius: 3px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4); animation: ach-in 4500ms ease-out forwards;
 }
 .ach-medal { flex: none; }

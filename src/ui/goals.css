@@ -17,7 +17,8 @@
 .goal-row:hover, .task-row:hover { background: #2f3035; }
 .goal-row .gt, .task-row .tr-top { display: flex; align-items: baseline; gap: 6px; }
 .goal-row .gt-name, .task-row .tr-title { flex: 1; min-width: 0; color: #fff; font-size: 14px; line-height: 1.3; }
-.goal-row .gt-ok { flex: none; align-self: center; color: var(--good-on-dark); }
+/* Галочка - у первой строки названия, даже когда название в две-три строки. */
+.goal-row .gt-ok { flex: none; align-self: flex-start; margin-top: 3px; color: var(--good-on-dark); }
 .goal-row .gt-reward, .task-row .tr-reward { flex: none; max-width: 48%; text-align: right; color: var(--gold-fill); font-size: 12px; font-variant-numeric: tabular-nums; }
 .goal-row .gt-reward.ok { color: var(--good-on-dark); }
 .goal-row .gp { margin-top: 1px; line-height: 1.35; font-variant-numeric: tabular-nums; }
@@ -33,23 +34,10 @@
 .goal-bonuses { padding: 2px 12px 6px; }
 .goal-bonus { font-size: 12px; color: var(--good-on-dark); line-height: 1.4; }
 
-/* «Почти!» и праздник выполненной цели: «почти» - янтарным, как предупреждение на тёмном (золото - только награда). */
-.goal-almost { margin-left: 6px; font-size: 12px; font-weight: 600; color: #f2b84b; }
-.goal-row.almost .goal-bar > div { background: #f2b84b; }
-.goal-row.just-done { position: relative; animation: goal-flash 2600ms ease-out; }
-.goal-row.just-done::after {
-  content: 'Цель выполнена'; position: absolute; right: 10px; top: 6px; padding: 1px 6px; border-radius: 3px;
-  font-size: 11px; font-weight: 700; color: #0f2b19; background: var(--good-on-dark);
-  animation: goal-tag 2600ms ease-out forwards;
-}
-@keyframes goal-flash {
-  0% { background: rgba(94, 211, 127, 0.3); }
-  100% { background: transparent; }
-}
-@keyframes goal-tag { 0% { opacity: 0; transform: translateY(6px); } 10%, 80% { opacity: 1; transform: none; } 100% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .goal-row.just-done, .goal-row.just-done::after { animation: none; }
-}
+/* Только что выполненная цель: строка коротко подсвечивается зелёным, в строке прогресса - «Цель выполнена» (GoalsPanel).
+   Отдельной плашки поверх названия нет: она закрывала текст и повторяла ту же фразу. */
+.goal-row.just-done { animation: goal-flash 2600ms ease-out; }
+@keyframes goal-flash { from { background: rgba(94, 211, 127, 0.22); } to { background: transparent; } }
 
 
 .task-row { animation: task-in 200ms ease-out; }

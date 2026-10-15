@@ -91,7 +91,7 @@
 .ls-k { font-size: 11px; color: var(--bar-dim); }
 .ls-v { margin-top: 3px; display: flex; align-items: baseline; gap: 5px; font-size: 15px; font-weight: 600; color: var(--bar-text); font-variant-numeric: tabular-nums; }
 .ls-bar { width: 100%; min-width: 44px; height: 3px; margin-top: 3px; background: #3a3b40; border-radius: 2px; overflow: hidden; }
-.ls-bar i { display: block; height: 100%; background: #8fa3bf; transition: width 300ms ease-out; }
+.ls-bar i { display: block; height: 100%; background: #8fa3bf; }
 .lab-stat.up .ls-bar i { background: var(--good-on-dark); }
 .lab-stat.down .ls-bar i { background: var(--bad-on-dark); }
 /* Изменение от события: цветной текст рядом с числом, гаснет сам. */
