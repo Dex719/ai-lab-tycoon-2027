@@ -26,6 +26,9 @@
 .mo-ink { fill: var(--ink); }
 .mo-line { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .mo-tick { stroke-width: 4; }
+.mo-thin { stroke-width: 1.2; }
+.mo-dash { stroke-dasharray: 4 4; stroke-width: 1.5; }
+.mo-line.inv { stroke: #f4efe2; stroke-width: 1.2; }
 .mo-num { fill: var(--ink); font: 700 18px Georgia, 'Times New Roman', serif; text-anchor: middle; }
 .mo-num.inv { fill: #f4efe2; font-size: 26px; }
 .mo-num.big { font-size: 44px; }

@@ -24,6 +24,9 @@ const MOMENT_TITLES: Record<string, string> = {
   'first-place-arena': 'Первое место на «Арене»',
   'first-rlhf': 'Первая чат-модель',
   'chat-moment': 'Свой «момент ChatGTP»',
+  'main-rival': 'Главный соперник обойдён',
+  startup: 'Покупка стартапа',
+  'push-held': 'Финальный рывок отбит',
 };
 
 function revenueOf(h: MonthRecord): number {
