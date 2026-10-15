@@ -50,7 +50,7 @@
   content: ''; position: absolute; left: 50%; bottom: 100%; width: 26px; height: 40px; margin-left: -13px; margin-bottom: -6px;
   border: 4px solid #c9ced5; border-bottom: none; border-radius: 2px 2px 0 0; background: #34373c;
 }
-.ls-liquid { position: absolute; left: 0; right: 0; bottom: 0; overflow: hidden; border-radius: 0 0 46px 46px; background: #7b5cd6; }
+.ls-liquid { position: absolute; left: 0; right: 0; bottom: 0; overflow: hidden; border-radius: 0 0 46px 46px; background: var(--c-teal); }
 .ls-flask:not(.busy) .ls-liquid { background: #6b6f76; }
 .ls-liquid i { display: none; }
 
@@ -75,7 +75,8 @@
 .ls-cup { width: 60px; height: 60px; display: grid; place-items: center; border-radius: 50%; font-size: 24px; font-weight: 700; color: #26292e; background: #c9ced5; }
 .ls-cup.gold { color: #2b2000; background: #e8c34a; }
 .ls-cup.none { color: #8b8e93; background: #2f3237; border: 1px dashed #5d6168; }
-.ls-board { display: flex; align-items: flex-end; justify-content: center; gap: 4px; min-width: 120px; min-height: 52px; padding: 0 6px; border-bottom: 7px solid #7a5a38; }
+.ls-board { display: flex; align-items: flex-end; justify-content: center; gap: 4px; min-width: 120px; min-height: 52px; padding: 0 6px; }
+.ls-plank { width: 160px; height: 8px; margin-top: -8px; background: #7a5a38; border-radius: 1px; }
 .ls-board-empty { width: 100px; height: 40px; }
 
 /* Средний экран: сцена чуть меньше, чтобы не заходить на значки и сводку. */

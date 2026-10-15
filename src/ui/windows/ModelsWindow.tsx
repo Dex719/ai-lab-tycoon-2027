@@ -48,7 +48,7 @@ import { ModelEmblem } from '../components/ModelEmblem';
 import { TierBadge } from '../components/TierBadge';
 import { fmtDays, fmtElo, fmtH100e, fmtMoney, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare, fmtTokens, ruPlural } from '../format';
 import { tokensWord } from '../../sim/text';
-import { IconChevronLeft, IconModels } from '../icons';
+import { IconCaret, IconChevronLeft, IconModels } from '../icons';
 import { raceMetricOf, raceRows } from '../race';
 import { actions, store } from '../store';
 import './ModelsWindow.css';
@@ -283,7 +283,7 @@ function ModelList(props: {
             title="Модели, снятые с продажи"
             onClick={() => setArchiveOpen((v) => !v)}
           >
-            <span className="mw-archive-arrow">{archiveShown ? '▾' : '▸'}</span>
+            <IconCaret size={14} className={`mw-caret${archiveShown ? ' open' : ''}`} />
             Архив ({archived.length})
           </button>
         )}

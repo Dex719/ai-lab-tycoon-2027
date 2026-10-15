@@ -36,11 +36,7 @@ export function MainMenu() {
 
   return (
     <div className="menu-screen mm">
-      <div className="mm-racks" aria-hidden="true">
-        {Array.from({ length: RACKS }, (_, i) => (
-          <span key={i} className={`mm-rack h${i % 3}`} />
-        ))}
-      </div>
+      <MenuRacks />
       <h1 className="mm-title">AI Lab Tycoon</h1>
       <div className="mm-years">2017-2024</div>
       <nav className="mm-items" aria-label="Главное меню">
@@ -79,8 +75,37 @@ export function MainMenu() {
   );
 }
 
-/** Ряд серверных стоек внизу экрана меню: силуэт будущей лаборатории. */
+/** Ряд серверных стоек внизу экрана меню: силуэт будущей лаборатории. Рисунок неподвижный. */
 const RACKS = 26;
+const RACK_H = [150, 186, 122];
+
+function MenuRacks() {
+  const w = 46;
+  const gap = 10;
+  const total = RACKS * (w + gap) - gap;
+  const top = Math.max(...RACK_H);
+  return (
+    <svg className="mm-racks" viewBox={`0 0 ${total} ${top}`} width={total} height={top} aria-hidden="true">
+      {Array.from({ length: RACKS }, (_, i) => {
+        const h = RACK_H[i % 3];
+        const x = i * (w + gap);
+        const y = top - h;
+        const units = Math.floor((h - 6) / 18);
+        return (
+          <g key={i}>
+            <rect x={x} y={y} width={w} height={h} className="mm-rack" />
+            {Array.from({ length: units }, (_, u) => (
+              <g key={u}>
+                <rect x={x + 4} y={y + 5 + u * 18} width={w - 8} height={13} className="mm-unit" />
+                <circle cx={x + 10} cy={y + 11.5 + u * 18} r={2} className={(i * 7 + u * 3) % 11 === 0 ? 'mm-led warn' : 'mm-led'} />
+              </g>
+            ))}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
 /** Сколько делений у сложности: лёгкая - одно, сложная - три. */
 const DIFF_PIPS: Record<Difficulty, number> = { easy: 1, normal: 2, hard: 3 };

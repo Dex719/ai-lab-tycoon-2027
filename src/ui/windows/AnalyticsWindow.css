@@ -150,7 +150,8 @@
 .an-grid tr.an-click:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .an-mname { display: inline-flex; align-items: center; gap: 8px; }
 .an-mname .emb { box-shadow: none; }
-.an-caret { display: inline-block; width: 10px; color: var(--text-dim); }
+.an-caret { flex: none; color: var(--text-dim); transition: transform 120ms ease-out; }
+.an-caret.open { transform: rotate(90deg); }
 .an-grid tr.an-detail td { background: #f6f8fb; padding: 8px 12px 10px 28px; }
 .an-dl { display: grid; grid-template-columns: repeat(3, auto 1fr); gap: 4px 12px; margin: 0; font-size: 13px; }
 .an-dl dt { color: var(--text-dim); }

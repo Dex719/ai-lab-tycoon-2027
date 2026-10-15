@@ -17,7 +17,10 @@ export {
 } from './desktop';
 export {
   IconAlert,
+  IconArrowDown,
+  IconArrowUp,
   IconArrowUpDown,
+  IconCaret,
   IconBank,
   IconCalendar,
   IconCheck,

@@ -7,7 +7,7 @@ import { arenaStanding, type ArenaNeighbor, type ArenaStanding, type RaceMetric 
 import type { GameState, HypeOwner } from '../sim/types';
 import { ARENA_PLACE_TITLE } from './arena';
 import { fmtInt, fmtPct } from './format';
-import { IconClose } from './icons';
+import { IconArrowDown, IconArrowUp, IconClose } from './icons';
 import { playSound } from './sound';
 import { store } from './store';
 import './arena.css';
@@ -66,7 +66,7 @@ function NeighborLine({ n, dir, metric }: { n: ArenaNeighbor | null; dir: 'up' |
   const close = n.gap <= closeGap(metric);
   return (
     <span className={`ar-n ar-n-${dir}${close ? ' close' : ''}`} title={`${n.name} (${LAB_NAME.get(n.lab) ?? n.lab}): ${fmtValue(metric, n.value)}`}>
-      <b>{dir === 'up' ? '▲' : '▼'}</b>
+      <b>{dir === 'up' ? <IconArrowUp size={11} strokeWidth={3} /> : <IconArrowDown size={11} strokeWidth={3} />}</b>
       <Dot lab={n.lab} />
       <span className="ar-name">{n.name}</span>
       <span className="ar-gap">

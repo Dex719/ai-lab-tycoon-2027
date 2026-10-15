@@ -9,7 +9,7 @@ import { formatDateShort } from '../../sim/time';
 import type { GameState, PlayerModel } from '../../sim/types';
 import { Alert } from '../components/common';
 import { ModelEmblem } from '../components/ModelEmblem';
-import { IconTrophy } from '../icons';
+import { IconCaret, IconTrophy } from '../icons';
 import { TierBadge } from '../components/TierBadge';
 import { fmtElo, fmtMoney, fmtNum, fmtPrice, fmtShare } from '../format';
 import { INCOME_LABELS, modelChannels, reviewNote } from '../labels';
@@ -267,7 +267,7 @@ function ModelsTable({
               >
                 <td>
                   <span className="an-mname">
-                    <span className="an-caret">{isOpen ? '▾' : '▸'}</span>
+                    <IconCaret size={14} className={`an-caret${isOpen ? ' open' : ''}`} />
                     <ModelEmblem m={m} size={24} exposed={m.exposed} faded={!channels} />
                     {m.name} <TierBadge tier={m.plan.tier} />
                   </span>

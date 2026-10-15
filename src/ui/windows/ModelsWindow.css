@@ -30,7 +30,7 @@
 .mw-item-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .mw-item-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .mw-item-name { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mw-item-elo { flex: none; font: 600 13px var(--mono); color: #4a4d54; }
+.mw-item-elo { flex: none; font-size: 13px; font-weight: 600; color: #4a4d54; font-variant-numeric: tabular-nums; }
 .mw-item-state { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font-size: 12.5px; color: var(--text-dim); }
 .mw-item-state .mw-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #aab0b8; }
 .mw-item-state.sale { color: #1d6b36; }
@@ -43,7 +43,9 @@
 .mw-item-state.warn { color: #a85a00; font-weight: 600; }
 .mw-item-state.info { color: #1f5fae; }
 .mw-item.off .mw-item-name { color: #5f636a; }
-.mw-crown { flex: none; font: 700 12px var(--mono); color: #8a5f00; }
+.mw-crown { flex: none; font-size: 12px; font-weight: 700; color: #8a5f00; }
+.mw-caret { flex: none; transition: transform 120ms ease-out; }
+.mw-caret.open { transform: rotate(90deg); }
 .mw-archive {
   display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 4px; padding: 8px 10px 8px 12px; cursor: pointer; flex: none;
   background: none; border: none; border-top: 1px solid var(--line); color: var(--text-dim); font-size: 13px; font-weight: 600; text-align: left;
@@ -211,3 +213,14 @@
 }
 
 .mw-expose { margin-top: 6px; padding: 4px 8px; border-radius: 3px; background: #fdf0de; color: #8a4a00; font-size: 13px; display: inline-block; }
+
+/* Телефон: шапка в две строки - картинка и название, ниже сведения и главное число. */
+@media (max-width: 767px) {
+  .mw .mw-insp { flex-wrap: wrap; gap: 12px; padding: 12px; }
+  .mw .mw-pic { width: 84px; height: 84px; }
+  .mw .mw-pic .emb { width: 68px; height: 68px; }
+  .mw .mw-insp-main { flex: 1 1 calc(100% - 100px); }
+  .mw .mw-focus { flex: 1 1 100%; align-items: flex-start; text-align: left; }
+  .mw .mw-body { padding: 4px 12px 20px; }
+  .mw .mw-score { grid-template-columns: 96px minmax(0, 1fr) 90px 32px; gap: 8px; }
+}

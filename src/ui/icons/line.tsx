@@ -202,3 +202,30 @@ export function IconExit(p: LineIconProps) {
     </Line>
   );
 }
+
+/** Стрелка вверх: сосед выше в гонке, рост. */
+export function IconArrowUp(p: LineIconProps) {
+  return (
+    <Line {...p}>
+      <path d="M12 19 V5 M6 11 L12 5 L18 11" />
+    </Line>
+  );
+}
+
+/** Стрелка вниз: сосед ниже в гонке, падение. */
+export function IconArrowDown(p: LineIconProps) {
+  return (
+    <Line {...p}>
+      <path d="M12 5 V19 M6 13 L12 19 L18 13" />
+    </Line>
+  );
+}
+
+/** Уголок раскрытия: вниз - раскрыто, вправо - свёрнуто (поворот задаёт CSS). */
+export function IconCaret(p: LineIconProps) {
+  return (
+    <Line {...p}>
+      <path d="M9 6 L15 12 L9 18" />
+    </Line>
+  );
+}

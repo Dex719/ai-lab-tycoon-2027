@@ -137,6 +137,7 @@ const Scene = memo(function Scene(p: SceneProps) {
               ))}
               {p.shelf.length === 0 && <span className="ls-board-empty" />}
             </span>
+            <span className="ls-plank" />
           </span>
           <span className="ls-cap">
             <span>Витрина</span>

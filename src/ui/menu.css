@@ -6,33 +6,22 @@
   color: #b5b5b5; background: #202124;
 }
 
-/* Ряд серверных стоек внизу: корпус, полосы блоков и огоньки рисуются фоном одного элемента. */
-.mm-racks { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); display: flex; align-items: flex-end; gap: 10px; width: max(100%, 1400px); justify-content: center; pointer-events: none; }
-.mm-rack {
-  flex: none; width: 46px; height: 150px;
-  background:
-    radial-gradient(circle at 9px 9px, #4f9a64 0 2px, transparent 2.6px) 0 6px / 100% 18px repeat-y,
-    repeating-linear-gradient(180deg, #2b2e33 0 14px, #232528 14px 18px);
-  border: 2px solid #34373c; border-bottom: none;
-}
-.mm-rack.h1 { height: 186px; }
-.mm-rack.h2 { height: 122px; }
-.mm-rack:nth-child(5n + 2) {
-  background:
-    radial-gradient(circle at 9px 9px, #b58a35 0 2px, transparent 2.6px) 0 42px / 100% 54px repeat-y,
-    radial-gradient(circle at 9px 9px, #4f9a64 0 2px, transparent 2.6px) 0 6px / 100% 18px repeat-y,
-    repeating-linear-gradient(180deg, #2b2e33 0 14px, #232528 14px 18px);
-}
+/* Ряд серверных стоек внизу (SVG в MainMenu.tsx): корпус, блоки, огоньки - плоские цвета. */
+.mm-racks { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); pointer-events: none; }
+.mm-rack { fill: #232528; stroke: #34373c; stroke-width: 2; }
+.mm-unit { fill: #2b2e33; }
+.mm-led { fill: #4f9a64; }
+.mm-led.warn { fill: #b58a35; }
 
-.mm-title { position: relative; margin: 13vh 0 0; font: 600 clamp(36px, 4.4vw, 62px) var(--mono); color: #f2f2f2; letter-spacing: -0.01em; }
-.mm-years { position: relative; margin-top: 6px; font: 400 clamp(15px, 1.4vw, 19px) var(--mono); color: #8e9196; letter-spacing: 0.2em; }
+.mm-title { position: relative; margin: 13vh 0 0; font-size: clamp(36px, 4.2vw, 58px); font-weight: 600; color: #f2f2f2; letter-spacing: -0.02em; }
+.mm-years { position: relative; margin-top: 2px; font-size: clamp(15px, 1.3vw, 18px); color: #8e9196; font-variant-numeric: tabular-nums; }
 
 .mm-items { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 12vh; }
 .mm-item {
   display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 2px 14px; background: none; border: none;
-  color: #c8c8c8; font: 400 25px var(--mono); cursor: pointer; transition: color 120ms ease-out;
+  color: #c8c8c8; font-size: 23px; cursor: pointer; transition: color 120ms ease-out;
 }
-.mm-item-s { font: 13px var(--font); color: #8e9196; }
+.mm-item-s { font-size: 13px; color: #8e9196; }
 .mm-item:hover, .mm-item:focus-visible {
   outline: none; color: #fff; text-decoration: underline; text-decoration-color: var(--c-blue); text-underline-offset: 6px; text-decoration-thickness: 3px;
 }
@@ -62,7 +51,7 @@
 .ng-diff.d-hard { --dc: #d64545; }
 .ng-diff:hover { background: #f1f3f6; }
 .ng-diff:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.ng-diff.on { background: #e3eefc; font-weight: 600; box-shadow: inset 0 -3px 0 var(--accent); }
+.ng-diff.on { background: #e3eefc; font-weight: 600; color: #1f5fae; }
 .ng-pips { display: flex; gap: 3px; }
 .ng-pips i { width: 14px; height: 5px; background: #d4d7dc; }
 .ng-pips i.on { background: var(--dc); }
@@ -92,8 +81,8 @@
 @media (max-width: 767px) {
   .mm-title { margin-top: 8vh; }
   .mm-items { margin-top: 8vh; gap: 6px; }
-  .mm-item { min-height: 48px; font-size: 23px; }
-  .mm-rack { width: 34px; }
+  .mm-item { min-height: 48px; font-size: 21px; }
   .ng-body { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; gap: 16px; }
   .ng-foot { padding: 10px 16px 16px; }
 }
+.menu-screen.mm .version { z-index: 1; padding: 0 6px; background: #202124; }
