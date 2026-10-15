@@ -258,6 +258,22 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .inv-table th, .inv-table td { padding-left: 6px; padding-right: 6px; }
   .inv-table td { white-space: nowrap; }
 
+  /* Дата-центры: окно прокручивается целиком, сводка сверху уходит вместе с площадкой. */
+  .dc { height: auto; min-height: 100%; }
+  .dc-body { flex: none; overflow: visible; }
+  .dc-head-kv dd { white-space: normal; }
+  /* Дата-центры: карты площадки - строкой «значок, название, штук», под ней мощность и кнопки во всю ширину. */
+  .dc-gpus, .dc-gpus tbody { display: block; }
+  .dc-gpus thead { display: none; }
+  .dc-gpus tr { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; column-gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--row-line); }
+  .dc-gpus td, .dc-gpus td + td { padding: 0; border: none; }
+  .dc-gpus .dc-td-thumb { grid-row: span 2; }
+  .dc-gpus td:nth-child(3)::after { content: ' шт.'; }
+  .dc-gpus td:nth-child(4) { grid-column: 2 / -1; text-align: left; color: var(--text-dim); }
+  .dc-gpus .dc-td-act { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 6px; text-align: left; }
+  .dc-gpus .dc-td-act .btn { flex: 1 1 0; }
+  .dc-gpus .dc-td-act .btn + .btn { margin-left: 0; }
+
   /* Финал: таблица рывков прокручивается вбок внутри своей рамки, а не уходит за край окна. */
   .fn-table { display: block; max-width: 100%; overflow-x: auto; }
   .fn-body { padding: 10px; }
@@ -289,5 +305,8 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .pl { flex-direction: column; align-items: stretch; }
   .pl-legend { max-width: none; min-width: 0; border-left: none; border-top: 1px solid #3a3c42; }
   .bar-row { grid-template-columns: 96px minmax(0, 1fr) 52px; gap: 8px; }
+  /* «Последние ходы соперников»: дата и лаборатория, под ними ход и что произошло - без прокрутки вбок. */
+  .lab-moves-row { grid-template-columns: auto minmax(0, 1fr); gap: 0 10px; padding-bottom: 4px; border-bottom: 1px solid var(--row-line); }
+  .lab-moves-row .m { white-space: normal; }
   .elo-track { width: 72px; }
 }
