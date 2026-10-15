@@ -507,6 +507,8 @@ table.grid td.num, table.grid th.num { text-align: right; }
    несколько наград подряд не сливаются в золотую стену. Исход риска - светлая подложка цвета исхода. */
 .toast.tone-reward { --tc: var(--gold-line); border-left-color: var(--tc); }
 .toast.tone-reward .ti { background: var(--gold-fill); color: #3b2a00; }
+/* Письмо лично от соперника: эмблема лаборатории вместо кружка. */
+.toast .ti.from { background: none; border-radius: 0; }
 .toast.tone-reward .tk { color: var(--gold-ink); }
 .toast.tone-good { --tc: var(--c-green); background: #effaf2; border-color: #a8d8b6; border-left-color: var(--tc); }
 .toast.tone-bad { --tc: var(--c-red); background: #fdf0f0; border-color: #e8b0b0; border-left-color: var(--tc); }
