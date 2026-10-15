@@ -131,7 +131,10 @@ function subsGoal(id: string, target: number, label: string, reward: GoalReward)
  * модель - 95 %: осталось нажать «Выпустить». Без проектов - пустая полоска и текст empty.
  */
 function trainingProgress(s: GameState, empty: string, rlhf = false): GoalProgress {
-  const ready = s.models.find((m) => m.releasedDay === null && (!rlhf || m.rlhf));
+  // Самая свежая из обученных и не выпущенных: старая слабая модель, которую выпускать не будут, не должна висеть в цели годами.
+  const ready = s.models
+    .filter((m) => m.releasedDay === null && (!rlhf || m.rlhf))
+    .reduce<GameState['models'][number] | null>((b, m) => (!b || m.trainedDay >= b.trainedDay ? m : b), null);
   if (ready) return { done: false, fraction: 0.95, text: `«${ready.name}» обучена, осталось выпустить` };
   let best: { name: string; f: number } | null = null;
   for (const r of s.trainings) {

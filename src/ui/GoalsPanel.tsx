@@ -24,7 +24,8 @@ export function GoalsPanel({ s, open }: { s: GameState; open: (id: WindowId | Wi
           const p = goalProgress(s, g);
           if (!p) return null;
           const isDone = g.done;
-          const almost = !isDone && p.progress.fraction >= ALMOST;
+          // Условие уже выполнено, награду выдаст ближайший ход: это не «почти».
+          const almost = !isDone && !p.progress.done && p.progress.fraction >= ALMOST;
           return (
             <div
               key={g.id}

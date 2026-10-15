@@ -342,3 +342,17 @@ describe('сохранения', () => {
     expect(deserialize(JSON.stringify(data)).ok).toBe(false);
   });
 });
+
+describe('цель «Выпустить новую модель»: какая модель ждёт выпуска', () => {
+  it('называет самую свежую обученную модель, а не старую, которую так и не выпустили', () => {
+    const s = quietGame(D('2019-03-01'));
+    s.models.push(
+      model({ id: 'p1', name: 'Старая', releasedDay: 30 }),
+      model({ id: 'p2', name: 'Забытая', trainedDay: 200, releasedDay: null }),
+      model({ id: 'p3', name: 'Свежая', trainedDay: D('2019-02-10'), releasedDay: null }),
+    );
+    const def = GOALS.find((g) => g.id === 'new-model')!;
+    const p = def.progress(s, { id: 'new-model', done: false, doneDay: null, base: 1 });
+    expect(p.text).toBe('«Свежая» обучена, осталось выпустить');
+  });
+});
