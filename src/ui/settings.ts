@@ -19,8 +19,8 @@ const KEY = 'ailab.settings';
 const DEFAULTS: Settings = {
   pauseOnImportant: true,
   pauseOnReady: true,
-  pauseOnResearch: false,
-  pauseOnTender: false,
+  pauseOnResearch: true,
+  pauseOnTender: true,
   pauseOnGoal: false,
   pauseOnHidden: true,
   toasts: true,

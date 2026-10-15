@@ -53,6 +53,8 @@ export interface WindowProps {
   s: GameState;
   /** Открыть (или поднять) другое окно. */
   open: (id: WindowId | WindowAlias) => void;
+  /** Закрыть это окно (например, после действия, которое завершает работу в нём). */
+  close?: () => void;
 }
 
 export type IconComponent = ComponentType<{ size?: number; disabled?: boolean }>;

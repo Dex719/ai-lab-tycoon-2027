@@ -1623,3 +1623,29 @@ describe('проигранный тендер: сколько не хватил�
     expect(lastMail(s).title).toMatch(/^Тендер проигран, не хватило 1 пункта: /);
   });
 });
+
+describe('progressDay: предупреждение «не успевает»', () => {
+  it('за 30 дней до срока при нехватке мощности - одно важное письмо с паузой и цифрами', () => {
+    // Мощности на контракты нет: работа стоит, до срока 20 дней.
+    const s = withContract(makeContract({ deadlineDay: 20 }, { work: 100 }));
+    s.day = 0;
+    const before = s.mail.length;
+    progressDay(s);
+    expect(s.mail.length).toBe(before + 1);
+    const m = lastMail(s);
+    expect(m.title).toMatch(/^Контракт не успевает/);
+    expect(m.important).toBe(true);
+    expect(m.body).toMatch(/штраф/);
+    expect(s.contracts[0].warned).toBe(true);
+    progressDay(s);
+    expect(s.mail.length).toBe(before + 1); // второй раз не пишем
+  });
+
+  it('раньше чем за 30 дней до срока не предупреждает', () => {
+    const s = withContract(makeContract({ deadlineDay: 90 }, { work: 100 }));
+    s.day = 0;
+    const before = s.mail.length;
+    progressDay(s);
+    expect(s.mail.length).toBe(before);
+  });
+});

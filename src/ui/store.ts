@@ -10,6 +10,7 @@ import { advanceDay, advanceDays, blockedByChoice } from '../sim/tick';
 import type { GameState, Result, Speed } from '../sim/types';
 import { readSlot, writeSlot, type SlotId } from './saves';
 import { getSettings } from './settings';
+import { runwayMonths } from './runway';
 
 type Listener = () => void;
 
@@ -25,6 +26,8 @@ export class GameStore {
   /** Письмо, которое «Почта» должна открыть (после нажатия «Открыть» в уведомлении); окно забирает его и сбрасывает. */
   mailFocus: string | null = null;
   private listeners = new Set<Listener>();
+  /** День последней паузы «денег хватит меньше чем на месяц». */
+  private lowCashDay = -Infinity;
   private timer: ReturnType<typeof setInterval> | null = null;
 
   subscribe = (l: Listener): (() => void) => {
@@ -47,6 +50,7 @@ export class GameStore {
   /** Начать игру с готовым состоянием (новая игра или загрузка). */
   start(state: GameState): void {
     this.state = state;
+    this.lowCashDay = -Infinity;
     this.autosaveError = null;
     this.pauseReason = null;
     this.mailFocus = null;
@@ -158,8 +162,12 @@ export class GameStore {
     const set = getSettings();
     if (set.pauseOnReady && s.models.length > mark.models) return `Модель «${s.models[s.models.length - 1].name}» готова`;
     const research = s.research.done.length + s.research.algoLevel + s.research.contextLevel;
-    if (set.pauseOnResearch && research > mark.research) return 'Исследование завершено';
-    if (set.pauseOnTender && s.contracts.length > mark.contracts) return 'Тендер выигран';
+    if (set.pauseOnResearch && research > mark.research) return freshTitle(s, mark, 'Исследование завершено') ?? 'Исследование завершено';
+    // Победы по авто-заявкам приходят сводкой раз в месяц и паузу не ставят: только тендер, выигранный по своей заявке.
+    if (set.pauseOnTender && s.contracts.length > mark.contracts) {
+      const won = freshTitle(s, mark, 'Тендер выигран');
+      if (won) return won;
+    }
     const goals = s.yearly.year * 100 + s.yearly.goals.filter((g) => g.done).length;
     if (set.pauseOnGoal && goals > mark.goals && goals % 100 > 0) return 'Цель года выполнена';
     return null;
@@ -177,6 +185,12 @@ export class GameStore {
     }
     if (fresh.length > 0) return fresh.length === 1 ? fresh[0] : `${fresh[0]} (и ещё ${fresh.length - 1})`;
     if (!mark.wasNegative && s.finance.negativeDays > 0) return 'Деньги ушли в минус';
+    // Заранее, а не когда денег уже нет: не чаще раза в 30 дней.
+    const runway = runwayMonths(s);
+    if (runway !== null && runway < 1 && s.day - this.lowCashDay >= 30) {
+      this.lowCashDay = s.day;
+      return 'Денег хватит меньше чем на месяц: поднимите доходы, урежьте аренду или привлеките инвесторов';
+    }
     return null;
   }
 
@@ -224,6 +238,16 @@ interface AdvanceMark {
 /** Письмо «Модель «X» готова» (sim/training.ts). */
 function isReadyMail(m: { kind: string; title: string }): boolean {
   return m.kind === 'training' && /^Модель «.*» готова$/.test(m.title);
+}
+
+/** Заголовок самого нового письма за шаг, который начинается с prefix (для подписи паузы). */
+function freshTitle(s: GameState, mark: AdvanceMark, prefix: string): string | null {
+  for (let i = s.mail.length - 1; i >= 0; i--) {
+    const m = s.mail[i];
+    if (Number(m.id.slice(1)) < mark.mailNum) break;
+    if (m.title.startsWith(prefix)) return m.title;
+  }
+  return null;
 }
 
 export const store = new GameStore();

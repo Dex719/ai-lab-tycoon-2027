@@ -438,6 +438,39 @@ export function progressDay(s: GameState): void {
       finishContract(s, c);
     } else if (s.day >= c.deadlineDay) {
       failContract(s, c, 'Контракт просрочен', 'Срок истёк, работа не завершена.');
+    } else {
+      warnIfLate(s, c, share);
     }
   }
+}
+
+/** За сколько дней до срока предупреждать, что контракт не успевает. */
+export const WARN_DAYS = 30;
+
+const h100e = (n: number): string => String(Math.round(n * 100) / 100).replace('.', ',');
+
+/** Важное письмо (с паузой), если при текущей доле работа не успевает к сроку: один раз на контракт. */
+function warnIfLate(s: GameState, c: Contract, share: number): void {
+  if (c.warned) return;
+  const left = c.deadlineDay - s.day;
+  if (left > WARN_DAYS || left <= 0) return;
+  const remaining = Math.max(0, c.tender.work - c.workDone);
+  const eta = share > 0 ? Math.ceil(remaining / share) : Infinity;
+  if (eta <= left) return;
+  c.warned = true;
+  const need = remaining / left;
+  const pace = share > 0 ? `при нынешней мощности работы ещё на ${ruDays(eta)}` : 'мощность на контракты не выделена';
+  addMail(s, {
+    kind: 'contract',
+    title: `Контракт не успевает: ${clientName(c.tender.clientId)}`,
+    important: true,
+    body:
+      `До срока ${ruDays(left)}, а ${pace}. Чтобы успеть, контракту нужно ${h100e(need)} H100e в день, сейчас - ${h100e(share)}. ` +
+      'Поднимите долю «Контракты» в «Мощностях» или арендуйте карты. ' +
+      `Если сорвать: штраф ${fmtMoney(c.tender.penalty)}, репутация −${Math.abs(REP_CONTRACT_FAIL)}, оплаты не будет.`,
+  });
+}
+
+function ruDays(n: number): string {
+  return `${n} ${ruPlural(n, 'день', 'дня', 'дней')}`;
 }

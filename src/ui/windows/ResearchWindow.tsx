@@ -702,9 +702,9 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
           )}
           {status !== 'done' && penalty > 1.05 && (
             <>
-              <dt>Раньше своего времени</dt>
-              <dd className="warn" title="Технология опережает историю. Чем ближе её время, тем она дешевле.">
-                дороже {timesWord(penalty)}
+              <dt>Наценка за спешку</dt>
+              <dd className="warn" title="Технология опережает историю: в реальности она появилась позже. С каждым месяцем наценка падает.">
+                очков нужно {timesWord(penalty)} больше, с каждым месяцем меньше
               </dd>
             </>
           )}

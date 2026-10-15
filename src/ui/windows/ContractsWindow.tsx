@@ -435,8 +435,10 @@ function TenderCard(props: {
             <dd>
               {bench.name} от {fmtPct(t.requirement, 0)}
             </dd>
-            <dt title="Списывается при отказе, просрочке и провале при сдаче">Штраф</dt>
-            <dd className="bad">{fmtMoney(t.penalty)}</dd>
+            <dt title="Списывается при отказе, просрочке и балле ниже требования; оплаты в этом случае нет">Если сорвать</dt>
+            <dd className="bad">
+              штраф {fmtMoney(t.penalty)}, репутация −{Math.abs(REP_CONTRACT_FAIL)}
+            </dd>
             {rlhf && (
               <>
                 <dt title="Списываются при победе в тендере">Разметчики</dt>
@@ -526,7 +528,15 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
 
       <Slip
         cells={[
-          { label: 'Оплата после сдачи', value: fmtMoney(t.payment), sub: <span className="bad">штраф {fmtMoney(t.penalty)}</span> },
+          {
+            label: 'Оплата после сдачи',
+            value: fmtMoney(t.payment),
+            sub: (
+              <span className="bad" title="Списывается при отказе, просрочке и балле ниже требования; оплаты в этом случае нет">
+                если сорвать: штраф {fmtMoney(t.penalty)}, репутация −{Math.abs(REP_CONTRACT_FAIL)}
+              </span>
+            ),
+          },
           {
             label: 'Готовность',
             value: fmtPct(info.progress * 100, 0),

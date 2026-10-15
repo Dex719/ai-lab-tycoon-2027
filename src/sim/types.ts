@@ -248,6 +248,7 @@ export interface Contract {
   startedDay: number;
   deadlineDay: number;
   workDone: number;
+  warned?: boolean; // письмо «не успевает» уже было (за WARN_DAYS до срока)
 }
 
 export interface MailChoice {

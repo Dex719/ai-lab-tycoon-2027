@@ -21,7 +21,7 @@ import {
   TOKENS_B_MIN,
   TRAIN_FLOP_PER_H100E_DAY,
 } from '../../sim/constants';
-import { END_DAY, formatDateShort, yearOf } from '../../sim/time';
+import { END_DAY, formatDate, formatDateShort, yearOf } from '../../sim/time';
 import { arenaStanding, bestElo, rivalsSellByApi } from '../../sim/leaderboard';
 import { refContext, refPrice, subsOpen } from '../../sim/market';
 import { CONTEXT_MAX_LEVEL, contextLabel, maxContext } from '../../sim/research';
@@ -58,6 +58,8 @@ import {
 import { timesWord } from '../../sim/text';
 import { IconLock } from '../icons';
 import { actions, store } from '../store';
+import { playSound } from '../sound';
+import { pushNotice } from '../Toasts';
 import './TrainingWindow.css';
 
 type Est = ReturnType<typeof estimate>;
@@ -308,16 +310,20 @@ function ContextSeg(props: { s: GameState; value: number; onChange: (v: number) 
 
 // ---------- Идущий проект ----------
 
+/** Дней до конца обучения при текущей доле «Обучение» (она делится между проектами); null - мощности нет. */
+function runEta(s: GameState, t: TrainingRun): number | null {
+  const perDay = trainingPoolPerRun(s) * TRAIN_FLOP_PER_H100E_DAY;
+  const left = Math.max(0, t.flopTotal - t.flopDone);
+  return perDay > 0 ? Math.max(1, Math.ceil(left / perDay)) : null;
+}
+
 function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
   const [confirm, setConfirm] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const p = t.plan;
   const frac = t.flopTotal > 0 ? Math.min(1, t.flopDone / t.flopTotal) : 0;
-  const power = trainingPoolPerRun(s); // доля «Обучение» делится между проектами
-  const perDay = power * TRAIN_FLOP_PER_H100E_DAY;
-  const left = Math.max(0, t.flopTotal - t.flopDone);
-  const eta = perDay > 0 ? Math.max(1, Math.ceil(left / perDay)) : null;
+  const eta = runEta(s, t);
   const late = eta !== null && s.day + eta > END_DAY;
   const waiting = t.failed || awaitingEvent(s, 'training-fail');
   const labelers = labelersCost(p); // оплачены при старте, при отмене не возвращаются
@@ -475,8 +481,8 @@ function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
           {days !== null ? `Готово ${formatDateShort(s.day + days)}${late ? ', позже конца игры' : ''} · ${fmtCards(s, power)}` : 'Нет мощности на обучение'}
         </div>
         {overhead >= 1.05 && (
-          <span className="nm-chip warn" title="Фреймворки и сети ранних лет медленные: к середине 2020 года обучение пойдёт с обычной скоростью.">
-            Инструменты сырые: обучение {timesWord(overhead >= 10 ? Math.round(overhead) : overhead)} дольше
+          <span className="nm-chip warn" title="Фреймворки и сети ранних лет медленные; множитель падает каждый месяц, к середине 2020 года - обычная скорость.">
+            Обучение {timesWord(overhead >= 10 ? Math.round(overhead) : overhead)} медленнее: ранние фреймворки, с каждым месяцем быстрее
           </span>
         )}
       </div>
@@ -565,7 +571,7 @@ function StartConfirm(props: { s: GameState; plan: TrainingPlan; est: Est; onCon
 
 // ---------- Окно ----------
 
-export default function TrainingWindow({ s, open }: WindowProps) {
+export default function TrainingWindow({ s, open, close }: WindowProps) {
   const [d, setD] = useState<Draft>(() => initialDraft(s));
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
@@ -656,6 +662,18 @@ export default function TrainingWindow({ s, open }: WindowProps) {
     if (r.ok) {
       setErr(null);
       patch({ name: null });
+      // Ответ на действие: окно закрывается, звук и уведомление со сроком; ход обучения - в «Моделях» и на рабочем столе.
+      const run = s.trainings[s.trainings.length - 1];
+      const eta = run ? runEta(s, run) : null;
+      playSound('rack');
+      pushNotice({
+        kind: 'training',
+        label: 'Обучение началось',
+        title: eta !== null ? `«${plan.name}»: готово ${formatDate(s.day + eta)}` : `«${plan.name}»: ждёт мощности в доле «Обучение»`,
+        win: 'models',
+        tone: 'good',
+      });
+      close?.();
     } else {
       setErr(r.error);
     }

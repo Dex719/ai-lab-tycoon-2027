@@ -44,7 +44,7 @@ import {
 import { Cards } from '../components/Cards';
 import { contractsNeedWithApplications, researchDaysAt, trainingDaysAt } from '../forecast';
 import { ConfirmDialog, Dialog, GuardButton, NewBadge, Range } from '../components/common';
-import { fmtH100e as fmtH, fmtInt, fmtMoney, fmtNum, fmtPct, ruPlural } from '../format';
+import { fmtH100e as fmtH, fmtInt, fmtMoney, fmtNum, fmtPct, h100ePerCard, ruPlural } from '../format';
 import { IconAlert } from '../icons';
 import { playSound } from '../sound';
 import { actions, store } from '../store';
@@ -113,6 +113,13 @@ interface RentFlash {
   text: string;
 }
 
+/** Что такое H100e в картах игрока: «1 H100e ≈ 8 ваших карт» (без аренды - в лучших доступных картах). */
+function unitLine(s: GameState, rented: boolean): string {
+  const n = Math.max(1, Math.round(1 / h100ePerCard(s)));
+  const word = rented ? ruPlural(n, 'ваша карта', 'ваши карты', 'ваших карт') : ruPlural(n, 'новая карта', 'новые карты', 'новых карт');
+  return `1 H100e ≈ ${fmtInt(n)} ${word}`;
+}
+
 function Hero({ s, onRent, flash }: { s: GameState; onRent: () => void; flash: RentFlash | null }) {
   const farm = { ...rentedFarm(s), wide: true };
   const layout = farmLayout(farm.groups);
@@ -142,6 +149,9 @@ function Hero({ s, onRent, flash }: { s: GameState; onRent: () => void; flash: R
           <span>H100e</span>
         </div>
         <div className="cw-fig-sub">{layout.cards > 0 ? `${fmtCardsCount(layout.cards)} в аренде, ${racks}` : 'Карт в аренде нет'}</div>
+        <div className="cw-fig-unit" title="H100e - общая единица мощности для карт разных лет: обучение, исследования и контракты считаются в ней">
+          {unitLine(s, layout.cards > 0)}
+        </div>
         <dl className="cw-fig-kv">
           <dt>Аренда в месяц</dt>
           <dd className={rentPerDay(s) > 0 ? 'bad' : undefined}>{rentPerDay(s) > 0 ? fmtMoney(rentPerDay(s) * DAYS_IN_MONTH) : '-'}</dd>

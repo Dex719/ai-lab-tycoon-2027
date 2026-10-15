@@ -86,6 +86,9 @@ body:has(.menu-screen) .modal-backdrop { background: rgba(0, 0, 0, 0.94); }
 .tb-dim { color: #b4b7bd; }
 .tb-good { color: var(--good-on-dark); }
 .tb-bad { color: var(--bad-on-dark); }
+.tb-warn { color: #f2c94c; }
+.tb-dim { color: #a9acb2; }
+.tb-runway { margin-left: 8px; font-size: 12px; white-space: nowrap; }
 .speed { display: flex; align-items: center; gap: 2px; }
 .speed button {
   width: 32px; height: 28px; display: grid; place-items: center; background: none; border: none; border-radius: 3px;
@@ -437,6 +440,13 @@ table.grid td.num, table.grid th.num { text-align: right; }
 .tutor .foot .skip { margin-right: auto; background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 0; font-size: 13px; white-space: nowrap; }
 .tutor .foot .skip:hover { color: var(--text); text-decoration: underline; }
 /* Подсветка цели шага: ровная янтарная рамка без свечения и мигания, заметна и на тёмном столе, и в светлом окне. */
+/* Копия панели поверх затемнения диалога: на месте закреплённой, кнопки нажимаются. */
+.tutor.tutor-float { position: fixed; z-index: 10100; margin: 0; max-height: calc(100vh - 16px); }
+.tutor .tutor-check { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 50%; background: var(--good, #2e8b57); color: #fff; vertical-align: -4px; }
+.tutor .tutor-done h3 { color: var(--good, #2e8b57); }
+.tutor .tutor-step, .tutor .tutor-done { animation: tutor-in 200ms ease-out; }
+@keyframes tutor-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tutor .tutor-step, .tutor .tutor-done { animation: none; } }
 .tutor-target { box-shadow: 0 0 0 3px #f2b600; border-radius: 3px; position: relative; z-index: 2; }
 
 /* Графики (тёмная область, как в PT) */
@@ -464,7 +474,7 @@ table.grid td.num, table.grid th.num { text-align: right; }
 }
 .toast {
   --tc: var(--c-blue); pointer-events: auto; display: grid; grid-template-columns: 28px 1fr; gap: 2px 10px; padding: 10px 12px;
-  background: #fff; color: var(--text-title); border: 1px solid var(--line); border-left: 5px solid var(--tc); border-radius: 3px;
+  background: #fff; color: var(--text-title); border: 1px solid var(--line); border-radius: 3px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4); animation: toast-in 180ms ease-out;
 }
 /* Важное письмо: рамка цвета вида письма (1 px), полоса слева та же, что у обычных. */
@@ -506,13 +516,13 @@ table.grid td.num, table.grid th.num { text-align: right; }
 
 /* Награды и исход риска в уведомлениях. Награда - белая карточка, золото только у полосы вида и значка:
    несколько наград подряд не сливаются в золотую стену. Исход риска - светлая подложка цвета исхода. */
-.toast.tone-reward { --tc: var(--gold-line); border-left-color: var(--tc); }
+.toast.tone-reward { --tc: var(--gold-line); border-color: var(--gold-line); }
 .toast.tone-reward .ti { background: var(--gold-fill); color: #3b2a00; }
 /* Письмо лично от соперника: эмблема лаборатории вместо кружка. */
 .toast .ti.from { background: none; border-radius: 0; }
 .toast.tone-reward .tk { color: var(--gold-ink); }
-.toast.tone-good { --tc: var(--c-green); background: #effaf2; border-color: #a8d8b6; border-left-color: var(--tc); }
-.toast.tone-bad { --tc: var(--c-red); background: #fdf0f0; border-color: #e8b0b0; border-left-color: var(--tc); }
+.toast.tone-good { --tc: var(--c-green); background: #effaf2; border-color: #a8d8b6; }
+.toast.tone-bad { --tc: var(--c-red); background: #fdf0f0; border-color: #e8b0b0; }
 .toast.tone-good .tt { color: var(--good-ink); }
 .toast.tone-bad .tt { color: var(--bad-ink); }
 

@@ -37,7 +37,10 @@ const KIND: Record<Kind, { name: string; Icon: ComponentType<LineIconProps> }> =
 
 interface ToastData {
   key: number;
+  /** Письмо, которое открывает «Открыть»; у уведомлений интерфейса (не писем) пусто. */
   mailId: string;
+  /** Окно, которое открывает «Открыть» вместо «Почты». */
+  win?: WindowId | WindowAlias;
   kind: Kind;
   title: string;
   important: boolean;
@@ -48,6 +51,21 @@ interface ToastData {
   label?: string;
   /** Письмо лично от лаборатории-соперника: вместо значка - её эмблема. */
   from?: LabId;
+}
+
+/** Уведомление интерфейса: ответ на действие игрока (обучение началось и т. п.), не письмо. */
+export interface Notice {
+  kind: Kind;
+  label: string;
+  title: string;
+  win?: WindowId | WindowAlias;
+  tone?: 'good' | 'bad';
+}
+
+let noticeListener: ((n: Notice) => void) | null = null;
+
+export function pushNotice(n: Notice): void {
+  noticeListener?.(n);
 }
 
 function mailNum(m: Mail): number {
@@ -80,7 +98,7 @@ function ToastItem({ t, onOpen, onClose }: { t: ToastData; onOpen: (t: ToastData
       <span className="tk">{t.label ?? (t.group ? 'Новые письма' : t.important ? `${name}, важное` : name)}</span>
       <span className="tt">{t.title}</span>
       <span className="ta">
-        <button type="button" onClick={() => onOpen(t)} title="Открыть письмо в «Почте»">
+        <button type="button" onClick={() => onOpen(t)} title={t.win ? 'Открыть окно' : 'Открыть письмо в «Почте»'}>
           Открыть
         </button>
       </span>
@@ -97,6 +115,17 @@ export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | Window
   /** Письма, исход которых уже показан (или был до начала сессии). */
   const outcomes = useRef<{ state: GameState; ids: Set<string> }>({ state: s, ids: outcomeIds(s) });
   const keyRef = useRef(0);
+
+  // Ответы на действия игрока показываем всегда, даже при выключенных уведомлениях о письмах.
+  useEffect(() => {
+    noticeListener = (n) => {
+      const t: ToastData = { key: ++keyRef.current, mailId: '', win: n.win, kind: n.kind, title: n.title, important: false, group: false, tone: n.tone, label: n.label };
+      setItems((cur) => [...cur, t].slice(-maxVisible()));
+    };
+    return () => {
+      noticeListener = null;
+    };
+  }, []);
 
   // Исход выбора со случайностью: письмо старое, новым становится только его поле outcome.
   useEffect(() => {
@@ -191,8 +220,11 @@ export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | Window
   const close = useCallback((key: number) => setItems((cur) => cur.filter((t) => t.key !== key)), []);
   const openMail = useCallback(
     (t: ToastData) => {
-      store.focusMail(t.mailId);
-      open('mail');
+      if (t.win) open(t.win);
+      else {
+        store.focusMail(t.mailId);
+        open('mail');
+      }
       setItems((cur) => cur.filter((x) => x.key !== t.key));
     },
     [open],

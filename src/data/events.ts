@@ -165,6 +165,7 @@ function gpuEvent(gpu: GpuDef): EventDef {
       return {
         kind: 'news',
         title: `Вышла новая видеокарта: ${gpu.name}`,
+        important: true, // смена поколения карт - повод остановиться и пересчитать аренду
         body:
           `${gpu.name} доступна в облаке. Мощность одной карты - ${String(Math.round(gpu.h100e * 100) / 100).replace('.', ',')} H100e, ` +
           `аренда - ${money(rentPerGpuDay(s, gpu.id))} в день за карту (${money(now)} за H100e в день).${gain} ` +

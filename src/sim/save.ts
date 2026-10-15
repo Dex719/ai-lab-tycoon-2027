@@ -241,6 +241,7 @@ const contract = shapeOf<Contract>({
   startedDay: num,
   deadlineDay: num,
   workDone: num,
+  warned: optional(bool),
 });
 
 const mailChoice = shapeOf<MailChoice>({ label: str, hint: str, story: optional(str) });

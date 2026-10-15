@@ -7,6 +7,7 @@ import { pool, totalH100e } from '../sim/compute';
 import { goalOfferOpen } from '../sim/goals';
 import type { GameState, Speed } from '../sim/types';
 import { contractsNeedWithApplications } from './forecast';
+import { fmtH100e } from './format';
 import type { WindowId } from './windows';
 
 export interface TutorialCtx {
@@ -16,11 +17,17 @@ export interface TutorialCtx {
 
 export interface TutorialStep {
   title: string;
-  text: string;
+  /** Текст шага; функция - если в нём живые числа партии. */
+  text: string | ((s: GameState) => string);
   /** Что подсветить: список data-tutorial по порядку предпочтения или функция от состояния партии. */
   targets: string[] | ((s: GameState) => string[]);
   /** Шаг закрывается сам, когда условие выполнено. Без условия - кнопкой «Далее». */
   done?: (s: GameState, ctx: TutorialCtx) => boolean;
+}
+
+/** Текст шага для текущего состояния. */
+export function stepText(step: TutorialStep, s: GameState): string {
+  return typeof step.text === 'function' ? step.text(s) : step.text;
 }
 
 /** Цели подсветки шага для текущего состояния. */
@@ -81,7 +88,7 @@ export const TUTORIAL: TutorialStep[] = [
   },
   {
     title: 'Тендеры',
-    text: 'Пока модель обучается, откройте «Контракты». Клиенты платят за модель с нужным баллом на тесте.',
+    text: 'Откройте «Контракты»: клиент платит за модель с нужным баллом. Не успеете к сроку - штраф, минус репутация, без оплаты.',
     targets: ['icon-contracts'],
     done: (s, ctx) => ctx.open.has('contracts') || released(s),
   },
@@ -101,7 +108,12 @@ export const TUTORIAL: TutorialStep[] = [
   // Без этого шага первый контракт срывался: долям по умолчанию (20 % от 96 карт) мало для тендеров 2017 года.
   {
     title: 'Мощность для контракта',
-    text: 'Контракт выполняет доля «Контракты» в «Мощностях». Под ней видно, сколько нужно: если не хватает, поднимите долю или арендуйте ещё карт.',
+    text: (s) => {
+      const need = contractsNeedWithApplications(s);
+      const have = pool(s, 'contracts');
+      const nums = need === null ? '' : `Нужно контрактам: ${fmtH100e(need)} H100e, выделено ${fmtH100e(have)}. `;
+      return `${nums}В «Мощностях» поднимите долю «Контракты» и нажмите «Распределить» или арендуйте ещё карт.`;
+    },
     targets: ['alloc', 'rent-button', 'icon-compute'],
     done: contractPowerEnough,
   },

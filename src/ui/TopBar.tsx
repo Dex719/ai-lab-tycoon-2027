@@ -2,12 +2,9 @@
 
 import { useEffect, useState , type ReactElement } from 'react';
 import { pendingChoice } from '../sim/events';
-import { overheadPerDay } from '../sim/finance';
-import { rentPerDay } from '../sim/compute';
 import { ArenaStrip } from './ArenaFeedback';
 import { MoneyFlies, useCountUp } from './Juice';
 import { LabStats } from './LabStats';
-import { dcCostPerDay } from '../sim/datacenters';
 import { END_DAY, formatDateShort } from '../sim/time';
 
 /** С 1 октября 2024 года рядом с датой идёт отсчёт до конца партии. */
@@ -18,6 +15,8 @@ import { subsOpen } from '../sim/market';
 import { IconAlert, IconArrowUpDown, IconBank, IconCalendar, IconFast, IconFaster, IconLogo, IconPause, IconPlay } from './icons';
 import { EXPENSE_KINDS, EXPENSE_LABELS, INCOME_KINDS, INCOME_LABELS } from './labels';
 import { store, useSpeed } from './store';
+import { monthlyRate } from './runway';
+import { ruPlural } from '../sim/text';
 import { isCoarsePointer } from './viewport';
 
 const SPEEDS: { speed: Speed; title: string; Icon: () => ReactElement }[] = [
@@ -27,16 +26,6 @@ const SPEEDS: { speed: Speed; title: string; Icon: () => ReactElement }[] = [
   { speed: 4, title: 'Скорость ×4', Icon: () => <IconFaster /> },
 ];
 
-/** Изменение денег в месяц: итог прошлого месяца без инвесторов, а в первый месяц - текущие расходы. */
-function monthlyRate(s: GameState): number {
-  const h = s.finance.history.at(-1);
-  if (h) {
-    const inc = h.income.api + h.income.subs + h.income.contracts;
-    const exp = EXPENSE_KINDS.reduce((sum, k) => (k === 'capex' ? sum : sum + (h.expense[k] ?? 0)), 0); // разовые вложения не в счёт
-    return inc - exp;
-  }
-  return -(rentPerDay(s) + overheadPerDay(s) + dcCostPerDay(s)) * 30;
-}
 
 function MoneyPopup({ s }: { s: GameState }) {
   const m = s.finance.month;
@@ -139,6 +128,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
             {rate >= 0 ? '' : '−'}
             {fmtMoney(Math.abs(rate))}/мес.
           </span>
+          <Runway cash={s.cash} rate={rate} />
         </div>
         <i className="tb-sep" aria-hidden="true" />
         <div className="tb-item tb-date">
@@ -189,5 +179,20 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
         </div>
       )}
     </header>
+  );
+}
+
+/** Запас денег при нынешнем расходе: «хватит на 4 мес.»; жёлтым меньше полугода, красным меньше трёх месяцев. */
+function Runway({ cash, rate }: { cash: number; rate: number }) {
+  if (rate >= 0 || cash <= 0) return null;
+  const months = cash / -rate;
+  if (months >= 24) return null;
+  const n = Math.floor(months);
+  const text = n < 1 ? 'хватит меньше чем на месяц' : `хватит на ${n} ${ruPlural(n, 'месяц', 'месяца', 'месяцев')}`;
+  const tone = months < 3 ? 'tb-bad' : months < 6 ? 'tb-warn' : 'tb-dim';
+  return (
+    <span className={`tb-runway ${tone}`} title="На сколько хватит денег на счёте, если доходы и расходы останутся как в прошлом месяце">
+      {text}
+    </span>
   );
 }

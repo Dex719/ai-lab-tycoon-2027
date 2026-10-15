@@ -5,7 +5,8 @@ import { openChoices, pendingChoice, unreadCount } from '../sim/events';
 import { goalOfferOpen, unseenReview } from '../sim/goals';
 import type { GameState } from '../sim/types';
 import { ChoiceModal } from './ChoiceModal';
-import { Dialog, isFresh } from './components/common';
+import { Dialog, ErrorText, isFresh } from './components/common';
+import { listSlots, writeSlot } from './saves';
 import { EndDialog } from './EndDialog';
 import { YearReviewModal } from './YearReviewModal';
 import { GoalChoiceModal } from './GoalChoice';
@@ -40,12 +41,14 @@ const RIGHT_ICONS = 316;
 
 interface BodyProps extends WindowProps {
   C: ComponentType<WindowProps>;
+  id: WindowId;
+  closeWin: (id: WindowId) => void;
   version: number; // состояние меняется на месте, поэтому для memo новизну данных показывает версия
 }
 
 /** Содержимое окна перерисовывается на каждый ход игры, но не когда соседнее окно двигают. */
-const WindowBody = memo(function WindowBody({ C, s, open }: BodyProps) {
-  return <C s={s} open={open} />;
+const WindowBody = memo(function WindowBody({ C, s, open, id, closeWin }: BodyProps) {
+  return <C s={s} open={open} close={() => closeWin(id)} />;
 });
 
 function useWindows(deskRef: React.RefObject<HTMLDivElement | null>) {
@@ -83,7 +86,7 @@ function useWindows(deskRef: React.RefObject<HTMLDivElement | null>) {
     return () => window.removeEventListener('resize', onResize);
   }, [deskRef]);
 
-  const close = (id: WindowId) => setWins((ws) => ws.filter((w) => w.id !== id));
+  const close = useCallback((id: WindowId) => setWins((ws) => ws.filter((w) => w.id !== id)), []);
   const minimize = (id: WindowId) => setWins((ws) => ws.map((w) => (w.id === id ? { ...w, min: true } : w)));
   const focus = (id: WindowId) =>
     setWins((ws) => {
@@ -162,6 +165,15 @@ export function Game({ s }: { s: GameState }) {
     };
   }, [dockShown]);
   const clock = useClock();
+  // Окно игры закрывают посреди партии (крестик exe, вкладка браузера): партия уходит в автосохранение.
+  useEffect(() => {
+    const save = () => {
+      const st = store.state;
+      if (st && !st.outcome) writeSlot('auto', st);
+    };
+    window.addEventListener('pagehide', save);
+    return () => window.removeEventListener('pagehide', save);
+  }, []);
   const [startOpen, setStartOpen] = useState(false);
   const [dialog, setDialog] = useState<GameDialog>(null);
   const [watched, setWatched] = useState<GameState | null>(null);
@@ -232,7 +244,7 @@ export function Game({ s }: { s: GameState }) {
               onMinimize={() => (phone ? minimizeAll() : minimize(w.id))}
               onMove={(g) => move(w.id, g)}
             >
-              <WindowBody C={def.Component} s={s} open={open} version={store.version} />
+              <WindowBody C={def.Component} s={s} open={open} id={w.id} closeWin={close} version={store.version} />
             </Window>
           );
         })}
@@ -351,6 +363,18 @@ function DeskIcon(props: {
 }
 
 function QuitDialog({ onClose }: { onClose: () => void }) {
+  const [error, setError] = useState<string | null>(null);
+  const auto = listSlots().find((x) => x.id === 'auto')?.meta ?? null;
+  const day = store.state?.day ?? null;
+  function saveAndQuit() {
+    // В ячейку автосохранения: «Продолжить» в главном меню откроет партию с этого дня.
+    if (!store.saveToSlot('auto')) {
+      setError('Сохранить не удалось: хранилище переполнено или недоступно.');
+      return;
+    }
+    onClose();
+    store.quit();
+  }
   return (
     <Dialog
       title="Выйти в главное меню"
@@ -361,18 +385,28 @@ function QuitDialog({ onClose }: { onClose: () => void }) {
             Отмена
           </button>
           <button
-            className="btn primary"
+            className="btn danger"
             onClick={() => {
               onClose();
               store.quit();
             }}
           >
-            Выйти
+            Выйти без сохранения
+          </button>
+          <button className="btn primary" onClick={saveAndQuit}>
+            Сохранить и выйти
           </button>
         </>
       }
     >
-      Несохранённый прогресс будет потерян. Автосохранение делается в начале каждого месяца.
+      <div className="col" style={{ gap: 6 }}>
+        <div>
+          Сейчас в игре {day !== null ? formatDateShort(day) : '-'}. Последнее автосохранение:{' '}
+          {auto ? `${formatDateShort(auto.day)}, ${auto.labName}` : 'нет'}.
+        </div>
+        <div className="small muted">«Сохранить и выйти» запишет партию в автосохранение: «Продолжить» в главном меню вернёт к этому дню.</div>
+        <ErrorText error={error} />
+      </div>
     </Dialog>
   );
 }

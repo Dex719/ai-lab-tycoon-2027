@@ -225,6 +225,7 @@ describe('автопауза по галочкам настроек', () => {
 
   it('исследование завершено: без галочки игра идёт, с галочкой встаёт', () => {
     const { store } = newStore();
+    setSettings({ pauseOnResearch: false });
     store.setSpeed(1);
     advanceDay.mockImplementationOnce((s) => {
       s.research.algoLevel += 1;
@@ -241,15 +242,27 @@ describe('автопауза по галочкам настроек', () => {
     expect(store.pauseReason).toBe('Исследование завершено');
   });
 
-  it('тендер выигран (новый контракт) ставит паузу по галочке', () => {
+  it('тендер выигран по своей заявке ставит паузу по галочке, с названием клиента', () => {
     const { store, s } = newStore();
     setSettings({ pauseOnTender: true });
     store.setSpeed(1);
     advanceDay.mockImplementationOnce((st) => {
       st.contracts.push({ ...(s.contracts[0] ?? {}), id: 'c-test' } as GameState['contracts'][number]);
+      addMail(st, { kind: 'contract', title: 'Тендер выигран: Банк «Северный»', body: '' });
     });
     vi.advanceTimersByTime(500);
-    expect(store.pauseReason).toBe('Тендер выигран');
+    expect(store.pauseReason).toBe('Тендер выигран: Банк «Северный»');
+  });
+
+  it('победа по авто-заявке (без письма, в месячной сводке) паузу не ставит', () => {
+    const { store, s } = newStore();
+    setSettings({ pauseOnTender: true });
+    store.setSpeed(1);
+    advanceDay.mockImplementationOnce((st) => {
+      st.contracts.push({ ...(s.contracts[0] ?? {}), id: 'c-auto' } as GameState['contracts'][number]);
+    });
+    vi.advanceTimersByTime(500);
+    expect(store.speed).toBe(1);
   });
 
   it('«Модель готова» с выключенной галочкой не останавливает игру, хотя письмо важное', () => {

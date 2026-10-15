@@ -276,7 +276,9 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
   const [del, setDel] = useState<SlotId | null>(null); // ячейка, удаление которой ждёт подтверждения
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<SlotId | null>(null);
+  const [loadAsk, setLoadAsk] = useState<SlotId | null>(null); // загрузка поверх идущей партии ждёт подтверждения
   const visible = mode === 'save' ? slots.filter((s) => s.id !== 'auto') : slots;
+  const inGame = !!store.state && !store.state.outcome;
   const delSlot = del !== null ? (slots.find((x) => x.id === del) ?? null) : null;
 
   function load(id: SlotId) {
@@ -309,12 +311,26 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
           <SlotRow key={slot.id} slot={slot}>
             {mode === 'load' && slot.meta && (
               <>
-                <button className="btn small primary" onClick={() => load(slot.id)}>
-                  Загрузить
-                </button>
-                <button className="btn small danger" onClick={() => setDel(slot.id)}>
-                  Удалить
-                </button>
+                {loadAsk === slot.id ? (
+                  <>
+                    <span className="small">Текущая партия не сохранится. Загрузить?</span>
+                    <button className="btn small primary" onClick={() => load(slot.id)}>
+                      Загрузить
+                    </button>
+                    <button className="btn small" onClick={() => setLoadAsk(null)}>
+                      Отмена
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn small primary" onClick={() => (inGame ? setLoadAsk(slot.id) : load(slot.id))}>
+                      Загрузить
+                    </button>
+                    <button className="btn small danger" onClick={() => setDel(slot.id)}>
+                      Удалить
+                    </button>
+                  </>
+                )}
               </>
             )}
             {mode === 'save' && MANUAL_SLOTS.includes(slot.id) && (

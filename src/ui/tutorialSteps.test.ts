@@ -16,7 +16,7 @@ import { advanceDay } from '../sim/tick';
 import { modelScore, startTraining, tierPreset } from '../sim/training';
 import type { GameState } from '../sim/types';
 import { contractsNeedWithApplications } from './forecast';
-import { stepTargets, TUTORIAL, type TutorialCtx } from './tutorialSteps';
+import { stepTargets, stepText, TUTORIAL, type TutorialCtx } from './tutorialSteps';
 import type { WindowId } from './windows';
 
 const UI_DIR = join(__dirname);
@@ -94,10 +94,12 @@ describe('обучение игре', () => {
   });
 
   it('тексты: простой дефис, без длинных простыней', () => {
+    const st = newGame('Тест', 1, 'normal');
     for (const step of TUTORIAL) {
-      expect(step.text).not.toMatch(/[—–]/);
+      const text = stepText(step, st);
+      expect(text).not.toMatch(/[—–]/);
       expect(step.title).not.toMatch(/[—–]/);
-      expect(step.text.length, step.title).toBeLessThanOrEqual(150);
+      expect(text.length, step.title).toBeLessThanOrEqual(150);
     }
   });
 
