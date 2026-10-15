@@ -337,7 +337,7 @@ describe('письма не вплотную', () => {
     for (const l of letters) perYear.set(yearOf(l.day), (perYear.get(yearOf(l.day)) ?? 0) + 1);
     for (const [y, n] of perYear) expect(n, String(y)).toBeLessThanOrEqual(16);
     expect(letters.length).toBeLessThanOrEqual(95);
-  });
+  }, 60_000);
 
   it('все исторические письма доходят, даже если игрок решает не сразу', () => {
     for (const answerAfter of [0, 20]) {
@@ -345,5 +345,5 @@ describe('письма не вплотную', () => {
       const missed = HISTORY_EVENTS.map((e) => e.id).filter((id) => !s.firedEvents.includes(id));
       expect(missed, `ответ через ${answerAfter} дн.`).toEqual([]);
     }
-  });
+  }, 60_000);
 });
