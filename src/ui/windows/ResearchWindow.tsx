@@ -1,15 +1,14 @@
-// Окно «Исследования»: карта всех технологий на сером холсте (образец - «Исследования» в Processor Tycoon).
-// Столбцы - годы появления в истории, линии - требования. Карту двигают мышью или пальцем, колесо мыши - масштаб.
-// Полос прокрутки нет: положение карты меняется только перетаскиванием и масштабом.
+// Окно «Исследования» в духе дерева Processor Tycoon: строка текущего исследования (или самого быстрого следующего),
+// слева неподвижная карта технологий со значками (изученные - тёмные плитки с полной зелёной полосой), справа
+// «Можно начать» - что изучать дальше и что это даст. Любой узел и строка открывают диалог исследования.
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
-import { pointsWord, tokensWord } from '../../sim/text';
 import { GPUS } from '../../data/gpus';
 import { pool, rentPerDay, totalH100e } from '../../sim/compute';
-import { ALGO_MULT, CONTEXT_LEVELS, RESEARCH_QUEUE_MAX, RP_BASE, RP_K } from '../../sim/constants';
+import { ALGO_MULT, CONTEXT_LEVELS, RP_BASE, RP_K } from '../../sim/constants';
 import {
   BRANCH_NAMES,
   CONTEXT_MAX_LEVEL,
@@ -26,102 +25,52 @@ import {
   techHistoryDay,
   techRequires,
 } from '../../sim/research';
-import type { TechBranch } from '../../sim/research';
+import { timesWord, tokensWord } from '../../sim/text';
 import { formatDateShort } from '../../sim/time';
-import type { ReactNode } from 'react';
 import type { GameState, TechId } from '../../sim/types';
 import { TECH_IDS } from '../../sim/types';
 import { checkAllocation, percentsOf, soldChannels, toAllocation, withPercent, ZERO_SHARE_WARNING } from '../alloc';
-import { Alert, ConfirmDialog, Dialog, ErrorText, Range } from '../components/common';
+import { ConfirmDialog, DenyNote, Dialog, ErrorText, Range, useFlash } from '../components/common';
 import { fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
-import { IconCheck, IconLock } from '../icons';
+import { IconCheck, IconClose, IconLock } from '../icons';
+import { TechIcon } from '../icons/tech';
 import { actions, store } from '../store';
 import {
-  BRANCH_COLOR,
-  clampZoom,
-  GRAPH_ROW,
-  GRAPH_ROWS,
+  CHAIN_TECHS,
   GRAPH_TECHS,
-  graphCol,
   graphEdges,
-  graphYears,
-  FIT_MIN_ZOOM,
-  ZOOM_MAX,
-  ZOOM_MIN,
-  ZOOM_STEP,
+  MAP_CELL,
+  MAP_COLS,
+  MAP_LABEL,
+  MAP_ROWS,
+  TECHS_TO_LEARN,
+  techGain,
+  termText,
 } from './researchMap';
 import type { GraphTech } from './researchMap';
 import './ResearchWindow.css';
 
 type Status = 'done' | 'current' | 'available' | 'blocked';
 
-// Размеры холста при масштабе 1, px.
-const NW = 240; // ширина узла
-const NH = 124; // высота узла
-const PAD = 32; // поля
-const YEAR_H = 30; // строка годов над картой
-const COL_GAP = 64; // между столбцами
-const ROW_GAP = 30; // между строками (в нём подпись «Раньше истории»)
-const CHAIN_GAP = 56; // от карты до цепочек
-const CHIP_W = 60;
-const CHIP_H = 36;
-const CHIP_GAP = 8;
-const CHIP_LINK = 28; // от последнего значка до узла
-const MAX_CHIPS = 8;
+// Размеры карты, px.
+const NW = 192; // ширина узла
+const NH = 56; // высота узла
+const PAD_X = 12;
+const PAD_Y = 12;
+const COL_GAP = 40;
+const ROW_GAP = 8;
+const SPINE = 20; // вертикаль линий - за столько px до столбца цели
+const CHAIN_GAP = 18; // от карты до полосы цепочек
+const CHAIN_H = 58;
 
-const COL_W = NW + COL_GAP;
-const ROW_H = NH + ROW_GAP;
+const MAP_W = PAD_X * 2 + MAP_COLS * NW + (MAP_COLS - 1) * COL_GAP;
+const GRAPH_H = MAP_ROWS * NH + (MAP_ROWS - 1) * ROW_GAP;
+const CHAIN_Y = PAD_Y + GRAPH_H + CHAIN_GAP;
+const MAP_H = CHAIN_Y + CHAIN_H + PAD_Y;
+const CHAIN_W = (MAP_W - PAD_X * 2 - 12) / 2;
 
-// Сохранённый вид карты: масштаб и прокрутка.
-const VIEW_KEY = 'ai-lab-tycoon:research-view';
-const DRAG_THRESHOLD = 4; // px: меньше - это щелчок, а не перетаскивание
-/** Чувствительность колеса: один щелчок колеса мыши (deltaY ≈ 100) меняет масштаб примерно на 15 %. */
-const WHEEL_K = 0.0015;
-
-/** Подсказка в шапке окна: откуда берутся очки исследований. */
-const RP_HINT = 'Очки появляются каждый день от доли «Исследования» в «Мощностях» и идут в выбранную технологию.';
-
-/** «Накоплено 1 200 из 8 438 очков» - прогресс текущей технологии. */
-function progressText(points: number, cost: number): string {
-  return `Накоплено ${fmtNum(points)} из ${fmtNum(cost)} очков`;
-}
-
-/** «очко / очка / очков» после числа в формате fmtNum: после «тыс.» и «млн» - всегда «очков». */
-function pointsNoun(n: number): string {
-  const r = Math.round(n);
-  return r >= 1e4 ? 'очков' : pointsWord(r);
-}
-
-/** «Цена: 8 438 очков». */
-function priceText(cost: number): string {
-  return `Цена: ${fmtNum(Math.round(cost))} ${pointsNoun(cost)}`;
-}
-
-interface SavedView {
-  zoom: number;
-  left: number;
-  top: number;
-}
-
-function loadView(): SavedView | null {
-  try {
-    const raw = localStorage.getItem(VIEW_KEY);
-    if (!raw) return null;
-    const v = JSON.parse(raw) as Partial<SavedView>;
-    if (typeof v.zoom !== 'number' || typeof v.left !== 'number' || typeof v.top !== 'number') return null;
-    return { zoom: clampZoom(v.zoom), left: Math.max(0, v.left), top: Math.max(0, v.top) };
-  } catch {
-    return null;
-  }
-}
-
-function saveView(v: SavedView): void {
-  try {
-    localStorage.setItem(VIEW_KEY, JSON.stringify(v));
-  } catch {
-    // Хранилище недоступно: вид просто не запомнится.
-  }
-}
+/** Карта ужимается под окно, но не мельче этого масштаба: дальше текст на узлах не читается. */
+const MIN_SCALE = 0.74;
 
 function techInfo(id: TechId) {
   return TECHS.find((t) => t.id === id)!;
@@ -131,29 +80,16 @@ function techName(id: TechId): string {
   return TECHS.find((t) => t.id === id)?.name ?? id;
 }
 
-function statusOf(s: GameState, id: TechId, reason: string | null): Status {
+function statusOf(s: GameState, id: TechId): Status {
   if (id !== 'algo' && s.research.done.includes(id)) return 'done';
   if (s.research.current === id) return 'current';
-  return reason ? 'blocked' : 'available';
+  return researchBlockReason(s, id) ? 'blocked' : 'available';
 }
 
-/** Подсказка к закрытому узлу: «Нужно: «A», «B»» или причина из sim. */
-function lockText(s: GameState, id: TechId, reason: string | null): string {
-  const missing = missingRequirements(s, id);
-  if (missing.length > 0) return `Нужно: ${missing.map((t) => `«${techName(t)}»`).join(', ')}`;
-  return reason ?? 'Исследование недоступно';
-}
-
-/** Дней до конца технологии при текущей скорости очков с учётом падения цены; Infinity - очень долго или очки не копятся. */
-function daysLeft(s: GameState, id: TechId, rp: number): number {
-  return researchDaysLeft(s, id, rp);
-}
-
-/** Срок: «45 дн.», «≈ 2,5 г.», «больше 10 лет». */
-function termText(days: number): string {
-  if (!Number.isFinite(days)) return 'больше 10 лет';
-  if (days < 1000) return `${fmtNum(days)} дн.`;
-  return `≈ ${fmtNum(Math.round((days / 365) * 10) / 10)} г.`;
+/** Доля готовности текущего уровня технологии, 0..1. */
+function progressOf(s: GameState, id: TechId): number {
+  const cost = techCost(s, id);
+  return cost > 0 ? Math.min(1, (s.research.points[id] ?? 0) / cost) : 0;
 }
 
 /** Дата выхода показывается только для прошедшего: будущие даты игрок знать не должен. */
@@ -161,602 +97,398 @@ function pastHistory(s: GameState, id: TechId): boolean {
   return techHistoryDay(s, id) <= s.day;
 }
 
-interface Chip {
-  label: string;
-  title: string;
+function posOf(t: GraphTech): { x: number; y: number } {
+  const c = MAP_CELL[t];
+  return { x: PAD_X + c.col * (NW + COL_GAP), y: PAD_Y + c.row * (NH + ROW_GAP) };
 }
 
-/** Значки изученных уровней. Если их больше MAX_CHIPS, первые сворачиваются в один значок «Ур. 1-N». */
-function algoChips(level: number): Chip[] {
-  const one = (k: number): Chip => ({ label: `Ур. ${k}`, title: `Уровень ${k}: эффективность обучения ×${fmtMult(ALGO_MULT ** k)}` });
-  const all = Array.from({ length: level }, (_, i) => one(i + 1));
-  if (level <= MAX_CHIPS) return all;
-  const folded = level - (MAX_CHIPS - 1);
-  return [{ label: `Ур. 1-${folded}`, title: `Уровни 1-${folded} изучены` }, ...all.slice(folded)];
+/** Порядок «что изучать»: сначала технологии карты, затем цепочки; внутри - по сроку. */
+function availableList(s: GameState, rp: number): TechId[] {
+  const ids = TECH_IDS.filter((t) => s.research.current !== t && researchBlockReason(s, t) === null);
+  const chain = (t: TechId) => ((CHAIN_TECHS as TechId[]).includes(t) ? 1 : 0);
+  return ids
+    .map((t) => ({ t, d: researchDaysLeft(s, t, rp), c: chain(t) }))
+    .sort((a, b) => a.c - b.c || a.d - b.d)
+    .map((x) => x.t);
 }
 
-/** Значки изученных уровней контекста: «1 тыс.», «2 тыс.»… */
-function contextChips(level: number): Chip[] {
-  return Array.from({ length: level }, (_, i) => {
-    const label = contextLabel(CONTEXT_LEVELS[i + 1][0]);
-    return { label, title: `Уровень ${i + 1}: контекст до ${label} ${tokensWord(CONTEXT_LEVELS[i + 1][0])}` };
+/** Технологии, которые откроются после идущего исследования или очереди: их можно ставить в очередь. */
+function upcomingList(s: GameState): TechId[] {
+  return TECH_IDS.filter((t) => {
+    if (statusOf(s, t) !== 'blocked') return false;
+    return s.research.queue.includes(t) || queueBlockReason(s, t) === null;
   });
 }
 
-function chipsWidth(n: number): number {
-  return n > 0 ? n * CHIP_W + (n - 1) * CHIP_GAP : 0;
+// ---------- Узел карты ----------
+
+function StatusLine({ s, id, status, rp }: { s: GameState; id: TechId; status: Status; rp: number }) {
+  const q = s.research.queue.indexOf(id) + 1;
+  if (status === 'done') {
+    return (
+      <span className="rs-st done">
+        <IconCheck size={12} /> Изучено
+      </span>
+    );
+  }
+  if (status === 'current') return <span className="rs-st cur">Идёт: {fmtPct(progressOf(s, id) * 100, 0)}</span>;
+  if (q > 0) return <span className="rs-st q">В очереди: {q}</span>;
+  if (status === 'blocked') {
+    return (
+      <span className="rs-st lock">
+        <IconLock size={12} /> Закрыто
+      </span>
+    );
+  }
+  return <span className="rs-st">{termText(researchDaysLeft(s, id, rp))}</span>;
 }
 
-interface NodeProps {
-  s: GameState;
-  id: TechId;
-  label?: string;
-  code?: string;
-  rp: number;
-  x: number;
-  y: number;
-  onPick: (id: TechId, status: Status, reason: string | null) => void;
-}
-
-function TechNode({ s, id, label, code, rp, x, y, onPick }: NodeProps) {
+function MapNode({ s, id, rp, onOpen }: { s: GameState; id: GraphTech; rp: number; onOpen: (id: TechId) => void }) {
+  const status = statusOf(s, id);
+  const queued = s.research.queue.includes(id);
+  const p = posOf(id);
   const info = techInfo(id);
-  const reason = researchBlockReason(s, id);
-  const status = statusOf(s, id, reason);
-  const points = s.research.points[id] ?? 0;
-  const cost = techCost(s, id);
-  const days = daysLeft(s, id, rp);
-  const penalty = earlyPenalty(s, id);
-  const past = pastHistory(s, id);
-  const queuePos = s.research.queue.indexOf(id) + 1;
-  const share = status === 'done' ? 1 : cost > 0 ? Math.min(1, points / cost) : 0;
-  const color = BRANCH_COLOR[info.branch];
-  const branch = BRANCH_NAMES[info.branch];
-
-  const title =
-    status === 'blocked'
-      ? `${info.name}. ${lockText(s, id, reason)}`
-      : `${info.name}. ${info.description} Направление: ${branch}.`;
-
   return (
-    <div className="rs-slot" style={{ left: x, top: y, width: NW, height: NH }}>
-      <button
-        type="button"
-        className={`rs-node ${status}${queuePos > 0 ? ' queued' : ''}`}
-        style={{ '--br': color.line, '--br-fill': color.fill } as CSSProperties}
-        data-tutorial={id === 'attention' ? 'tech-attention' : undefined}
-        data-tech={id}
-        title={title}
-        aria-disabled={status === 'blocked' || status === 'done'}
-        onClick={() => onPick(id, status, reason)}
-      >
-        <span className="rs-name">{label ?? info.name}</span>
-        <span className="rs-main">
-          <span className="rs-thumb">
-            {status === 'blocked' && <IconLock size={16} />}
-            <span>{code ?? info.code}</span>
-          </span>
-          <span className="rs-kv">
-            {past && (
-              <>
-                <span>Вышла</span>
-                <span>{formatDateShort(techHistoryDay(s, id))}</span>
-              </>
-            )}
-            {status === 'done' ? (
-              <span className="rs-done">
-                <IconCheck size={14} />
-                Изучено
-              </span>
-            ) : (
-              <>
-                <span>Срок</span>
-                <span>{termText(days)}</span>
-              </>
-            )}
-          </span>
-        </span>
-        {status !== 'done' && (
-          <span className="rs-pts">{status === 'current' || points > 0 ? progressText(points, cost) : priceText(cost)}</span>
-        )}
-        {status !== 'done' && points > 0 && (
-          <span className="rs-prog" title={progressText(points, cost)}>
-            <span style={{ width: `${share * 100}%` }} />
-          </span>
-        )}
-      </button>
-      {status !== 'done' && (queuePos > 0 || penalty > 1) && (
-        <span className="rs-caption" title={penalty > 1 ? 'Цена снижается по мере приближения к дате появления в истории' : undefined}>
-          {queuePos > 0 && <b className="rs-q">В очереди: {queuePos}</b>}
-          {queuePos > 0 && penalty > 1 && ' · '}
-          {penalty > 1 && <b className="rs-early">Раньше истории: цена ×{fmtMult(penalty)}</b>}
+    <button
+      type="button"
+      className={`rs-node ${status}${queued ? ' queued' : ''}`}
+      style={{ left: p.x, top: p.y, width: NW, height: NH }}
+      data-tutorial={id === 'attention' ? 'tech-attention' : undefined}
+      data-tech={id}
+      title={`${info.name}. ${techGain(s, id)}`}
+      onClick={() => onOpen(id)}
+    >
+      <span className="rs-ico">
+        <TechIcon id={id} size={34} locked={status === 'blocked' && !queued} />
+      </span>
+      <span className="rs-txt">
+        <span className="rs-name">{MAP_LABEL[id] ?? info.name}</span>
+        <StatusLine s={s} id={id} status={status} rp={rp} />
+      </span>
+      {(status === 'current' || status === 'done') && (
+        <span className="rs-bar" aria-hidden="true">
+          <i style={{ width: `${(status === 'done' ? 1 : progressOf(s, id)) * 100}%` }} />
         </span>
       )}
-    </div>
+    </button>
   );
 }
 
-/** Ломаная от требования к технологии: вправо от источника, вертикаль в промежутке перед столбцом цели, вправо к цели. */
-function edgePath(x1: number, y1: number, x2: number, y2: number): string {
-  const mid = x2 - COL_GAP / 2;
-  return y1 === y2 ? `M${x1} ${y1} H${x2}` : `M${x1} ${y1} H${mid} V${y2} H${x2}`;
+/** Цепочка с уровнями: значок, название, пройденные уровни делениями, срок следующего уровня. */
+function ChainNode({ s, id, x, rp, onOpen }: { s: GameState; id: 'algo' | 'context'; x: number; rp: number; onOpen: (id: TechId) => void }) {
+  const status = statusOf(s, id);
+  const queued = s.research.queue.includes(id);
+  const algo = id === 'algo';
+  const level = algo ? s.research.algoLevel : s.research.contextLevel;
+  const ctxNow = CONTEXT_LEVELS[s.research.contextLevel][0];
+  const head = algo
+    ? level > 0
+      ? `Уровень ${level}: обучение ×${fmtMult(ALGO_MULT ** level)}`
+      : 'Уровней пока нет'
+    : `Контекст до ${contextLabel(ctxNow)} ${tokensWord(ctxNow)}`;
+  const ticks = algo ? Math.min(level, 12) : CONTEXT_MAX_LEVEL;
+  return (
+    <button
+      type="button"
+      className={`rs-node chain ${status}${queued ? ' queued' : ''}`}
+      style={{ left: x, top: CHAIN_Y, width: CHAIN_W, height: CHAIN_H }}
+      data-tech={id}
+      title={`${techName(id)}. ${techGain(s, id)}`}
+      onClick={() => onOpen(id)}
+    >
+      <span className="rs-ico">
+        <TechIcon id={id} size={38} locked={status === 'blocked' && !queued} />
+      </span>
+      <span className="rs-txt">
+        <span className="rs-name">{techName(id)}</span>
+        <span className="rs-sub">{head}</span>
+        <span className="rs-chainrow">
+          <span className="rs-ticks" aria-hidden="true">
+            {Array.from({ length: ticks }, (_, i) => (
+              <i key={i} className={i < level ? 'on' : undefined} />
+            ))}
+            {algo && level > 12 && <b>+{level - 12}</b>}
+          </span>
+          {status !== 'done' && <StatusLine s={s} id={id} status={status} rp={rp} />}
+        </span>
+      </span>
+      {status === 'current' && (
+        <span className="rs-bar" aria-hidden="true">
+          <i style={{ width: `${progressOf(s, id) * 100}%` }} />
+        </span>
+      )}
+    </button>
+  );
 }
 
-const BRANCH_ORDER: TechBranch[] = ['architecture', 'scale', 'alignment', 'data', 'efficiency', 'product'];
+/** Линия от требования к технологии: вправо, вертикаль перед столбцом цели, вправо к цели. */
+function edgePath(from: GraphTech, to: GraphTech): string {
+  const a = posOf(from);
+  const b = posOf(to);
+  const x1 = a.x + NW;
+  const y1 = a.y + NH / 2;
+  const y2 = b.y + NH / 2;
+  const xs = b.x - SPINE;
+  return y1 === y2 ? `M${x1} ${y1} H${b.x}` : `M${x1} ${y1} H${xs} V${y2} H${b.x}`;
+}
 
-export default function ResearchWindow({ s, open }: WindowProps) {
-  // Сообщение об отказе висит до следующего действия (выбор узла или остановка).
-  const [note, setNote] = useState<string | null>(null);
-  const [dialog, setDialog] = useState<TechId | null>(null);
-  const rp = rpPerDay(s);
-  const power = pool(s, 'experiments');
-  const current = s.research.current;
-  const level = s.research.algoLevel;
-
-  const pick = (id: TechId, status: Status, reason: string | null) => {
-    if (status === 'done') return;
-    if (status === 'blocked') {
-      // Технологию, которая откроется после текущей или очередной, можно поставить в очередь.
-      if (queueBlockReason(s, id) === null || s.research.queue.includes(id)) {
-        setNote(null);
-        setDialog(id);
-        return;
-      }
-      setNote(lockText(s, id, reason));
-      return;
-    }
-    setNote(null);
-    setDialog(id);
-  };
-
-  const stop = () => {
-    const r = store.dispatch(actions.setResearch, null);
-    setNote(r.ok ? null : r.error);
-  };
-
-  // ---------- Раскладка ----------
-  const years = graphYears();
-  const graphTop = PAD + YEAR_H;
-  const posOf = (t: GraphTech) => ({ x: PAD + graphCol(t, years) * COL_W, y: graphTop + GRAPH_ROW[t] * ROW_H });
-  const graphW = years.length * COL_W - COL_GAP;
-  const graphBottom = graphTop + GRAPH_ROWS * ROW_H - ROW_GAP;
-
-  const chips = algoChips(level);
-  const algoY = graphBottom + CHAIN_GAP;
-  const algoX = PAD + (chips.length > 0 ? chipsWidth(chips.length) + CHIP_LINK : 0);
-  const algoCy = algoY + NH / 2;
-
-  const ctxLevel = s.research.contextLevel;
-  const ctxChips = contextChips(ctxLevel);
-  const ctxY = algoY + NH + CHAIN_GAP;
-  const ctxX = PAD + (ctxChips.length > 0 ? chipsWidth(ctxChips.length) + CHIP_LINK : 0);
-  const ctxCy = ctxY + NH / 2;
-  const ctxDone = ctxLevel >= CONTEXT_MAX_LEVEL;
-  const ctxNext = CONTEXT_LEVELS[Math.min(ctxLevel + 1, CONTEXT_MAX_LEVEL)][0];
-
-  const width = Math.max(PAD + graphW + PAD, algoX + NW + PAD, ctxX + NW + PAD);
-  const height = ctxY + NH + ROW_GAP + PAD / 2;
-
-  const currentDays = current ? daysLeft(s, current, rp) : null;
-  const queue = s.research.queue;
-  const idle = current === null && queue.length === 0 && power > 0;
-
-  // ---------- Масштаб и перемещение ----------
-  const viewRef = useRef<HTMLDivElement>(null);
-  const [saved] = useState(loadView);
-  const [zoom, setZoom] = useState<number>(saved?.zoom ?? 1);
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  // Точка, которая должна остаться на месте после смены масштаба (координаты в окне карты).
-  const anchor = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
-  const restored = useRef(false);
-  const fitOnFirst = useRef(saved === null);
-  const touches = useRef(new Map<number, { x: number; y: number }>());
-  const pinch = useRef<{ d: number; z: number } | null>(null);
-  const drag = useRef<{ id: number; x: number; y: number; left: number; top: number; moved: boolean } | null>(null);
-  const suppressClick = useRef(false);
-  const [dragging, setDragging] = useState(false);
-  const saveTimer = useRef<number | null>(null);
-
-  const offX = Math.max(0, (size.w - width * zoom) / 2);
-  const offY = Math.max(0, (size.h - height * zoom) / 2);
-
+/** Масштаб карты, при котором она целиком помещается в место el (не крупнее 1 и не мельче MIN_SCALE). */
+function useFitScale(ref: RefObject<HTMLDivElement | null>): number {
+  const [k, setK] = useState(1);
   useLayoutEffect(() => {
-    const el = viewRef.current;
+    const el = ref.current;
     if (!el) return;
-    const measure = () => setSize({ w: el.clientWidth, h: el.clientHeight });
+    const measure = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w <= 0 || h <= 0) return;
+      setK(Math.max(MIN_SCALE, Math.min(1, w / MAP_W, h / MAP_H)));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [ref]);
+  return k;
+}
 
-  // «По размеру»: масштаб не меньше 80 %, чтобы текст на карточках читался; карта центрируется на нужной технологии.
-  const fitZoom = useCallback(
-    () => (size.w > 0 && size.h > 0 ? clampZoom(Math.max(FIT_MIN_ZOOM, Math.min(size.w / width, size.h / height))) : 1),
-    [size.w, size.h, width, height],
-  );
-  // Технология, на которой открывается карта: идущая или первая доступная; иначе вид не сдвигаем.
-  const focusId = current ?? TECH_IDS.find((t) => !s.research.done.includes(t) && researchBlockReason(s, t) === null) ?? null;
-  const focusPoint = (): { x: number; y: number } | null => {
-    if (focusId === 'algo') return { x: algoX + NW / 2, y: algoCy };
-    if (focusId === 'context') return { x: ctxX + NW / 2, y: ctxCy };
-    if (focusId === null || !(focusId in GRAPH_ROW)) return null;
-    const p = posOf(focusId as GraphTech);
-    return { x: p.x + NW / 2, y: p.y + NH / 2 };
-  };
-
-  // Первое открытие без сохранённого вида - вся карта по размеру окна; иначе - сохранённая прокрутка.
-  useLayoutEffect(() => {
-    const el = viewRef.current;
-    if (!el || restored.current || size.w === 0) return;
-    restored.current = true;
-    if (fitOnFirst.current) {
-      const fp = focusPoint();
-      if (fp) anchor.current = { x: fp.x, y: fp.y, cx: size.w / 2, cy: size.h / 2 };
-      setZoom(fitZoom());
-      return;
-    }
-    if (saved) {
-      el.scrollLeft = saved.left;
-      el.scrollTop = saved.top;
-    }
-  }, [size.w, fitZoom, saved]);
-
-  // После смены масштаба точка под курсором (или центр окна) остаётся на месте.
-  useLayoutEffect(() => {
-    const el = viewRef.current;
-    const a = anchor.current;
-    if (!el || !a) return;
-    anchor.current = null;
-    el.scrollLeft = a.x * zoom + offX - a.cx;
-    el.scrollTop = a.y * zoom + offY - a.cy;
-  }, [zoom, offX, offY]);
-
-  const remember = useCallback(() => {
-    if (saveTimer.current !== null) window.clearTimeout(saveTimer.current);
-    saveTimer.current = window.setTimeout(() => {
-      const el = viewRef.current;
-      if (el) saveView({ zoom, left: el.scrollLeft, top: el.scrollTop });
-    }, 150);
-  }, [zoom]);
-
-  useEffect(() => {
-    remember();
-  }, [zoom, remember]);
-
-  useEffect(
-    () => () => {
-      if (saveTimer.current !== null) window.clearTimeout(saveTimer.current);
-    },
-    [],
-  );
-
-  const zoomTo = useCallback(
-    (next: number, cx?: number, cy?: number) => {
-      const el = viewRef.current;
-      const z = clampZoom(next);
-      if (!el || z === zoom) return;
-      const px = cx ?? el.clientWidth / 2;
-      const py = cy ?? el.clientHeight / 2;
-      anchor.current = {
-        x: (el.scrollLeft + px - offX) / zoom,
-        y: (el.scrollTop + py - offY) / zoom,
-        cx: px,
-        cy: py,
-      };
-      setZoom(z);
-    },
-    [zoom, offX, offY],
-  );
-
-  const fit = () => {
-    const z = fitZoom();
-    const fp = focusPoint();
-    const el = viewRef.current;
-    anchor.current = fp ? { x: fp.x, y: fp.y, cx: size.w / 2, cy: size.h / 2 } : null;
-    setZoom(z);
-    if (z === zoom && el) {
-      // Масштаб тот же: эффект смены масштаба не сработает, ставим прокрутку сами.
-      anchor.current = null;
-      el.scrollLeft = fp ? Math.max(0, fp.x * z + offX - size.w / 2) : 0;
-      el.scrollTop = fp ? Math.max(0, fp.y * z + offY - size.h / 2) : 0;
-    } else if (el && !fp) {
-      el.scrollLeft = 0;
-      el.scrollTop = 0;
-    }
-  };
-
-  // Колесо мыши - масштаб вокруг курсора (без Ctrl). Слушатель не пассивный: иначе браузер прокрутит или масштабирует страницу.
-  useEffect(() => {
-    const el = viewRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const dy = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY; // строки → пиксели
-      if (dy === 0) return;
-      const r = el.getBoundingClientRect();
-      const k = Math.exp(-Math.max(-150, Math.min(150, dy)) * WHEEL_K);
-      zoomTo(zoom * k, e.clientX - r.left, e.clientY - r.top);
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [zoom, zoomTo]);
-
-  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    const el = viewRef.current;
-    if (!el) return;
-    // Два пальца: масштаб щипком. Одиночное перетаскивание при этом отменяется.
-    touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (touches.current.size === 2) {
-      const [a, b] = [...touches.current.values()];
-      pinch.current = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, z: zoom };
-      drag.current = null;
-      setDragging(false);
-      suppressClick.current = true;
-      return;
-    }
-    if (touches.current.size > 2) return;
-    drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop, moved: false };
-  };
-
-  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    const d = drag.current;
-    const el = viewRef.current;
-    if (touches.current.has(e.pointerId)) touches.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pinch.current && el && touches.current.size >= 2) {
-      const [a, b] = [...touches.current.values()];
-      const r = el.getBoundingClientRect();
-      zoomTo((pinch.current.z * Math.hypot(a.x - b.x, a.y - b.y)) / pinch.current.d, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top);
-      return;
-    }
-    if (!d || !el || d.id !== e.pointerId) return;
-    const dx = e.clientX - d.x;
-    const dy = e.clientY - d.y;
-    if (!d.moved) {
-      if (Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
-      d.moved = true;
-      setDragging(true);
-      // Захват - только когда началось перетаскивание: иначе щелчок по узлу ушёл бы холсту.
-      el.setPointerCapture(e.pointerId);
-    }
-    el.scrollLeft = d.left - dx;
-    el.scrollTop = d.top - dy;
-  };
-
-  const endDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
-    touches.current.delete(e.pointerId);
-    if (pinch.current) {
-      if (touches.current.size < 2) {
-        pinch.current = null;
-        window.setTimeout(() => {
-          suppressClick.current = false;
-        }, 0);
-      }
-      drag.current = null;
-      return;
-    }
-    const d = drag.current;
-    if (!d || d.id !== e.pointerId) return;
-    drag.current = null;
-    if (d.moved) {
-      suppressClick.current = true;
-      setDragging(false);
-      window.setTimeout(() => {
-        suppressClick.current = false;
-      }, 0);
-    }
-  };
-
-  const pct = Math.round(zoom * 100);
-  const edges = graphEdges();
-
+function TechMap({ s, rp, onOpen }: { s: GameState; rp: number; onOpen: (id: TechId) => void }) {
+  // Сначала закрытые линии, сверху - открытые: общие отрезки принимают цвет открытой линии.
+  const on = (from: TechId) => s.research.done.includes(from);
+  const edges = [...graphEdges()].sort((a, b) => Number(on(a[0])) - Number(on(b[0])));
   return (
-    <div className="rs">
-      <div className="rs-head">
-        <h2 className="rs-title">Технологии</h2>
-        <div className="rs-zoom" role="group" aria-label="Масштаб карты">
-          <button type="button" className="btn small" title="Уменьшить" aria-label="Уменьшить" disabled={zoom <= ZOOM_MIN} onClick={() => zoomTo(zoom - ZOOM_STEP)}>
-            −
-          </button>
-          <span className="rs-zoom-val num" title="Масштаб. Колесо мыши - изменить">
-            {pct} %
-          </span>
-          <button type="button" className="btn small" title="Увеличить" aria-label="Увеличить" disabled={zoom >= ZOOM_MAX} onClick={() => zoomTo(zoom + ZOOM_STEP)}>
-            +
-          </button>
-          <button type="button" className="btn small" title="Показать всю карту" onClick={fit}>
-            По размеру
-          </button>
-          <span className="rs-hints" aria-hidden="true">
-            <span className="rs-hint" title="Перетаскивание - перемещение">
-              <svg width="18" height="18" viewBox="0 0 18 18">
-                <path
-                  d="M6 8.5V4.2a1.1 1.1 0 0 1 2.2 0V8M8.2 7.6V3.1a1.1 1.1 0 0 1 2.2 0v4.6M10.4 7.8V4.1a1.1 1.1 0 0 1 2.2 0v5.4M12.6 8.2V6.3a1.1 1.1 0 0 1 2.2 0V11c0 3-2 5-4.8 5H9.4c-1.6 0-2.7-.7-3.6-1.9L3.4 10.9a1.1 1.1 0 0 1 1.8-1.3L6 10.6"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </span>
-            <span className="rs-hint" title="Колесо - масштаб">
-              <svg width="18" height="18" viewBox="0 0 18 18">
-                <rect x="4.5" y="1.8" width="9" height="14.4" rx="4.5" fill="none" stroke="currentColor" strokeWidth="1.3" />
-                <path d="M9 4.6v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
-            </span>
-          </span>
-        </div>
-        <span className="rs-rp" title={RP_HINT}>
-          Очки исследований: <b className="num">+{fmtNum(rp)}</b> в день
-        </span>
-        <div className="rs-state">
-          {current ? (
-            <>
-              <span>
-                Изучается: <b>{techName(current)}</b>
-                {currentDays !== null && <span className="num"> · {termText(currentDays)}</span>}
-              </span>
-              <button type="button" className="btn small" onClick={stop}>
-                Остановить
-              </button>
-            </>
-          ) : (
-            <span>Исследование не выбрано</span>
-          )}
-        </div>
-      </div>
-
-      {(current !== null || queue.length > 0 || idle) && (
-        <div className={`rs-queue${idle ? ' idle' : ''}`}>
-          {idle ? (
-            <span>
-              Простаивает {fmtNum(power)} H100e: выберите исследование. Очки не копятся, аренда идёт.
-            </span>
-          ) : (
-            <>
-              <span className="l">Очередь:</span>
-              {queue.map((id, i) => (
-                <span className="rs-qchip" key={id}>
-                  <b className="num">{i + 1}</b> {techName(id)}
-                  <button
-                    type="button"
-                    aria-label={`Убрать «${techName(id)}» из очереди`}
-                    title="Убрать из очереди"
-                    onClick={() => {
-                      const r = store.dispatch(actions.unqueueResearch, id);
-                      setNote(r.ok ? null : r.error);
-                    }}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-              {queue.length === 0 && <span className="muted">пуста. Нажмите технологию и выберите «В очередь»: после текущей она начнётся сама.</span>}
-              {queue.length > 0 && queue.length < RESEARCH_QUEUE_MAX && <span className="muted">Ещё можно добавить: {RESEARCH_QUEUE_MAX - queue.length}</span>}
-            </>
-          )}
-        </div>
-      )}
-
-      <div className="rs-legend">
-        {BRANCH_ORDER.map((b) => (
-          <span key={b} className="rs-legend-item">
-            <i style={{ background: BRANCH_COLOR[b].line }} />
-            {BRANCH_NAMES[b]}
-          </span>
+    <div className="rs-map" style={{ width: MAP_W, height: MAP_H }}>
+      <svg className="rs-lines" width={MAP_W} height={MAP_H} aria-hidden="true">
+        {edges.map(([from, to]) => (
+          <path key={`${from}-${to}`} className={on(from) ? 'on' : 'off'} d={edgePath(from, to)} />
         ))}
-      </div>
+        <path className="rs-rule" d={`M${PAD_X} ${CHAIN_Y - 10} H${MAP_W - PAD_X}`} />
+      </svg>
+      {GRAPH_TECHS.map((t) => (
+        <MapNode key={t} s={s} id={t} rp={rp} onOpen={onOpen} />
+      ))}
+      <ChainNode s={s} id="algo" x={PAD_X} rp={rp} onOpen={onOpen} />
+      <ChainNode s={s} id="context" x={PAD_X + CHAIN_W + 12} rp={rp} onOpen={onOpen} />
+    </div>
+  );
+}
 
-      <div
-        ref={viewRef}
-        className={`rs-canvas${dragging ? ' dragging' : ''}`}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        onScroll={remember}
-        onClickCapture={(e) => {
-          if (suppressClick.current) {
-            e.stopPropagation();
-            e.preventDefault();
-          }
-        }}
-      >
-        <div className="rs-space" style={{ width: width * zoom + 2 * offX, height: height * zoom + 2 * offY }}>
-          <div className="rs-stage" style={{ width, height, left: offX, top: offY, transform: `scale(${zoom})` }}>
-            {years.map((y, i) => (
-              <div
-                key={y}
-                className={`rs-col${i % 2 === 1 ? ' alt' : ''}`}
-                style={{ left: PAD + i * COL_W - COL_GAP / 2, top: PAD, width: COL_W, height: graphBottom - PAD + ROW_GAP / 2 }}
-              >
-                <span className="rs-year">{y}</span>
-              </div>
-            ))}
+// ---------- Строка текущего исследования ----------
 
-            <svg className="rs-lines" width={width} height={height} aria-hidden="true">
-              {edges.map(([from, to]) => {
-                const a = posOf(from);
-                const b = posOf(to);
-                const on = s.research.done.includes(from);
-                return (
-                  <path
-                    key={`${from}-${to}`}
-                    className={on ? 'on' : undefined}
-                    d={edgePath(a.x + NW, a.y + NH / 2, b.x, b.y + NH / 2)}
-                  />
-                );
-              })}
-              {chips.length > 0 && <path className="on" d={`M${PAD + CHIP_W / 2} ${algoCy} H${algoX}`} />}
-              {ctxChips.length > 0 && <path className="on" d={`M${PAD + CHIP_W / 2} ${ctxCy} H${ctxX}`} />}
-            </svg>
+function NowStrip(props: {
+  s: GameState;
+  rp: number;
+  power: number;
+  pick: TechId | null;
+  onOpen: (id: TechId) => void;
+  onCompute: () => void;
+}) {
+  const { s, rp, power, pick, onOpen, onCompute } = props;
+  const [note, flash] = useFlash();
+  const current = s.research.current;
+  const cards = totalH100e(s) > 0;
 
-            {GRAPH_TECHS.map((t) => {
-              const p = posOf(t);
-              return <TechNode key={t} s={s} id={t} rp={rp} x={p.x} y={p.y} onPick={pick} />;
-            })}
+  const stop = () => {
+    const r = store.dispatch(actions.setResearch, null);
+    if (!r.ok) flash(r.error);
+  };
 
-            <span className="rs-caption free" style={{ left: PAD, top: algoCy - CHIP_H / 2 - 22 }}>
-              {chips.length > 0 ? `Эффективность обучения ×${fmtMult(ALGO_MULT ** level)}` : 'Цепочка: алгоритмические улучшения'}
-            </span>
-            {chips.map((c, i) => (
-              <span
-                key={c.label}
-                className="rs-chip"
-                title={c.title}
-                style={{ left: PAD + i * (CHIP_W + CHIP_GAP), top: algoCy - CHIP_H / 2, width: CHIP_W, height: CHIP_H }}
-              >
-                {c.label}
-              </span>
-            ))}
-            <TechNode s={s} id="algo" code={`ALG ${level + 1}`} rp={rp} x={algoX} y={algoY} onPick={pick} />
+  let powerText: ReactNode;
+  if (!cards) powerText = <span className="warn">Карты не арендованы: работает только команда</span>;
+  else if (power <= 0) powerText = <span className="warn">Мощность не выделена: работает только команда</span>;
+  else if (!current) powerText = <span className="warn">Простаивает {fmtNum(power)} H100e</span>;
+  else
+    powerText = (
+      <>
+        Мощность: <b>{fmtNum(power)} H100e</b>, {fmtPct(s.compute.alloc.experiments * 100, 0)} всей
+      </>
+    );
 
-            <span className="rs-caption free" style={{ left: PAD, top: ctxCy - CHIP_H / 2 - 22 }}>
-              {`Наибольший контекст: ${contextLabel(CONTEXT_LEVELS[ctxLevel][0])} ${tokensWord(CONTEXT_LEVELS[ctxLevel][0])}`}
-            </span>
-            {ctxChips.map((c, i) => (
-              <span
-                key={c.label}
-                className="rs-chip"
-                title={c.title}
-                style={{ left: PAD + i * (CHIP_W + CHIP_GAP), top: ctxCy - CHIP_H / 2, width: CHIP_W, height: CHIP_H }}
-              >
-                {c.label}
-              </span>
-            ))}
-            <TechNode
-              s={s}
-              id="context"
-              label={ctxDone ? 'Длинный контекст' : `Длинный контекст: ${contextLabel(ctxNext)}`}
-              rp={rp}
-              x={ctxX}
-              y={ctxY}
-              onPick={pick}
-            />
+  if (current) {
+    const days = researchDaysLeft(s, current, rp);
+    const share = progressOf(s, current);
+    return (
+      <div className="rs-now">
+        <span className="rs-now-ico">
+          <TechIcon id={current} size={40} />
+        </span>
+        <div className="rs-now-main">
+          <div className="rs-now-t">
+            Изучается: <b>{techName(current)}</b>
+          </div>
+          <div className="rs-now-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(share * 100)}>
+            <i style={{ width: `${share * 100}%` }} />
+          </div>
+          <div className="rs-now-m">
+            <b>{fmtPct(share * 100, 0)}</b> · готово через {termText(days)}
+            {Number.isFinite(days) && `, ${formatDateShort(s.day + Math.max(1, days))}`} · {techGain(s, current)}
+          </div>
+        </div>
+        <div className="rs-now-side">
+          <div className="rs-now-power">{powerText}</div>
+          <div className="rs-now-btns">
+            {cards ? (
+              <button type="button" className="btn small" onClick={() => onOpen(current)}>
+                Изменить мощность
+              </button>
+            ) : (
+              <button type="button" className="btn small" onClick={onCompute}>
+                Открыть «Мощности»
+              </button>
+            )}
+            <button type="button" className="btn small" onClick={stop}>
+              Остановить
+            </button>
+            <DenyNote text={note} />
           </div>
         </div>
       </div>
+    );
+  }
 
-      {(power <= 0 || note) && (
-        <div className="rs-alerts">
-          {power <= 0 && (
-            <Alert tone="warn" action={{ label: 'Открыть «Мощности»', onClick: () => open('compute') }}>
-              Мощность на исследования не выделена.
-            </Alert>
+  return (
+    <div className="rs-now idle">
+      <span className="rs-now-ico">{pick ? <TechIcon id={pick} size={40} /> : null}</span>
+      <div className="rs-now-main">
+        <div className="rs-now-t warn">Исследование не выбрано</div>
+        {pick ? (
+          <div className="rs-now-m">
+            Быстрее всего: <b>{techName(pick)}</b>, {termText(researchDaysLeft(s, pick, rp))} · {techGain(s, pick)}
+          </div>
+        ) : (
+          <div className="rs-now-m">Все технологии изучены.</div>
+        )}
+      </div>
+      <div className="rs-now-side">
+        <div className="rs-now-power">{powerText}</div>
+        <div className="rs-now-btns">
+          {!cards && (
+            <button type="button" className="btn small" onClick={onCompute}>
+              Открыть «Мощности»
+            </button>
           )}
-          {note && <Alert tone="bad">{note}</Alert>}
+          {pick && (
+            <button type="button" className="btn primary" data-tutorial={pick === 'attention' ? 'tech-attention' : undefined} onClick={() => onOpen(pick)}>
+              Изучать «{techName(pick)}»
+            </button>
+          )}
         </div>
-      )}
-      <div className="rs-bar">
-        <span className="rs-stat" title={`Доля мощности на исследования: ${fmtPct(s.compute.alloc.experiments * 100, 0)}`}>
-          <span className="l">Мощность</span>
-          <b className="num">{fmtNum(power)} H100e</b>
+      </div>
+    </div>
+  );
+}
+
+function QueueStrip({ s, onOpen }: { s: GameState; onOpen: (id: TechId) => void }) {
+  const [note, flash] = useFlash();
+  if (s.research.queue.length === 0) return null;
+  return (
+    <div className="rs-queue">
+      <span className="rs-queue-l">Дальше по очереди:</span>
+      {s.research.queue.map((id, i) => (
+        <span className="rs-qitem" key={id}>
+          <button type="button" className="rs-qname" onClick={() => onOpen(id)}>
+            {i + 1}. {techName(id)}
+          </button>
+          <button
+            type="button"
+            className="rs-qx"
+            aria-label={`Убрать «${techName(id)}» из очереди`}
+            title="Убрать из очереди"
+            onClick={() => {
+              const r = store.dispatch(actions.unqueueResearch, id);
+              if (!r.ok) flash(r.error);
+            }}
+          >
+            <IconClose size={11} />
+          </button>
         </span>
-        <button type="button" className="btn small" onClick={() => open('compute')}>
-          Открыть «Мощности»
-        </button>
+      ))}
+      <DenyNote text={note} />
+    </div>
+  );
+}
+
+// ---------- «Можно начать» ----------
+
+function NextList({ s, rp, onOpen }: { s: GameState; rp: number; onOpen: (id: TechId) => void }) {
+  const list = availableList(s, rp);
+  const later = upcomingList(s);
+  return (
+    <aside className="rs-side">
+      <div className="rs-side-h">Можно начать: {list.length}</div>
+      <div className="rs-side-list">
+        {list.map((id) => {
+          const q = s.research.queue.indexOf(id) + 1;
+          return (
+            <button key={id} type="button" className="rs-row" onClick={() => onOpen(id)}>
+              <span className="rs-row-ico">
+                <TechIcon id={id} size={30} />
+              </span>
+              <span className="rs-row-t">
+                <span className="rs-row-top">
+                  <span className="rs-row-name">{techName(id)}</span>
+                  <span className={`rs-row-term${q > 0 ? ' q' : ''}`}>{q > 0 ? `В очереди: ${q}` : termText(researchDaysLeft(s, id, rp))}</span>
+                </span>
+                <span className="rs-row-gain">{techGain(s, id)}</span>
+              </span>
+            </button>
+          );
+        })}
+        {later.length > 0 && <div className="rs-side-sub">Откроются потом</div>}
+        {later.map((id) => {
+          const need = missingRequirements(s, id);
+          const q = s.research.queue.indexOf(id) + 1;
+          return (
+            <button key={id} type="button" className="rs-row later" onClick={() => onOpen(id)}>
+              <span className="rs-row-ico">
+                <TechIcon id={id} size={26} locked={q === 0} />
+              </span>
+              <span className="rs-row-t">
+                <span className="rs-row-top">
+                  <span className="rs-row-name">{techName(id)}</span>
+                  {q > 0 && <span className="rs-row-term q">В очереди: {q}</span>}
+                </span>
+                <span className="rs-row-gain">После «{need.map(techName).join('», «')}»</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
+// ---------- Окно ----------
+
+export default function ResearchWindow({ s, open }: WindowProps) {
+  const [dialog, setDialog] = useState<TechId | null>(null);
+  const rp = rpPerDay(s);
+  const power = pool(s, 'experiments');
+  const pick = availableList(s, rp)[0] ?? null;
+  const mapRef = useRef<HTMLDivElement>(null);
+  const scale = useFitScale(mapRef);
+
+  return (
+    <div className="rs">
+      <NowStrip s={s} rp={rp} power={power} pick={pick} onOpen={setDialog} onCompute={() => open('compute')} />
+      <QueueStrip s={s} onOpen={setDialog} />
+      <div className="rs-body">
+        <section className="rs-mapwrap" aria-label="Карта технологий">
+          <div className="rs-map-h">
+            <span className="rs-map-t">Технологии</span>
+            <span className="rs-map-n">
+              Изучено: {s.research.done.length} из {TECHS_TO_LEARN}
+            </span>
+          </div>
+          <div className="rs-mapscroll" ref={mapRef}>
+            <div className="rs-mapfit" style={{ width: MAP_W * scale, height: MAP_H * scale }}>
+              <div style={{ transform: scale < 1 ? `scale(${scale})` : undefined, transformOrigin: '0 0' }}>
+                <TechMap s={s} rp={rp} onOpen={setDialog} />
+              </div>
+            </div>
+          </div>
+        </section>
+        <NextList s={s} rp={rp} onOpen={setDialog} />
       </div>
       {dialog &&
         createPortal(
@@ -780,8 +512,9 @@ export default function ResearchWindow({ s, open }: WindowProps) {
 const DAYS_IN_MONTH = 30;
 
 function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; onClose: () => void; onRent: () => void }) {
-  const info = TECHS.find((t) => t.id === id)!;
+  const info = techInfo(id);
   const current = percentsOf(s.compute.alloc);
+  const status = statusOf(s, id);
   const isCurrent = s.research.current === id;
   const queued = s.research.queue.includes(id);
   const startable = researchBlockReason(s, id) === null;
@@ -798,8 +531,7 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
   const cards = GPUS.reduce((sum, g) => sum + s.compute.rented[g.id], 0);
   const power = (total * pct) / 100;
   const rp = RP_BASE + RP_K * Math.sqrt(power);
-  const cost = techCost(s, id);
-  const points = s.research.points[id] ?? 0;
+  const share = progressOf(s, id);
   const left = researchDaysLeft(s, id, rp);
   const days = Number.isFinite(left) ? Math.max(1, left) : left;
   const penalty = earlyPenalty(s, id);
@@ -807,6 +539,7 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
   const changed = pct !== current.experiments;
   const noCards = total <= 0;
   const past = pastHistory(s, id);
+  const missing = missingRequirements(s, id);
 
   /** Подтверждение нужно, если канал, где идут продажи, теряет всю мощность из-за новой доли. */
   function zeroed(): ('api' | 'subs')[] {
@@ -857,100 +590,121 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
     else setError(r.error);
   }
 
-  const footer = isCurrent ? (
-    <>
-      <button className="btn danger rs-d-left" onClick={stop}>
-        Остановить
-      </button>
+  const footer =
+    status === 'done' ? (
       <button className="btn" onClick={onClose}>
         Закрыть
       </button>
-      <button className="btn primary" disabled={!changed || noCards} onClick={() => ask('save')}>
-        Применить
-      </button>
-    </>
-  ) : (
-    <>
-      {queued && (
-        <button className="btn danger rs-d-left" onClick={unqueue}>
-          Убрать из очереди
+    ) : isCurrent ? (
+      <>
+        <button className="btn danger rs-d-left" onClick={stop}>
+          Остановить
         </button>
-      )}
-      <button className="btn" onClick={onClose}>
-        {queued && !startable ? 'Закрыть' : 'Отмена'}
-      </button>
-      {canQueue && (
-        <button className="btn" data-tutorial="research-queue" onClick={enqueue}>
-          В очередь
+        <button className="btn" onClick={onClose}>
+          Закрыть
         </button>
-      )}
-      {startable && (
-        <button className="btn primary" data-tutorial="research-start" onClick={() => ask('start')}>
-          Начать исследование
+        <button className="btn primary" disabled={!changed || noCards} onClick={() => ask('save')}>
+          Применить
         </button>
-      )}
-    </>
-  );
+      </>
+    ) : (
+      <>
+        {queued && (
+          <button className="btn danger rs-d-left" onClick={unqueue}>
+            Убрать из очереди
+          </button>
+        )}
+        <button className="btn" onClick={onClose}>
+          {queued && !startable ? 'Закрыть' : 'Отмена'}
+        </button>
+        {canQueue && (
+          <button className="btn" data-tutorial="research-queue" onClick={enqueue}>
+            В очередь
+          </button>
+        )}
+        {startable && (
+          <button className="btn primary" data-tutorial="research-start" onClick={() => ask('start')}>
+            Начать исследование
+          </button>
+        )}
+      </>
+    );
 
   // Место под подписи постоянное (две строки): ползунок меняет текст, но не размер диалога.
   const lines: ReactNode[] = [];
   if (startable || isCurrent) {
     if (!noCards && changed) lines.push(<div key="rest" className="rs-d-note">Остальным задачам останется {fmtPct(100 - pct, 0)} мощности.</div>);
-    if (other) lines.push(<div key="other" className="rs-d-note">Сейчас изучается «{other}». Его очки сохранятся.</div>);
+    if (other) lines.push(<div key="other" className="rs-d-note">Сейчас изучается «{other}». Сделанное по нему сохранится.</div>);
   }
+
+  const ctxNext = id === 'context' && s.research.contextLevel < CONTEXT_MAX_LEVEL ? CONTEXT_LEVELS[s.research.contextLevel + 1][0] : null;
 
   return (
     <Dialog title="Исследование" onClose={onClose} footer={footer}>
       <div className="rs-d">
-        <div>
-          <h2 className="rs-d-title">{info.name}</h2>
-          <p className="rs-d-desc">{info.description}</p>
+        <div className="rs-d-head">
+          <span className="rs-d-ico">
+            <TechIcon id={id} size={52} locked={status === 'blocked' && !queued} />
+          </span>
+          <div className="rs-d-ht">
+            <h2 className="rs-d-title">{info.name}</h2>
+            <div className="rs-d-sub">
+              {BRANCH_NAMES[info.branch]}
+              {status === 'done' && (
+                <span className="rs-d-done">
+                  <IconCheck size={13} /> Изучено
+                </span>
+              )}
+            </div>
+          </div>
         </div>
+        <p className="rs-d-desc">{info.description}</p>
 
         <dl className="rs-d-kv">
-          <dt>Направление</dt>
-          <dd>{BRANCH_NAMES[info.branch]}</dd>
           {past && (
             <>
-              <dt>Вышла в истории</dt>
+              <dt>Появилась в истории</dt>
               <dd>{formatDateShort(techHistoryDay(s, id))}</dd>
             </>
           )}
-          {techRequires(id).length > 0 && (
+          {status !== 'done' && techRequires(id).length > 0 && (
             <>
-              <dt>Требуется</dt>
-              <dd>{techRequires(id).map((t) => `«${techName(t)}»`).join(', ')}</dd>
-            </>
-          )}
-          <dt>Цена</dt>
-          <dd>
-            {fmtNum(cost)} {pointsNoun(cost)}
-            {penalty > 1 && (
-              <small title="Исследование раньше исторической даты стоит дороже. Цена снижается по мере приближения к этой дате.">
-                раньше истории, цена ×{fmtMult(penalty)}
-              </small>
-            )}
-          </dd>
-          {id === 'context' && s.research.contextLevel < CONTEXT_MAX_LEVEL && (
-            <>
-              <dt>Контекст</dt>
-              <dd>
-                {contextLabel(maxContext(s))} → {contextLabel(CONTEXT_LEVELS[s.research.contextLevel + 1][0])}{' '}
-                {tokensWord(CONTEXT_LEVELS[s.research.contextLevel + 1][0])}
+              <dt>Нужно изучить</dt>
+              <dd className="rs-d-req">
+                {techRequires(id).map((t) => (
+                  <span key={t} className={s.research.done.includes(t) ? 'ok' : 'miss'}>
+                    {s.research.done.includes(t) ? <IconCheck size={13} /> : <IconLock size={12} />}
+                    {techName(t)}
+                  </span>
+                ))}
               </dd>
             </>
           )}
-          {(isCurrent || points > 0) && (
+          {ctxNext !== null && (
             <>
-              <dt>Накоплено</dt>
+              <dt>Контекст</dt>
               <dd>
-                {fmtNum(points)} из {fmtNum(cost)} очков ({fmtPct((points / cost) * 100, 0)})
+                до {contextLabel(ctxNext)} {tokensWord(ctxNext)}, сейчас {contextLabel(maxContext(s))}
+              </dd>
+            </>
+          )}
+          {status !== 'done' && share > 0 && (
+            <>
+              <dt>Сделано</dt>
+              <dd>{fmtPct(share * 100, 0)}</dd>
+            </>
+          )}
+          {status !== 'done' && penalty > 1.05 && (
+            <>
+              <dt>Раньше своего времени</dt>
+              <dd className="warn" title="Технология опережает историю. Чем ближе её время, тем она дешевле.">
+                дороже {timesWord(penalty)}
               </dd>
             </>
           )}
         </dl>
 
-        {startable || isCurrent ? (
+        {status === 'done' ? null : startable || isCurrent ? (
           <>
             <section className="rs-d-power">
               <div className="rs-d-h">
@@ -959,14 +713,14 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
               </div>
               {noCards ? (
                 <div className="rs-d-empty">
-                  <span>Карты не арендованы. Исследование идёт медленно.</span>
+                  <span>Карты не арендованы: работает только команда.</span>
                   <button className="btn small" onClick={onRent}>
                     Открыть «Мощности»
                   </button>
                 </div>
               ) : (
                 <>
-                  <Range value={pct} min={0} max={100} color="#7b5cd6" label="Мощность на исследование" valueText={fmtPct(pct, 0)} onChange={setPct} />
+                  <Range value={pct} min={0} max={100} label="Мощность на исследование" valueText={fmtPct(pct, 0)} onChange={setPct} />
                   <div className="rs-d-ends">
                     <span>Медленнее</span>
                     <span>Быстрее</span>
@@ -995,17 +749,19 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
                 <b className="num">{Number.isFinite(days) ? formatDateShort(s.day + days) : '-'}</b>
               </div>
             </div>
-
-            <div className="rs-d-note" title={RP_HINT}>
-              Скорость: {fmtNum(rp)} {pointsNoun(rp)} в день.
-            </div>
           </>
         ) : (
           <div className="rs-d-note">
-            {queued ? 'Эта технология уже в очереди: она начнётся сама, когда откроется.' : 'Эту технологию можно поставить в очередь: она начнётся сама, когда откроется.'}
+            {queued
+              ? 'Стоит в очереди: начнётся сама, когда откроется.'
+              : canQueue
+                ? `Откроется после «${missing.map(techName).join('», «')}»: её можно поставить в очередь.`
+                : missing.length > 0
+                  ? `Сначала нужно изучить: ${missing.map((t) => `«${techName(t)}»`).join(', ')}.`
+                  : null}
           </div>
         )}
-        <div className="rs-d-slot">{error ? <ErrorText error={error} /> : lines}</div>
+        {status !== 'done' && <div className="rs-d-slot">{error ? <ErrorText error={error} /> : lines}</div>}
       </div>
       {zero && (
         <ConfirmDialog

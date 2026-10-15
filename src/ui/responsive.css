@@ -182,19 +182,8 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   /* ----- Окна: общее ----- */
   .m-back { display: inline-flex; flex: none; align-self: flex-start; margin: 8px 10px 0; background: #fff; }
 
-  /* Исследования */
-  .rs-head { flex-wrap: wrap; gap: 2px 10px; padding: 4px 10px; min-height: 0; }
-  .rs-title { display: none; }
-  .rs-zoom { flex: 1 1 100%; }
-  .rs-zoom .btn.small { min-width: 40px; }
-  .rs-zoom .btn.small:last-child { margin-left: auto; }
-  .rs-state { flex: 1 1 100%; margin-left: 0; justify-content: space-between; }
-  .rs-rp { flex: 1 1 100%; margin-left: 0; }
-  .rs-hints { display: none; }
-  .rs-legend { display: none; }
-  .rs-bar { height: auto; flex-wrap: wrap; gap: 0 14px; padding: 4px 10px; }
-  .rs-bar .btn { flex: 1 1 100%; margin-left: 0; }
-  .rs-alerts { padding: 6px 10px; }
+  /* Исследования: окно прокручивается целиком (раскладка - в ResearchWindow.css) */
+  .rs { height: auto; min-height: 100%; }
 
   /* Мощности: окно прокручивается целиком */
   .cw { height: auto; min-height: 100%; }
@@ -239,10 +228,7 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .ct-list { flex: none; overflow: visible; }
   .ct-main { flex: none; overflow: visible; padding: 10px; }
   .ct:not(.show-detail) .ct-main, .ct:not(.show-detail) .m-back { display: none; }
-  .ct.show-detail .ct-side, .ct.show-detail .ct-steps { display: none; }
-  .ct-steps { padding: 8px 10px; }
-  .ct-head { flex-wrap: wrap; }
-  .ct-cols { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .ct.show-detail .ct-side { display: none; }
 
   .mw { flex-direction: column; height: auto; min-height: 100%; }
   .mw-side { width: auto; flex: none; border-right: none; }
@@ -263,14 +249,8 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
 
   /* Инвесторы: окно прокручивается целиком */
   .inv { height: auto; min-height: 100%; }
-  .inv-top { padding: 12px; }
-  .inv-top-grid { gap: 8px 20px; }
-  .inv-stat + .inv-stat { padding-left: 0; border-left: none; }
-  .inv .inv-value { font-size: 34px; }
-  .inv-body { flex: none; overflow: visible; padding: 12px; }
-  .inv-bd-row { grid-template-columns: minmax(0, 1fr) auto; padding: 9px 10px; }
-  .inv-bd-row .calc { grid-column: 1 / -1; grid-row: 2; }
-  .inv-rounds { grid-template-columns: minmax(0, 1fr); }
+  .inv-hero { padding: 12px; }
+  .inv-body { flex: none; overflow: visible; }
 
   /* Аналитика */
   .an-body { padding: 10px; }

@@ -1,167 +1,182 @@
-/* Окно «Исследования»: серый холст с картой технологий, как дерево в Processor Tycoon. */
+/* Окно «Исследования» в духе дерева Processor Tycoon: строка текущего исследования, серый холст с картой
+   (изученное - тёмные плитки с зелёной полосой, доступное - белые, закрытое - серые), справа список «Можно начать». */
 
-.rs { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.rs { display: flex; flex-direction: column; height: 100%; min-height: 0; container-type: inline-size; font-variant-numeric: tabular-nums; }
 
-/* Заголовок блока */
-.rs-head {
-  flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; min-height: 46px; padding: 4px 14px;
+/* ---------- Строка текущего исследования ---------- */
+.rs-now {
+  flex: none; display: flex; align-items: center; gap: 14px; min-height: 84px; padding: 10px 16px;
   background: var(--panel); border-bottom: 1px solid var(--line);
 }
-.rs-title { margin: 0; font-size: 20px; font-weight: 300; color: #2a2c30; }
-.rs-state { margin-left: auto; display: flex; align-items: center; gap: 12px; min-width: 0; color: #50545b; }
-.rs-state b { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rs-now-ico { flex: none; display: grid; place-items: center; width: 56px; height: 56px; background: #e4e6ea; border-radius: 4px; }
+.rs-now-main { flex: 1; min-width: 0; }
+.rs-now-t { font-size: 17px; color: var(--text-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rs-now-t b { font-weight: 600; color: var(--text-title); }
+.rs-now-t.warn { color: var(--warn); font-weight: 600; }
+.rs-now-bar { height: 8px; margin: 6px 0 5px; background: #d9dce1; border-radius: 2px; overflow: hidden; }
+.rs-now-bar i { display: block; height: 100%; background: var(--accent); }
+.rs-now-m { font-size: 13px; color: var(--text-dim); line-height: 1.35; }
+.rs-now-m b { color: var(--text-title); font-weight: 600; }
+.rs-now.idle .rs-now-m { margin-top: 4px; }
+.rs-now-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 46%; }
+.rs-now-power { font-size: 13px; color: var(--text-dim); text-align: right; }
+.rs-now-power b { color: var(--text-title); font-weight: 600; }
+.rs-now-power .warn { font-weight: 600; }
+.rs-now-btns { position: relative; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.rs-now-btns .deny-note { right: 0; bottom: auto; top: calc(100% + 4px); }
 
-/* Масштаб */
-.rs-zoom { display: flex; align-items: center; gap: 6px; }
-.rs-zoom .btn.small { min-width: 28px; padding: 0 8px; }
-.rs-zoom-val { min-width: 48px; text-align: center; font-size: 13px; color: var(--text-body); font-variant-numeric: tabular-nums; }
-
-/* Направления */
-.rs-legend {
-  flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 5px 14px;
-  background: var(--panel); border-bottom: 1px solid var(--line); font-size: 12px; color: var(--text-body);
+/* ---------- Очередь ---------- */
+.rs-queue {
+  position: relative; flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 5px 16px;
+  background: var(--win-title); border-bottom: 1px solid var(--line); font-size: 13px; color: var(--text-dim);
 }
-.rs-legend-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-.rs-legend-item i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; }
-.rs-hints { display: inline-flex; align-items: center; gap: 2px; margin-left: 4px; color: #8a8e95; }
-.rs-hint { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 2px; cursor: help; }
-.rs-hint:hover { color: var(--text-body); background: rgba(0, 0, 0, 0.05); }
-.rs-rp { margin-left: auto; white-space: nowrap; color: #50545b; cursor: help; }
-.rs-rp b { color: var(--text); font-weight: 600; }
-.rs-rp + .rs-state { margin-left: 0; }
+.rs-qitem { display: inline-flex; align-items: center; gap: 2px; }
+.rs-qname { padding: 0; background: none; border: none; color: var(--text-title); font: inherit; cursor: pointer; }
+.rs-qname:hover { color: var(--accent-dark); text-decoration: underline; }
+.rs-qx { width: 20px; height: 20px; display: grid; place-items: center; padding: 0; color: var(--text-dim); background: none; border: none; border-radius: 2px; cursor: pointer; }
+.rs-qx:hover { background: #fbe5e5; color: var(--bad); }
+.rs-queue .deny-note { left: 16px; right: auto; bottom: auto; top: calc(100% + 2px); }
 
-/* Холст: перетаскивание и масштаб без полос прокрутки (положение меняет код). touch-action: none - палец двигает карту, а не страницу. */
-.rs-canvas { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--line); user-select: none; cursor: grab; touch-action: none; }
-.rs-canvas.dragging { cursor: grabbing; }
-.rs-canvas.dragging .rs-node { cursor: grabbing; }
-.rs-space { position: relative; }
-.rs-stage { position: absolute; transform-origin: 0 0; }
+/* ---------- Тело ---------- */
+.rs-body { flex: 1; min-height: 0; display: flex; }
+.rs-mapwrap { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.rs-map-h { flex: none; display: flex; align-items: baseline; gap: 14px; padding: 6px 16px; background: #fff; border-bottom: 1px solid var(--line-soft); }
+.rs-map-t { font-size: 20px; font-weight: 300; color: #2a2c30; }
+.rs-map-n { margin-left: auto; font-size: 13px; color: var(--text-dim); }
 
-/* Столбцы лет */
-.rs-col { position: absolute; border-radius: 4px; }
-.rs-col.alt { background: rgba(255, 255, 255, 0.22); }
-.rs-year { position: absolute; left: 0; right: 0; top: 4px; text-align: center; font-size: 13px; font-weight: 600; color: #3c3f45; font-variant-numeric: tabular-nums; }
+.rs-mapscroll { flex: 1; min-height: 0; overflow: auto; background: #c9cbcf; }
+.rs-mapfit { margin: 0 auto; }
+.rs-map { position: relative; }
 .rs-lines { position: absolute; left: 0; top: 0; pointer-events: none; }
-.rs-lines path { fill: none; stroke: #868a91; stroke-width: 2; stroke-linejoin: round; }
-.rs-lines path.on { stroke: #2f3135; }
+.rs-lines path { fill: none; stroke-linejoin: round; }
+.rs-lines path.off { stroke: #9a9ea6; stroke-width: 1.5; stroke-dasharray: 4 4; }
+.rs-lines path.on { stroke: #35383d; stroke-width: 2; }
+.rs-lines path.rs-rule { stroke: #b0b3b9; stroke-width: 1; }
 
-.rs-slot { position: absolute; }
-.rs-caption { position: absolute; left: 0; top: 100%; margin-top: 3px; font-size: 12px; line-height: 15px; color: #34373c; white-space: nowrap; }
-.rs-early { color: #a85a00; font-weight: 700; }
-.rs-caption.free { position: absolute; margin: 0; }
-
-/* Узел */
+/* ---------- Узел ---------- */
 .rs-node {
-  position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; padding: 8px 10px; text-align: left;
-  background: #fff; color: var(--text); border: 2px solid transparent; border-radius: 3px; cursor: pointer; font: inherit;
-  transition: border-color 100ms ease-out;
+  position: absolute; display: flex; align-items: center; gap: 8px; padding: 0 8px 5px 6px; overflow: hidden;
+  background: #fff; color: var(--text); border: 1px solid #aeb2b9; border-radius: 3px;
+  font: inherit; text-align: left; cursor: pointer;
+  transition: border-color 120ms ease-out, background-color 120ms ease-out;
 }
+.rs-node:hover { border-color: #5f646c; }
 .rs-node:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.rs-node.done { cursor: default; }
-.rs-node.blocked { cursor: default; }
-
-.rs-name { display: block; height: 18px; font-size: 14px; font-weight: 500; line-height: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rs-main { display: flex; gap: 10px; margin-top: 6px; }
-
-.rs-thumb {
-  flex: none; width: 52px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  background: #e6e8eb; color: #4a4d53; border-radius: 3px; font: 600 12px/1 var(--mono);
+.rs-ico { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 2px; background: #eceef1; }
+.rs-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.rs-name {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  font-size: 13px; font-weight: 600; line-height: 15px; color: #1f2023;
 }
-.rs-node.blocked .rs-thumb { background: #b0b3b9; color: #34373c; }
+.rs-st { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; line-height: 15px; color: #3f444c; white-space: nowrap; }
+.rs-st.cur { color: var(--accent-dark); font-weight: 600; }
+.rs-st.q { color: var(--accent-dark); }
+.rs-st.lock { color: #4a4f57; }
+.rs-bar { position: absolute; left: 6px; right: 6px; bottom: 3px; height: 3px; background: #dfe2e6; }
+.rs-bar i { display: block; height: 100%; background: var(--accent); }
 
-.rs-kv { flex: 1; min-width: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-content: start; font-size: 12.5px; line-height: 17px; }
-.rs-kv > :nth-child(odd) { color: var(--text-dim); }
-.rs-kv > :nth-child(even) { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.rs-node.blocked .rs-kv > :nth-child(odd) { color: #45484e; }
-.rs-node .rs-kv > .rs-done { grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; font-weight: 600; text-align: left; }
+/* Идёт: рамка цвета акцента */
+.rs-node.current { border: 2px solid var(--accent); }
+/* В очереди: пунктир цвета акцента */
+.rs-node.queued { border-style: dashed; border-color: var(--accent); }
+/* Закрыто */
+.rs-node.blocked { background: #b9bcc2; border-color: #a3a7ae; }
+.rs-node.blocked .rs-ico { background: #a9adb4; }
+.rs-node.blocked .rs-name { color: #33363b; }
+.rs-node.blocked.queued { background: #e4e6ea; border-color: var(--accent); }
+/* Изучено: тёмная плитка с полной зелёной полосой, как «Исследовано» в Processor Tycoon */
+.rs-node.done { background: #45484e; border-color: #35383d; color: #fff; }
+.rs-node.done:hover { border-color: #1f2023; }
+.rs-node.done .rs-ico { background: #f2f3f5; }
+.rs-node.done .rs-name { color: #fff; }
+.rs-node.done .rs-st, .rs-node.done .rs-sub { color: #b8e6c4; }
+.rs-node.done .rs-bar { background: #35383d; }
+.rs-node.done .rs-bar i { background: #3fae63; }
 
-.rs-pts { display: block; margin-top: 5px; font-size: 12px; line-height: 16px; color: var(--text-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
-.rs-node.blocked .rs-pts { color: #34373c; }
-.rs-prog { display: block; height: 4px; margin-top: auto; background: #d9dce1; border-radius: 2px; overflow: hidden; }
-.rs-prog > span { display: block; height: 100%; background: var(--accent); }
-.rs-node.done .rs-prog { background: #2f3134; }
-.rs-node.done .rs-prog > span { background: #3d9b5b; }
-.rs-node.blocked .rs-prog { background: #a3a6ac; }
+/* Цепочки с уровнями */
+.rs-node.chain { gap: 10px; padding-right: 10px; }
+.rs-sub { font-size: 12px; line-height: 15px; color: #3f444c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rs-chainrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 3px; }
+.rs-ticks { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.rs-ticks i { width: 12px; height: 6px; background: #d3d6db; }
+.rs-ticks i.on { background: #3fae63; }
+.rs-ticks b { margin-left: 3px; font-size: 11px; font-weight: 600; color: #3f444c; }
+.rs-node.chain.blocked .rs-sub { color: #33363b; }
 
-/* Изученные уровни цепочки */
-.rs-chip {
-  position: absolute; display: grid; place-items: center; background: #45474c; color: #e6e8eb; border-radius: 3px;
-  font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap;
+/* ---------- «Можно начать» ---------- */
+.rs-side { flex: 0 0 290px; min-height: 0; display: flex; flex-direction: column; background: var(--win-body); border-left: 1px solid var(--line); }
+.rs-side-h { flex: none; padding: 9px 14px 8px; font-size: 15px; font-weight: 600; color: var(--text-title); }
+.rs-side-list { flex: 0 1 auto; min-height: 0; overflow: auto; margin: 0 10px 10px; background: #fff; border: 1px solid var(--line); }
+.rs-row {
+  width: 100%; display: flex; align-items: flex-start; gap: 9px; padding: 8px 10px; text-align: left; font: inherit; color: inherit;
+  background: none; border: none; border-bottom: 1px solid #eceef1; cursor: pointer;
 }
-
-/* Нижняя строка */
-.rs-bar {
-  flex: none; display: flex; align-items: center; gap: 22px; height: 42px; padding: 0 14px;
-  background: var(--win-title); border-top: 1px solid var(--line); font-size: 13px;
-}
-.rs-stat { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
-.rs-stat .l { color: #50545b; }
-.rs-stat b { font-size: 14px; font-weight: 600; }
-.rs-bar .btn { margin-left: auto; flex: none; }
-
-/* Предупреждения над нижней строкой (компонент Alert): нет мощности, отказ последнего действия. */
-.rs-alerts {
-  flex: none; display: flex; flex-direction: column; gap: 6px; padding: 8px 14px;
-  background: var(--win-title); border-top: 1px solid var(--line);
-}
-.rs-alerts + .rs-bar { border-top: none; }
+.rs-row:hover { background: #f1f4f8; }
+.rs-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.rs-row-ico { flex: none; display: grid; place-items: center; width: 34px; height: 34px; background: #eceef1; border-radius: 2px; }
+.rs-row-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.rs-row-top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.rs-row-name { min-width: 0; font-size: 13.5px; font-weight: 600; color: #1f2023; line-height: 1.25; }
+.rs-row-term { flex: none; font-size: 12.5px; color: var(--text-body); white-space: nowrap; }
+.rs-row-term.q { color: var(--accent-dark); }
+.rs-row-gain { font-size: 12.5px; line-height: 1.3; color: var(--text-dim); }
+.rs-side-sub { padding: 10px 10px 4px; font-size: 13px; font-weight: 600; color: var(--text-dim); background: var(--panel); border-bottom: 1px solid #eceef1; }
+.rs-row.later { background: var(--panel); }
+.rs-row.later:hover { background: #eef1f5; }
+.rs-row.later .rs-row-name { color: #4a4f57; font-weight: 500; }
 
 /* ---------- Диалог исследования ---------- */
-.rs-d { display: flex; flex-direction: column; gap: 14px; font-variant-numeric: tabular-nums; }
-.rs-d-title { margin: 0; font-size: 20px; font-weight: 400; color: #1f2023; }
-.rs-d-desc { margin: 4px 0 0; color: #4a4d54; }
+.rs-d { display: flex; flex-direction: column; gap: 12px; font-variant-numeric: tabular-nums; }
+.rs-d-head { display: flex; align-items: center; gap: 14px; }
+.rs-d-ico { flex: none; display: grid; place-items: center; width: 68px; height: 68px; border-radius: 3px; background: #e4e6ea; }
+.rs-d-ht { flex: 1; min-width: 0; }
+.rs-d-title { margin: 0; font-size: 21px; font-weight: 400; line-height: 1.2; color: var(--text-title); }
+.rs-d-sub { display: flex; align-items: center; gap: 12px; margin-top: 3px; font-size: 13px; color: var(--text-dim); }
+.rs-d-done { display: inline-flex; align-items: center; gap: 4px; color: #1f7a3b; font-weight: 600; }
+.rs-d-desc { margin: 0; color: var(--text-body); }
 .rs-d-kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0; }
 .rs-d-kv dt { color: var(--text-dim); }
 .rs-d-kv dd { margin: 0; text-align: right; }
-.rs-d-kv dd small { display: block; font-size: 12px; color: var(--warn); }
-.rs-d-power { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; background: #fff; border: 1px solid var(--line-soft); border-radius: 4px; }
+.rs-d-kv dd.warn { color: var(--warn); font-weight: 600; }
+.rs-d-req { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 10px; }
+.rs-d-req span { display: inline-flex; align-items: center; gap: 4px; }
+.rs-d-req .ok { color: #1f7a3b; }
+.rs-d-req .miss { color: #a12a2a; font-weight: 600; }
+.rs-d-power { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; background: #fff; border: 1px solid var(--line-soft); border-radius: 3px; }
 .rs-d-h { display: flex; justify-content: space-between; align-items: baseline; font-weight: 600; }
-.rs-d-h b { font-size: 16px; color: #7b5cd6; }
+.rs-d-h b { font-size: 16px; color: var(--accent-dark); }
 .rs-d-ends { display: flex; justify-content: space-between; margin-top: -2px; font-size: 12px; color: var(--text-dim); }
 .rs-d-power .rs-d-kv { margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
 .rs-d-empty { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-dim); }
 .rs-d-result { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .rs-d-result > div { display: flex; flex-direction: column; padding: 8px 12px; background: var(--win-title); border-radius: 3px; }
 .rs-d-result .l { font-size: 13px; color: #4a4d54; }
-.rs-d-result b { font-size: 22px; font-weight: 600; color: #1f2023; }
+.rs-d-result b { font-size: 22px; font-weight: 600; color: var(--text-title); }
 .rs-d-note { font-size: 13px; color: var(--text-dim); }
 .dialog .foot .rs-d-left { margin-right: auto; }
-
-/* ---------- Цвет ---------- */
-.rs-title { font-weight: 500; color: var(--text-title); }
-/* Цвет направления: --br (рамка), --br-fill (заливка изученного узла) задаются в разметке. */
-.rs-node { border-left-width: 6px; }
-.rs-node.available { border-color: var(--br); }
-.rs-node.available:hover { box-shadow: 0 0 0 2px var(--br); }
-.rs-node.current { border-color: var(--br); box-shadow: 0 0 0 3px var(--br), 0 4px 12px rgba(0, 0, 0, 0.25); }
-.rs-node.current .rs-thumb { background: var(--br-fill); color: #fff; }
-.rs-node.current .rs-prog > span { background: var(--br-fill); }
-.rs-node.done { background: var(--br-fill); border-color: var(--br-fill); color: #fff; }
-.rs-node.done .rs-thumb { background: rgba(255, 255, 255, 0.18); color: #fff; }
-.rs-node.done .rs-kv > :nth-child(odd) { color: rgba(255, 255, 255, 0.8); }
-.rs-node.done .rs-kv > .rs-done { color: #fff; }
-.rs-node.blocked { background: #c4c7cc; color: #34373c; border-color: #a9acb2; border-left-color: var(--br); }
-.rs-node.blocked .rs-name, .rs-node.blocked .rs-kv { opacity: 0.85; }
-.rs-d-title { color: var(--text-title); border-left: 4px solid var(--c-purple); padding-left: 10px; }
-.rs-d-desc { color: var(--text-body); }
-.rs-d-h b { color: #6244c0; }
-.rs-d-result b { color: #6244c0; }
-.rs-stat .l { color: var(--text-dim); }
-
-/* Очередь исследований и простой мощности */
-.rs-queue {
-  flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 5px 14px;
-  background: var(--panel); border-bottom: 1px solid var(--line); font-size: 13px; color: var(--text-body);
-}
-.rs-queue .l { font-weight: 600; color: var(--text); }
-.rs-queue .muted { color: var(--text-dim); }
-.rs-queue.idle { background: #fff1d6; color: #7a4a00; font-weight: 600; border-bottom-color: #e3bf62; }
-.rs-qchip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 4px 2px 8px; background: #ece6fb; border: 1px solid #b9a8ee; border-radius: 3px; }
-.rs-qchip b { color: #6244c0; }
-.rs-qchip button { width: 20px; height: 20px; padding: 0; line-height: 18px; font-size: 16px; color: #50545b; background: none; border: none; cursor: pointer; border-radius: 2px; }
-.rs-qchip button:hover { background: rgba(0, 0, 0, 0.08); color: #b32f2f; }
-.rs-node.queued { outline: 2px dashed var(--br); outline-offset: 2px; }
-.rs-q { color: #6244c0; }
-
-/* Диалог: место под подписи постоянное (две строки), чтобы он не рос при движении ползунка. */
+/* Место под подписи постоянное (две строки), чтобы диалог не рос при движении ползунка. */
 .rs-d-slot { min-height: 40px; display: flex; flex-direction: column; gap: 2px; }
+
+/* ---------- Узкое окно ---------- */
+@container (max-width: 900px) {
+  .rs-side { flex-basis: 250px; }
+  .rs-now-side { max-width: 40%; }
+}
+@container (max-width: 640px) {
+  .rs-now { flex-wrap: wrap; }
+  .rs-now-ico { width: 44px; height: 44px; }
+  .rs-now-main { flex-basis: calc(100% - 60px); }
+  .rs-now-t { white-space: normal; }
+  .rs-now-side { flex-basis: 100%; max-width: none; align-items: stretch; }
+  .rs-now-power { text-align: left; }
+  .rs-now-btns { justify-content: flex-start; }
+  .rs-body { flex-direction: column; overflow: auto; }
+  .rs-side { order: -1; flex: none; border-left: none; border-bottom: 1px solid var(--line); }
+  .rs-side-list { overflow: visible; }
+  .rs-mapwrap { flex: none; }
+  .rs-mapscroll { flex: none; overflow-x: auto; overflow-y: hidden; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rs-node { transition: none; }
+}
