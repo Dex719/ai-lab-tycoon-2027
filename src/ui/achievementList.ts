@@ -165,6 +165,18 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'dc-full', title: 'Полный зал', how: 'Заполнить свой дата-центр картами', check: (s) => s.datacenters.list.some(dcFull) },
 ];
 
+/** Разделы окна «Достижения»: каждое достижение ровно в одном разделе (проверяет тест). */
+export const ACH_GROUPS: readonly { title: string; ids: readonly string[] }[] = [
+  {
+    title: 'Модели и гонка',
+    ids: ['first-model', 'quick-start', 'attention-first', 'first-rlhf', 'chat-moment', 'ten-models', 'long-context', 'first-place-bench', 'first-place-arena', 'year-on-top', 'comeback', 'main-rival', 'exposed'],
+  },
+  { title: 'Деньги и рынок', ids: ['million-month', 'hundred-million', 'unicorn', 'half-market', 'million-subs'] },
+  { title: 'Цели и задачи', ids: ['perfect-year', 'risk-goals', 'tasks-10', 'tasks-30', 'lucky-streak'] },
+  { title: 'Сделки и дата-центры', ids: ['star-team', 'team-kept', 'startup', 'startups-3', 'cloud-deal', 'datacenter', 'dc-50', 'dc-full'] },
+  { title: 'Финал партии', ids: ['final-update', 'push-held', 'victory', 'victory-hard', 'honest', 'founder-control', 'bankrupt'] },
+];
+
 const KEY = 'ailab.achievements';
 
 /** Полученные достижения: id → дата получения (ISO). */

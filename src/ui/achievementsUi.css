@@ -24,7 +24,15 @@
 }
 
 /* Список в окне: строки, как таблица; полученные - золотая медаль и дата справа. */
-.ach-list { max-height: 60vh; overflow: auto; margin: -6px 0; padding: 0; list-style: none; }
+.ach-list { max-height: 60vh; overflow: auto; margin: -6px 0; padding: 0; }
+.ach-list ul { margin: 0; padding: 0; list-style: none; }
+/* Раздел: заголовок 16 px полужирным и счёт «3 из 8» серым справа. */
+.ach-group + .ach-group { margin-top: 14px; }
+.ach-group-h {
+  display: flex; justify-content: space-between; align-items: baseline; margin: 0; padding: 6px 2px;
+  font-size: 16px; font-weight: 600; color: var(--text-title); border-bottom: 1px solid var(--line);
+}
+.ach-group-n { font-size: 13px; font-weight: 400; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .ach-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 7px 2px; border-bottom: 1px solid #e3e5e8; }
 .ach-row:last-child { border-bottom: none; }
 .ach-row .ach-tt b { color: #4a4d54; }

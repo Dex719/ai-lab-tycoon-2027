@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { GameState } from '../sim/types';
-import { ACHIEVEMENTS, checkAchievements, loadUnlocked, type AchievementDef } from './achievementList';
+import { ACH_GROUPS, ACHIEVEMENTS, checkAchievements, loadUnlocked, type AchievementDef } from './achievementList';
 import { Dialog } from './components/common';
 import { playSound } from './sound';
 import './achievementsUi.css';
@@ -66,27 +66,57 @@ function dateText(iso: string): string {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('ru-RU');
 }
 
-/** Окно со всеми достижениями: полученные цветные, остальные серые с условием. */
+/** Разделы списка в порядке ACH_GROUPS; достижение без раздела попадает в последний. */
+function grouped(): { title: string; list: AchievementDef[] }[] {
+  const byId = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));
+  const used = new Set<string>();
+  const out = ACH_GROUPS.map((g) => ({
+    title: g.title,
+    list: g.ids.flatMap((id) => {
+      const a = byId.get(id);
+      if (!a) return [];
+      used.add(id);
+      return [a];
+    }),
+  }));
+  const rest = ACHIEVEMENTS.filter((a) => !used.has(a.id));
+  if (rest.length > 0) out[out.length - 1].list.push(...rest);
+  return out.filter((g) => g.list.length > 0);
+}
+
+/** Окно со всеми достижениями по разделам: полученные цветные, остальные серые с условием. */
 export function AchievementsDialog({ onClose }: { onClose: () => void }) {
   const unlocked = loadUnlocked();
   const got = ACHIEVEMENTS.filter((a) => unlocked[a.id]).length;
   return (
     <Dialog title={`Достижения: ${got} из ${ACHIEVEMENTS.length}`} onClose={onClose} wide white>
-      <ul className="ach-list">
-        {ACHIEVEMENTS.map((a) => {
-          const when = unlocked[a.id];
-          return (
-            <li key={a.id} className={`ach-row${when ? ' on' : ''}`}>
-              <Medal on={!!when} size={28} />
-              <span className="ach-tt">
-                <b>{a.title}</b>
-                <span>{a.how}</span>
+      <div className="ach-list">
+        {grouped().map((g) => (
+          <section key={g.title} className="ach-group">
+            <h3 className="ach-group-h">
+              <span>{g.title}</span>
+              <span className="ach-group-n">
+                {g.list.filter((a) => unlocked[a.id]).length} из {g.list.length}
               </span>
-              <span className="ach-when">{when ? dateText(when) : 'не получено'}</span>
-            </li>
-          );
-        })}
-      </ul>
+            </h3>
+            <ul>
+              {g.list.map((a) => {
+                const when = unlocked[a.id];
+                return (
+                  <li key={a.id} className={`ach-row${when ? ' on' : ''}`}>
+                    <Medal on={!!when} size={28} />
+                    <span className="ach-tt">
+                      <b>{a.title}</b>
+                      <span>{a.how}</span>
+                    </span>
+                    <span className="ach-when">{when ? dateText(when) : 'не получено'}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))}
+      </div>
     </Dialog>
   );
 }

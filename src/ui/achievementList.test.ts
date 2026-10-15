@@ -6,7 +6,7 @@ import { emptyDuel } from '../sim/duel';
 import { emptyLate } from '../sim/lateState';
 import { dateToDay } from '../sim/time';
 import type { GameState } from '../sim/types';
-import { ACHIEVEMENTS } from './achievementList';
+import { ACH_GROUPS, ACHIEVEMENTS } from './achievementList';
 
 const got = (s: GameState): string[] => ACHIEVEMENTS.filter((a) => a.check(s)).map((a) => a.id);
 
@@ -15,6 +15,12 @@ describe('достижения', () => {
     const ids = ACHIEVEMENTS.map((a) => a.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const a of ACHIEVEMENTS) expect(a.title && a.how).toBeTruthy();
+  });
+
+  it('каждое достижение ровно в одном разделе окна', () => {
+    const inGroups = ACH_GROUPS.flatMap((g) => g.ids);
+    expect(new Set(inGroups).size).toBe(inGroups.length);
+    expect([...inGroups].sort()).toEqual(ACHIEVEMENTS.map((a) => a.id).sort());
   });
 
   it('тексты: только дефис, без юникод-значков', () => {
