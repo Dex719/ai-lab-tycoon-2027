@@ -93,7 +93,7 @@ body:has(.menu-screen) .modal-backdrop { background: rgba(0, 0, 0, 0.94); }
 .money-pop .r { display: flex; justify-content: space-between; gap: 24px; line-height: 1.6; }
 .money-pop .r .v { font-variant-numeric: tabular-nums; }
 .pause-note {
-  position: absolute; top: 46px; left: 50%; transform: translateX(-50%); z-index: 890; padding: 4px 12px;
+  position: absolute; top: 46px; left: 50%; transform: translateX(-50%); z-index: 890; padding: 4px 12px; pointer-events: none; /* лежит над заголовками окон: не мешает их перетаскивать */
   background: #3a3220; color: #f3d48a; border: 1px solid #6a5a2c; border-radius: 3px; font-size: 13px; white-space: nowrap;
 }
 
