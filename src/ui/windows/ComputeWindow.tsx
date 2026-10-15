@@ -23,7 +23,6 @@ import { ownedCards } from '../../sim/datacenters';
 import { idleWarnings } from '../../sim/idle';
 import { CHAT_MOMENT_DAY, inferenceNeed, marketSnapshot, subsOpen } from '../../sim/market';
 import { timesWord } from '../../sim/text';
-import { dateToDay } from '../../sim/time';
 import type { GameState, GpuDef, GpuId } from '../../sim/types';
 import {
   ALLOC_ROWS,
@@ -47,6 +46,7 @@ import { IconAlert } from '../icons';
 import { playSound } from '../sound';
 import { actions, store } from '../store';
 import { farmLayout, rentedFarm } from '../three/specs';
+import { GpuChooser, powerFact } from '../three/GpuChooser';
 import { useGpuThumb, View3D } from '../three/View3D';
 import './ComputeWindow.css';
 
@@ -81,18 +81,6 @@ function cheapestGpuId(s: GameState): GpuId | null {
   let best = list[0];
   for (const g of list) if (rentPerGpuDay(s, g.id) / g.h100e < rentPerGpuDay(s, best.id) / best.h100e) best = g;
   return best.id;
-}
-
-/** Самая мощная из вышедших карт: с ней сравнивается мощность остальных (будущие карты не упоминаются). */
-function strongestGpu(s: GameState): GpuDef {
-  const list = availableGpus(s);
-  return list.reduce((b, g) => (g.h100e > b.h100e ? g : b), list[0] ?? GPUS[0]);
-}
-
-/** «17 %», «2,1 %», «100 %». */
-function fmtShareOf(part: number, whole: number): string {
-  const p = (part / whole) * 100;
-  return `${p < 10 ? String(Math.round(p * 10) / 10).replace('.', ',') : fmtInt(p)} %`;
 }
 
 /** Сколько карт предложить в диалоге, если этих карт ещё нет: около 3/16 лимита, кратно 8 (целые серверы). */
@@ -237,7 +225,6 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
   const count = Number.isInteger(parsed) && parsed >= 0 && parsed <= max ? parsed : null;
   const over = count === null ? 0 : Math.max(0, count - cap);
   const cheapest = cheapestGpuId(s);
-  const strongest = strongestGpu(s);
   const capFrac = cap < max ? cap / max : null;
 
   const pick = (next: GpuDef) => {
@@ -289,58 +276,34 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
       }
     >
       <div className="cw-rd">
-        <div className="cw-rd-top">
-          <div className="cw-rd-left">
-          <div className="cw-rd-list" role="radiogroup" aria-label="Видеокарта">
-            {list.map((x) => {
-              const tag = x.id === cheapest ? 'Выгоднее всего' : null;
-              return (
-                <button
-                  key={x.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={x.id === id}
-                  className={`cw-pick${x.id === id ? ' is-selected' : ''}`}
-                  onClick={() => pick(x)}
-                >
-                  <span className="cw-pick-name">
-                    {x.name}
-                    <NewBadge day={s.day} since={dateToDay(x.availableFrom)} />
-                  </span>
-                  <span className="cw-pick-bar" title={`Мощность одной карты по сравнению с ${strongest.name}`}>
-                    <i style={{ width: `${Math.max(3, (x.h100e / strongest.h100e) * 100)}%` }} />
-                  </span>
-                  <span className="cw-pick-meta">
-                    {fmtCardMonth(rentPerGpuDay(s, x.id))} в месяц
-                    {s.compute.rented[x.id] > 0 && <span className="cw-pick-own">в аренде {fmtInt(s.compute.rented[x.id])}</span>}
-                  </span>
-                  <span className={`cw-pick-tag${tag ? '' : ' cw-hide'}`}>{tag ?? '-'}</span>
-                </button>
-              );
-            })}
-          </div>
-          <dl className="cw-rd-wallet">
-            <dt>На счёте</dt>
-            <dd className={s.cash < 0 ? 'bad' : undefined}>{fmtMoney(s.cash)}</dd>
-            <dt title="Аренда всех карт после изменения">Вся аренда в месяц</dt>
-            <dd className="bad">{count === null ? '-' : fmtMoney(rentPerDay(s) * DAYS_IN_MONTH + (delta?.money ?? 0))}</dd>
-          </dl>
-          </div>
-          <div className="cw-rd-stage">
-            <View3D spec={{ kind: 'gpu', gpu: g.id }} autoRotate label={`Видеокарта ${g.name}`} className="cw-rd-view" />
-            <div className="cw-rd-cap">
-              <div className="cw-rd-name">{g.name}</div>
-              <dl className="cw-rd-facts">
-                <dt>Мощность</dt>
-                <dd>{g.id === strongest.id ? (list.length > 1 ? 'самая мощная на рынке' : 'единственная на рынке') : `${fmtShareOf(g.h100e, strongest.h100e)} от ${strongest.name}`}</dd>
-                <dt>Цена</dt>
-                <dd>{fmtCardMonth(rentPerGpuDay(s, g.id))} за карту в месяц</dd>
-                <dt>На рынке</dt>
-                <dd>с {g.availableFrom.slice(0, 4)} года</dd>
-              </dl>
-            </div>
-          </div>
-        </div>
+        <GpuChooser
+          day={s.day}
+          items={list.map((x) => ({
+            gpu: x,
+            meta: (
+              <>
+                {fmtCardMonth(rentPerGpuDay(s, x.id))} в месяц
+                {s.compute.rented[x.id] > 0 && <span className="own">в аренде {fmtInt(s.compute.rented[x.id])}</span>}
+              </>
+            ),
+            tag: x.id === cheapest ? 'Выгоднее всего' : null,
+          }))}
+          value={g.id}
+          onPick={(next) => pick(GPUS.find((x) => x.id === next) ?? g)}
+          aside={
+            <dl className="gch-wallet">
+              <dt>На счёте</dt>
+              <dd className={s.cash < 0 ? 'bad' : undefined}>{fmtMoney(s.cash)}</dd>
+              <dt title="Аренда всех карт после изменения">Вся аренда в месяц</dt>
+              <dd className="bad">{count === null ? '-' : fmtMoney(rentPerDay(s) * DAYS_IN_MONTH + (delta?.money ?? 0))}</dd>
+            </dl>
+          }
+          facts={[
+            { label: 'Мощность', value: powerFact(g, list) },
+            { label: 'Цена', value: `${fmtCardMonth(rentPerGpuDay(s, g.id))} за карту в месяц` },
+            { label: 'На рынке', value: `с ${g.availableFrom.slice(0, 4)} года` },
+          ]}
+        />
 
         <div className="cw-qty">
           <label htmlFor="cw-qty-num">Количество</label>

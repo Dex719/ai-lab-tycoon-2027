@@ -1,0 +1,39 @@
+/* Выбор видеокарты: список слева, 3D-превью справа на графитовой подложке (как утверждённый эталон арта).
+   Диалоги выводятся в document.body, поэтому стили не привязаны к окну. */
+.gch { display: grid; grid-template-columns: 292px minmax(0, 1fr); gap: 14px; height: 300px; font-variant-numeric: tabular-nums; }
+.gch-left { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.gch-list { flex: 1; display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow: auto; padding: 1px; }
+.gch-pick {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'name tag' 'bar bar' 'meta meta';
+  gap: 4px 8px; width: 100%; padding: 7px 10px 8px; text-align: left; color: var(--text); background: #fff;
+  border: 1px solid var(--line); border-radius: 2px; cursor: pointer;
+}
+.gch-pick:hover { background: #f1f4f8; }
+.gch-pick.is-selected { border-color: var(--accent); background: #e3eefc; }
+.gch-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.gch-name { grid-area: name; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gch-tag { grid-area: tag; align-self: center; font-size: 12px; font-weight: 600; color: #1d6b36; white-space: nowrap; }
+.gch-bar { grid-area: bar; display: block; height: 5px; background: #e3e5e9; border-radius: 1px; overflow: hidden; }
+.gch-bar i { display: block; height: 100%; background: #5f646c; }
+.gch-pick.is-selected .gch-bar i { background: var(--accent-dark); }
+.gch-meta { grid-area: meta; font-size: 12.5px; color: var(--text-dim); }
+.gch-meta .own { margin-left: 8px; color: #1f62b8; }
+.gch-hide { visibility: hidden; }
+
+.gch-stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.gch-view { flex: 1; min-height: 0; background: #2b2d30; border-radius: 2px; }
+.gch-cap { flex: none; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 8px; }
+.gch-title { font-size: 18px; font-weight: 600; white-space: nowrap; }
+.gch-facts { display: grid; grid-template-columns: auto auto; gap: 0 10px; margin: 0; font-size: 12.5px; }
+.gch-fact { display: contents; }
+.gch-facts dt { color: var(--text-dim); }
+.gch-facts dd { margin: 0; color: var(--text); white-space: nowrap; }
+
+/* Деньги под списком */
+.gch-wallet {
+  flex: none; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; margin: 0; padding: 8px 10px;
+  font-size: 13px; background: #fff; border: 1px solid var(--line-soft); border-radius: 2px;
+}
+.gch-wallet dt { color: var(--text-dim); }
+.gch-wallet dd { margin: 0; text-align: right; font-weight: 600; white-space: nowrap; }
+.gch-wallet dd.bad { color: #b32f2f; }

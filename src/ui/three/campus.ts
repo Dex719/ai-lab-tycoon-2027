@@ -1,4 +1,5 @@
-// Кампус дата-центра: макет площадки на подставке, который достраивается по этапам.
+// Кампус дата-центра: площадка с высоты, которая достраивается по этапам. Земля уходит за край кадра в дымку,
+// вокруг - пояса леса или кустарника, к воротам ведёт дорога.
 // Свободная площадка - земля с колышками. «Участок» - забор растёт по периметру, выровненная площадка,
 // экскаватор. «Линия электропередачи» - опоры от края участка к подстанции. «Здание» - плита, колонны,
 // стены растут по высоте, башенный кран. «Охлаждение» - крыша и чиллеры во дворе. Готовый дата-центр
@@ -18,23 +19,47 @@ import type { CampusSpec } from './specs';
 const STAGES = 4;
 
 interface SiteLook {
+  /** Земля и её пятна (трава, песок, снег), площадка под стройку, дымка у горизонта. */
   ground: string;
+  ground2: string;
   pad: string;
-  side: string;
   sky: string;
+  /** Лес: лиственный, хвойный; кустарник: редкий (Техас) или полынь (Вашингтон). */
   flora: 'shrub' | 'tree' | 'pine' | 'sage';
-  floraColor: string;
+  floraColors: [string, string];
   density: number;
   river?: boolean;
-  snow?: boolean;
 }
 
 const SITE_LOOK: Record<DcSiteId, SiteLook> = {
-  abilene: { ground: '#cdb486', pad: '#b9a37a', side: '#8a6a45', sky: '#e8dfd2', flora: 'shrub', floraColor: '#7b7744', density: 0.5 },
-  ashburn: { ground: '#86a865', pad: '#a7a296', side: '#6b5236', sky: '#dfe7ee', flora: 'tree', floraColor: '#4e8a3d', density: 1 },
-  lulea: { ground: '#eef2f6', pad: '#c9cdd2', side: '#6f6458', sky: '#e3e9f0', flora: 'pine', floraColor: '#2f5a3e', density: 1, snow: true },
-  quincy: { ground: '#b4ad7c', pad: '#aaa597', side: '#7a6243', sky: '#e6e7dc', flora: 'sage', floraColor: '#8e9a68', density: 0.6, river: true },
+  abilene: { ground: '#c9b58f', ground2: '#b8a57c', pad: '#b3a387', sky: '#e4ddd2', flora: 'shrub', floraColors: ['#6f6c42', '#7f7a4c'], density: 0.6 },
+  ashburn: { ground: '#8aa26a', ground2: '#7c955e', pad: '#a9a69c', sky: '#dfe4e8', flora: 'tree', floraColors: ['#476f35', '#557d3e'], density: 1 },
+  lulea: { ground: '#e9edf1', ground2: '#dde3e9', pad: '#c4c8cd', sky: '#e2e6eb', flora: 'pine', floraColors: ['#2e4a37', '#38563f'], density: 1 },
+  quincy: { ground: '#b2ab84', ground2: '#a39d78', pad: '#aaa597', sky: '#e3e4dc', flora: 'sage', floraColors: ['#87906a', '#7a845f'], density: 0.8, river: true },
 };
+
+/** Земля с пятнами: крупный мягкий шум, без резких деталей (повторяется). */
+function groundTex(look: SiteLook): THREE.CanvasTexture {
+  return canvasTex(
+    `campus-ground-${look.ground}`,
+    256,
+    256,
+    (g, w, h) => {
+      g.fillStyle = look.ground;
+      g.fillRect(0, 0, w, h);
+      const r = rng(look.ground.length * 31 + 7);
+      g.fillStyle = look.ground2;
+      for (let i = 0; i < 90; i++) {
+        g.globalAlpha = 0.25 + r() * 0.35;
+        g.beginPath();
+        g.ellipse(r() * w, r() * h, 6 + r() * 26, 4 + r() * 16, r() * Math.PI, 0, Math.PI * 2);
+        g.fill();
+      }
+      g.globalAlpha = 1;
+    },
+    { repeat: [1, 1] },
+  );
+}
 
 /** Залы по мощности: число, ширина (x), глубина (z), высота стен. */
 function hallsFor(mw: number): { n: number; w: number; d: number; h: number } {
@@ -97,40 +122,51 @@ export function buildCampus(spec: CampusSpec, prev: CampusSpec | null): Content 
 
   const b = new GeoBatch();
 
-  // ---------- Подставка-макет ----------
-  b.box('tileSide', tw, 3, td, tcx, -1.5, tcz);
-  b.box('ground', tw, 0.2, td, tcx, 0.1, tcz);
-  if (look.river) b.box('water', tw, 0.08, 6, tcx, 0.2, tile.z0 + 3.4);
+  // ---------- Земля до горизонта ----------
+  const groundMat = new THREE.MeshStandardMaterial({ color: '#ffffff', map: groundTex(look).clone(), roughness: 0.95, metalness: 0 });
+  const GROUND = Math.max(tw, td) * 8;
+  groundMat.map!.wrapS = groundMat.map!.wrapT = THREE.RepeatWrapping;
+  groundMat.map!.repeat.set(GROUND / 60, GROUND / 60);
+  groundMat.map!.needsUpdate = true;
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(GROUND, GROUND), groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(tcx, 0.2, tcz);
+  ground.receiveShadow = true;
+  root.add(ground);
+  // Река (Вашингтон) за участком, уходит за края кадра
+  if (look.river) {
+    b.box('water', GROUND, 0.06, 14, tcx, 0.22, tile.z0 - 10);
+    b.box('bank', GROUND, 0.04, 2.5, tcx, 0.21, tile.z0 - 1.8);
+  }
+  // Дорога от ворот к краю кадра
+  b.box('asphalt', 8, 0.05, GROUND / 2, 0, 0.24, plot.z1 + GROUND / 4);
 
-  // ---------- Окружение: растения по краю подставки ----------
+  // ---------- Окружение: пояса леса или кустарника вокруг участка ----------
   {
     const r = rng(spec.site.length * 977 + 13);
-    const count = Math.round(56 * look.density);
-    for (let i = 0; i < count; i++) {
-      let x = tile.x0 + 2 + r() * (tw - 4);
-      let z = tile.z0 + 2 + r() * (td - 4);
-      const inside = x > plot.x0 - 3 && x < plot.x1 + 3 && z > plot.z0 - 3 && z < plot.z1 + 3;
-      if (inside) {
-        // Вытолкнуть к ближайшему краю подставки
-        const dx = Math.min(x - tile.x0, tile.x1 - x);
-        const dz = Math.min(z - tile.z0, tile.z1 - z);
-        if (dx < dz) x = x - tile.x0 < tile.x1 - x ? tile.x0 + 1.5 + r() * (margin - 3) : tile.x1 - 1.5 - r() * (margin - 3);
-        else z = z - tile.z0 < tile.z1 - z ? tile.z0 + 1.5 + r() * (margin - 3) : tile.z1 - 1.5 - r() * (margin - 3);
-      }
-      if (look.river && z < tile.z0 + 7) z = tile.z0 + 7.5 + r() * 1.5;
-      const s = 0.7 + r() * 0.6;
-      if (look.flora === 'tree') {
-        b.cyl('trunk', 0.35 * s, 3 * s, x, 1.5 * s + 0.2, z, 0, 0, 0, 6);
-        b.add('flora', new THREE.IcosahedronGeometry(2.6 * s, 0), mtx(x, 4.4 * s + 0.2, z, r(), r(), 0));
-      } else if (look.flora === 'pine') {
-        b.cyl('trunk', 0.3 * s, 1.6 * s, x, 0.8 * s + 0.2, z, 0, 0, 0, 6);
-        for (let k = 0; k < 3; k++) {
-          b.add('flora', new THREE.ConeGeometry((2.4 - k * 0.6) * s, 2.6 * s, 7), mtx(x, (2.2 + k * 1.5) * s + 0.2, z));
-          b.add('snowCap', new THREE.ConeGeometry((1.0 - k * 0.22) * s, 1.0 * s, 7), mtx(x, (3.05 + k * 1.5) * s + 0.2, z));
+    const ring = 60;
+    const clusters = Math.round(70 * look.density);
+    const free = (x: number, z: number, pad: number) =>
+      !(x > plot.x0 - pad && x < plot.x1 + pad && z > plot.z0 - pad && z < plot.z1 + pad) && !(Math.abs(x) < 7 && z > plot.z1) && !(look.river && z < tile.z0 + 1 && z > tile.z0 - 19);
+    for (let i = 0; i < clusters; i++) {
+      const cx = plot.x0 - ring + r() * (plot.x1 - plot.x0 + ring * 2);
+      const cz = plot.z0 - ring + r() * (plot.z1 - plot.z0 + ring * 2);
+      if (!free(cx, cz, 6)) continue;
+      const n = look.flora === 'tree' || look.flora === 'pine' ? 5 + Math.floor(r() * 6) : 3 + Math.floor(r() * 4);
+      for (let k = 0; k < n; k++) {
+        const x = cx + (r() - 0.5) * 12;
+        const z = cz + (r() - 0.5) * 12;
+        if (!free(x, z, 4)) continue;
+        const mat = r() < 0.5 ? 'flora' : 'flora2';
+        const sc = 0.7 + r() * 0.6;
+        if (look.flora === 'tree') {
+          // Крона без видимого ствола: сплюснутая неровная масса, соседние кроны сливаются в лесополосу
+          b.add(mat, new THREE.IcosahedronGeometry(3.2 * sc, 1), mtx(x, 3.4 * sc + 0.2, z, r(), r(), r(), 1.1, 0.8, 1));
+        } else if (look.flora === 'pine') {
+          b.add(mat, new THREE.ConeGeometry(1.5 * sc, 8 * sc, 6), mtx(x, 4 * sc + 0.2, z, 0, r() * 3, 0));
+        } else {
+          b.add(mat, new THREE.IcosahedronGeometry(1.2 * sc, 0), mtx(x, 0.45 * sc + 0.2, z, r(), r(), r(), 1.5, 0.55, 1.3));
         }
-      } else {
-        b.add('flora', new THREE.IcosahedronGeometry(1.1 * s, 0), mtx(x, 0.6 * s + 0.2, z, r(), r(), 0, 1.4, 0.7, 1.2));
-        if (look.flora === 'shrub' && r() < 0.3) b.add('rock', new THREE.DodecahedronGeometry(0.7 * s, 0), mtx(x + 2, 0.4, z + 1, r(), r(), r()));
       }
     }
   }
@@ -525,11 +561,11 @@ export function buildCampus(spec: CampusSpec, prev: CampusSpec | null): Content 
       : undefined;
   if (animate) animate(0);
 
-  const box = new THREE.Box3(new THREE.Vector3(tile.x0, -3, tile.z0), new THREE.Vector3(tile.x1, Math.max(12, H + 4), tile.z1));
+  const box = new THREE.Box3(new THREE.Vector3(plot.x0 - 4, 0, plot.z0 - 4), new THREE.Vector3(plot.x1 + 4, Math.max(10, H + 2), plot.z1 + 4));
   return {
     root,
     framing: {
-      target: new THREE.Vector3(tcx, 2, tcz),
+      target: new THREE.Vector3((plot.x0 + plot.x1) / 2, 2, (plot.z0 + plot.z1) / 2),
       fit: { box },
       yaw: -0.55,
       pitch: ready ? 0.78 : 0.62,
@@ -537,10 +573,11 @@ export function buildCampus(spec: CampusSpec, prev: CampusSpec | null): Content 
       maxPitch: 1.35,
       yawLimit: 1.3,
       fov: 30,
-      fill: 0.96,
+      fill: 1,
     },
     background: look.sky,
     envIntensity: 0.6,
+    fog: [1.1, 2.4],
     shadows: true,
     animate,
     dispose: () => {
@@ -552,28 +589,24 @@ export function buildCampus(spec: CampusSpec, prev: CampusSpec | null): Content 
       racksMesh = [];
       wallMat.map?.dispose();
       wallMat.dispose();
+      groundMat.map?.dispose();
+      groundMat.dispose();
       sun.shadow.map?.dispose();
     },
   };
 
   function mat(key: string): THREE.Material {
     switch (key) {
-      case 'tileSide':
-        return pbr(look.side, 0, 0.95);
-      case 'ground':
-        return pbr(look.ground, 0, 0.95);
       case 'water':
-        return pbr('#4d7ea6', 0.1, 0.25);
+        return pbr('#5d7f96', 0.1, 0.3);
+      case 'bank':
+        return pbr('#9b927a', 0, 0.95);
       case 'pad':
         return pbr(look.pad, 0, 0.95);
       case 'flora':
-        return pbr(look.floraColor, 0, 0.85, { flatShading: true });
-      case 'trunk':
-        return pbr('#5a4330', 0, 0.9);
-      case 'snowCap':
-        return pbr(look.snow ? '#f4f7fa' : look.floraColor, 0, 0.8, { flatShading: true });
-      case 'rock':
-        return pbr('#9b8f7b', 0, 0.9, { flatShading: true });
+        return pbr(look.floraColors[0], 0, 0.9, { flatShading: true });
+      case 'flora2':
+        return pbr(look.floraColors[1], 0, 0.9, { flatShading: true });
       case 'stake':
       case 'post':
         return pbr('#8a6a45', 0, 0.8);

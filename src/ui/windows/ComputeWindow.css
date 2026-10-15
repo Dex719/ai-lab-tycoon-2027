@@ -34,7 +34,7 @@
 }
 .cw-figures { display: flex; flex-direction: column; min-width: 0; }
 .cw-fig-label { font-size: 13px; color: var(--text-dim); }
-.cw-fig-value { display: flex; align-items: baseline; gap: 8px; font: 700 34px var(--mono); line-height: 1.1; color: var(--text); white-space: nowrap; }
+.cw-fig-value { display: flex; align-items: baseline; gap: 8px; font-size: 32px; font-weight: 600; line-height: 1.15; color: var(--text); white-space: nowrap; }
 .cw-fig-value span { font: 400 15px var(--font); color: var(--text-dim); }
 .cw-fig-value.dim { color: #8a8e95; }
 .cw-fig-sub { margin-top: 2px; font-size: 13px; color: var(--text-body); }
@@ -133,40 +133,6 @@
 /* ---------- Диалог аренды (выводится в document.body) ---------- */
 .dialog:has(.cw-rd) { width: min(900px, calc(100vw - 32px)); }
 .cw-rd { display: flex; flex-direction: column; gap: 12px; font-variant-numeric: tabular-nums; }
-.cw-rd-top { display: grid; grid-template-columns: 292px minmax(0, 1fr); gap: 14px; height: 300px; }
-.cw-rd-left { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
-.cw-rd-list { flex: 1; display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow: auto; padding: 1px; }
-.cw-rd-wallet {
-  flex: none; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; margin: 0; padding: 8px 10px;
-  font-size: 13px; background: #fff; border: 1px solid var(--line-soft); border-radius: 4px;
-}
-.cw-rd-wallet dt { color: var(--text-dim); }
-.cw-rd-wallet dd { margin: 0; text-align: right; font-weight: 600; white-space: nowrap; }
-.cw-rd-wallet dd.bad { color: #b32f2f; }
-.cw-pick {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'name tag' 'bar bar' 'meta meta';
-  gap: 4px 8px; width: 100%; padding: 7px 10px 8px; text-align: left; color: var(--text); background: #fff;
-  border: 1px solid var(--line); border-radius: 2px; cursor: pointer;
-}
-.cw-pick:hover { background: #f1f4f8; }
-.cw-pick.is-selected { border-color: var(--accent); background: #e3eefc; }
-.cw-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.cw-pick-name { grid-area: name; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cw-pick-tag { grid-area: tag; align-self: center; font-size: 12px; font-weight: 600; color: #1d6b36; white-space: nowrap; }
-.cw-pick-bar { grid-area: bar; display: block; height: 5px; background: #e3e5e9; border-radius: 1px; overflow: hidden; }
-.cw-pick-bar i { display: block; height: 100%; background: #5f646c; }
-.cw-pick.is-selected .cw-pick-bar i { background: var(--accent-dark); }
-.cw-pick-meta { grid-area: meta; font-size: 12.5px; color: var(--text-dim); }
-.cw-pick-own { margin-left: 8px; color: #1f62b8; }
-/* Превью карты: графитовая подложка, как в утверждённом эталоне арта; подпись - под картинкой. */
-.cw-rd-stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.cw-rd-view { flex: 1; min-height: 0; background: #2b2d30; border-radius: 2px; }
-.cw-rd-cap { flex: none; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 8px; }
-.cw-rd-name { font-size: 18px; font-weight: 600; white-space: nowrap; }
-.cw-rd-facts { display: grid; grid-template-columns: auto auto; gap: 0 10px; margin: 0; font-size: 12.5px; }
-.cw-rd-facts dt { color: var(--text-dim); }
-.cw-rd-facts dd { margin: 0; color: var(--text); white-space: nowrap; }
-
 .cw-qty { display: grid; grid-template-columns: 96px minmax(0, 1fr) 110px; align-items: center; gap: 4px 12px; }
 .cw-qty > label { color: var(--text-dim); }
 .cw-qty > input { width: 110px; }
