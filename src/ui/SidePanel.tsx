@@ -210,7 +210,7 @@ function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) =>
         <span className="sr-v">
           {race
             ? near
-              ? `${first ? 'Отрыв от' : 'До'} ${near.name}: ${fmtGap(race.metric, near.gap)}${race.metric.kind === 'arena' ? ' Эло' : ' балла'}`
+              ? `${first ? 'Отрыв от' : 'До'} ${near.name}: ${fmtGap(race.metric, near.gap)}${race.metric.kind === 'arena' ? '\u00a0Эло' : '\u00a0балла'}`
               : first
                 ? 'Соперников ниже нет'
                 : 'Выше никого'

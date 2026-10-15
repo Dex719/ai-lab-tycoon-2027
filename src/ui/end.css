@@ -39,3 +39,4 @@
 .end-kv span:nth-child(even) { text-align: right; color: var(--text-title); font-variant-numeric: tabular-nums; }
 @media (max-width: 520px) { .end-stats { grid-template-columns: max-content minmax(0, 1fr); } .end-place { font-size: 32px; } }
 @media (prefers-reduced-motion: reduce) { .dialog.end { animation: none; } }
+.end-stats .nowrap { white-space: nowrap; }
