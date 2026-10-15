@@ -103,6 +103,7 @@ interface Snap {
   released: number;
   research: number;
   goals: number;
+  tasks: number;
   mailNum: number;
   negative: boolean;
 }
@@ -115,6 +116,7 @@ function snap(s: GameState): Snap {
     released: s.models.filter((m) => m.releasedDay !== null).length,
     research: s.research.done.length + s.research.algoLevel + s.research.contextLevel,
     goals: s.yearly.year * 100 + s.yearly.goals.filter((g) => g.done).length,
+    tasks: s.quests.done,
     mailNum: s.nextMailNum,
     negative: s.finance.negativeDays > 0,
   };
@@ -161,7 +163,7 @@ export function Juice({ s, onRelease }: { s: GameState; onRelease: ReleaseHandle
       sounds.unshift('release');
     }
     if (now.models > p.models) sounds.unshift('ready');
-    if (now.goals > p.goals && now.goals % 100 > 0) sounds.push('goal');
+    if ((now.goals > p.goals && now.goals % 100 > 0) || now.tasks > p.tasks) sounds.push('goal');
     if (now.research > p.research) sounds.push('research');
     if (!p.negative && now.negative) sounds.unshift('alert');
     else if (sounds.length === 0) {

@@ -1,30 +1,39 @@
-/* Цели года в боковой панели и окно «Итоги года». Отдельный файл: общие стили темы не трогаем. */
-.goal-head { padding: 8px 12px 6px; font-size: 16px; border-top: 3px solid var(--c-amber); display: flex; justify-content: space-between; align-items: baseline; }
-.goal-head .n { font-size: 13px; color: #a9acb2; font-variant-numeric: tabular-nums; }
-.goal-list { padding: 0 0 6px; border-bottom: 1px solid #36373c; }
-.goal-row { padding: 7px 12px 8px; border-left: 3px solid var(--c-amber); border-bottom: 1px solid #333439; font-size: 12px; color: #c4c7cc; cursor: pointer; }
-.goal-row:last-child { border-bottom: none; }
-.goal-row .gt { color: #fff; font-size: 14px; line-height: 1.3; }
-.goal-row .gp { margin-top: 2px; }
-.goal-row .gr { margin-top: 2px; color: var(--c-amber); }
-.goal-row .gr.ok { color: var(--good-on-dark); }
-.goal-row.done { border-left-color: var(--c-green); }
-.goal-row.done .gt::before { content: '✓ '; color: var(--good-on-dark); font-weight: 700; }
-.goal-row .goal-bar { height: 4px; background: #3a3b40; margin-top: 5px; border-radius: 2px; overflow: hidden; }
-.goal-row .goal-bar > div { height: 100%; background: var(--c-amber); }
-.goal-row.done .goal-bar > div { background: var(--c-green); }
+/* Цели года и задачи в боковой панели, окно «Итоги года» (страница отчёта) и выбор целей.
+   Плоский цвет, обычный шрифт с табличными цифрами, появление - прозрачность и сдвиг на 6 px (ANTI_SLOP.md). */
 
-.year-dialog { width: min(540px, calc(100vw - 32px)); }
-.year-dialog .titlebar { border-top: 3px solid var(--c-amber); }
-.year-comment { margin: 0 0 14px; padding: 9px 12px; background: #fff5dc; border-left: 4px solid var(--c-amber); color: #4a3a10; font-size: 14px; }
-.year-kv { margin-bottom: 14px; }
-.year-kv .good { color: #17803d; font-weight: 600; }
-.year-kv .bad { color: #b3261e; font-weight: 600; }
-.year-next { margin: 4px 0 6px; font-size: 15px; font-weight: 600; }
-.year-goal { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid #e2e4e8; font-size: 13px; }
-.year-goal:last-child { border-bottom: none; }
-.year-goal .rw { color: var(--text-dim); white-space: nowrap; }
-.year-done { color: #17803d; font-weight: 600; }
+/* ---------- Боковая панель (тёмная оболочка) ---------- */
+/* Цели и задачи - один блок: когда сверху подсказка обучения и места мало, блок сжимается и прокручивается сам. */
+.side .side-body > div.quests-zone:not(.tutor) { flex: 0 1 auto; min-height: 96px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #55585e transparent; }
+/* На телефоне сводка - нижний лист, он прокручивается целиком. */
+.side.sheet .side-body > div.quests-zone:not(.tutor) { flex: none; min-height: 0; overflow: visible; }
+.goal-head, .task-head {
+  padding: 8px 12px 4px; font-size: 15px; border-top: 1px solid #3a3b40;
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.goal-head .n, .task-head .n { font-size: 12px; color: #a9acb2; font-variant-numeric: tabular-nums; }
+.goal-list, .task-list { padding-bottom: 4px; }
+
+.goal-row, .task-row { padding: 6px 12px 7px; font-size: 12px; color: #b9bcc2; cursor: pointer; }
+.goal-row:hover, .task-row:hover { background: #2f3035; }
+.goal-row .gt, .task-row .tr-top { display: flex; align-items: baseline; gap: 6px; }
+.goal-row .gt-name, .task-row .tr-title { flex: 1; min-width: 0; color: #fff; font-size: 13.5px; line-height: 1.3; }
+.goal-row .gt-ok { flex: none; align-self: center; color: var(--good-on-dark); }
+.goal-row .gt-reward, .task-row .tr-reward { flex: none; max-width: 48%; text-align: right; color: #e8c34a; font-size: 12px; font-variant-numeric: tabular-nums; }
+.goal-row .gt-reward.ok { color: var(--good-on-dark); }
+.goal-row .gp { margin-top: 1px; line-height: 1.35; font-variant-numeric: tabular-nums; }
+.goal-row .gp-almost, .task-row .tr-almost { color: #f2b84b; font-weight: 600; }
+.goal-row .gp-flash { color: var(--good-on-dark); font-weight: 600; }
+.goal-row .gp-risk { margin-top: 1px; color: #ff9c9c; font-size: 11.5px; }
+
+.goal-bar, .task-bar { height: 3px; margin-top: 4px; background: #3a3b40; border-radius: 2px; overflow: hidden; }
+.goal-bar > div { height: 100%; background: var(--c-amber); }
+.task-bar > div { height: 100%; background: var(--c-teal); }
+.goal-row.done .goal-bar > div { background: var(--c-green); }
+.goal-row.just-done { animation: goal-flash 2600ms ease-out; }
+@keyframes goal-flash { from { background: rgba(94, 211, 127, 0.22); } to { background: transparent; } }
+
+.goal-bonuses { padding: 2px 12px 6px; }
+.goal-bonus { font-size: 12px; color: var(--good-on-dark); line-height: 1.4; }
 
 /* «Почти!» и праздник выполненной цели. */
 .goal-almost { margin-left: 6px; font-size: 12px; font-weight: 600; color: var(--gold-fill); }
@@ -45,29 +54,78 @@
   .goal-row.just-done, .goal-row.just-done::after { animation: none; }
 }
 
-/* Итоги года: светлое окно игры, как страница годового отчёта. Звёзды плоские, числа в таблице. */
-.dialog.yr { width: min(600px, calc(100vw - 32px)); outline: none; animation: rc-in 200ms ease-out both; }
-.dialog.yr .titlebar { box-shadow: inset 0 3px 0 var(--c-amber); }
-.yr-body { display: flex; flex-direction: column; gap: 12px; padding: 14px 20px 16px; }
-.yr-score { display: flex; align-items: center; gap: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-.yr-stars { flex: none; display: flex; gap: 4px; }
-.yr-star { fill: #dcdee2; stroke: #b9bdc4; stroke-width: 1.2; stroke-linejoin: round; }
-.yr-star.on { fill: var(--gold-fill); stroke: var(--gold-line); animation: yr-star 220ms ease-out both; }
-.yr-score-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.yr-score-t b { font-size: 18px; font-weight: 600; color: var(--text-title); }
-.dialog.yr.all .yr-score-t b { color: var(--gold-ink); }
-.yr-comment { font-size: 13.5px; color: var(--text-body); }
-.yr-table th, .yr-table td { padding: 5px 10px; }
-.yr-table td.yr-cur { font-weight: 600; color: var(--text-title); }
-.yr-table td.yr-cur.gold { color: var(--gold-ink); }
-.yr-table td.yr-cur.bad { color: #b3261e; }
-.yr-ch { color: var(--text-dim); }
-.yr-ch.good { color: #1d6b37; font-weight: 600; }
-.yr-ch.bad { color: #a12a2a; font-weight: 600; }
-.yr-note { margin-top: -4px; font-size: 13px; color: var(--text-dim); }
-.yr-next-h { margin-bottom: 2px; font-size: 15px; font-weight: 600; color: var(--text-title); }
-.yr-goal { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid #e2e4e8; font-size: 13.5px; }
-.yr-goal:last-child { border-bottom: none; }
-.yr-goal .rw { color: var(--gold-ink); font-weight: 600; white-space: nowrap; }
-@keyframes yr-star { from { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .dialog.yr, .yr-star.on { animation: none; } }
+
+.task-row { animation: task-in 200ms ease-out; }
+.task-row .tr-sub { display: flex; justify-content: space-between; gap: 8px; margin-top: 1px; line-height: 1.35; font-variant-numeric: tabular-nums; }
+.task-row .tr-text { min-width: 0; }
+.task-row .tr-left { flex: none; color: #d6d8dc; }
+.task-row .tr-left.urgent { color: #ff9c9c; }
+.task-row.closed { cursor: default; animation: task-closed 3200ms ease-out forwards; }
+.task-row.closed.ok { background: rgba(94, 211, 127, 0.16); }
+.task-row.closed.ok .tr-sub { color: var(--good-on-dark); font-weight: 600; }
+.task-row.closed.fail { background: rgba(255, 107, 107, 0.14); }
+.task-row.closed.fail .tr-sub { color: #ff9c9c; font-weight: 600; }
+.task-empty { padding: 4px 12px 6px; font-size: 12px; color: #8d9096; }
+@keyframes task-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes task-closed { 0%, 88% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ---------- «Итоги года»: страница отчёта ---------- */
+.yr-dialog { animation: yr-in 200ms ease-out; }
+@keyframes yr-in { from { opacity: 0; transform: translateY(6px); } }
+.yr-page { padding: 16px 22px 18px; }
+.yr-lead { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #e3e5e8; }
+.yr-score { font-size: 22px; font-weight: 600; color: var(--text-title); font-variant-numeric: tabular-nums; }
+.yr-score.all { color: #8a5f00; }
+.yr-comment { margin: 4px 0 0; color: var(--text-body); }
+.yr-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 24px; }
+.yr-h { margin: 0; padding-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--text-dim); }
+.yr-kv { row-gap: 5px; font-size: 14px; }
+.yr-kv small.yr-d { display: block; font-size: 12px; color: var(--text-dim); }
+.yr-kv small.yr-d.good { color: var(--good); }
+.yr-kv small.yr-d.bad, .yr-kv .bad { color: var(--bad); }
+.yr-results { list-style: none; margin: 0; padding: 0; }
+.yr-results li { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 8px; padding: 6px 0; border-bottom: 1px solid #e3e5e8; font-size: 14px; }
+.yr-results .yr-rt small.gold { color: #8a5f00; }
+.yr-results li:last-child { border-bottom: none; }
+.yr-results .yr-mark { padding-top: 1px; }
+.yr-results li.ok .yr-mark { color: var(--good); }
+.yr-results li.miss .yr-mark { color: var(--bad); }
+.yr-results .yr-rt small { display: block; font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.yr-results .yr-rv { text-align: right; font-variant-numeric: tabular-nums; }
+.yr-results .yr-rv small { display: block; font-size: 12px; }
+.yr-results .gold { color: #8a5f00; }
+.yr-results .bad { color: var(--bad); }
+@media (max-width: 640px) { .yr-cols { grid-template-columns: 1fr; } }
+
+/* ---------- Выбор целей: строки бланка с флажками ---------- */
+.gc-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.gc-ask { color: var(--text-dim); }
+.gc-count { position: relative; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.gc-count .deny-note { bottom: auto; top: calc(100% + 4px); }
+.gc-count.full { color: var(--good); font-weight: 600; }
+.gc-list { border: 1px solid var(--line); background: #fff; }
+.gc-row {
+  display: grid; grid-template-columns: 18px 92px minmax(0, 1fr) minmax(120px, 210px); gap: 10px; align-items: start;
+  padding: 9px 12px; border-bottom: 1px solid #e3e5e8; cursor: pointer; transition: background-color 120ms ease-out;
+}
+.gc-row:last-child { border-bottom: none; }
+.gc-row:hover { background: #f4f6f9; }
+.gc-row.on { background: #e3eefc; }
+.gc-row input { margin: 2px 0 0; }
+.gc-style { font-size: 13px; color: var(--text-dim); padding-top: 1px; }
+.gc-row.risk .gc-style { color: var(--bad); }
+.gc-main { min-width: 0; }
+.gc-title { display: block; font-size: 14px; font-weight: 600; color: var(--text-title); }
+.gc-hint { display: block; font-size: 12.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.gc-prize { text-align: right; }
+.gc-reward { display: block; font-size: 13px; font-weight: 600; color: #8a5f00; }
+.gc-penalty { display: block; font-size: 12px; color: var(--bad); }
+@media (max-width: 640px) {
+  .gc-row { grid-template-columns: auto minmax(0, 1fr); row-gap: 2px; }
+  .gc-row input { grid-row: 1 / span 3; }
+  .gc-style, .gc-main, .gc-prize { grid-column: 2; text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goal-row.just-done, .task-row, .task-row.closed, .yr-dialog { animation: none; }
+}
