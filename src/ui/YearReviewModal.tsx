@@ -121,7 +121,8 @@ function ReviewDialog({ s, r }: { s: GameState; r: YearReview }) {
                         </span>
                         <span className="yr-rt">
                           {x.title}
-                          {x.done ? <small className="gold">Награда: {x.prize}</small> : x.text && <small>{x.text}</small>}
+                          {/* У невыполненной цели недостача стоит справа: строка прогресса её только повторила бы. */}
+                          {x.done ? <small className="gold">Награда: {x.prize}</small> : !x.miss && x.text && <small>{x.text}</small>}
                         </span>
                         {!x.done && (
                           <span className="yr-rv">

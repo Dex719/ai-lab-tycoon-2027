@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { EXTRA_EVENTS } from '../data/events';
-import { GOAL_STYLES, goalStyle, RISK_PENALTY, STYLE_REWARD } from '../data/goals';
+import { GOAL_STYLES, goalStyle, RISK_PENALTY, STYLE_REWARD, trainingProgress } from '../data/goals';
 import { activeBonuses } from '../data/questKit';
 import { RIVAL_MODELS } from '../data/rivalModels';
 import { newGame } from './actions';
@@ -324,6 +324,10 @@ describe('выполнение и награда', () => {
     s.finance.month.income.api = 700_000;
     expect(goalProgress(s, g)!.progress.almost).toBe(false);
     expect(goalProgress(s, { ...g, done: true })!.progress.almost).toBe(false);
+    // условие уже выполнено, но проверка ещё не засчитала цель: тоже не «почти»
+    s.finance.month.income.api = 1_200_000;
+    expect(goalProgress(s, g)!.progress.done).toBe(true);
+    expect(goalProgress(s, g)!.progress.almost).toBe(false);
   });
 
   it('цель «1-е место 31 декабря» засчитывается только в конце года', () => {
@@ -533,5 +537,18 @@ describe('сохранения', () => {
     const bad = JSON.parse(serialize(s)) as typeof data;
     bad.quests.offer.goals[0].target = 'много';
     expect(deserialize(JSON.stringify(bad)).ok).toBe(false);
+  });
+});
+
+describe('цель «Выпустить новую модель»: какая модель ждёт выпуска', () => {
+  it('называет самую свежую обученную модель, а не старую, которую так и не выпустили', () => {
+    const s = quietGame(D('2019-03-01'));
+    s.models.push(
+      model({ id: 'p1', name: 'Старая', releasedDay: 30 }),
+      model({ id: 'p2', name: 'Забытая', trainedDay: 200, releasedDay: null }),
+      model({ id: 'p3', name: 'Свежая', trainedDay: D('2019-02-10'), releasedDay: null }),
+    );
+    s.models.push(model({ id: 'p4', name: 'Вторая свежая', trainedDay: D('2019-01-20'), releasedDay: null }));
+    expect(trainingProgress(s, '').text).toBe('«Свежая» обучена, осталось выпустить');
   });
 });

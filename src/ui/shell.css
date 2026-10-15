@@ -45,7 +45,7 @@
   .side-race.first .sr-place { color: #f2c94c; }
   .sr-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
   .sr-k { font-size: 12px; color: #a9acb2; }
-  .sr-v { font-size: 13px; font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sr-v { font-size: 13px; font-weight: 600; color: #fff; overflow-wrap: anywhere; } /* длинное имя соперника переносится, разрыв в Эло не обрезается */
   .sr-m { font-size: 12px; color: #c4c7cc; }
   .game .side-tabs { padding-top: 10px; }
   .game .side-item { padding: 10px 12px; }

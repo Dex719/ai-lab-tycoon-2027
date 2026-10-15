@@ -5,7 +5,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { newGame, releaseModel } from '../sim/actions';
-import { setRent } from '../sim/compute';
+import { GPUS } from '../data/gpus';
+import { pool, setAllocation, setRent } from '../sim/compute';
 import { applyTender, canApply } from '../sim/contracts';
 import { applyChoice, pendingChoice } from '../sim/events';
 import { chooseGoals, goalOfferOpen, goalsDay } from '../sim/goals';
@@ -14,6 +15,7 @@ import { setResearch } from '../sim/research';
 import { advanceDay } from '../sim/tick';
 import { modelScore, startTraining, tierPreset } from '../sim/training';
 import type { GameState } from '../sim/types';
+import { contractsNeedWithApplications } from './forecast';
 import { stepTargets, TUTORIAL, type TutorialCtx } from './tutorialSteps';
 import type { WindowId } from './windows';
 
@@ -177,6 +179,16 @@ describe('обучение игре', () => {
       expect(applyTender(s, tender!.id, m.id).ok).toBe(true);
       expect(done(apply)).toBe(true);
 
+      // Долям по умолчанию (20 % на контракты) мало: шаг ждёт, пока игрок добавит мощность.
+      const power = at('Мощность для контракта');
+      const need = contractsNeedWithApplications(s)!;
+      expect(need).toBeGreaterThan(0);
+      expect(done(power)).toBe(need <= pool(s, 'contracts') * 1.02);
+      const p100 = GPUS.find((g) => g.id === 'p100')!.h100e;
+      expect(setRent(s, 'p100', Math.max(96, Math.ceil(need / 0.6 / p100) + 1)).ok).toBe(true);
+      expect(setAllocation(s, { training: 0.1, contracts: 0.6, experiments: 0.3, api: 0, subs: 0 }).ok).toBe(true);
+      expect(done(power)).toBe(true);
+
       expect(TUTORIAL.at(-1)!.done).toBeUndefined();
     });
   }
@@ -185,5 +197,21 @@ describe('обучение игре', () => {
     const s = newGame('Тест', 5);
     const release = TUTORIAL.find((t) => t.title === 'Выпуск модели')!;
     expect(stepTargets(release, s)).toContain('train-start');
+  });
+});
+
+describe('шаг «Мощность для контракта»', () => {
+  it('без заявок и контрактов закрыт (тендер проигран), с заявкой - пока доле не хватает', () => {
+    const s = newGame('Тест', 9);
+    const step = TUTORIAL.find((t) => t.title === 'Мощность для контракта')!;
+    const ctx: TutorialCtx = { open: new Set(), speed: 1 };
+    setRent(s, 'p100', 96);
+    expect(step.done!(s, ctx)).toBe(true);
+    for (let i = 0; i < 40 && s.tenders.length === 0; i++) day(s);
+    const t = s.tenders[0];
+    t.application = { modelId: 'm1', appliedDay: s.day, resolveDay: s.day + 5, chance: 0.7, work: 500 };
+    expect(step.done!(s, ctx)).toBe(false);
+    t.application = null;
+    expect(step.done!(s, ctx)).toBe(true);
   });
 });

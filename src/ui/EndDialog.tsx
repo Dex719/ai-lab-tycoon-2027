@@ -4,7 +4,7 @@
 import { useEffect } from 'react';
 import { LABS } from '../data/labs';
 import { valuation } from '../sim/investors';
-import { leaderboard } from '../sim/leaderboard';
+import { leaderboard, rivalsSellByApi } from '../sim/leaderboard';
 import { DIFFICULTY } from '../sim/rivalry';
 import { subsOpen } from '../sim/market';
 import { ARENA_PLACE_TITLE, bestArenaPlace } from './arena';
@@ -13,7 +13,6 @@ import type { GameState, MonthRecord } from '../sim/types';
 import { useModalFocus } from './components/common';
 import { IconClose, IconTrophy } from './icons';
 import { fmtElo, fmtMoney, fmtNum, fmtShare } from './format';
-import { fmtRank } from './labels';
 import { playSound } from './sound';
 import { store } from './store';
 import './end.css';
@@ -75,7 +74,8 @@ function EloChart({ history, lab }: { history: MonthRecord[]; lab: string }) {
 
 export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void }) {
   const { ref, onKeyDown } = useModalFocus<HTMLDivElement>(s.outcome ?? '');
-  const rank = bestArenaPlace(s);
+  // Пока соперники не продают модели, места нет (как в карточке выпуска и на верхней панели), а не «1-е».
+  const rank = rivalsSellByApi(s) ? bestArenaPlace(s) : null;
   const rows = leaderboard(s).filter((r) => r.ref.kind === 'player');
   const best = rows.reduce<(typeof rows)[number] | null>((b, r) => (!b || r.elo > b.elo ? r : b), null);
   const v = valuation(s);
@@ -87,7 +87,7 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
     ? `Модель лаборатории «${s.labName}» - первая среди моделей в продаже 31 декабря 2024 года.`
     : bankrupt
       ? `Лаборатория «${s.labName}» закрылась ${formatDate(s.day)}: деньги были в минусе 60 дней подряд.`
-      : `Партия закончилась 31 декабря 2024 года. Место на «Арене»: ${fmtRank(rank)}.`;
+      : 'Партия закончилась 31 декабря 2024 года.'; // место уже крупно в заголовке
   const history = s.finance.history;
   const revenue = history.reduce((sum, h) => sum + revenueOf(h), 0);
   const places = history.map((h) => h.placeEnd).filter((p): p is number => typeof p === 'number');
@@ -134,7 +134,7 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
 
           <dl className="end-stats">
             <dt>Лучшее место за игру</dt>
-            <dd>{bestPlace !== null ? `${bestPlace}-е` : 'соперников в продаже не было'}</dd>
+            <dd>{bestPlace !== null ? `${bestPlace}-е` : 'без места'}</dd>
             <dt>Месяцев на 1-м месте</dt>
             <dd>{fmtNum(months)}</dd>
             <dt>Лучшая модель</dt>

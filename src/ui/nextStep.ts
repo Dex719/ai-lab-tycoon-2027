@@ -9,7 +9,7 @@ import { canApply } from '../sim/contracts';
 import { formatDateShort, START_DAY } from '../sim/time';
 import { modelScore } from '../sim/training';
 import type { GameState, PlayerModel, Tender } from '../sim/types';
-import { contractsNeed, researchDaysAt, trainingDaysAt } from './forecast';
+import { contractsNeedWithApplications, researchDaysAt, trainingDaysAt } from './forecast';
 import { fmtH100e, fmtMoney } from './format';
 import type { WindowId } from './windows';
 
@@ -74,12 +74,13 @@ function firstStep(s: GameState): NextStep | null {
     return { id: 'rent', title: 'Арендуйте видеокарты', detail: 'На них обучаются модели и выполняются контракты.', action: 'Арендовать', open: 'compute' };
   }
 
-  const need = contractsNeed(s);
+  // Заявки считаются вместе с контрактами: мощность лучше добавить до победы, иначе первые дни контракта пропадут.
+  const need = contractsNeedWithApplications(s);
   const have = pool(s, 'contracts');
   if (need !== null && need > have * 1.02 + 1e-9) {
     return {
       id: 'contract-power',
-      title: 'Контракт не успеет к сроку',
+      title: s.contracts.length > 0 ? 'Контракт не успеет к сроку' : 'Заявке на тендер мало мощности',
       detail: `Доле «Контракты» нужно ${fmtH100e(need)} H100e, сейчас ${fmtH100e(have)}. Арендуйте карты или поднимите долю.`,
       action: 'Добавить мощность',
       open: 'compute',

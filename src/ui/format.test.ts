@@ -7,6 +7,7 @@ import {
   cardsLabel,
   fmtCards,
   fmtDays,
+  fmtElo,
   fmtH100e,
   fmtMoney,
   fmtMult,
@@ -48,6 +49,14 @@ describe('fmtMoney', () => {
         expect(norm(fmtMoney(base * k))).not.toMatch(/\$1 000/);
       }
     }
+  });
+});
+
+describe('fmtElo', () => {
+  it('целое с разрядами, как Эло в остальных окнах', () => {
+    expect(norm(fmtElo(987.4))).toBe('987');
+    expect(norm(fmtElo(1354.2))).toBe('1 354');
+    expect(fmtElo(Number.NaN)).toBe('-');
   });
 });
 

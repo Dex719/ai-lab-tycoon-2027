@@ -26,7 +26,7 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .choice-go { height: 40px; }
   .side-tabs button { min-height: 40px; padding: 0 12px; }
   .tutor .foot .skip { min-height: 40px; }
-  .tip { z-index: 2000; }
+  .tip { z-index: 20000; }
   .cw-qty-range { --capx: calc(14px + (100% - 28px) * var(--cap, 1)); }
   .cw-qty-range.has-cap { margin-bottom: 26px; }
   .cw-qty-range.has-cap::after { top: 13px; }
@@ -79,6 +79,8 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .tb-side.on { background: var(--c-blue); border-color: var(--c-blue); }
   .money-pop { position: fixed; left: 8px; right: 8px; top: 44px; min-width: 0; transform: none; }
   .pause-note { top: 100%; margin-top: 6px; max-width: calc(100vw - 16px); white-space: normal; text-align: center; }
+  /* верхняя панель на телефоне в две строки, под ней плашка паузы: баннер гонки ниже обеих */
+  .ar-banner { top: 132px; }
 
   /* Рабочий стол: значки сеткой */
   .desk-logo { opacity: 0.1; }

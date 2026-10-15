@@ -6,13 +6,23 @@ import { nextRandom } from '../sim/rng';
 import { dateToDay, yearOf } from '../sim/time';
 import type { GameState, HypeOwner } from '../sim/types';
 
-/** Деньги для писем и подсказок: «$1,2 млн», «$350 тыс.», «$800». */
+/**
+ * Деньги для писем и подсказок: «$1,2 млн», «$350 тыс.», «$800». Округление как у fmtMoney в интерфейсе
+ * (десятые только у сумм меньше $10 тыс., $100 млн, $100 млрд), чтобы цель и окна показывали одну и ту же сумму.
+ */
 export function usd(n: number): string {
-  const dec = (x: number): string => String(Math.round(x * 10) / 10).replace('.', ',');
-  if (n >= 1e9 - 5e4) return `$${dec(n / 1e9)} млрд`;
-  if (n >= 1e6 - 500) return `$${dec(n / 1e6)} млн`;
-  if (n >= 1e3 - 0.5) return `$${dec(n / 1e3)} тыс.`;
-  return `$${Math.round(n)}`;
+  const dec = (x: number, d: number): string => String(Math.round(x * 10 ** d) / 10 ** d).replace('.', ',');
+  const sign = n < 0 ? '-' : '';
+  const a = Math.abs(n);
+  if (a < 999.5) return `${sign}$${Math.round(a)}`;
+  if (a < 999_500) return `${sign}$${dec(a / 1e3, a < 1e4 ? 1 : 0)} тыс.`;
+  if (a < 999_500_000) return `${sign}$${dec(a / 1e6, a < 1e8 ? 1 : 0)} млн`;
+  return `${sign}$${dec(a / 1e9, a < 1e11 ? 1 : 0)} млрд`;
+}
+
+/** Эло целым с разрядами, как в окнах (fmtElo): «987», «1 294». */
+export function eloText(n: number): string {
+  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
 /** Базовая сумма случайных писем по годам: растёт вместе с деньгами в игре, чтобы суммы не были смешными в 2024-м. */

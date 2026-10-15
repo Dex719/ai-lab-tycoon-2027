@@ -92,9 +92,9 @@ export function goalProgress(s: GameState, g: YearGoalState, year = s.yearly.yea
   const title = def.title(year, g);
   // Выполненная цель остаётся выполненной, даже если показатель потом упал.
   if (g.done) return { def, title, progress: { ...p, done: true, fraction: 1, almost: false } };
-  // Цель «на 31 декабря», которая сейчас держится, - не «почти», а «пока выполняется».
-  const holding = def.endOnly && p.done;
-  const almost = !holding && (p.almost ?? p.fraction >= ALMOST_FRACTION);
+  // Цель «на 31 декабря», которая сейчас держится, - не «почти», а «пока выполняется»; обычная цель с выполненным
+  // условием тоже не «почти»: награду выдаст ближайшая проверка.
+  const almost = !p.done && (p.almost ?? p.fraction >= ALMOST_FRACTION);
   return { def, title, progress: { ...p, almost } };
 }
 

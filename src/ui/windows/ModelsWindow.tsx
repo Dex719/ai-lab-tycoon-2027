@@ -46,7 +46,7 @@ import { Cards } from '../components/Cards';
 import { Alert, ConfirmDialog, DenyNote, ErrorText, GuardButton, ProgressBar, useFlash } from '../components/common';
 import { ModelEmblem } from '../components/ModelEmblem';
 import { TierBadge } from '../components/TierBadge';
-import { fmtDays, fmtElo, fmtH100e, fmtMoney, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare, fmtTokens, ruPlural } from '../format';
+import { endSentence, fmtDays, fmtElo, fmtH100e, fmtMoney, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare, fmtTokens, ruPlural } from '../format';
 import { tokensWord } from '../../sim/text';
 import { IconCaret, IconChevronLeft, IconModels } from '../icons';
 import { raceMetricOf, raceRows } from '../race';
@@ -609,7 +609,7 @@ function ReviewBox({ s, m }: { s: GameState; m: PlayerModel }) {
   const days = reviewDays(s, m);
   const short = cost > s.cash;
   const reason = reviewReason(s, m);
-  const shortText = `Не хватает денег: нужно ${fmtMoney(cost)}, на счету ${fmtMoney(s.cash)}.`;
+  const shortText = `Не хватает денег: нужно ${fmtMoney(cost)}, на счету ${endSentence(fmtMoney(s.cash))}`;
 
   function start() {
     const r = store.dispatch(actions.startReview, m.id);

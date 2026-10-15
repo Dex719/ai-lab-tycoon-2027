@@ -14,7 +14,7 @@ import { ruPlural } from '../sim/text';
 import { dateToDay, yearOf } from '../sim/time';
 import { archFor, capsFromPlan, modelScore, tierPreset } from '../sim/training';
 import type { BenchmarkId, GameState, TechId, YearGoalState } from '../sim/types';
-import { usd } from './eventKit';
+import { eloText, usd } from './eventKit';
 import {
   clamp01,
   closeGapOf,
@@ -224,8 +224,10 @@ function techProgress(s: GameState, tech: TechId): GoalProgress {
  * модель - 95 %: осталось нажать «Выпустить». Без проектов - пустая полоска и текст empty.
  */
 export function trainingProgress(s: GameState, empty: string, rlhf = false): GoalProgress {
-  // Обученная модель, которую давно решили не выпускать, - не «почти»: считается только свежая.
-  const ready = s.models.find((m) => m.releasedDay === null && (!rlhf || m.rlhf) && s.day - m.trainedDay <= READY_FRESH_DAYS);
+  // Обученная модель, которую давно решили не выпускать, - не «почти»: считается только свежая, из свежих - самая новая.
+  const ready = s.models
+    .filter((m) => m.releasedDay === null && (!rlhf || m.rlhf) && s.day - m.trainedDay <= READY_FRESH_DAYS)
+    .reduce<GameState['models'][number] | null>((b, m) => (!b || m.trainedDay >= b.trainedDay ? m : b), null);
   if (ready) return { done: false, fraction: 0.95, text: `«${ready.name}» обучена, осталось выпустить` };
   let best: { name: string; f: number } | null = null;
   for (const r of s.trainings) {
@@ -394,7 +396,7 @@ const NEW_GOALS: GoalDef[] = [
   {
     id: 'g-elo',
     style: 'race',
-    title: (_y, g) => `Модель с Эло от ${T(g)} на «Арене»`,
+    title: (_y, g) => `Модель с Эло от ${eloText(T(g))} на «Арене»`,
     reward: STYLE_REWARD.race,
     cheap: true,
     progress: (s, g) => {
@@ -405,14 +407,14 @@ const NEW_GOALS: GoalDef[] = [
       return {
         done: v >= t,
         fraction: clamp01(1 - gap / Math.max(1, t - g.base)),
-        text: `Лучшая модель: ${Math.round(v)} Эло из ${t}`,
+        text: `Лучшая модель: ${eloText(v)} Эло из ${eloText(t)}`,
         miss: `не хватило ${gapText('arena', gap, true)}`,
         almost: gap <= closeGapOf('arena'),
       };
     },
     hint: (s) => {
       const v = myRaceValue(s, 'arena');
-      return v === null ? 'Нет моделей в продаже' : `Лучшая модель сейчас: ${Math.round(v)} Эло`;
+      return v === null ? 'Нет моделей в продаже' : `Лучшая модель сейчас: ${eloText(v)} Эло`;
     },
   },
   // Исследования

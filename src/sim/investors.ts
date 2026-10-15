@@ -12,6 +12,7 @@ import {
   VALUATION_FLOOR,
 } from './constants';
 import { addMail } from './events';
+import { endSentence } from './text';
 import { earn, revenueLast90, spend } from './finance';
 import { marketArenaRank } from './leaderboard';
 import { byYear, lerpByDate, yearOf } from './time';
@@ -94,7 +95,7 @@ export function buyBackShares(s: GameState): void {
   addMail(s, {
     kind: 'finance',
     title: `Выкуплено ${Math.round(BOARD_BUYBACK_SHARE * 100)} % компании`,
-    body: `Доля выкуплена у инвесторов за ${fmtMoney(cost)}. Доля основателя - ${fmtShare(s.founderShare)} %.`,
+    body: `Доля выкуплена у инвесторов за ${endSentence(fmtMoney(cost))} Доля основателя - ${fmtShare(s.founderShare)} %.`,
   });
 }
 
