@@ -18,6 +18,7 @@ import { store, useSpeed } from './store';
 import { Toasts } from './Toasts';
 import { ArenaBanner } from './ArenaFeedback';
 import { Juice } from './Juice';
+import { SceneLive } from './SceneLive';
 import { ReleaseCard } from './ReleaseCard';
 import { Moments } from './Moments';
 import { DeskScene } from './DeskScene';
@@ -331,6 +332,7 @@ export function Game({ s }: { s: GameState }) {
       <AchievementToasts s={s} />
       <FeelLayer />
       <Juice s={s} onRelease={setReleased} />
+      <SceneLive s={s} />
       {released && <ReleaseCard s={s} modelId={released} onClose={closeReleased} />}
       <ChoiceModal s={s} />
       <Moments s={s} />

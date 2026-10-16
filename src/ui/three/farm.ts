@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import type { GpuId } from '../../sim/types';
 import type { Content } from './engine';
+import { EVENT_MS, hash01, live, type SceneEventKind } from './live';
 import { GPU_LOOK } from './gpuLook';
 import { GeoBatch, canvasTex, glow, mtx, pbr } from './kit';
 import { farmLayout, type FarmRack, type FarmSpec } from './specs';
@@ -23,6 +24,18 @@ const FRONT = RD / 2;
 /** Шаг стоек в ряду и шаг рядов (стойка + проход). */
 const PITCH_X = RW + 0.02;
 const PITCH_Z = RD + 1.8;
+
+const LED_WHITE_1 = new THREE.Color(1, 1, 1);
+const LED_OFF = new THREE.Color('#1a1c20');
+const LED_WHITE = new THREE.Color('#f2f4f7');
+const LED_GOLD = new THREE.Color('#e8c34a');
+const LED_AMBER = new THREE.Color('#e8a838');
+const LED_AMBER_DIM = LED_AMBER.clone().multiplyScalar(0.3);
+const LED_STANDBY = new THREE.Color('#3ccf6b');
+const LED_STANDBY_DIM = LED_STANDBY.clone().multiplyScalar(0.3);
+/** Окно «включения» новых стоек: после падения все огоньки горят, потом живут по загрузке (с). */
+const BOOT_FROM = 0.9;
+const BOOT_TO = 2.3;
 
 function serverU(gpu: GpuId): number {
   return GPU_LOOK[gpu].form === 'module' ? 8 : 4;
@@ -114,7 +127,7 @@ function serverParts(gpu: GpuId): Parts {
 }
 
 /** Выдвинутый сервер с 8 картами внутри (начало - низ по центру лицевой панели). */
-function openServer(gpu: GpuId): THREE.Group {
+function openServer(gpu: GpuId): { group: THREE.Group; rotors: THREE.Object3D[] } {
   const look = GPU_LOOK[gpu];
   const h = serverU(gpu) * U - 0.004;
   const w = RW - 0.08;
@@ -124,7 +137,7 @@ function openServer(gpu: GpuId): THREE.Group {
   b.box('chassis', w, 0.006, depth, 0, 0.003, -depth / 2);
   for (const sx of [-1, 1]) b.box('chassis', 0.006, h, depth, sx * (w / 2 - 0.003), h / 2, -depth / 2);
   b.box('chassis', w, h, 0.006, 0, h / 2, -depth + 0.003);
-  // Вентиляторы поперёк шасси
+  // Вентиляторы поперёк шасси: корпус неподвижен, крыльчатка (rotors) вращается, пока идёт время
   for (let i = 0; i < 6; i++) b.cyl('fanDark', 0.03, 0.02, -0.21 + i * 0.084, h * 0.45, -depth + 0.12, Math.PI / 2, 0, 0, 14);
   const shell = `card-${gpu}`;
   const trim = `trim-${gpu}`;
@@ -165,7 +178,31 @@ function openServer(gpu: GpuId): THREE.Group {
     m.userData.shared = true;
     g.add(m);
   }
-  return g;
+  // Крыльчатки: пять лопастей на втулке, светлее корпуса, чтобы вращение было видно
+  const rotors: THREE.Object3D[] = [];
+  const blades = fanBlades();
+  for (let i = 0; i < 6; i++) {
+    const rotor = new THREE.Mesh(blades, partMaterial('rod'));
+    rotor.userData.shared = true;
+    rotor.position.set(-0.21 + i * 0.084, h * 0.45, -depth + 0.1315);
+    rotor.rotation.z = i * 0.7;
+    g.add(rotor);
+    rotors.push(rotor);
+  }
+  return { group: g, rotors };
+}
+
+/** Крыльчатка вентилятора, лицом к +z (общая геометрия). */
+function fanBlades(): THREE.BufferGeometry {
+  return cachedParts('fan', () => {
+    const b = new GeoBatch();
+    b.box('rod', 0.01, 0.01, 0.004, 0, 0, 0);
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2;
+      b.box('rod', 0.024, 0.008, 0.002, Math.cos(a) * 0.013, Math.sin(a) * 0.013, 0, 0, 0, a);
+    }
+    return b.build();
+  }).get('rod')!;
 }
 
 // ---------- Материалы ----------
@@ -356,6 +393,8 @@ export function buildFarm(spec: FarmSpec, prev: FarmSpec | null): Content {
   });
 
   const slots: Slot[] = [];
+  /** Планки задач по стойкам: на событие вспыхивают светлее волной (instanceColor выше 1 осветляет цвет материала). */
+  const planks: { mesh: THREE.InstancedMesh; racks: number[] }[] = [];
   for (const e of inst.values()) {
     const mesh = new THREE.InstancedMesh(e.geo, partMaterial(e.mat), e.items.length);
     mesh.castShadow = true;
@@ -368,7 +407,41 @@ export function buildFarm(spec: FarmSpec, prev: FarmSpec | null): Content {
     mesh.instanceMatrix.needsUpdate = true;
     mesh.computeBoundingSphere();
     root.add(mesh);
+    if (e.mat.startsWith('task-')) {
+      e.items.forEach((_, idx) => mesh.setColorAt(idx, LED_WHITE_1));
+      planks.push({ mesh, racks: e.items.map((it) => it.rack) });
+    }
   }
+
+  // Полоска активности: 4 сегмента на сервер, цвет задачи стойки. Мигают, пока идёт время; чем выше загрузка, тем больше стоек работает.
+  const LEDS = 4;
+  const ledList: { rack: number; server: number; j: number }[] = [];
+  racks.forEach((r, i) => {
+    for (let k = 0; k < r.servers; k++) {
+      if (i === openRack && k === r.servers - 1) continue;
+      for (let j = 0; j < LEDS; j++) ledList.push({ rack: i, server: k, j });
+    }
+  });
+  const ledGeo = new THREE.BoxGeometry(0.09, 0.012, 0.004);
+  const ledMat = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
+  const ledMesh = new THREE.InstancedMesh(ledGeo, ledMat, Math.max(1, ledList.length));
+  ledMesh.count = ledList.length;
+  ledMesh.userData.shared = true;
+  ledList.forEach((l, idx) => {
+    const r = racks[l.rack];
+    const p = pos[l.rack];
+    const h = serverU(r.gpu) * U;
+    const hs = h - 0.004;
+    // Ряд над отсеками дисков (PCIe) или над решёткой (модули): в просвете между деталями панели
+    const y = SLOT0 + l.server * h + (GPU_LOOK[r.gpu].form === 'pcie' ? hs * 0.625 : hs * 0.935);
+    const m = mtx(p.x - 0.15 + l.j * 0.1, y, p.z + FRONT - 0.02 + 0.0275);
+    ledMesh.setMatrixAt(idx, m);
+    ledMesh.setColorAt(idx, LED_OFF);
+    if (fresh[l.rack]) slots.push({ mesh: ledMesh, index: idx, base: m, rack: l.rack });
+  });
+  ledMesh.instanceMatrix.needsUpdate = true;
+  ledMesh.computeBoundingSphere();
+  if (ledList.length) root.add(ledMesh);
 
   // Над каждым рядом - жёлтый лоток для оптики на стойках (лестничный лоток поверх ряда, как в настоящих залах)
   {
@@ -403,10 +476,13 @@ export function buildFarm(spec: FarmSpec, prev: FarmSpec | null): Content {
   }
 
   let open: THREE.Group | null = null;
+  let rotors: THREE.Object3D[] = [];
   if (openRack === 0) {
     const r = racks[0];
     const h = serverU(r.gpu) * U;
-    open = openServer(r.gpu);
+    const os = openServer(r.gpu);
+    open = os.group;
+    rotors = os.rotors;
     open.position.set(pos[0].x, SLOT0 + (r.servers - 1) * h, pos[0].z + FRONT - 0.02 + 0.5);
     root.add(open);
   }
@@ -492,6 +568,111 @@ export function buildFarm(spec: FarmSpec, prev: FarmSpec | null): Content {
     : undefined;
   if (animate) animate(0);
 
+
+  // ---------- Жизнь зала: огоньки по загрузке и событиям, вентиляторы ----------
+  const rackColor = taskOf.map((c) => (c ? new THREE.Color(c) : null));
+  const rackDim = rackColor.map((c) => (c ? c.clone().multiplyScalar(0.3) : null));
+  const rankOf = racks.map((_, i) => (i * 0.6180339887) % 1);
+  const xsAll = pos.map((p) => p.x);
+  const minX = Math.min(...xsAll, 0);
+  const maxX = Math.max(...xsAll, 0);
+  const rowCount = new Set(pos.map((p) => p.z)).size;
+  const uOf = pos.map((p) => {
+    const ux = maxX > minX ? (p.x - minX) / (maxX - minX) : 0.5;
+    const row = rowCount > 1 ? -p.z / PITCH_Z / (rowCount - 1) : 0;
+    return ux * 0.85 + row * 0.15;
+  });
+  // Код состояния огонька: 0 погас, 1 тусклый, 2 горит, 4 белый, 5 золотой, 6 жёлтый, 7 жёлтый тусклый
+  const levels = new Int8Array(ledList.length).fill(-1);
+  const colorFor = (code: number, rack: number): THREE.Color => {
+    switch (code) {
+      case 1:
+        return rackDim[rack] ?? LED_STANDBY_DIM;
+      case 2:
+        return rackColor[rack] ?? LED_STANDBY;
+      case 4:
+        return LED_WHITE;
+      case 5:
+        return LED_GOLD;
+      case 6:
+        return LED_AMBER;
+      case 7:
+        return LED_AMBER_DIM;
+      default:
+        return LED_OFF;
+    }
+  };
+  const EVENT_CODE: Record<SceneEventKind, number> = { trainStart: 2, trainDone: 4, release: 5, trouble: 6 };
+  const anyFresh = fresh.some(Boolean);
+  let lastAt = 0;
+  let angle = 0;
+  let plankLit = false;
+
+  const paint = (now: number, since: number, animated: boolean, eventAge: number, eventKind: SceneEventKind | null): boolean => {
+    const load = Math.max(0, Math.min(1, live.load));
+    const trouble = live.trouble;
+    const p = 0.3 + 0.35 * load;
+    const front = eventKind && eventAge >= 0 && eventAge < EVENT_MS ? (eventAge / EVENT_MS) * 1.5 - 0.25 : null;
+    const boot = anyFresh && since >= BOOT_FROM && since < BOOT_TO;
+    let changed = false;
+    for (let idx = 0; idx < ledList.length; idx++) {
+      const l = ledList[idx];
+      const i = l.rack;
+      const busy = rackColor[i] !== null && rankOf[i] < load;
+      let code: number;
+      if (busy) {
+        const step = animated ? Math.floor((now + hash01(i, l.server, l.j, 0) * 300) / 300) : 0;
+        const lit = hash01(i, l.server, l.j, step) < (trouble ? p * 0.6 : p);
+        code = lit ? (trouble ? 6 : 2) : 0;
+      } else {
+        code = l.j === 0 ? (trouble ? 7 : 1) : 0;
+      }
+      if (boot && fresh[i]) code = 2;
+      if (front !== null && Math.abs(uOf[i] - front) < 0.13) code = EVENT_CODE[eventKind!];
+      if (levels[idx] !== code) {
+        levels[idx] = code;
+        ledMesh.setColorAt(idx, colorFor(code, i));
+        changed = true;
+      }
+    }
+    if (changed && ledMesh.instanceColor) ledMesh.instanceColor.needsUpdate = true;
+    // Планки задач: на событие светлеют волной и возвращаются
+    if (front !== null || plankLit) {
+      plankLit = front !== null;
+      const c = new THREE.Color();
+      for (const pl of planks) {
+        pl.racks.forEach((rack, idx) => {
+          const f = front === null ? 0 : Math.max(0, 1 - Math.abs(uOf[rack] - front) / 0.22);
+          const k = 1 + 3.2 * f;
+          pl.mesh.setColorAt(idx, c.setRGB(k, k, k));
+        });
+        if (pl.mesh.instanceColor) pl.mesh.instanceColor.needsUpdate = true;
+      }
+      changed = true;
+    }
+    return changed;
+  };
+
+  const ambient: NonNullable<Content['ambient']> = (ctx) => {
+    const dt = lastAt ? Math.min(0.25, (ctx.now - lastAt) / 1000) : 0;
+    lastAt = ctx.now;
+    const ev = live.event;
+    const age = ev ? ctx.now - ev.at : Infinity;
+    const eventOn = !ctx.reduced && !!ev && age >= 0 && age < EVENT_MS;
+    const animated = !ctx.reduced && live.running;
+    let dirty = paint(ctx.now, ctx.since, animated, eventOn ? age : Infinity, eventOn ? ev!.kind : null);
+    if (rotors.length && animated) {
+      angle -= 4 * (0.25 + 0.75 * live.load) * dt;
+      for (const r of rotors) r.rotation.z = angle;
+      dirty = true;
+    }
+    const booting = !ctx.reduced && anyFresh && ctx.since < BOOT_TO;
+    const next = eventOn || booting ? 33 : animated ? (ctx.slow ? 200 : 110) : Infinity;
+    return { dirty, next };
+  };
+  // Первая раскраска: сразу по текущей загрузке, чтобы зал не был «мёртвым» до первого шага цикла
+  paint(0, 0, false, Infinity, null);
+
   return {
     root,
     framing: {
@@ -510,7 +691,10 @@ export function buildFarm(spec: FarmSpec, prev: FarmSpec | null): Content {
     fog: spec.backdrop ? [0.95, 2.2] : [1.15, 3.2],
     shadows: true,
     animate,
+    ambient,
     dispose: () => {
+      ledGeo.dispose();
+      ledMat.dispose();
       floor.geometry.dispose();
       floorMat.map?.dispose();
       floorMat.dispose();

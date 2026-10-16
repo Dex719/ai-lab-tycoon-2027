@@ -10,6 +10,7 @@ import { buildCampus } from './campus';
 import { buildFarm } from './farm';
 import { buildGpu } from './gpuModels';
 import { disposeGeometries } from './kit';
+import { subscribeLive } from './live';
 import { getSettings } from '../settings';
 import type { GpuId } from '../../sim/types';
 import type { ViewSpec } from './specs';
@@ -46,6 +47,11 @@ export interface Content {
   shadows?: boolean;
   /** Анимация появления: t - секунды с начала; true, пока нужны кадры. */
   animate?: (t: number) => boolean;
+  /**
+   * Фоновая жизнь сцены (огоньки, вентиляторы): зовётся по таймеру, не каждый кадр, и сразу при смене состояния лаборатории.
+   * dirty - сцена изменилась, нужен лёгкий кадр (без пересчёта теней); next - через сколько мс позвать снова (Infinity - не звать).
+   */
+  ambient?: (ctx: { now: number; since: number; reduced: boolean; slow: boolean }) => { dirty: boolean; next: number };
   dispose(): void;
 }
 
@@ -126,7 +132,7 @@ let releaseTimer: number | undefined;
 const RELEASE_MS = 20_000;
 
 /** Счётчики для проверки «ничего не крутится»: в консоли - window.__render3d. */
-export const stats = { frames: 0, views: 0, loopRunning: false, renderer: false };
+export const stats = { frames: 0, lightFrames: 0, views: 0, loopRunning: false, renderer: false };
 
 function getRenderer(wPx: number, hPx: number): THREE.WebGLRenderer {
   if (!renderer) {
@@ -220,6 +226,13 @@ if (typeof document !== 'undefined') {
   });
 }
 
+// Состояние лаборатории изменилось (пауза, загрузка, событие): сцены с фоновой жизнью обновляются сразу.
+if (typeof document !== 'undefined') {
+  subscribeLive(() => {
+    for (const v of views) v.wakeAmbient();
+  });
+}
+
 // ---------- Вид ----------
 
 export interface ViewOptions {
@@ -263,6 +276,9 @@ export class View {
   private io: IntersectionObserver | null = null;
   private disposed = false;
   private cleanup: (() => void)[] = [];
+  private ambientAt = 0;
+  private ambientTimer: number | undefined;
+  private lightDirty = false;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -310,6 +326,7 @@ export class View {
     this.camera.fov = f.fov ?? 30;
     this.fit();
     this.contentStart = performance.now();
+    this.ambientAt = 0;
     this.animating = !!this.content.animate && !reducedMotion?.matches;
     if (!this.animating) this.content.animate?.(Infinity);
     this.markDirty();
@@ -354,6 +371,13 @@ export class View {
     schedule();
   }
 
+  /** Состояние лаборатории изменилось: фоновая жизнь сцены пересчитывается в ближайшем кадре. */
+  wakeAmbient(): void {
+    if (!this.content?.ambient) return;
+    this.ambientAt = 0;
+    schedule();
+  }
+
   /** Шаг цикла: true, если нужен следующий кадр. */
   step(now: number): boolean {
     if (this.disposed || !this.content || webglFailed) return false;
@@ -375,9 +399,23 @@ export class View {
       if (going) more = true;
       else this.animating = false;
     }
-    if (this.dirty) {
+    if (this.content.ambient) {
+      if (now >= this.ambientAt) {
+        const slow = getSettings().quality3d === 'low';
+        const res = this.content.ambient({ now: performance.now(), since: (performance.now() - this.contentStart) / 1000, reduced: !!reducedMotion?.matches, slow });
+        if (res.dirty) this.lightDirty = true;
+        const fps = getSettings().fps;
+        this.ambientAt = Number.isFinite(res.next) ? now + Math.max(res.next, fps > 0 ? 1000 / fps : 0) : Infinity;
+      }
+      if (!more && Number.isFinite(this.ambientAt)) {
+        window.clearTimeout(this.ambientTimer);
+        this.ambientTimer = window.setTimeout(() => schedule(), Math.max(0, this.ambientAt - performance.now()));
+      }
+    }
+    if (this.dirty || this.lightDirty) {
+      const light = !this.dirty;
       try {
-        this.render();
+        this.render(light);
       } catch {
         webglFailed = true;
       }
@@ -387,6 +425,7 @@ export class View {
       }
       this.lastRender = now;
       this.dirty = false;
+      this.lightDirty = false;
     }
     return more;
   }
@@ -430,7 +469,8 @@ export class View {
     return direction(yaw, pitch);
   }
 
-  private render(): void {
+  /** light - только фоновая жизнь: тени не пересчитываются (они не двигаются). */
+  private render(light = false): void {
     if (!this.content) return;
     const f = this.content.framing;
     this.camera.position.copy(f.target).addScaledVector(this.direction(this.yaw, this.pitch), this.distance);
@@ -438,6 +478,7 @@ export class View {
     const r = getRenderer(this.wPx, this.hPx);
     this.scene.environment = envTex;
     r.shadowMap.enabled = !!this.content.shadows && shadowsAllowed();
+    r.shadowMap.autoUpdate = !light;
     r.setViewport(0, 0, this.wPx, this.hPx);
     r.setScissor(0, 0, this.wPx, this.hPx);
     r.setClearColor(0x000000, 0);
@@ -446,6 +487,7 @@ export class View {
     this.ctx.clearRect(0, 0, this.wPx, this.hPx);
     this.ctx.drawImage(r.domElement, 0, rh - this.hPx, this.wPx, this.hPx, 0, 0, this.wPx, this.hPx);
     stats.frames++;
+    if (light) stats.lightFrames++;
   }
 
   private bindPointer(): void {
@@ -498,6 +540,7 @@ export class View {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    window.clearTimeout(this.ambientTimer);
     this.io?.disconnect();
     for (const f of this.cleanup) f();
     if (this.content) {
