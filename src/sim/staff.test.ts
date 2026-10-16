@@ -13,6 +13,9 @@ import {
   staffOf,
   staffSeats,
   startPoach,
+  trainEmployee,
+  courseCost,
+  COURSE_COOLDOWN,
 } from './staff';
 import { ROLE_INFO, rolePoints, staffEffect, type Employee } from './staffEffects';
 import { isMonthStart } from './time';
@@ -195,5 +198,54 @@ describe('команда: переманивание не раскрывает �
     }
     expect(staffOf(s).poach).not.toBeNull();
     expect(['OpenBrain', 'Gogle DeepMynd']).toContain(staffOf(s).poach!.lab);
+  });
+});
+
+
+describe('команда: потенциал и прокачка', () => {
+  it('низкий потенциал: потолок - мидл, на потолке опыт не растёт и уход не грозит', () => {
+    const s = game();
+    staffOf(s).people = [employee({ level: 1, potential: 'low' })];
+    for (let i = 0; i < 30; i++) {
+      toMonthStart(s);
+      staffDay(s);
+    }
+    const e = staffOf(s).people[0];
+    expect(e.xp).toBe(0);
+    expect(e.readyDay).toBeNull();
+    expect(trainEmployee(s, 'e1').ok).toBe(false);
+    expect(promoteEmployee(s, 'e1').ok).toBe(false);
+  });
+
+  it('курс: две зарплаты, опыт по потенциалу (высокий - больше, низкий - меньше), повтор не раньше чем через 90 дней', () => {
+    const s = game();
+    staffOf(s).people = [employee({ id: 'h', potential: 'high', salary: 10_000 }), employee({ id: 'l', potential: 'low', salary: 10_000 })];
+    const c0 = s.cash;
+    expect(trainEmployee(s, 'h')).toEqual({ ok: true });
+    expect(trainEmployee(s, 'l')).toEqual({ ok: true });
+    expect(c0 - s.cash).toBe(2 * courseCost(staffOf(s).people[0]));
+    const [h, l] = staffOf(s).people;
+    expect(h.xp).toBeGreaterThan(l.xp);
+    expect(h.xp).toBeCloseTo(0.525, 9);
+    expect(l.xp).toBeCloseTo(0.175, 9);
+    const again = trainEmployee(s, 'h');
+    expect(again.ok).toBe(false);
+    s.day += COURSE_COOLDOWN;
+    expect(trainEmployee(s, 'h').ok).toBe(true);
+  });
+
+  it('высокий потенциал растёт быстрее среднего и дорастает до ведущего', () => {
+    const s = game();
+    staffOf(s).people = [employee({ id: 'h', potential: 'high' }), employee({ id: 'm', potential: 'mid' })];
+    for (let i = 0; i < 9; i++) {
+      toMonthStart(s);
+      staffDay(s);
+    }
+    const [h, m] = staffOf(s).people;
+    expect(h.xp).toBeGreaterThan(m.xp);
+    h.level = 2;
+    h.xp = 1;
+    expect(promoteEmployee(s, 'h')).toEqual({ ok: true });
+    expect(h.level).toBe(3);
   });
 });

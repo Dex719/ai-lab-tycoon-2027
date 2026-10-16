@@ -4,6 +4,10 @@
 import { useState } from 'react';
 import type { WindowProps } from '.';
 import {
+  courseBlock,
+  courseCost,
+  courseXp,
+  COURSE_COOLDOWN,
   EQUITY_SHARE,
   hireBlock,
   nextSeatsStage,
@@ -14,7 +18,20 @@ import {
   staffOf,
   staffSeats,
 } from '../../sim/staff';
-import { isWorking, LEVEL_NAMES, LEVEL_NAMES_GEN, ROLE_INFO, STAFF_ROLES, staffEffect, type Candidate, type Employee, type StaffRole } from '../../sim/staffEffects';
+import {
+  isWorking,
+  LEVEL_NAMES,
+  LEVEL_NAMES_GEN,
+  levelCap,
+  POTENTIAL_INFO,
+  ROLE_INFO,
+  STAFF_ROLES,
+  staffEffect,
+  type Candidate,
+  type Employee,
+  type StaffPotential,
+  type StaffRole,
+} from '../../sim/staffEffects';
 import { dayToDate, formatDateShort, isMonthStart } from '../../sim/time';
 import type { GameState } from '../../sim/types';
 import { ConfirmDialog, ErrorText, GuardButton } from '../components/common';
@@ -36,14 +53,21 @@ function Face({ role }: { role: StaffRole }) {
   );
 }
 
-function LevelPips({ level }: { level: number }) {
+/** Деления уровня: закрашены - уровень сейчас, пустые - куда дорастёт, бледные - выше потолка потенциала. */
+function LevelPips({ level, cap }: { level: number; cap: number }) {
   return (
     <span className="tm-pips" aria-hidden="true">
       {LEVEL_NAMES.map((_, i) => (
-        <i key={i} className={i <= level ? 'on' : undefined} />
+        <i key={i} className={i <= level ? 'on' : i <= cap ? undefined : 'no'} />
       ))}
     </span>
   );
+}
+
+/** «потенциал высокий» зелёным, «низкий» - оранжевым: сразу видно, кого выгодно растить. */
+function Potential({ p }: { p: StaffPotential | undefined }) {
+  const v = p ?? 'mid';
+  return <span className={`tm-pot ${v}`}>потенциал {POTENTIAL_INFO[v].name}</span>;
 }
 
 function nextMonthStart(day: number): number {
@@ -58,8 +82,9 @@ const MONTHS_GEN = ['январе', 'феврале', 'марте', 'апрел�
 function Xp({ s, e }: { s: GameState; e: Employee }) {
   if (e.level >= 3) return <small>высший уровень</small>;
   if (!isWorking(e, s.day)) return <small>выйдет {formatDateShort(e.startDay)}</small>;
+  if (e.level >= levelCap(e)) return <small className="dim" title="Потенциал не даёт расти дальше: опыт не копится, курсы не помогут">потолок</small>;
   const ready = e.xp >= 1;
-  const monthsLeft = Math.ceil((1 - e.xp) * XP_MONTHS[e.level] / (e.trait === 'fast' ? 1.7 : 1));
+  const monthsLeft = Math.ceil(((1 - e.xp) * XP_MONTHS[e.level]) / ((e.trait === 'fast' ? 1.7 : 1) * POTENTIAL_INFO[e.potential ?? 'mid'].growth));
   const quitIn = e.readyDay !== null ? Math.max(0, READY_QUIT_DAYS - (s.day - e.readyDay)) : null;
   return (
     <>
@@ -73,7 +98,7 @@ function Xp({ s, e }: { s: GameState; e: Employee }) {
   );
 }
 
-type Pending = { kind: 'hire'; c: Candidate } | { kind: 'promote'; e: Employee } | { kind: 'fire'; e: Employee };
+type Pending = { kind: 'hire'; c: Candidate } | { kind: 'promote'; e: Employee } | { kind: 'fire'; e: Employee } | { kind: 'train'; e: Employee };
 
 export default function TeamWindow({ s }: WindowProps) {
   const st = staffOf(s);
@@ -95,7 +120,9 @@ export default function TeamWindow({ s }: WindowProps) {
         ? store.dispatch(actions.hireCandidate, pending.c.id)
         : pending.kind === 'promote'
           ? store.dispatch(actions.promoteEmployee, pending.e.id)
-          : store.dispatch(actions.fireEmployee, pending.e.id);
+          : pending.kind === 'train'
+            ? store.dispatch(actions.trainEmployee, pending.e.id)
+            : store.dispatch(actions.fireEmployee, pending.e.id);
     setError(r.ok ? null : r.error);
     setPending(null);
   }
@@ -162,20 +189,24 @@ export default function TeamWindow({ s }: WindowProps) {
                       {p.trait ? ` · ${TRAIT_TEXT[p.trait]}` : ''}
                     </span>
                   </div>
-                  <div className="tm-lvl">
+                  <div className="tm-lvl" title={`Потенциал ${POTENTIAL_INFO[p.potential ?? 'mid'].name}: дорастёт до уровня «${LEVEL_NAMES[levelCap(p)]}»`}>
                     <span>{LEVEL_NAMES[p.level]}</span>
-                    <LevelPips level={p.level} />
+                    <LevelPips level={p.level} cap={levelCap(p)} />
                   </div>
                   <div className="tm-xp">
                     <Xp s={s} e={p} />
                   </div>
                   <div className="tm-sal">{fmtMoney(p.salary)}/мес.</div>
                   <div className="tm-act">
-                    {p.level < 3 && p.xp >= 1 && (
+                    {p.level < levelCap(p) && p.xp >= 1 ? (
                       <button className="btn small" onClick={() => setPending({ kind: 'promote', e: p })}>
                         Повысить
                       </button>
-                    )}
+                    ) : p.level < levelCap(p) && isWorking(p, s.day) ? (
+                      <GuardButton className="btn small" reason={courseBlock(s, p)} onClick={() => setPending({ kind: 'train', e: p })}>
+                        Обучить
+                      </GuardButton>
+                    ) : null}
                     <button className="btn small" onClick={() => setPending({ kind: 'fire', e: p })}>
                       Уволить
                     </button>
@@ -195,6 +226,10 @@ export default function TeamWindow({ s }: WindowProps) {
                 <b>{c.name}</b>
                 <span>
                   {LEVEL_NAMES[c.level]}, {ROLE_INFO[c.role].name.toLowerCase()}
+                </span>
+                <span>
+                  <Potential p={c.potential} />
+                  {levelCap(c) > c.level ? `, до ${LEVEL_NAMES_GEN[levelCap(c)]}` : ', расти некуда'}
                 </span>
                 {c.trait && <span className="tm-note">{TRAIT_TEXT[c.trait]}</span>}
               </div>
@@ -249,6 +284,26 @@ export default function TeamWindow({ s }: WindowProps) {
             <span className="bad">
               {fmtMoney(pending.e.salary)} → {fmtMoney(promotedSalary(s, pending.e))} в месяц
             </span>
+          </div>
+        </ConfirmDialog>
+      )}
+      {pending?.kind === 'train' && (
+        <ConfirmDialog title="Обучить" confirmLabel="Отправить на курс" onConfirm={confirm} onClose={() => setPending(null)}>
+          <div className="kv">
+            <span>Сотрудник</span>
+            <span>
+              {pending.e.name}, {LEVEL_NAMES[pending.e.level].toLowerCase()}
+            </span>
+            <span>Потенциал</span>
+            <span>{POTENTIAL_INFO[pending.e.potential ?? 'mid'].name}</span>
+            <span>Курс стоит</span>
+            <span className="bad">{fmtMoney(courseCost(pending.e))}</span>
+            <span>Опыт</span>
+            <span className="good">
+              {Math.round(pending.e.xp * 100)} → {Math.round(Math.min(1, pending.e.xp + courseXp(pending.e)) * 100)} % до уровня «{LEVEL_NAMES[pending.e.level + 1]}»
+            </span>
+            <span>Следующий курс</span>
+            <span>через {fmtDays(COURSE_COOLDOWN)}</span>
           </div>
         </ConfirmDialog>
       )}

@@ -7,6 +7,22 @@ export type StaffRole = 'research' | 'training' | 'infra' | 'sales';
 export const STAFF_ROLES: readonly StaffRole[] = ['research', 'training', 'infra', 'sales'];
 /** fast - растёт быстрее; equity - просит долю компании, зарплата ниже. */
 export type StaffTrait = 'fast' | 'equity';
+/**
+ * Потенциал: до какого уровня дорастёт, как быстро растёт и сколько даёт обучение. Низкий - дешевле, но упирается
+ * в мидла и курсы почти не окупаются; высокий - дороже, растёт до ведущего, курсы выгодны.
+ */
+export type StaffPotential = 'low' | 'mid' | 'high';
+
+export const POTENTIAL_INFO: Record<StaffPotential, { name: string; cap: number; growth: number; course: number; salary: number }> = {
+  low: { name: 'низкий', cap: 1, growth: 0.6, course: 0.5, salary: 0.85 },
+  mid: { name: 'средний', cap: 2, growth: 1, course: 1, salary: 1 },
+  high: { name: 'высокий', cap: 3, growth: 1.4, course: 1.5, salary: 1.15 },
+};
+
+/** Потолок уровня сотрудника: по потенциалу, но не ниже уровня, с которым его наняли. */
+export function levelCap(e: { level: number; potential?: StaffPotential }): number {
+  return Math.max(e.level, POTENTIAL_INFO[e.potential ?? 'mid'].cap);
+}
 
 export interface Employee {
   id: string;
@@ -19,6 +35,10 @@ export interface Employee {
   /** Зарплата в месяц, $. */
   salary: number;
   trait: StaffTrait | null;
+  /** Потенциал; в старых сохранениях нет - средний. */
+  potential?: StaffPotential;
+  /** День последнего курса обучения (прокачки). */
+  lastCourseDay?: number;
   /** С этого дня работает (до него - вышел на работу, но ещё не приступил). */
   startDay: number;
   /** День, когда стал готов к повышению; null - не готов. */
@@ -34,6 +54,7 @@ export interface Candidate {
   level: number;
   salary: number;
   trait: StaffTrait | null;
+  potential?: StaffPotential;
   /** Через сколько дней выйдет на работу после найма. */
   wait: number;
   /** Последний день, когда можно нанять (кандидаты меняются раз в месяц). */

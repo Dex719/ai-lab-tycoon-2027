@@ -433,6 +433,7 @@ const duelLab = shapeOf<DuelLab>({ passedYou: int, youPassed: int, moves: int, l
 
 const staffRole = oneOf(['research', 'training', 'infra', 'sales']);
 const staffTrait = nullable(oneOf(['fast', 'equity']));
+const staffPotential = optional(oneOf(['low', 'mid', 'high']));
 const staff = shapeOf<StaffState>({
   rng: int,
   people: arrayOf(
@@ -444,13 +445,15 @@ const staff = shapeOf<StaffState>({
       xp: num,
       salary: num,
       trait: staffTrait,
+      potential: staffPotential,
+      lastCourseDay: optional(int),
       startDay: int,
       readyDay: nullable(int),
       retainedUntil: optional(int),
     }),
   ),
   candidates: arrayOf(
-    shapeOf<StaffState['candidates'][number]>({ id: str, name: str, role: staffRole, level: int, salary: num, trait: staffTrait, wait: int, expiresDay: int }),
+    shapeOf<StaffState['candidates'][number]>({ id: str, name: str, role: staffRole, level: int, salary: num, trait: staffTrait, potential: staffPotential, wait: int, expiresDay: int }),
   ),
   nextId: int,
   poach: nullable(shapeOf<NonNullable<StaffState['poach']>>({ employeeId: str, lab: str })),

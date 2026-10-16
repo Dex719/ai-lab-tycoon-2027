@@ -52,3 +52,7 @@
 .tm-row.wait { background: #f7f8fa; }
 .tm-row.wait .tm-row-main b { color: var(--text-dim); }
 .tm-empty { padding: 18px 14px; color: var(--text-dim); text-align: center; }
+.tm-pot.high { color: var(--good-ink); font-weight: 600; }
+.tm-pot.low { color: var(--warn); }
+.tm-xp small.dim { color: var(--text-dim); }
+.tm-pips i.no { background: none; border: 1px dashed #c4c8ce; height: 2px; }

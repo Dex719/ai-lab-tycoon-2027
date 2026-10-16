@@ -18,7 +18,7 @@ import { dateToDay, START_DAY } from './time';
 import { cancelTraining, reviewReason, reviewTerms, startReview, startTraining } from './training';
 import { refreshCandidates } from './staff';
 // Действия окна «Команда».
-export { fireEmployee, hireCandidate, promoteEmployee } from './staff';
+export { fireEmployee, hireCandidate, promoteEmployee, trainEmployee } from './staff';
 import type { GameState, Result } from './types';
 
 /** Новая игра: сложность из главного меню ставит модификаторы аренды и разоблачения навсегда (только Лёгкая и Сложная). */
