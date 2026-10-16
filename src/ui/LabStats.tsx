@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { dayToDate } from '../sim/time';
 import type { GameState } from '../sim/types';
 import { fmtShare } from './format';
+import { FlashNum } from './FlashNum';
 
 const FLASH_MS = 2200;
 
@@ -26,13 +27,13 @@ function useDelta(s: GameState, value: number): number | null {
   return delta;
 }
 
-function Stat(props: { label: string; value: string; delta?: number | null; title: string; level?: number }) {
-  const { label, value, delta, title, level } = props;
+function Stat(props: { label: string; value: string; raw?: number; delta?: number | null; title: string; level?: number }) {
+  const { label, value, raw, delta, title, level } = props;
   return (
     <div className={`lab-stat${delta ? (delta > 0 ? ' up' : ' down') : ''}`} title={title}>
       <span className="ls-k">{label}</span>
       <span className="ls-v">
-        {value}
+        {raw !== undefined ? <FlashNum value={raw} frac={0} minAbs={1}>{value}</FlashNum> : value}
         {delta ? (
           <b key={`${delta}`} className="ls-d">
             {delta > 0 ? '+' : '−'}
@@ -60,6 +61,7 @@ export function LabStats({ s }: { s: GameState }) {
       <Stat
         label="Репутация"
         value={String(rep)}
+        raw={rep}
         delta={repDelta}
         level={rep}
         title="Репутация из 100: доверие клиентов и инвесторов. Влияет на тендеры и оценку компании"
@@ -67,6 +69,7 @@ export function LabStats({ s }: { s: GameState }) {
       <Stat
         label="Шумиха"
         value={String(hype)}
+        raw={hype}
         delta={hypeDelta}
         level={hype}
         title="Шумиха из 100: внимание прессы и покупателей. Растёт от выпусков и событий, каждый месяц остывает"

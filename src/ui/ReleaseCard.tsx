@@ -118,7 +118,7 @@ export function ReleaseCard({ s, modelId, onClose }: { s: GameState; modelId: st
             <p className="rc-pass">
               <span className="rc-l">Обогнала:</span>
               {passed.slice(0, 6).map((n, i) => (
-                <span key={n.id} className="rc-rival">
+                <span key={n.id} className="rc-rival" style={{ ['--i' as string]: i }}>
                   <i className="ar-dot" style={{ background: LAB_COLOR.get(n.lab) ?? '#888' }} />
                   {n.name} <small>{fmtValue(metric, n.value)}</small>
                   {i < Math.min(passed.length, 6) - 1 ? ',' : ''}
@@ -138,10 +138,10 @@ export function ReleaseCard({ s, modelId, onClose }: { s: GameState; modelId: st
                 </tr>
               </thead>
               <tbody>
-                {benches.map((bid) => {
+                {benches.map((bid, i) => {
                   const r = benchRank(s, ref0, bid);
                   return (
-                    <tr key={bid} className={r === 1 ? 'top' : undefined}>
+                    <tr key={bid} className={r === 1 ? 'top' : undefined} style={{ ['--i' as string]: Math.min(i, 8) }}>
                       <td>{benchDef(bid).name}</td>
                       <td className="num">{fmtPct(modelScore(m, bid, false), 1)}</td>
                       <td className="num">{r !== null ? `${r}-е` : '-'}</td>

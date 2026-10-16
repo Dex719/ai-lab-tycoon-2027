@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { setMoneyListener } from '../sim/finance';
 import type { ExpenseKind, GameState, IncomeKind } from '../sim/types';
 import { fmtMoney } from './format';
+import { celebrate, reducedMotion } from './feel';
 import { playSound } from './sound';
 import { store } from './store';
 
@@ -77,7 +78,7 @@ export function useCountUp(value: number, ms = 500): number {
     const start = performance.now();
     const delta = value - from.current;
     // Мелкие ежедневные изменения не анимируем: иначе число всё время «плывёт».
-    if (Math.abs(delta) < Math.max(1, Math.abs(value)) * 0.01) {
+    if (Math.abs(delta) < Math.max(1, Math.abs(value)) * 0.01 || reducedMotion()) {
       setShown(value);
       return;
     }
@@ -154,6 +155,7 @@ export function Juice({ s, onRelease }: { s: GameState; onRelease: ReleaseHandle
     for (const [label, amount] of money) {
       if (Math.abs(amount) < 1) continue;
       pushFly(amount, label);
+      if (label === 'Оплата' && amount > 0) celebrate('contract');
       sounds.push(amount < 0 ? 'spend' : amount >= BIG_INCOME ? 'cash' : 'coin');
     }
 
@@ -162,9 +164,18 @@ export function Juice({ s, onRelease }: { s: GameState; onRelease: ReleaseHandle
       if (m) onRelease(m.id);
       sounds.unshift('release');
     }
-    if (now.models > p.models) sounds.unshift('ready');
-    if ((now.goals > p.goals && now.goals % 100 > 0) || now.tasks > p.tasks) sounds.push('goal');
-    if (now.research > p.research) sounds.push('research');
+    if (now.models > p.models) {
+      sounds.unshift('ready');
+      celebrate('ready');
+    }
+    if ((now.goals > p.goals && now.goals % 100 > 0) || now.tasks > p.tasks) {
+      sounds.push('goal');
+      celebrate('goal');
+    }
+    if (now.research > p.research) {
+      sounds.push('research');
+      celebrate('research');
+    }
     if (!p.negative && now.negative) sounds.unshift('alert');
     else if (sounds.length === 0) {
       const fresh = s.mail.some((m) => m.important && Number(m.id.slice(1)) >= p.mailNum);

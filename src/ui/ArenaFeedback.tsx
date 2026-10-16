@@ -10,6 +10,7 @@ import { ARENA_PLACE_TITLE } from './arena';
 import { LabEmblem } from './components/LabEmblem';
 import { openDossier } from './dossier';
 import { fmtInt, fmtPct } from './format';
+import { FlashNum } from './FlashNum';
 import { IconArrowDown, IconArrowUp, IconClose, IconTrophy } from './icons';
 import { playSound } from './sound';
 import { store } from './store';
@@ -96,7 +97,11 @@ export function ArenaStrip({ s }: { s: GameState }) {
     <div className="ar-strip" title={raceTitle(st.metric)}>
       <div className="ar-place">
         <span className="ar-k">{raceName(st.metric)}</span>
-        <span className={`ar-r${st.rank === 1 ? ' first' : ''}`}>{st.rank}-е</span>
+        <span className={`ar-r${st.rank === 1 ? ' first' : ''}`}>
+          <FlashNum value={st.rank} frac={0} invert>
+            {st.rank}-е
+          </FlashNum>
+        </span>
       </div>
       <div className="ar-ns">
         <NeighborLine n={st.above} dir="up" metric={st.metric} />

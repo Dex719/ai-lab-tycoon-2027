@@ -287,7 +287,15 @@ export function applySfxVolume(): void {
 }
 
 /** Сыграть звук с громкостью из настроек; при громкости 0 и в скрытой вкладке молчим. */
+/** Подписчики на звуки: визуальный отклик (feel.ts) играет в тот же момент, что и звук, и не зависит от громкости. */
+const soundListeners = new Set<(id: SoundId) => void>();
+export function onSound(l: (id: SoundId) => void): () => void {
+  soundListeners.add(l);
+  return () => soundListeners.delete(l);
+}
+
 export function playSound(id: SoundId): void {
+  for (const l of soundListeners) l(id);
   const vol = getSettings().volume;
   if (!(vol > 0) || !pageVisible()) return;
   const nowMs = Date.now();

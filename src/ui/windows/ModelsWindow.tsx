@@ -2,6 +2,7 @@
 // У карточки тёмная шапка (как полоса прогноза в «Новой модели»): обложка, название и четыре главных числа.
 // Две панели продаж: «API» (цена за 1 млн токенов) и «Подписка» (цена в месяц, внешняя проверка сильных моделей).
 
+import { FlashNum } from '../FlashNum';
 import { Fragment, useId, useState, type CSSProperties } from 'react';
 import type { WindowProps } from '.';
 import { benchDef, DOMAIN_NAMES, introducedBenchmarks } from '../../sim/benchmarks';
@@ -218,7 +219,7 @@ function ModelList(props: {
               </b>
             )}
             <span className="mw-item-elo" title="Рейтинг Эло">
-              {fmtElo(m.arenaElo)}
+              <FlashNum value={m.arenaElo} frac={0} minAbs={2} className="on-light">{fmtElo(m.arenaElo)}</FlashNum>
             </span>
           </span>
           <span className={`mw-item-state ${st.tone}`}>

@@ -46,6 +46,7 @@ import { ConfirmDialog, Dialog, GuardButton, NewBadge, Range } from '../componen
 import { fmtH100e as fmtH, fmtInt, fmtMoney, fmtNum, h100ePerCard, ruPlural } from '../format';
 import { IconAlert } from '../icons';
 import { playSound } from '../sound';
+import { FlashNum } from '../FlashNum';
 import { actions, store } from '../store';
 import { farmLayout, rentedFarm } from '../three/specs';
 import { GpuChooser, powerFact } from '../three/GpuChooser';
@@ -377,7 +378,9 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
           </div>
           <div className="cw-sum-i">
             <span>На счёте</span>
-            <b className={s.cash < 0 ? 'bad' : undefined}>{fmtMoney(s.cash)}</b>
+            <FlashNum value={s.cash} className="on-light">
+              <b className={s.cash < 0 ? 'bad' : undefined}>{fmtMoney(s.cash)}</b>
+            </FlashNum>
             <small title="Аренда всех карт после изменения">вся аренда {count === null ? '-' : fmtMoney(rentPerDay(s) * DAYS_IN_MONTH + (delta?.money ?? 0))} в месяц</small>
           </div>
         </div>

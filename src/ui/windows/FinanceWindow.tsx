@@ -1,5 +1,6 @@
 // Вкладка «Финансы»: выручка и расходы по месяцам, показатели и таблица за 12 месяцев.
 
+import { FlashNum } from '../FlashNum';
 import { useMemo, type ReactNode } from 'react';
 import type { WindowProps } from '.';
 import { rentPerDay } from '../../sim/compute';
@@ -113,7 +114,7 @@ export default function FinanceTab({ s }: WindowProps) {
     <div className="an-page">
       <StatStrip
         items={[
-          { label: 'Деньги', value: <span className={s.cash < 0 ? 'bad' : undefined}>{fmtMoney(s.cash)}</span> },
+          { label: 'Деньги', value: <FlashNum value={s.cash} className="on-light"><span className={s.cash < 0 ? 'bad' : undefined}>{fmtMoney(s.cash)}</span></FlashNum> },
           {
             label: 'Выручка за 90 дней',
             value: <span className="good">{fmtMoney(revenueLast90(s))}</span>,

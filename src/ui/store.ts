@@ -8,6 +8,7 @@ import type { Difficulty } from '../sim/rivalry';
 import { goalOfferOpen, goalsDay, unseenReview } from '../sim/goals';
 import { advanceDay, advanceDays, blockedByChoice } from '../sim/tick';
 import type { GameState, Result, Speed } from '../sim/types';
+import { landAction } from './feel';
 import { readSlot, writeSlot, type SlotId } from './saves';
 import { getSettings } from './settings';
 import { runwayMonths } from './runway';
@@ -92,6 +93,7 @@ export class GameStore {
   dispatch<A extends unknown[]>(fn: (s: GameState, ...args: A) => Result | void, ...args: A): Result {
     if (!this.state) return { ok: false, error: 'Игра не начата' };
     const r = fn(this.state, ...args) ?? { ok: true };
+    if (r.ok) landAction();
     this.bump();
     return r;
   }

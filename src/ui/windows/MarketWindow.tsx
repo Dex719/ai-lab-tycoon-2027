@@ -1,6 +1,7 @@
 // Вкладка «Рынок» (доли лабораторий, сегменты спроса, модели на рынке) и данные лабораторий для досье
 // (labRows, recentMoves - вкладка «Лаборатории» в LabsDossier.tsx).
 
+import { FlashNum } from '../FlashNum';
 import { useMemo, type CSSProperties } from 'react';
 import type { WindowProps } from '.';
 import { personalityOf } from '../../data/labPersonalities';
@@ -268,7 +269,7 @@ function ShareBars({ s, snap }: { s: GameState; snap: MarketSnapshot | null }) {
         {open && (
           <div className="r">
             <span>Спрос на подписки</span>
-            <span>{usersLabel(subs)}</span>
+            <FlashNum value={subs} frac={0.02} className="on-light">{usersLabel(subs)}</FlashNum>
           </div>
         )}
         <div className="r">

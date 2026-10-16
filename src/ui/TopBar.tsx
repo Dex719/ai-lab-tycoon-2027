@@ -4,6 +4,7 @@ import { useEffect, useState , type ReactElement } from 'react';
 import { pendingChoice } from '../sim/events';
 import { ArenaStrip } from './ArenaFeedback';
 import { MoneyFlies, useCountUp } from './Juice';
+import { FlashNum } from './FlashNum';
 import { LabStats } from './LabStats';
 import { END_DAY, formatDateShort } from '../sim/time';
 
@@ -128,7 +129,9 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
           style={{ cursor: 'default' }}
         >
           <IconBank />
-          <span className={s.cash < 0 ? 'tb-bad' : undefined}>{fmtMoney(cashShown)}</span>
+          <FlashNum value={s.cash}>
+            <span className={s.cash < 0 ? 'tb-bad' : undefined}>{fmtMoney(cashShown)}</span>
+          </FlashNum>
           <MoneyFlies />
           {(hover || pinned) && <MoneyPopup s={s} />}
         </div>

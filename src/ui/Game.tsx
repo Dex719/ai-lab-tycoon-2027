@@ -22,6 +22,8 @@ import { ReleaseCard } from './ReleaseCard';
 import { Moments } from './Moments';
 import { DeskScene } from './DeskScene';
 import './shell.css';
+import './feel.css';
+import { FeelLayer } from './FeelLayer';
 import { MonthStrip } from './MonthStrip';
 import { AchievementsDialog, AchievementToasts } from './Achievements';
 import { TopBar } from './TopBar';
@@ -327,6 +329,7 @@ export function Game({ s }: { s: GameState }) {
       <Toasts s={s} open={open} />
       <ArenaBanner s={s} open={open} />
       <AchievementToasts s={s} />
+      <FeelLayer />
       <Juice s={s} onRelease={setReleased} />
       {released && <ReleaseCard s={s} modelId={released} onClose={closeReleased} />}
       <ChoiceModal s={s} />

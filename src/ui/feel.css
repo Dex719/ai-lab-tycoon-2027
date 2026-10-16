@@ -1,0 +1,50 @@
+/* Отклик на действия и награды. Только transform и opacity, 100-450 мс, без свечения и градиентов.
+   Подробности и уровни движения: screens/alive-feel/REPORT.md. */
+
+/* Нажатие кнопки: утапливается на 80 мс. Наведение - только цвет (theme.css). */
+.btn { transition: background-color 100ms ease-out, border-color 100ms ease-out, transform 80ms ease-out; }
+.btn:active:not(:disabled):not([aria-disabled='true']) { transform: scale(0.97); }
+.desk-icon:active, .task-win:active { transform: scale(0.97); transition: transform 80ms ease-out; }
+
+/* Корень одноразовых эффектов поверх всего: кольца и конфетти. */
+.fx-root { position: fixed; inset: 0; z-index: 1500; pointer-events: none; overflow: hidden; }
+.fx-ring { position: fixed; border: 2px solid var(--fx, var(--accent)); border-radius: 4px; opacity: 0; animation: fx-ring 450ms ease-out; }
+.fx-ring.accent { --fx: var(--accent); }
+.fx-ring.good { --fx: var(--c-green); }
+.fx-ring.gold { --fx: var(--gold-line); }
+.fx-ring.neutral { --fx: #8a8e95; border-width: 1px; }
+@keyframes fx-ring { from { opacity: 0.95; transform: scale(0.94); } to { opacity: 0; transform: scale(1.22); } }
+.fx-confetti { position: fixed; inset: 0; }
+
+/* Изменение числа: подложка под числом вспыхивает и гаснет. Рост бодрее и короче, падение медленнее и тише. */
+.nf { position: relative; display: inline-block; }
+.nf-t { position: absolute; inset: -2px -5px; border-radius: 3px; pointer-events: none; opacity: 0; }
+.nf-t.up { background: var(--good-on-dark); animation: nf-up 700ms ease-out; }
+.nf-t.down { background: var(--bad-on-dark); animation: nf-down 1100ms ease-out; }
+.nf.on-light .nf-t.up { background: var(--c-green); }
+.nf.on-light .nf-t.down { background: var(--c-red); }
+@keyframes nf-up { from { opacity: 0.42; } to { opacity: 0; } }
+@keyframes nf-down { from { opacity: 0.3; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .btn:active:not(:disabled), .desk-icon:active, .task-win:active { transform: none; }
+  .nf-t.up { animation-duration: 1200ms; }
+  .nf-t.down { animation-duration: 1200ms; }
+}
+
+/* Уведомления: награда и удачный исход «садятся» с лёгким перелётом, неудача опускается сверху медленно и без перелёта. */
+.toast.tone-reward, .toast.tone-good { animation: toast-land 300ms cubic-bezier(0.22, 1, 0.36, 1); }
+.toast.tone-bad { animation: toast-sink 380ms ease-out; }
+@keyframes toast-land { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes toast-sink { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+/* Карточка выпуска: сначала считается Эло, затем по очереди появляются место, обогнанные соперники и таблица тестов.
+   Первое место «штампуется»: приходит крупнее и садится на место. */
+.dialog.rc .rc-place { animation: rc-reveal 260ms ease-out 650ms both; }
+.dialog.rc.first .rc-place { animation: rc-stamp 320ms cubic-bezier(0.22, 1, 0.36, 1) 650ms both; }
+.dialog.rc .rc-pass .rc-rival { animation: rc-reveal 220ms ease-out both; animation-delay: calc(950ms + var(--i, 0) * 90ms); }
+.dialog.rc .rc-bench tbody tr { animation: rc-reveal 200ms ease-out both; animation-delay: calc(450ms + var(--i, 0) * 45ms); }
+@keyframes rc-reveal { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+@keyframes rc-stamp { from { opacity: 0; transform: scale(1.18); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .dialog.rc .rc-place, .dialog.rc.first .rc-place, .dialog.rc .rc-pass .rc-rival, .dialog.rc .rc-bench tbody tr, .toast.tone-reward, .toast.tone-good, .toast.tone-bad { animation: none; }
+}
