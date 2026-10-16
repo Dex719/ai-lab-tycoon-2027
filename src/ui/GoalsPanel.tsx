@@ -67,7 +67,7 @@ export function GoalsPanel({ s, open }: { s: GameState; open: (id: WindowId | Wi
                   </div>
                   {penalty && <div className="gp-risk">Если не выйдет к 31 декабря: {penalty}</div>}
                   <div className="goal-bar">
-                    <div style={{ width: `${Math.round(v.progress.fraction * 100)}%` }} />
+                    <div className="pb" style={{ ['--p' as string]: Math.min(1, Math.max(0, v.progress.fraction)) }} />
                   </div>
                 </div>
               );

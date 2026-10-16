@@ -199,7 +199,7 @@ function ReadyBody(props: { s: GameState; dc: Datacenter; onBuy: () => void; onS
           </b>
         </div>
         <div className={`progress ${used / total > 0.95 ? 'orange' : 'green'}`}>
-          <div style={{ width: `${Math.min(100, (used / total) * 100)}%` }} />
+          <div className="pb" style={{ ['--p' as string]: Math.min(1, used / total) }} />
         </div>
       </div>
       {types.length === 0 && dc.orders.length === 0 ? (

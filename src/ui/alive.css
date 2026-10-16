@@ -1,0 +1,89 @@
+/* Живость интерфейса: окна, ход времени, приход информации. Уровень движения - «выразительный, но рабочий»:
+   частое (фокус окна, вкладки, строки) почти мгновенно, редкое (новый месяц и год, новый раздел) заметнее.
+   Только transform и opacity, вход ease-out, выход ease-in и короче. Без наведения-анимации. Всё внутри
+   no-preference: при «уменьшить движение» остаются только мгновенные смены. Бесконечного ничего нет. */
+
+:root { --tick: 500ms; }
+
+/* ---------- Полосы прогресса: едут плавно за ходом игры (scaleX вместо width) ---------- */
+.pb { display: block; width: 100%; height: 100%; transform-origin: left center; transform: scaleX(var(--p, 0)); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .pb { transition: transform var(--tick) linear; }
+
+  /* ---------- Окна ---------- */
+  .window:not(.fs) { animation: win-in 150ms ease-out backwards; }
+  .window.fs { animation: fade-in 120ms ease-out backwards; }
+  .window.leaving { pointer-events: none; animation: win-out 110ms ease-in forwards; }
+  .window.leaving.min { animation-name: win-min; }
+  /* Окно не на переднем плане чуть притушено; смена фокуса - 140 мс. */
+  .window::after {
+    content: ''; position: absolute; inset: 0; border-radius: 3px; background: #000; opacity: 0; pointer-events: none;
+    transition: opacity 140ms ease-out;
+  }
+  .window:not(.active):not(.fs)::after { opacity: 0.07; }
+
+  /* Кнопка окна на панели задач и строки боковой сводки появляются, а не возникают. */
+  .task-win { animation: rise-in 160ms ease-out backwards; }
+  .side-item { animation: rise-in 200ms ease-out backwards; }
+
+  /* Диалоги: тень проявляется, сам диалог поднимается на 8 px. У карточек со своим входом (выпуск, итоги) он остаётся. */
+  .modal-backdrop { animation: fade-in 140ms ease-out backwards; }
+  .modal-backdrop > .dialog:not(.rc):not(.end):not(.yr-dialog) { animation: rise-in 180ms ease-out backwards; }
+  .modal-backdrop.leaving { animation: fade-out 100ms ease-in forwards; pointer-events: none; }
+
+  /* ---------- Уведомления ---------- */
+  :root .toast { animation: toast-slide 200ms ease-out backwards; }
+  :root .toast.leaving { pointer-events: none; animation: toast-out 120ms ease-in forwards; }
+
+  /* ---------- Рабочий стол ---------- */
+  /* Число на значке: короткий «щелчок» при каждом изменении (ключ меняется - анимация идёт заново). */
+  .desk-icon .count { animation: count-pop 260ms ease-out; }
+  /* Раздел открылся по ходу игры: значок вырастает, вокруг два тонких кольца расходятся и гаснут. */
+  .desk-icon.fresh { animation: icon-unlock 380ms ease-out backwards; }
+  .desk-icon.fresh::after {
+    content: ''; position: absolute; inset: 2px 18px auto; height: 56px; border: 2px solid var(--accent); border-radius: 12px;
+    opacity: 0; pointer-events: none; animation: icon-ring 900ms ease-out 380ms 2 both;
+  }
+
+  /* ---------- Верхняя панель: ход времени ---------- */
+  .tb-date-v.beat { display: inline-block; transform-origin: left center; animation: date-beat 420ms ease-out; }
+  .tb-date-v.beat.year { animation: date-beat-year 760ms ease-out; }
+  /* Пауза: тонкая янтарная линия по нижней кромке панели и притушенная дата. Появляется за 160 мс, не мигает. */
+  .topbar::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: #f2b84b; opacity: 0;
+    transition: opacity 160ms ease-out; pointer-events: none;
+  }
+  .topbar.paused::after { opacity: 0.85; }
+  .topbar .tb-date { transition: opacity 160ms ease-out; }
+  .topbar.paused .tb-date > span { opacity: 0.7; }
+  .game .speed button { transition: background-color 120ms ease-out, color 120ms ease-out; }
+
+  /* ---------- Главное меню: вход каскадом (шаг 50 мс, не дольше 0,8 с) ---------- */
+  .mm-title, .mm-years, .mm-cont, .mm-item { animation: mm-in 360ms ease-out backwards; }
+  .mm-years { animation-delay: 50ms; }
+  .mm-cont { animation-delay: 100ms; }
+  .mm-item:nth-child(1) { animation-delay: 150ms; }
+  .mm-item:nth-child(2) { animation-delay: 200ms; }
+  .mm-item:nth-child(3) { animation-delay: 250ms; }
+  .mm-item:nth-child(4) { animation-delay: 300ms; }
+  .mm-item:nth-child(5) { animation-delay: 350ms; }
+  .mm-right { animation: fade-in 600ms ease-out backwards; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes fade-in { from { opacity: 0; } }
+  @keyframes fade-out { to { opacity: 0; } }
+  @keyframes rise-in { from { opacity: 0; transform: translateY(8px); } }
+  @keyframes win-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } }
+  @keyframes win-out { to { opacity: 0; transform: translateY(6px) scale(0.98); } }
+  @keyframes win-min { to { opacity: 0; transform: translateY(36px) scale(0.94); } }
+  @keyframes toast-slide { from { opacity: 0; transform: translateX(24px); } }
+  @keyframes toast-out { to { opacity: 0; transform: translateX(24px); } }
+  @keyframes count-pop { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
+  @keyframes icon-unlock { from { opacity: 0; transform: scale(0.7); } }
+  @keyframes icon-ring { 0% { opacity: 0.7; transform: scale(0.9); } 100% { opacity: 0; transform: scale(1.5); } }
+  @keyframes date-beat { from { opacity: 0.25; transform: translateY(-6px); } }
+  @keyframes date-beat-year { 0% { opacity: 0.2; transform: translateY(-8px) scale(1.25); } 60% { opacity: 1; } 100% { transform: none; } }
+  @keyframes mm-in { from { opacity: 0; transform: translateX(-16px); } }
+}

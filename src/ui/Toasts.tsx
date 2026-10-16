@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState, type ComponentType } from 're
 import type { GameState, LabId, Mail } from '../sim/types';
 import { LabEmblem } from './components/LabEmblem';
 import { IconAlert, IconArrowUpDown, IconBank, IconCalendar, IconClose, IconFast, IconInfo, IconMail, IconTrophy, type LineIconProps } from './icons';
+import { reducedMotion, useFlip } from './alive';
 import { getSettings } from './settings';
 import { playSound } from './sound';
 import { store } from './store';
@@ -74,20 +75,28 @@ function mailNum(m: Mail): number {
 
 function ToastItem({ t, onOpen, onClose }: { t: ToastData; onOpen: (t: ToastData) => void; onClose: (key: number) => void }) {
   const [hover, setHover] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  // Уходит за 120 мс (ease-in), затем настоящее удаление: оставшиеся карточки плавно съезжают на место.
+  const dismiss = useCallback(() => {
+    if (reducedMotion()) return onClose(t.key);
+    setLeaving(true);
+    window.setTimeout(() => onClose(t.key), 120);
+  }, [onClose, t.key]);
   const left = useRef(t.tone === 'reward' ? REWARD_MS : t.tone ? OUTCOME_MS : SHOW_MS);
   useEffect(() => {
-    if (hover) return;
+    if (hover || leaving) return;
     const started = Date.now();
-    const id = window.setTimeout(() => onClose(t.key), left.current);
+    const id = window.setTimeout(dismiss, left.current);
     return () => {
       window.clearTimeout(id);
       left.current = Math.max(800, left.current - (Date.now() - started));
     };
-  }, [hover, onClose, t.key]);
+  }, [hover, leaving, dismiss]);
   const { name, Icon } = KIND[t.kind];
   return (
     <div
-      className={`toast k-${t.kind}${t.important ? ' important' : ''}${t.tone ? ` tone-${t.tone}` : ''}`}
+      className={`toast k-${t.kind}${t.important ? ' important' : ''}${t.tone ? ` tone-${t.tone}` : ''}${leaving ? ' leaving' : ''}`}
+      data-fk={t.key}
       role="status"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -102,7 +111,7 @@ function ToastItem({ t, onOpen, onClose }: { t: ToastData; onOpen: (t: ToastData
           Открыть
         </button>
       </span>
-      <button type="button" className="toast-x" onClick={() => onClose(t.key)} title="Скрыть уведомление" aria-label="Скрыть уведомление">
+      <button type="button" className="toast-x" onClick={dismiss} title="Скрыть уведомление" aria-label="Скрыть уведомление">
         <IconClose size={12} />
       </button>
     </div>
@@ -115,6 +124,7 @@ export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | Window
   /** Письма, исход которых уже показан (или был до начала сессии). */
   const outcomes = useRef<{ state: GameState; ids: Set<string> }>({ state: s, ids: outcomeIds(s) });
   const keyRef = useRef(0);
+  const flipRef = useFlip<HTMLDivElement>({ enter: false });
 
   // Ответы на действия игрока показываем всегда, даже при выключенных уведомлениях о письмах.
   useEffect(() => {
@@ -232,7 +242,7 @@ export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | Window
 
   if (items.length === 0) return null;
   return (
-    <div className="toasts" aria-live="polite">
+    <div className="toasts" aria-live="polite" ref={flipRef}>
       {items.map((t) => (
         <ToastItem key={t.key} t={t} onOpen={openMail} onClose={close} />
       ))}

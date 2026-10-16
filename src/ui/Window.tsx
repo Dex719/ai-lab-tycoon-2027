@@ -47,6 +47,7 @@ interface Props {
   flush?: boolean; // тело без отступов (окно само раскладывает панели)
   fullscreen?: boolean; // телефон: окно на весь стол, без перетаскивания и изменения размера
   hidden?: boolean; // телефон: окно открыто, но показано другое
+  leaving?: 'close' | 'min'; // окно уходит: 110 мс выхода перед тем, как его уберут
   onFocus: () => void;
   onClose: () => void;
   onMinimize: () => void;
@@ -54,7 +55,7 @@ interface Props {
   children: ReactNode;
 }
 
-export function Window({ title, geom, active, accent, flush, fullscreen, hidden, onFocus, onClose, onMinimize, onMove, children }: Props) {
+export function Window({ title, geom, active, accent, flush, fullscreen, hidden, leaving, onFocus, onClose, onMinimize, onMove, children }: Props) {
   const drag = useRef<{ dx: number; dy: number } | null>(null);
 
   function startDrag(e: React.PointerEvent) {
@@ -85,7 +86,7 @@ export function Window({ title, geom, active, accent, flush, fullscreen, hidden,
 
   return (
     <div
-      className={`window${active ? ' active' : ''}${fullscreen ? ' fs' : ''}${hidden ? ' fs-off' : ''}`}
+      className={`window${active ? ' active' : ''}${fullscreen ? ' fs' : ''}${hidden ? ' fs-off' : ''}${leaving ? ` leaving ${leaving}` : ''}`}
       style={{
         ...(fullscreen ? {} : { left: geom.x, top: geom.y, width: geom.w, height: geom.h }),
         zIndex: geom.z,
