@@ -1,8 +1,9 @@
 // Сцена в центре рабочего стола: лаборатория игрока в четырёх «станциях» - серверная (3D-зал арендованных стоек), исследования,
 // обучение и витрина моделей. Сцена лежит под окнами (как обои) и показывает состояние лаборатории одним взглядом;
-// каждая станция открывает своё окно. Анимаций нет: сцена меняется вместе с игрой.
+// каждая станция открывает своё окно. Пока идёт время, люди работают, в колбе пузырьки, огоньки зала мигают; на паузе всё замирает
+// (deskAlive.css). Крупное событие на секунду подсвечивает рамку подписи своей станции.
 
-import { memo } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { GPUS } from '../data/gpus';
 import { idleWarnings } from '../sim/idle';
 import { LAB_STAGES, labStage, yearCups, type YearCup } from './labStage';
@@ -17,8 +18,10 @@ import { raceMetricOf, raceRows } from './race';
 import type { WindowAlias, WindowId } from './windows';
 import { ALLOC_ROWS } from './alloc';
 import { rentedFarm, specKey, type FarmSpec } from './three/specs';
+import { live, subscribeLive, type SceneEventKind } from './three/live';
 import { View3D } from './three/View3D';
 import './desk.css';
+import './deskAlive.css';
 
 /** Карт в одной стойке на картинке; мест под стойки - по этапу лаборатории (labStage.ts), не больше шести. */
 const CARDS_PER_RACK = 24;
@@ -45,6 +48,8 @@ interface SceneProps {
   /** Машинный зал: арендованные стойки с планками цвета задачи (как в «Мощностях»). */
   farm: FarmSpec;
   idle: boolean;
+  /** Время идёт (не пауза): люди работают, пузырьки поднимаются. */
+  running: boolean;
   research: { name: string; frac: number; busy: boolean } | null;
   training: { name: string; frac: number; stalled: boolean } | null;
   trainingMore: number;
@@ -69,6 +74,7 @@ function sameScene(a: SceneProps, b: SceneProps): boolean {
     a.cards === b.cards &&
     specKey(a.farm) === specKey(b.farm) &&
     a.idle === b.idle &&
+    a.running === b.running &&
     a.research?.name === b.research?.name &&
     a.research?.frac === b.research?.frac &&
     a.research?.busy === b.research?.busy &&
@@ -98,19 +104,22 @@ const Scene = memo(function Scene(p: SceneProps) {
   const units = Math.min(racks * 8, Math.max(p.cards > 0 ? 1 : 0, Math.round((p.cards / (CARDS_PER_RACK * slots)) * slots * 8)));
   const ledTone = p.cards === 0 ? 'off' : p.idle ? 'idle' : 'on';
   const first = p.place === 1;
+  const working = !!p.training || !!p.research?.busy;
+  const hit = useSceneHit();
+  const hitOf = (...kinds: SceneEventKind[]) => (hit && kinds.includes(hit.kind) ? ` hit-${hit.kind}` : '');
   return (
-    <div className="lab-scene" aria-label="Лаборатория">
+    <div className={`lab-scene${p.running ? ' live' : ''}${working ? ' working' : ''}`} aria-label="Лаборатория">
       <div className="ls-sign">
         <IconLogo size={26} />
         <b>{p.labName}</b>
         <span className="ls-stage">{def.name}</span>
       </div>
       <div className="ls-team">
-        <Seats n={p.seats} />
+        <Seats n={p.seats} working={working} />
         <Cups cups={p.cups} />
       </div>
       <div className="ls-room">
-        <button type="button" className="ls-station ls-servers" onClick={() => p.open('compute')}>
+        <button type="button" className={`ls-station ls-servers${hitOf('trainStart', 'trouble')}`} onClick={() => p.open('compute')}>
           <span className="ls-art ls-hall">
             {p.cards > 0 ? (
               <View3D spec={p.farm} interactive={false} label="Машинный зал" className="ls-hall-view" />
@@ -145,7 +154,7 @@ const Scene = memo(function Scene(p: SceneProps) {
           </span>
         </button>
 
-        <button type="button" className="ls-station ls-train" onClick={() => p.open(p.training ? 'models' : 'newModel')}>
+        <button type="button" className={`ls-station ls-train${hitOf('trainStart', 'trainDone')}`} onClick={() => p.open(p.training ? 'models' : 'newModel')}>
           <span className="ls-art">
             <span className={`ls-monitor${p.training ? ' busy' : ''}${p.training?.stalled ? ' stalled' : ''}`}>
               {p.training ? (
@@ -169,7 +178,7 @@ const Scene = memo(function Scene(p: SceneProps) {
           </span>
         </button>
 
-        <button type="button" className="ls-station ls-shelf" onClick={() => p.open('analytics')}>
+        <button type="button" className={`ls-station ls-shelf${hitOf('release')}`} onClick={() => p.open('analytics')}>
           <span className="ls-art">
             <span className={`ls-cup${first ? ' gold' : ''}${p.place === null ? ' none' : ''}`}>{p.place !== null ? `${p.place}` : '-'}</span>
             <span className="ls-board">
@@ -196,15 +205,22 @@ const Scene = memo(function Scene(p: SceneProps) {
   );
 }, sameScene);
 
-/** Люди за столами: столы по два рабочих места, у каждого монитор. Плоские фигуры, без анимации. */
+/** Люди за столами: столы по два рабочих места, у каждого монитор. Пока идёт время и есть работа, на мониторах бежит текст,
+ *  люди иногда поворачивают голову (deskAlive.css); новый сотрудник проявляется на своём месте. */
 const SEAT_W = 30;
 const SHIRTS = ['#4f7cc0', '#3f9a8a', '#c07a3f', '#8a8f98', '#5d8f4e'];
 const HEADS = ['#d9b48f', '#a87a55', '#e3c4a1', '#8c5f3f'];
-function Seats({ n }: { n: number }) {
+function Seats({ n, working }: { n: number; working: boolean }) {
   const desks = Math.ceil(n / 2);
   const w = desks * SEAT_W * 2 + (desks - 1) * 8;
+  // Места сверх прежнего числа - новые люди: у них короткое появление. При первом показе все на месте сразу.
+  const before = useRef(n);
+  const from = before.current;
+  useEffect(() => {
+    before.current = n;
+  }, [n]);
   return (
-    <svg className="ls-seats" width={w} height={44} viewBox={`0 0 ${w} 44`} role="img" aria-label={`Рабочих мест: ${n}`}>
+    <svg className={`ls-seats${working ? ' working' : ''}`} width={w} height={44} viewBox={`0 0 ${w} 44`} role="img" aria-label={`Рабочих мест: ${n}`}>
       {Array.from({ length: desks }, (_, d) => {
         const x = d * (SEAT_W * 2 + 8);
         return (
@@ -214,10 +230,17 @@ function Seats({ n }: { n: number }) {
               if (i >= n) return null;
               const px = x + k * SEAT_W;
               return (
-                <g key={k}>
-                  <rect x={px + 5} y={17} width={14} height={15} rx={4} fill={SHIRTS[i % SHIRTS.length]} />
-                  <circle cx={px + 12} cy={11} r={5.5} fill={HEADS[(i * 3) % HEADS.length]} />
+                <g key={k} className={`ls-person${i >= from ? ' arrive' : ''}`} style={{ ['--i' as string]: i % 7 }}>
+                  <g className="ls-body">
+                    <rect x={px + 5} y={17} width={14} height={15} rx={4} fill={SHIRTS[i % SHIRTS.length]} />
+                    <circle className="ls-head" cx={px + 12} cy={11} r={5.5} fill={HEADS[(i * 3) % HEADS.length]} />
+                  </g>
                   <rect x={px + 17} y={14} width={11} height={10} rx={1} fill="#15181d" stroke="#5b6676" strokeWidth={1.5} />
+                  <g className="ls-code">
+                    <rect x={px + 19} y={16} width={6} height={1.4} fill="#8fb8f0" />
+                    <rect x={px + 19} y={19} width={4} height={1.4} fill="#8fb8f0" />
+                    <rect x={px + 19} y={22} width={7} height={1.4} fill="#8fb8f0" />
+                  </g>
                 </g>
               );
             })}
@@ -229,6 +252,26 @@ function Seats({ n }: { n: number }) {
       })}
     </svg>
   );
+}
+
+/** Последнее событие лаборатории на 1,4 секунды: подпись нужной станции подсвечивается рамкой. */
+function useSceneHit(): { kind: SceneEventKind; seq: number } | null {
+  const [hit, setHit] = useState<{ kind: SceneEventKind; seq: number } | null>(null);
+  useEffect(() => {
+    let timer: number | undefined;
+    const un = subscribeLive(() => {
+      const ev = live.event;
+      if (!ev || performance.now() - ev.at > 400) return;
+      setHit((h) => (h?.seq === ev.seq ? h : { kind: ev.kind, seq: ev.seq }));
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setHit(null), 1400);
+    });
+    return () => {
+      un();
+      window.clearTimeout(timer);
+    };
+  }, []);
+  return hit;
 }
 
 /** Кубки по годам: золото - 1-е место на конец года, серебро - все цели года. */
@@ -320,6 +363,7 @@ export function DeskScene({ s, open }: { s: GameState; open: (id: WindowId | Win
         backdrop: '#3a3d42',
       }}
       idle={idleWarnings(s).length > 0}
+      running={speed !== 0}
       research={research}
       training={training}
       trainingMore={Math.max(0, s.trainings.length - 1)}
