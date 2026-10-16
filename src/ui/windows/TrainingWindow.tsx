@@ -112,6 +112,8 @@ export interface Draft {
   context: number | null; // null - наибольший открытый
   /** Данные подбираются под размер (выгоднее всего по вычислениям); false - игрок задаёт объём сам. Нет поля - true. */
   autoData?: boolean;
+  /** RLHF уже был исследован, когда черновик создан: выключенный тумблер - выбор игрока, а не пережиток. */
+  rlhfKnown?: boolean;
 }
 
 /** Черновик живёт вне компонента: свёрнутое окно закрывается полностью, а настройки должны остаться. */
@@ -146,6 +148,8 @@ export function presetOf(s: GameState, tier: Tier): { paramsB: number; tokensB: 
 
 /** Сохранённый черновик мог пережить смену года: уровень или размер больше не подходят - берём пресет уровня. */
 export function normalizeDraft(s: GameState, d: Draft): Draft {
+  // Черновик старше исследования RLHF: тумблер включается сам (плейтест 16.10 - оставался выключенным).
+  if (s.research.done.includes('rlhf') && !d.rlhfKnown) d = { ...d, rlhf: true, rlhfKnown: true };
   const tier = pickTier(s, d.tier);
   const [a, b] = tierSpan(s.day, tier);
   if (tier === d.tier && d.paramsB >= a && d.paramsB <= b) return d;
@@ -173,6 +177,7 @@ function initialDraft(s: GameState): Draft {
     targets: [],
     // После исследования RLHF включён по умолчанию (плейтест 15.10: игроки не замечали выключенный тумблер); снять можно у каждой модели.
     rlhf: (prev?.rlhf ?? false) || s.research.done.includes('rlhf'),
+    rlhfKnown: s.research.done.includes('rlhf'),
     context: null,
     autoData: true,
   };

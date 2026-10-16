@@ -112,7 +112,7 @@ export const TUTORIAL: TutorialStep[] = [
       const need = contractsNeedWithApplications(s);
       const have = pool(s, 'contracts');
       const nums = need === null ? '' : `Нужно контрактам: ${fmtH100e(need)} H100e, выделено ${fmtH100e(have)}. `;
-      return `${nums}В «Мощностях» поднимите долю «Контракты» и нажмите «Распределить» или арендуйте ещё карт.`;
+      return `${nums}В «Мощностях» сдвиньте границу доли «Контракты» или нажмите «Как нужно». Можно и арендовать ещё карт.`;
     },
     targets: ['alloc', 'rent-button', 'icon-compute'],
     done: contractPowerEnough,

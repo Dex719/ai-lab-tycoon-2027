@@ -35,7 +35,7 @@ import {
   SUBS_USERS,
   TOKENS_PER_USER_DAY,
 } from './constants';
-import { modValue } from './events';
+import { addMail, modValue } from './events';
 import { earn } from './finance';
 import { codeLevel } from './leaderboard';
 
@@ -518,6 +518,8 @@ export function dayStep(s: GameState): void {
   const lostFraction = potential > 0 ? (potentialApi * lostApi + potentialSubs * lostSubs) / potential : 0;
   if (potential > 0) s.hype.player = Math.max(0, s.hype.player - HYPE_LOST_DEMAND_K * lostFraction);
 
+  warnLostDemand(s, need, potentialApi + potentialSubs, lostFraction);
+
   const { shares, labShares } = combineShares(snap, served);
   s.market = {
     shares,
@@ -531,4 +533,37 @@ export function dayStep(s: GameState): void {
     lostSubs,
     segments,
   };
+}
+
+/** Флаг: письмо «клиентам не хватает мощности» отправлено; снимается, когда потери падают ниже LOST_CLEAR. */
+export const LOST_DEMAND_FLAG = 'lostDemandWarned';
+const LOST_WARN = 0.3;
+const LOST_CLEAR = 0.1;
+
+/**
+ * Важное письмо (с паузой), когда клиентам API и подписок не хватает мощности и теряется больше трети спроса:
+ * плейтест 16.10 - доля рынка упала с 40,8 % до 2,1 % без единого предупреждения. Один раз, пока потери не спадут.
+ */
+function warnLostDemand(s: GameState, need: { api: number; subs: number }, potential: number, lost: number): void {
+  if (lost < LOST_CLEAR) {
+    delete s.flags[LOST_DEMAND_FLAG];
+    return;
+  }
+  // Мелкие суммы не стоят паузы: меньше $1 тыс. в день потенциальной выручки.
+  if (lost < LOST_WARN || s.flags[LOST_DEMAND_FLAG] || potential < 1_000) return;
+  s.flags[LOST_DEMAND_FLAG] = true;
+  const shortApi = Math.max(0, need.api - pool(s, 'api'));
+  const shortSubs = Math.max(0, need.subs - pool(s, 'subs'));
+  const h = (x: number) => String(Math.round(x * 10) / 10).replace('.', ',');
+  const parts = [shortApi > 0 ? `в доле «API» - ещё ${h(shortApi)} H100e` : '', shortSubs > 0 ? `в доле «Подписки» - ещё ${h(shortSubs)} H100e` : '']
+    .filter(Boolean)
+    .join(', ');
+  addMail(s, {
+    kind: 'finance',
+    important: true,
+    title: `Клиентам не хватает мощности: теряется ${Math.round(lost * 100)} % спроса`,
+    body:
+      `Запросы клиентов не успевают обработать, выручка и доля рынка уходят соперникам. Нужно ${parts}. ` +
+      'В «Мощностях» сдвиньте границу доли или нажмите «Как нужно»; можно и арендовать ещё карт.',
+  });
 }

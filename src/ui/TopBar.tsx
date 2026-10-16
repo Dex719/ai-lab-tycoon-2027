@@ -16,7 +16,6 @@ import { IconAlert, IconArrowUpDown, IconBank, IconCalendar, IconFast, IconFaste
 import { EXPENSE_KINDS, EXPENSE_LABELS, INCOME_KINDS, INCOME_LABELS } from './labels';
 import { store, useSpeed } from './store';
 import { monthlyRate } from './runway';
-import { ruPlural } from '../sim/text';
 import { isCoarsePointer } from './viewport';
 
 const SPEEDS: { speed: Speed; title: string; Icon: () => ReactElement }[] = [
@@ -80,8 +79,10 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
         store.setSpeed(speedKey);
         return;
       }
-      // Пробел на кнопке или ссылке нажимает её, а не ставит паузу.
-      if (target?.closest('button, a[href], [role="button"], [role="menuitem"]')) return;
+      // Пробел на кнопке, выбранной с клавиатуры, нажимает её; после щелчка мышью фокус остаётся на кнопке,
+      // и тогда пробел - всё равно пауза (плейтест 16.10: пробел нажимал значок «Контракты»).
+      const control = target?.closest('button, a[href], [role="button"], [role="menuitem"]');
+      if (control && control.matches(':focus-visible')) return;
       if (target?.closest('[aria-modal="true"]')) return;
       e.preventDefault();
       store.togglePause();
@@ -132,7 +133,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
           {(hover || pinned) && <MoneyPopup s={s} />}
         </div>
         <i className="tb-sep" aria-hidden="true" />
-        <div className="tb-item tb-rate" title="Доходы (API, подписки, контракты) минус текущие расходы за прошлый месяц. Вложения инвесторов и разовые вложения (дата-центры, карты) не входят">
+        <div className="tb-item tb-rate" title="Средний доход за 3 месяца (API, подписки, контракты) минус постоянные расходы: аренда, зарплаты, дата-центры. Инвесторы и разовые платежи (покупки, штрафы, разметчики) не входят">
           <IconArrowUpDown />
           <span className={rate >= 0 ? 'tb-good' : 'tb-bad'}>
             {rate >= 0 ? '' : '−'}
@@ -196,12 +197,12 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
 function Runway({ cash, rate }: { cash: number; rate: number }) {
   if (rate >= 0 || cash <= 0) return null;
   const months = cash / -rate;
-  if (months >= 24) return null;
+  if (months >= 12) return null; // запас на год и больше не тревожит и не занимает место на панели
   const n = Math.floor(months);
-  const text = n < 1 ? 'хватит меньше чем на месяц' : `хватит на ${n} ${ruPlural(n, 'месяц', 'месяца', 'месяцев')}`;
+  const text = n < 1 ? 'хватит < 1 мес.' : `хватит на ${n} мес.`;
   const tone = months < 3 ? 'tb-bad' : months < 6 ? 'tb-warn' : 'tb-dim';
   return (
-    <span className={`tb-runway ${tone}`} title="На сколько хватит денег на счёте, если доходы и расходы останутся как в прошлом месяце">
+    <span className={`tb-runway ${tone}`} title="На сколько хватит денег на счёте при нынешнем темпе: средний доход за 3 месяца минус постоянные расходы">
       {text}
     </span>
   );

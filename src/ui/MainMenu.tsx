@@ -218,7 +218,7 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
                 <b>Лучшая модель на «Арене» 31 декабря 2024 года</b>
               </div>
               <div className="ng-goal">
-                <span className="ng-l">Соперники в 2017 году</span>
+                <span className="ng-l">Соперники уже работают над моделями</span>
                 <span className="ng-rivals">
                   {LABS.filter((l) => l.id === 'openbrain' || l.id === 'gogle').map((l) => (
                     <span key={l.id} className="ng-rival">
@@ -227,7 +227,7 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
                     </span>
                   ))}
                 </span>
-                <span className="ng-l">Остальные выйдут на рынок позже.</span>
+                <span className="ng-l">Их первые модели и другие лаборатории появятся позже.</span>
               </div>
               <label className="row ng-tutor">
                 <input type="checkbox" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />

@@ -9,7 +9,7 @@ import { applyPenalty, capitalize, giveReward, penaltyText, rewardMoney, rewardS
 import { addMail } from './events';
 import { rivalsSellByApi } from './leaderboard';
 import { nextRandom } from './rng';
-import { endSentence } from './text';
+import { endSentence, timesWord } from './text';
 import { dayToDate, yearOf } from './time';
 import type { GameState, Result, YearGoalResult, YearGoalState, YearReview } from './types';
 import { bestRank, playerShare, releasedInYear, yearExpense, yearRevenue } from './yearStats';
@@ -157,7 +157,7 @@ function commentFor(s: GameState, r: Omit<YearReview, 'comment' | 'seen'>, near:
   if (r.revenue <= 0) return 'Выручки не было: её дают тендеры и продажа моделей.';
   // Первое место что-то значит, только когда соперники уже продают модели по API.
   if (r.bestRank === 1 && rivalsSellByApi(s)) return 'Лучшая модель лаборатории - первая среди моделей в продаже.';
-  if (prev && prev.revenue > 0 && r.revenue >= 1.5 * prev.revenue) return 'Выручка выросла больше чем в полтора раза.';
+  if (prev && prev.revenue > 0 && r.revenue >= 1.5 * prev.revenue) return `Выручка выросла ${timesWord(r.revenue / prev.revenue)}.`;
   if (prev && r.revenue < prev.revenue) return 'Выручка ниже, чем в прошлом году.';
   if (r.goalsTotal > 0 && r.goalsDone === 0) return 'Ни одна цель года не выполнена.';
   if (r.models === 0) return 'За год не вышло ни одной модели.';

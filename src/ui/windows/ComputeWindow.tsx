@@ -115,8 +115,10 @@ interface RentFlash {
 /** Что такое H100e в картах игрока: «1 H100e ≈ 8 ваших карт» (без аренды - в лучших доступных картах). */
 function unitLine(s: GameState, rented: boolean): string {
   const n = Math.max(1, Math.round(1 / h100ePerCard(s)));
-  const word = rented ? ruPlural(n, 'ваша карта', 'ваши карты', 'ваших карт') : ruPlural(n, 'новая карта', 'новые карты', 'новых карт');
-  return `1 H100e ≈ ${fmtInt(n)} ${word}`;
+  if (rented) return `1 H100e ≈ ${fmtInt(n)} ${ruPlural(n, 'ваша карта', 'ваши карты', 'ваших карт')}`;
+  // До аренды - в самой мощной из вышедших карт (её же h100ePerCard берёт без аренды).
+  const best = availableGpus(s).reduce<GpuDef | null>((m, g) => (m === null || g.h100e > m.h100e ? g : m), null);
+  return `1 H100e ≈ ${fmtInt(n)} ${cardsWord(n)}${best ? ` ${best.name}` : ''}`;
 }
 
 /** Доли мощности для окраски стоек: по порядку строк, принятые (не черновик). */
@@ -483,23 +485,38 @@ function autoPercents(s: GameState, cur: Percents): Percents {
     [contracts, api, subs] = distribute([contracts, api, subs], 100);
   }
   const rest = 100 - contracts - api - subs;
-  const training = s.trainings.length > 0;
+  // Обучению доля остаётся всегда: если модель сейчас не учится, её скоро начнут (плейтест 16.10 - «Как нужно» обнулял
+  // обучение, и новую модель было не начать). Исследованиям - только пока исследование идёт.
   const research = s.research.current !== null;
-  const wT = training ? Math.max(1, cur.training) : 0;
+  const wT = Math.max(1, cur.training);
   const wE = research ? Math.max(1, cur.experiments) : 0;
-  const [t, e] = wT + wE > 0 ? distribute([wT, wE], rest) : [rest, 0];
+  const [t, e] = distribute([wT, wE], rest);
   return { training: t, contracts, experiments: e, api, subs };
 }
 
 /** Одна полоса долей: границы между соседними долями тянутся мышью или стрелками, отпустили - доли применены. */
 function SplitBar({ rows, shown, onDrag, onDone }: { rows: typeof ALLOC_ROWS; shown: Percents; onDrag: (p: Percents) => void; onDone: (p: Percents) => void }) {
   const ref = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ a: AllocKey; b: AllocKey; x0: number; a0: number; b0: number; last: Percents } | null>(null);
+  // cands - границы, стоящие в одной точке (доли между ними нулевые): какую тянуть, решает первое движение мыши.
+  const drag = useRef<{ a: AllocKey; b: AllocKey; x0: number; a0: number; b0: number; last: Percents; cands: number[] | null } | null>(null);
+  const boundary = (i: number) => rows.slice(0, i + 1).reduce((a, x) => a + shown[x.key], 0);
   const moveTo = (clientX: number) => {
     const d = drag.current;
     const el = ref.current;
     if (!d || !el) return;
     const delta = Math.round(((clientX - d.x0) / el.clientWidth) * 100);
+    if (d.cands && delta !== 0) {
+      // Влево тянем ту, у которой слева есть что отдать; вправо - ту, у которой есть что отдать справа.
+      const j =
+        delta < 0
+          ? (d.cands.find((k) => shown[rows[k].key] > 0) ?? d.cands[0])
+          : ([...d.cands].reverse().find((k) => shown[rows[k + 1].key] > 0) ?? d.cands[d.cands.length - 1]);
+      d.a = rows[j].key;
+      d.b = rows[j + 1].key;
+      d.a0 = shown[d.a];
+      d.b0 = shown[d.b];
+      d.cands = null;
+    }
     const a = Math.max(0, Math.min(d.a0 + d.b0, d.a0 + delta));
     const next = { ...shown, [d.a]: a, [d.b]: d.a0 + d.b0 - a };
     d.last = next;
@@ -545,7 +562,9 @@ function SplitBar({ rows, shown, onDrag, onDone }: { rows: typeof ALLOC_ROWS; sh
             aria-valuetext={`${r.label} ${shown[r.key]} %, ${b.label} ${shown[b.key]} %`}
             onPointerDown={(e) => {
               e.currentTarget.setPointerCapture(e.pointerId);
-              drag.current = { a: r.key, b: b.key, x0: e.clientX, a0: shown[r.key], b0: shown[b.key], last: shown };
+              const here = boundary(i);
+              const cands = rows.slice(0, -1).map((_, k) => k).filter((k) => Math.abs(boundary(k) - here) < 0.5);
+              drag.current = { a: r.key, b: b.key, x0: e.clientX, a0: shown[r.key], b0: shown[b.key], last: shown, cands: cands.length > 1 ? cands : null };
             }}
             onPointerMove={(e) => drag.current && moveTo(e.clientX)}
             onPointerUp={() => {

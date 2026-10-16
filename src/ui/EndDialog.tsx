@@ -183,7 +183,8 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
               <>
                 <span>Финальный квартал</span>
                 <span>
-                  {`${pushLabs.length === 0 ? 'без рывков соперников' : win ? `рывок отбит: ${pushLabs.join(', ')}` : `рывки: ${pushLabs.join(', ')}`}, доработок: ${updates}`}
+                  {/* Рывок - объявленная доработка соперника; новые модели соперников - отдельно (плейтест 16.10: «без рывков» при обгоне в декабре). */}
+                  {`${pushLabs.length === 0 ? 'рывков не было' : win ? `рывок отбит: ${pushLabs.join(', ')}` : `рывки: ${pushLabs.join(', ')}`}, новых моделей соперников: ${finale.announced.length}, ваших доработок: ${updates}`}
                 </span>
               </>
             )}
