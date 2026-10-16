@@ -26,6 +26,7 @@ import { spend } from '../sim/finance';
 import { BOARD_PLAN_FLAG, buyBackShares, buybackCost } from '../sim/investors';
 import { bestElo } from '../sim/leaderboard';
 import { RIVALRY_EVENTS } from '../sim/rivalry';
+import { STAFF_EVENTS } from '../sim/staff';
 import { endSentence, pointsWord, timesWord } from '../sim/text';
 import { dateToDay } from '../sim/time';
 import { applyFailChoice } from '../sim/training';
@@ -582,5 +583,5 @@ export const EXTRA_EVENTS: EventDef[] = [...EARLY_EVENTS, ...HISTORY_EVENTS, ...
  * уровне массив соперников ещё не создан. Запускает такие письма сам rivalry.ts; fireDue их не трогает.
  */
 export function findEvent(id: string | undefined): EventDef | undefined {
-  return EVENTS.find((e) => e.id === id) ?? EXTRA_EVENTS.find((e) => e.id === id) ?? RIVALRY_EVENTS.find((e) => e.id === id);
+  return EVENTS.find((e) => e.id === id) ?? EXTRA_EVENTS.find((e) => e.id === id) ?? RIVALRY_EVENTS.find((e) => e.id === id) ?? STAFF_EVENTS.find((e) => e.id === id);
 }

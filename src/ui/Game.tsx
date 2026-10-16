@@ -122,6 +122,7 @@ const WIN_ACCENT: Record<WindowId, string> = {
   datacenters: 'var(--c-teal)',
   deals: 'var(--c-amber)',
   finale: 'var(--c-red)',
+  team: 'var(--c-teal)',
 };
 
 type GameDialog = null | 'save' | 'load' | 'settings' | 'achievements' | 'quit';

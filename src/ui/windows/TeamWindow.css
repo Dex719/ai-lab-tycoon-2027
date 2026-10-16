@@ -1,0 +1,54 @@
+/* Окно «Команда»: светлая шапка - сотрудники крупно и что даёт команда; ниже список сотрудников и кандидаты. */
+.tm { display: flex; flex-direction: column; height: 100%; min-height: 0; font-variant-numeric: tabular-nums; }
+.tm-head { flex: none; display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; padding: 14px 18px; background: var(--win-body); border-bottom: 1px solid var(--line); }
+.tm-fig { display: flex; flex-direction: column; gap: 2px; }
+.tm-fig-l { font-size: 13px; color: var(--text-dim); }
+.tm-fig-v { font-size: 36px; font-weight: 700; line-height: 1.1; color: var(--text); }
+.tm-fig-v small { font-size: 15px; font-weight: 400; color: var(--text-dim); }
+.tm-fig-s { font-size: 13px; color: var(--text-body); }
+.tm-kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; margin: 8px 0 0; font-size: 13px; }
+.tm-kv dt { color: var(--text-dim); }
+.tm-kv dd { margin: 0; text-align: right; }
+.tm-kv dd.bad { color: var(--bad-ink); font-weight: 600; }
+.tm-effects { display: flex; flex-direction: column; gap: 6px; padding-left: 24px; border-left: 1px solid var(--line); }
+.tm-eff { display: grid; grid-template-columns: 10px 150px 64px 1fr; align-items: baseline; gap: 8px; font-size: 14px; }
+.tm-dot { width: 9px; height: 9px; border-radius: 50%; align-self: center; }
+.tm-eff b.good { color: var(--good-ink); }
+.tm-eff-t { color: var(--text-dim); font-size: 13px; }
+
+.tm-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 12px; padding: 12px 16px; background: #d3d5d9; }
+.tm-staff { display: flex; flex-direction: column; min-height: 0; background: #fff; border: 1px solid var(--line); }
+.tm-tabs { flex: none; display: flex; gap: 2px; padding: 6px 8px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.tm-tabs button { padding: 4px 10px; background: none; border: none; border-radius: 3px; font-size: 13px; color: var(--text); cursor: pointer; }
+.tm-tabs button:hover { background: #e9ecf0; }
+.tm-tabs button.on { background: #e3eefc; color: var(--info-ink); font-weight: 600; }
+.tm-rows { flex: 1; min-height: 0; overflow: auto; }
+.tm-row { display: grid; grid-template-columns: 28px minmax(120px, 1fr) 76px 104px 80px 170px; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--row-line); }
+.tm-row-main { display: flex; flex-direction: column; min-width: 0; }
+.tm-row-main b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-row-main span { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-row-main .tm-note { color: var(--warn); }
+.tm-lvl { display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+.tm-pips { display: flex; gap: 2px; }
+.tm-pips i { width: 16px; height: 4px; background: #d4d7dc; }
+.tm-pips i.on { background: var(--c-blue); }
+.tm-xp { display: flex; flex-direction: column; gap: 2px; }
+.tm-xp small { font-size: 12px; color: var(--text-dim); }
+.tm-bar { display: block; height: 5px; background: #e3e5e9; border-radius: 2px; overflow: hidden; }
+.tm-bar i { display: block; height: 100%; background: var(--c-green); }
+.tm-sal { text-align: right; font-size: 13px; color: var(--bad-ink); white-space: nowrap; }
+.tm-act { display: flex; gap: 6px; justify-content: flex-end; }
+
+.tm-cands { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: auto; }
+.tm-h { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-title); }
+.tm-cand { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 6px 10px; padding: 10px; background: #fff; border: 1px solid var(--line); border-radius: 3px; }
+.tm-cand-r { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.tm-cand-r small { margin-right: auto; white-space: nowrap; }
+.tm-cand-r b { white-space: nowrap; }
+.tm-cand-r small { font-size: 12px; color: var(--text-dim); }
+.tm-face { display: block; }
+.tm-eff b.dim { color: var(--text-dim); font-weight: 400; }
+.tm-xp small.warn { color: var(--warn); font-weight: 600; }
+.tm-row.wait { background: #f7f8fa; }
+.tm-row.wait .tm-row-main b { color: var(--text-dim); }
+.tm-empty { padding: 18px 14px; color: var(--text-dim); text-align: center; }

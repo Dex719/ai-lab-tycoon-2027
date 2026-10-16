@@ -309,7 +309,8 @@ export function DeskScene({ s, open }: { s: GameState; open: (id: WindowId | Win
     <Scene
       labName={s.labName}
       stage={stage}
-      seats={Math.min(MAX_SEATS, (LAB_STAGES[stage]?.desks ?? 1) * 2 + teams * 2)}
+      // За столами - основатели (двое) и вышедшие на работу сотрудники; звёздные команды - по двое.
+      seats={Math.min(MAX_SEATS, 2 + (s.staff?.people.filter((e) => e.startDay <= s.day).length ?? 0) + teams * 2)}
       cups={yearCups(s)}
       cards={cardCount(s)}
       farm={{

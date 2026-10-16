@@ -12,6 +12,7 @@ import { beginDay, closeMonth, dayStep as financeDay } from './finance';
 import { goalsDay, yearEnd } from './goals';
 import { marketArenaRank, rivalFrontierElo, rivalsSellByApi, updateSaturation } from './leaderboard';
 import { tasksDay } from './tasks';
+import { staffDay } from './staff';
 import { dayStep as marketDay } from './market';
 import { randomEventDay } from './randomEvents';
 import { progressDay as researchDay } from './research';
@@ -70,6 +71,7 @@ export function advanceDay(s: GameState): void {
   rivalryDay(s); // ходы соперников по слухам, память, истечение ходов; ответные модели попадают в rivalsReleased
   finaleDay(s); // финальный квартал: анонсы, рывки соперников, доработка моделей игрока
   dealsDay(s); // сделки 2023-2024: стартапы на продаже, конец облачной сделки
+  staffDay(s); // команда: зарплаты; в начале месяца - кандидаты, опыт, уход неповышенных, переманивание
   expireChoices(s);
   fireDue(s);
   datacentersDay(s); // свои дата-центры: этапы стройки, доставка карт (мощность нужна уже сегодня), электричество

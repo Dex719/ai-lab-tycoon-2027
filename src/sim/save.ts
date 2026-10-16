@@ -2,6 +2,7 @@
 // При загрузке форма состояния проверяется целиком, до самых вложенных полей: сохранение от старой версии игры
 // или битый файл отклоняются понятной ошибкой, а не роняют тик и отрисовку позже (например, нет нового бенчмарка).
 
+import type { StaffState } from './staffEffects';
 import { DC_SITE_IDS } from '../data/datacenters';
 import { findEvent } from '../data/events';
 import { CHAT_MOMENT_DATE, CHOICE_DAYS, FAIL_CHOICE_DAYS, HYPE_OWNERS, TIER_SUBS_PRICE } from './constants';
@@ -430,6 +431,32 @@ const late = shapeOf<LateState>({
 // Личное соперничество (sim/duel.ts): счёт обгонов, главный соперник.
 const duelLab = shapeOf<DuelLab>({ passedYou: int, youPassed: int, moves: int, lastDay: nullable(num), letters: int });
 
+const staffRole = oneOf(['research', 'training', 'infra', 'sales']);
+const staffTrait = nullable(oneOf(['fast', 'equity']));
+const staff = shapeOf<StaffState>({
+  rng: int,
+  people: arrayOf(
+    shapeOf<StaffState['people'][number]>({
+      id: str,
+      name: str,
+      role: staffRole,
+      level: int,
+      xp: num,
+      salary: num,
+      trait: staffTrait,
+      startDay: int,
+      readyDay: nullable(int),
+      retainedUntil: optional(int),
+    }),
+  ),
+  candidates: arrayOf(
+    shapeOf<StaffState['candidates'][number]>({ id: str, name: str, role: staffRole, level: int, salary: num, trait: staffTrait, wait: int, expiresDay: int }),
+  ),
+  nextId: int,
+  poach: nullable(shapeOf<NonNullable<StaffState['poach']>>({ employeeId: str, lab: str })),
+  lastPoachDay: num,
+});
+
 const duel = shapeOf<DuelState>({
   labs: record(LAB_IDS, duelLab),
   main: nullable(oneOf(LAB_IDS)),
@@ -525,6 +552,7 @@ const STATE: Record<keyof GameState, Check> = {
   rivalry,
   yearly,
   late: optional(late),
+  staff: optional(staff),
   duel: optional(duel),
   quests,
   market: shapeOf<GameState['market']>({

@@ -36,6 +36,7 @@ import {
   TOKENS_PER_USER_DAY,
 } from './constants';
 import { addMail, modValue } from './events';
+import { staffEffect } from './staffEffects';
 import { earn } from './finance';
 import { codeLevel } from './leaderboard';
 
@@ -473,6 +474,8 @@ export function dayStep(s: GameState): void {
   const lostApi = need.api > 0 ? 1 - servedApi : 0;
   const lostSubs = need.subs > 0 ? 1 - servedSubs : 0;
 
+  // Продажи в команде: выручка с тех же клиентов выше (лучше условия, меньше ушедших).
+  const salesMult = 1 + staffEffect(s, 'sales');
   let revenueApi = 0;
   let revenueSubs = 0;
   let playerTokens = 0;
@@ -493,16 +496,16 @@ export function dayStep(s: GameState): void {
         playerTokens += tokens;
         // Битая цена (NaN, минус) не должна съедать выручку других моделей.
         const price = Number.isFinite(model.price) && model.price > 0 ? model.price : 0;
-        const earned = (tokens * price) / 1e6;
-        potentialApi += (e.tokens * price) / 1e6;
+        const earned = ((tokens * price) / 1e6) * salesMult;
+        potentialApi += ((e.tokens * price) / 1e6) * salesMult;
         revenueApi += earned;
         model.earned += earned;
       } else {
         const users = e.demand * k;
         playerSubs += users;
         const price = Number.isFinite(model.subsPrice) && model.subsPrice > 0 ? model.subsPrice : 0;
-        const earned = (users * price) / 30;
-        potentialSubs += (e.demand * price) / 30;
+        const earned = ((users * price) / 30) * salesMult;
+        potentialSubs += ((e.demand * price) / 30) * salesMult;
         revenueSubs += earned;
         model.earned += earned;
         model.earnedSubs += earned;

@@ -1,5 +1,6 @@
 // Создание начального состояния новой игры (FR-13). Используется actions.newGame и тестами.
 
+import { emptyStaff } from './staffEffects';
 import { DEFAULT_ALLOC, HYPE_OWNERS, START_CASH, START_REPUTATION } from './constants';
 import { emptyRivalry } from './rivalry';
 import type { Difficulty } from './rivalry';
@@ -105,5 +106,6 @@ export function createInitialState(labName: string, seed: number, difficulty: Di
     yearly: emptyYearly(seed),
     quests: emptyQuests(seed),
     market: emptyMarket(),
+    staff: emptyStaff(seed),
   };
 }

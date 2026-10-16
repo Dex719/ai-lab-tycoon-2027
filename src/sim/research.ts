@@ -1,5 +1,6 @@
 // Исследования (FR-3).
 
+import { staffEffect } from './staffEffects';
 import {
   ALGO_BASE_COST,
   ALGO_COST_GROWTH,
@@ -278,7 +279,8 @@ export function canResearch(s: GameState, tech: TechId): boolean {
 export function rpPerDay(s: GameState): number {
   const power = pool(s, 'experiments');
   // Кривая доля (минус или NaN) не должна давать NaN: тогда исследование завершилось бы мгновенно.
-  return RP_BASE + RP_K * Math.sqrt(power > 0 ? power : 0);
+  // Исследователи в команде ускоряют исследования (staffEffects.ts).
+  return (RP_BASE + RP_K * Math.sqrt(power > 0 ? power : 0)) * (1 + staffEffect(s, 'research'));
 }
 
 /** Действие: выбрать текущее исследование (null - остановить). Очки по технологиям сохраняются. */

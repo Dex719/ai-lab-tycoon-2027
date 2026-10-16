@@ -600,7 +600,7 @@ const OPTIONAL_FIELDS = new Set([
   'lostApi', 'lostSubs', 'segments', 'consumers', 'enterprise', 'developers', 'trainings', 'nextRunNum',
   'queue', 'techs', 'distill', 'moe', 'codetrain', 'instruct', 'cot', 'quant', 'multimodal', 'synthetic',
   'datacenters', 'capex', 'power', 'yearly', 'rentChangedDay',
-  'quests', 'param', 'results', 'duel', 'from',
+  'quests', 'param', 'results', 'duel', 'from', 'staff', 'retainedUntil',
 ]);
 /** Необязательные поля по полному пути: имя поля (modelId, price) в других местах обязательно. */
 const OPTIONAL_PATHS = new Set(['mail[].outcome', 'mail[].choices[].story', 'tenders[].application.work', 'contracts[].tender.application.work', 'contracts[].warned', 'rivalry.pending[].modelId', 'rivalry.choice.modelId']);

@@ -16,6 +16,9 @@ import type { Difficulty } from './rivalry';
 import { createInitialState } from './state';
 import { dateToDay, START_DAY } from './time';
 import { cancelTraining, reviewReason, reviewTerms, startReview, startTraining } from './training';
+import { refreshCandidates } from './staff';
+// Действия окна «Команда».
+export { fireEmployee, hireCandidate, promoteEmployee } from './staff';
 import type { GameState, Result } from './types';
 
 /** Новая игра: сложность из главного меню ставит модификаторы аренды и разоблачения навсегда (только Лёгкая и Сложная). */
@@ -23,6 +26,7 @@ export function newGame(labName: string, seed: number, difficulty: Difficulty = 
   const s = createInitialState(labName, seed, difficulty);
   applyDifficultyModifiers(s);
   for (const b of BENCHMARKS) if (dateToDay(b.introduced) < START_DAY) s.benchmarks[b.id].introduced = true;
+  refreshCandidates(s); // первые кандидаты в команду - сразу, а не через месяц
   addMail(s, {
     kind: 'news',
     title: `Лаборатория «${s.labName}» основана`,

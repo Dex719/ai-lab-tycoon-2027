@@ -1,5 +1,6 @@
 // Аренда GPU, мощность и её доли (FR-2).
 
+import { staffEffect } from './staffEffects';
 import { GPUS } from '../data/gpus';
 import { DEFAULT_ALLOC, RENT_CAP_2017, RENT_HARD_CAP_MULT, RENT_OVER_CAP_MULT } from './constants';
 import { modValue } from './events';
@@ -78,7 +79,8 @@ export function ownedH100e(s: GameState): number {
 
 /** Вся мощность: аренда плюс свои дата-центры. */
 export function totalH100e(s: GameState): number {
-  return rentedH100e(s) + ownedH100e(s);
+  // Инфраструктура в команде выжимает из тех же карт больше (staffEffects.ts).
+  return (rentedH100e(s) + ownedH100e(s)) * (1 + staffEffect(s, 'infra'));
 }
 
 /** Мощность доли: totalH100e × alloc[kind]. */

@@ -5,6 +5,7 @@
 // Поле GameState.late необязательное: в старых сохранениях его нет, оно появляется при первой сделке
 // или в начале финального квартала (lateOf).
 
+import { staffEffect } from './staffEffects';
 import type { GameState, LabId } from './types';
 
 // ---------- Сделки ----------
@@ -130,7 +131,8 @@ export function ownsStartup(s: GameState, id: StartupId): boolean {
 
 /** Множитель скорости обучения от сделок (1 - без сделок). */
 export function trainSpeedMult(s: GameState): number {
-  return 1 + (hasTeam(s, 'training') ? TEAM_TRAIN_SPEED : 0) + (ownsStartup(s, 'mozaic') ? STARTUP_TRAIN_SPEED : 0);
+  // + инженеры обучения в команде (staffEffects.ts).
+  return 1 + (hasTeam(s, 'training') ? TEAM_TRAIN_SPEED : 0) + (ownsStartup(s, 'mozaic') ? STARTUP_TRAIN_SPEED : 0) + staffEffect(s, 'training');
 }
 
 /** Прибавка Эло модели, обученной сейчас (только с RLHF): команда дообучения и Skale AI. */
