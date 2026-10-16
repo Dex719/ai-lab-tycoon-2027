@@ -1,5 +1,6 @@
 // Главное меню и его окна: «Новая игра», «Загрузить», «Настройки».
 
+import './alive.css';
 import { useEffect, useRef, useState } from 'react';
 import { START_CASH } from '../sim/constants';
 import { DIFFICULTY, DIFFICULTY_IDS, type Difficulty } from '../sim/rivalry';

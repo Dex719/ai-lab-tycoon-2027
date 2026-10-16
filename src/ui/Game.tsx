@@ -25,6 +25,9 @@ import { DeskScene } from './DeskScene';
 import './shell.css';
 import './feel.css';
 import { FeelLayer } from './FeelLayer';
+import './alive.css';
+import { reducedMotion, watchTabSwaps } from './alive';
+import { pushNotice } from './Toasts';
 import { MonthStrip } from './MonthStrip';
 import { AchievementsDialog, AchievementToasts } from './Achievements';
 import { TopBar } from './TopBar';
@@ -90,7 +93,7 @@ function useWindows(deskRef: React.RefObject<HTMLDivElement | null>) {
   }, [deskRef]);
 
   const close = useCallback((id: WindowId) => setWins((ws) => ws.filter((w) => w.id !== id)), []);
-  const minimize = (id: WindowId) => setWins((ws) => ws.map((w) => (w.id === id ? { ...w, min: true } : w)));
+  const minimize = useCallback((id: WindowId) => setWins((ws) => ws.map((w) => (w.id === id ? { ...w, min: true } : w))), []);
   const focus = (id: WindowId) =>
     setWins((ws) => {
       const top = ws.reduce((m, w) => Math.max(m, w.z), 0);
@@ -149,6 +152,34 @@ export function Game({ s }: { s: GameState }) {
     if (!phone) setSheet(false);
   }, [phone]);
   const speed = useSpeed();
+  // Скорость игры в CSS: полосы прогресса едут ровно столько, сколько длится один игровой день.
+  useEffect(() => {
+    const ms = speed === 1 ? 500 : speed === 2 ? 250 : speed === 4 ? 125 : 300;
+    document.documentElement.style.setProperty('--tick', `${ms}ms`);
+  }, [speed]);
+  // Окно уходит 110 мс (закрытие вниз и в прозрачность, сворачивание к панели задач), потом его убирают из списка.
+  const [leaving, setLeaving] = useState<Partial<Record<WindowId, 'close' | 'min'>>>({});
+  const leavingIds = useRef(new Set<WindowId>());
+  const leave = useCallback(
+    (id: WindowId, how: 'close' | 'min', done: (id: WindowId) => void) => {
+      if (phone || reducedMotion()) return done(id);
+      if (leavingIds.current.has(id)) return;
+      leavingIds.current.add(id);
+      setLeaving((l) => ({ ...l, [id]: how }));
+      window.setTimeout(() => {
+        done(id);
+        leavingIds.current.delete(id);
+        setLeaving((x) => {
+          const { [id]: _drop, ...rest } = x;
+          return rest;
+        });
+      }, 110);
+    },
+    [phone],
+  );
+  const closeAnim = useCallback((id: WindowId) => leave(id, 'close', close), [leave, close]);
+  const minAnim = useCallback((id: WindowId) => leave(id, 'min', minimize), [leave, minimize]);
+  useEffect(() => (deskRef.current ? watchTabSwaps(deskRef.current) : undefined), []);
   // Телефон: окна на весь стол заканчиваются над подсказкой обучения, а не под ней (иначе она закрывает нижние кнопки).
   const dockShown = phone && s.tutorial.active && !s.outcome;
   useLayoutEffect(() => {
@@ -201,6 +232,25 @@ export function Game({ s }: { s: GameState }) {
   // Пока открыт выбор в письме, итог или диалог, остальной интерфейс закрыт для кликов и клавиатуры.
   const blocked = showEnd || pendingChoice(s) !== null || dialog !== null || (!s.outcome && (unseenReview(s) !== null || goalOfferOpen(s)));
 
+  // Раздел открылся по ходу игры (дата-центры, сделки, финал): ярлык появляется с кольцом, плюс уведомление «Открыт раздел».
+  const shownLeft = WINDOWS.filter((d) => d.side === 'left' && (!d.openedDay || d.openedDay(s) !== null)).map((d) => d.id);
+  const knownIcons = useRef<{ state: GameState; ids: Set<WindowId> } | null>(null);
+  const [freshIcons, setFreshIcons] = useState<ReadonlySet<WindowId>>(new Set());
+  useEffect(() => {
+    const prev = knownIcons.current;
+    knownIcons.current = { state: s, ids: new Set(shownLeft) };
+    if (!prev || prev.state !== s) return;
+    const added = shownLeft.filter((id) => !prev.ids.has(id));
+    if (added.length === 0) return;
+    setFreshIcons((f) => new Set([...f, ...added]));
+    for (const id of added) {
+      const def = WINDOWS.find((d) => d.id === id);
+      if (def) pushNotice({ kind: 'event', label: 'Новый раздел', title: `Открыт раздел «${def.title}»`, win: id });
+    }
+    // Без очистки таймера: эффект идёт на каждый ход игры, а метку надо снять ровно через 3,2 с.
+    window.setTimeout(() => setFreshIcons((f) => new Set([...f].filter((id) => !added.includes(id)))), 3200);
+  });
+
   function iconCount(id: WindowId): number {
     if (id === 'mail') return unread;
     if (id === 'contracts') return newTenders;
@@ -222,7 +272,7 @@ export function Game({ s }: { s: GameState }) {
         <div className="icons">
         <div className="icon-col left">
           {WINDOWS.filter((d) => d.side === 'left' && (!d.openedDay || d.openedDay(s) !== null)).map((d) => (
-            <DeskIcon key={d.id} def={d} count={iconCount(d.id)} selected={openIds.has(d.id)} onOpen={() => open(d.id)} newSince={d.openedDay?.(s) ?? null} day={s.day} />
+            <DeskIcon key={d.id} def={d} count={iconCount(d.id)} selected={openIds.has(d.id)} onOpen={() => open(d.id)} newSince={d.openedDay?.(s) ?? null} day={s.day} fresh={freshIcons.has(d.id)} />
           ))}
         </div>
         <div className="icon-col right">
@@ -242,13 +292,14 @@ export function Game({ s }: { s: GameState }) {
               flush
               fullscreen={phone}
               hidden={phone && w.z !== topZ}
+              leaving={leaving[w.id]}
               accent={WIN_ACCENT[w.id]}
               onFocus={() => focus(w.id)}
-              onClose={() => close(w.id)}
-              onMinimize={() => (phone ? minimizeAll() : minimize(w.id))}
+              onClose={() => closeAnim(w.id)}
+              onMinimize={() => (phone ? minimizeAll() : minAnim(w.id))}
               onMove={(g) => move(w.id, g)}
             >
-              <WindowBody C={def.Component} s={s} open={open} id={w.id} closeWin={close} version={store.version} />
+              <WindowBody C={def.Component} s={s} open={open} id={w.id} closeWin={closeAnim} version={store.version} />
             </Window>
           );
         })}
@@ -315,7 +366,7 @@ export function Game({ s }: { s: GameState }) {
               className={`task-win${active ? ' active' : ''}${w.min ? ' min' : ''}`}
               style={{ ['--wa' as string]: WIN_ACCENT[w.id] }}
               title={def.title}
-              onClick={() => (active ? (phone ? minimizeAll() : minimize(w.id)) : focus(w.id))}
+              onClick={() => (active ? (phone ? minimizeAll() : minAnim(w.id)) : focus(w.id))}
             >
               <def.icon size={22} />
               <span>{def.title}</span>
@@ -356,12 +407,18 @@ function DeskIcon(props: {
   /** День открытия раздела: первые дни у ярлыка значок «Новое». */
   newSince?: number | null;
   day?: number;
+  /** Раздел только что открылся: появление с кольцом. */
+  fresh?: boolean;
 }) {
-  const { def, count, selected, onOpen, newSince, day } = props;
+  const { def, count, selected, onOpen, newSince, day, fresh } = props;
   return (
-    <button className={`desk-icon${selected ? ' selected' : ''}`} onClick={onOpen} data-tutorial={`icon-${def.id}`}>
+    <button className={`desk-icon${selected ? ' selected' : ''}${fresh ? ' fresh' : ''}`} onClick={onOpen} data-tutorial={`icon-${def.id}`}>
       <def.icon size={56} />
-      {count > 0 && <span className="count">{count}</span>}
+      {count > 0 && (
+        <span className="count" key={count}>
+          {count}
+        </span>
+      )}
       {newSince != null && day !== undefined && isFresh(day, newSince) && <span className="new-badge desk-new">Новое</span>}
       <span className="icon-label">{def.title}</span>
     </button>

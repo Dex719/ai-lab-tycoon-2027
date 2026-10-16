@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { reducedMotion } from '../alive';
 import { IconAlert, IconClose, IconInfo } from '../icons';
 
 export function Tabs<T extends string>(props: { tabs: { id: T; label: ReactNode }[]; value: T; onChange: (id: T) => void }) {
@@ -21,7 +22,7 @@ export function ProgressBar({ value, title }: { value: number; title?: string })
   const pct = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0)) * 100;
   return (
     <div className="progress" title={title}>
-      <div style={{ width: `${pct}%` }} />
+      <div className="pb" style={{ ['--p' as string]: pct / 100 }} />
     </div>
   );
 }
@@ -159,8 +160,18 @@ export function Dialog(props: {
   children: ReactNode;
 }) {
   const { ref, onKeyDown } = useModalFocus<HTMLDivElement>(props.title);
+  // Закрытие крестиком, Esc или тенью: 100 мс выхода, затем настоящий onClose. Кнопки подвала закрывают сразу.
+  const [leaving, setLeaving] = useState(false);
+  const close = props.onClose
+    ? () => {
+        if (leaving) return;
+        if (reducedMotion()) return props.onClose?.();
+        setLeaving(true);
+        window.setTimeout(() => props.onClose?.(), 100);
+      }
+    : undefined;
   return (
-    <div className="modal-backdrop" onKeyDown={(e) => e.key === 'Escape' && props.onClose?.()}>
+    <div className={`modal-backdrop${leaving ? ' leaving' : ''}`} onKeyDown={(e) => e.key === 'Escape' && close?.()}>
       <div
         ref={ref}
         tabIndex={-1}
@@ -172,8 +183,8 @@ export function Dialog(props: {
       >
         <div className="titlebar">
           <span className="t">{props.title}</span>
-          {props.onClose && (
-            <button className="wbtn close" onClick={props.onClose} aria-label="Закрыть" title="Закрыть">
+          {close && (
+            <button className="wbtn close" onClick={close} aria-label="Закрыть" title="Закрыть">
               <IconClose size={14} />
             </button>
           )}

@@ -318,7 +318,7 @@ function NowStrip(props: {
             Изучается: <b>{techName(current)}</b>
           </div>
           <div className="rs-now-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(share * 100)}>
-            <i style={{ width: `${share * 100}%` }} />
+            <i className="pb" style={{ ['--p' as string]: Math.min(1, Math.max(0, share)) }} />
           </div>
           <div className="rs-now-m">
             <b>{fmtPct(share * 100, 0)}</b> · готово через {termText(days)}

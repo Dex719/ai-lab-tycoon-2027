@@ -1,12 +1,12 @@
 // Верхняя панель (как в Processor Tycoon): деньги, изменение за месяц, дата, скорость; справа доля рынка и место на «Арене».
 
-import { useEffect, useState , type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { pendingChoice } from '../sim/events';
 import { ArenaStrip } from './ArenaFeedback';
 import { MoneyFlies, useCountUp } from './Juice';
 import { FlashNum } from './FlashNum';
 import { LabStats } from './LabStats';
-import { END_DAY, formatDateShort } from '../sim/time';
+import { dayToDate, END_DAY, formatDateShort } from '../sim/time';
 
 /** С 1 октября 2024 года рядом с датой идёт отсчёт до конца партии. */
 const FINAL_DAYS = 92;
@@ -101,13 +101,25 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
     return () => document.removeEventListener('pointerdown', off, true);
   }, [pinned]);
 
+  // Смена месяца и года на верхней панели - короткий «удар»: дата проявляется заново, на новый год заметнее.
+  const ymd = dayToDate(s.day);
+  const dateSeen = useRef<{ state: GameState; y: number; m: number } | null>(null);
+  const [beat, setBeat] = useState<{ n: number; year: boolean }>({ n: 0, year: false });
+  useEffect(() => {
+    const p = dateSeen.current;
+    dateSeen.current = { state: s, y: ymd.year, m: ymd.month };
+    if (p && p.state === s && (p.y !== ymd.year || p.m !== ymd.month)) setBeat((b) => ({ n: b.n + 1, year: p.y !== ymd.year }));
+  }, [s, ymd.year, ymd.month]);
+
   const rate = monthlyRate(s);
   const cashShown = useCountUp(s.cash);
   const locked = !!s.outcome || pendingChoice(s) !== null;
   const negative = s.finance.negativeDays > 0;
+  // Пауза и ожидание ответа на письмо выглядят одинаково: игра стоит.
+  const paused = (speed === 0 || locked) && !s.outcome;
 
   return (
-    <header className="topbar">
+    <header className={`topbar${paused ? ' paused' : ''}`}>
       <div className="topbar-left">
         <span className="tb-logo" aria-hidden="true">
           <IconLogo size={18} />
@@ -147,7 +159,9 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
         <i className="tb-sep" aria-hidden="true" />
         <div className="tb-item tb-date">
           <IconCalendar />
-          <span>{formatDateShort(s.day)}</span>
+          <span key={beat.n} className={beat.n > 0 ? `tb-date-v beat${beat.year ? ' year' : ''}` : 'tb-date-v'}>
+            {formatDateShort(s.day)}
+          </span>
           {!s.outcome && END_DAY - s.day <= FINAL_DAYS && (
             <span className={`tb-final${END_DAY - s.day <= 30 ? ' hot' : ''}`} title="31.12.2024 партия заканчивается: побеждает первая модель на «Арене» среди моделей в продаже">
               <span className="tb-final-k">До финала </span>

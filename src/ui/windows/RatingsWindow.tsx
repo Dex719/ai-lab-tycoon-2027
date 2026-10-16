@@ -13,6 +13,7 @@ import { ARENA_PLACE_TITLE } from '../arena';
 import { END_DAY, formatDateShort, yearOf } from '../../sim/time';
 import type { BenchmarkDef, BenchmarkId, GameState, HypeOwner } from '../../sim/types';
 import { fmtElo, fmtNum, fmtPct, ruPlural } from '../format';
+import { useFlip } from '../alive';
 import { IconAlert, IconLock } from '../icons';
 import { finite, ownerColor, ownerName, OwnerTag, safe } from './analyticsShared';
 
@@ -155,6 +156,7 @@ function compareRows(s: GameState, sort: Sort, a: BoardRow, b: BoardRow): number
 }
 
 export function BenchmarksTab({ s }: WindowProps) {
+  const flipRef = useFlip<HTMLTableSectionElement>({ enter: false });
   const [sortState, setSort] = useState<Sort | null>(null);
   const [onlyMarket, setOnlyMarket] = useState(false);
 
@@ -227,9 +229,9 @@ export function BenchmarksTab({ s }: WindowProps) {
               })}
             </tr>
           </thead>
-          <tbody>
+          <tbody ref={flipRef}>
             {shown.map((r) => (
-              <tr key={rowKey(r)} className={r.owner === 'player' ? 'player' : undefined}>
+              <tr key={rowKey(r)} data-fk={rowKey(r)} className={r.owner === 'player' ? 'player' : undefined}>
                 <td>
                   <Flag row={r} />
                   {r.name}
@@ -400,6 +402,7 @@ function Podium({ s, top, metric }: { s: GameState; top: RaceRow[]; metric: Race
 }
 
 export function ArenaTab({ s }: WindowProps) {
+  const flipRef = useFlip<HTMLTableSectionElement>({ enter: false });
   const [showAll, setShowAll] = useState(false);
   const metric = raceMetricOf(s);
   const rows = metric ? raceRows(s, metric) : [];
@@ -527,7 +530,7 @@ export function ArenaTab({ s }: WindowProps) {
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody ref={flipRef}>
             {shownRows.map((x) => {
               const r = x.row;
               const boosted = isEloBoosted(s, r);
@@ -535,7 +538,7 @@ export function ArenaTab({ s }: WindowProps) {
               const me = x.owner === 'player';
               const behind = leader && x !== leader ? leader.value - x.value : null;
               return (
-                <tr key={x.key} className={`${me ? 'player' : ''}${x.counted ? '' : ' arn-out'}${x.rank === 1 ? ' arn-lead' : ''}`}>
+                <tr key={x.key} data-fk={x.key} className={`${me ? 'player' : ''}${x.counted ? '' : ' arn-out'}${x.rank === 1 ? ' arn-lead' : ''}`}>
                   <td className="num arn-rank">
                     {x.rank !== null ? (
                       <span className={`arn-medal${x.rank <= 3 ? ` ${MEDAL[x.rank - 1]}` : ''}`}>{fmtNum(x.rank)}</span>

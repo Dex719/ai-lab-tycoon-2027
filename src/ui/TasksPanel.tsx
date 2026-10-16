@@ -105,7 +105,7 @@ export function TasksPanel({ s, open }: { s: GameState; open: (id: WindowId | Wi
                 <span className={`tr-left${urgent ? ' urgent' : ''}`}>ещё {fmtDays(left)}</span>
               </div>
               <div className="task-bar">
-                <div style={{ width: `${Math.round((p?.fraction ?? 0) * 100)}%` }} />
+                <div className="pb" style={{ ['--p' as string]: Math.min(1, Math.max(0, p?.fraction ?? 0)) }} />
               </div>
             </div>
           );

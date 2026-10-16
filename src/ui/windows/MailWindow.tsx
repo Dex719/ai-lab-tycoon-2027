@@ -12,6 +12,7 @@ import { fmtMoney, fmtNum } from '../format';
 import { IconChevronLeft } from '../icons';
 import { Line, type LineIconProps } from '../icons/base';
 import { LabEmblem } from '../components/LabEmblem';
+import { useFlip } from '../alive';
 import { actions, store } from '../store';
 import './MailWindow.css';
 
@@ -239,6 +240,7 @@ export default function MailWindow({ s }: WindowProps) {
     .reverse() // внутри одного дня новые письма стоят позже в массиве
     .sort((a, b) => b.day - a.day); // сортировка стабильная: порядок внутри дня сохраняется
   const current = FOLDERS.find((f) => f.id === folder) ?? FOLDERS[0];
+  const listRef = useFlip<HTMLDivElement>();
   const filtered = sorted.filter(current.match);
   const list = filtered.slice(0, MAX_LIST);
   const hidden = filtered.length - list.length;
@@ -304,13 +306,14 @@ export default function MailWindow({ s }: WindowProps) {
             {unread > 0 && folder === 'all' && <span className="mail-unread"> · новых {fmtNum(unread)}</span>}
           </span>
         </div>
-        <div className="mail-list">
+        <div className="mail-list" ref={listRef}>
           {list.length === 0 && <div className="mail-empty">{s.mail.length === 0 ? 'Писем нет' : 'В этой папке писем нет'}</div>}
           {list.map((m) => {
             const decide = awaitsDecision(m);
             return (
               <button
                 key={m.id}
+                data-fk={m.id}
                 type="button"
                 className={`mail-row k-${m.kind}${m.reward ? ' reward' : ''}${decide ? ' decide' : ''}${m.id === selected?.id ? ' is-selected' : ''}${m.read ? '' : ' unread'}`}
                 aria-current={m.id === selected?.id ? 'true' : undefined}
