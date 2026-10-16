@@ -19,8 +19,10 @@ import {
   isWorking,
   type Candidate,
   type Employee,
+  type StaffRole,
   type StaffState,
   type StaffTrait,
+  staffEffect,
 } from './staffEffects';
 import { endSentence, ruPlural } from './text';
 import { formatDateShort, isMonthStart, lerpByDate } from './time';
@@ -39,8 +41,8 @@ const WAGE_GROWTH: [string, number][] = [
   ['2024-12-31', 4.5],
 ];
 /** Месяцев до следующего уровня: джуниор → мидл, мидл → сеньор, сеньор → ведущий. */
-const XP_MONTHS = [12, 18, 30] as const;
-const FAST_XP = 1.7;
+export const XP_MONTHS = [12, 18, 30] as const;
+export const FAST_XP = 1.7;
 /** «Просит долю»: зарплата ×0,7, при найме доля основателя уменьшается на 0,2 %. */
 const EQUITY_SALARY = 0.7;
 export const EQUITY_SHARE = 0.002;
@@ -120,6 +122,43 @@ export function trainEmployee(s: GameState, id: string): Result {
   e.xp = Math.min(1, e.xp + courseXp(e));
   if (e.xp >= 1) e.readyDay = s.day;
   return { ok: true };
+}
+
+/** Вывод о росте: top - высший уровень, capped - потолок потенциала, worth / normal / slow - растёт с высоким, средним, низким потенциалом. */
+export type GrowthVerdict = 'worth' | 'normal' | 'slow' | 'capped' | 'top';
+
+export function growthVerdict(e: { level: number; potential?: StaffPotential }): GrowthVerdict {
+  if (e.level >= 3) return 'top';
+  if (e.level >= levelCap(e)) return 'capped';
+  const p = e.potential ?? 'mid';
+  return p === 'high' ? 'worth' : p === 'low' ? 'slow' : 'normal';
+}
+
+/** Месяцев работы до следующего уровня при нынешнем опыте (без курсов); null - расти некуда. */
+export function monthsToNext(e: Employee): number | null {
+  if (e.level >= levelCap(e)) return null;
+  const rate = POTENTIAL_INFO[e.potential ?? 'mid'].growth * (e.trait === 'fast' ? FAST_XP : 1);
+  return Math.max(0, Math.ceil(((1 - Math.min(1, e.xp)) * XP_MONTHS[e.level]) / rate));
+}
+
+/** Эффект роли, если заменить состав команды (для «что даст повышение / найм»). */
+function effectWith(s: GameState, role: StaffRole, people: Employee[]): number {
+  const st = staffOf(s);
+  return staffEffect({ day: s.day, staff: { ...st, people } }, role);
+}
+
+/** На сколько вырастет эффект роли, если повысить сотрудника (доля, 0,021 = +2,1 %). Считается как будто он уже работает. */
+export function promotionGain(s: GameState, e: Employee): number {
+  const people = staffOf(s).people.map((x) => (x.id === e.id ? { ...x, startDay: Math.min(x.startDay, s.day) } : x));
+  const after = people.map((x) => (x.id === e.id ? { ...x, level: x.level + 1 } : x));
+  return effectWith(s, e.role, after) - effectWith(s, e.role, people);
+}
+
+/** На сколько вырастет эффект роли с этим кандидатом (когда выйдет на работу). */
+export function hireGain(s: GameState, c: Candidate): number {
+  const people = staffOf(s).people;
+  const added: Employee = { id: 'tmp', name: c.name, role: c.role, level: c.level, xp: 0, salary: c.salary, trait: c.trait, potential: c.potential, startDay: s.day, readyDay: null };
+  return effectWith(s, c.role, [...people, added]) - effectWith(s, c.role, people);
 }
 
 export function staffSeats(s: GameState): number {

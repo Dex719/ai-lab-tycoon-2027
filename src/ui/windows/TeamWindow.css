@@ -1,58 +1,102 @@
-/* Окно «Команда»: светлая шапка - сотрудники крупно и что даёт команда; ниже список сотрудников и кандидаты. */
+/* Окно «Команда»: сверху - сколько людей и что даёт команда; вкладки «Сотрудники» (список и карточка) и «Найм». */
 .tm { display: flex; flex-direction: column; height: 100%; min-height: 0; font-variant-numeric: tabular-nums; }
-.tm-head { flex: none; display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; padding: 14px 18px; background: var(--win-body); border-bottom: 1px solid var(--line); }
+.tm-head { flex: none; display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 24px; padding: 12px 18px; background: var(--win-body); border-bottom: 1px solid var(--line); }
 .tm-fig { display: flex; flex-direction: column; gap: 2px; }
 .tm-fig-l { font-size: 13px; color: var(--text-dim); }
-.tm-fig-v { font-size: 36px; font-weight: 700; line-height: 1.1; color: var(--text); }
+.tm-fig-v { font-size: 34px; font-weight: 700; line-height: 1.1; color: var(--text); }
 .tm-fig-v small { font-size: 15px; font-weight: 400; color: var(--text-dim); }
 .tm-fig-s { font-size: 13px; color: var(--text-body); }
-.tm-kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; margin: 8px 0 0; font-size: 13px; }
+.tm-kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; margin: 6px 0 0; font-size: 13px; }
 .tm-kv dt { color: var(--text-dim); }
 .tm-kv dd { margin: 0; text-align: right; }
 .tm-kv dd.bad { color: var(--bad-ink); font-weight: 600; }
-.tm-effects { display: flex; flex-direction: column; gap: 6px; padding-left: 24px; border-left: 1px solid var(--line); }
-.tm-eff { display: grid; grid-template-columns: 10px 150px 64px 1fr; align-items: baseline; gap: 8px; font-size: 14px; }
+.tm-effects { display: flex; flex-direction: column; gap: 5px; padding-left: 24px; border-left: 1px solid var(--line); }
+.tm-eff { display: grid; grid-template-columns: 10px 140px 64px 1fr; align-items: baseline; gap: 8px; font-size: 14px; }
 .tm-dot { width: 9px; height: 9px; border-radius: 50%; align-self: center; }
 .tm-eff b.good { color: var(--good-ink); }
+.tm-eff b.dim { color: var(--text-dim); font-weight: 400; }
 .tm-eff-t { color: var(--text-dim); font-size: 13px; }
 
-.tm-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 12px; padding: 12px 16px; background: #d3d5d9; }
-.tm-staff { display: flex; flex-direction: column; min-height: 0; background: #fff; border: 1px solid var(--line); }
-.tm-tabs { flex: none; display: flex; gap: 2px; padding: 6px 8px; border-bottom: 1px solid var(--line); background: var(--panel); }
-.tm-tabs button { padding: 4px 10px; background: none; border: none; border-radius: 3px; font-size: 13px; color: var(--text); cursor: pointer; }
+.tm-tabs { flex: none; display: flex; align-items: center; gap: 4px; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.tm-tabs button { padding: 6px 12px; background: none; border: none; border-radius: 3px; font-size: 14px; color: var(--text); cursor: pointer; }
 .tm-tabs button:hover { background: #e9ecf0; }
 .tm-tabs button.on { background: #e3eefc; color: var(--info-ink); font-weight: 600; }
-.tm-rows { flex: 1; min-height: 0; overflow: auto; }
-.tm-row { display: grid; grid-template-columns: 28px minmax(120px, 1fr) 76px 104px 80px 170px; align-items: center; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--row-line); }
-.tm-row-main { display: flex; flex-direction: column; min-width: 0; }
-.tm-row-main b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tm-row-main span { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tm-row-main .tm-note { color: var(--warn); }
-.tm-lvl { display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
-.tm-pips { display: flex; gap: 2px; }
-.tm-pips i { width: 16px; height: 4px; background: #d4d7dc; }
-.tm-pips i.on { background: var(--c-blue); }
-.tm-xp { display: flex; flex-direction: column; gap: 2px; }
-.tm-xp small { font-size: 12px; color: var(--text-dim); }
-.tm-bar { display: block; height: 5px; background: #e3e5e9; border-radius: 2px; overflow: hidden; }
-.tm-bar i { display: block; height: 100%; background: var(--c-green); }
-.tm-sal { text-align: right; font-size: 13px; color: var(--bad-ink); white-space: nowrap; }
-.tm-act { display: flex; gap: 6px; justify-content: flex-end; }
+.tm-tabs .error { margin-left: auto; }
 
-.tm-cands { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: auto; }
-.tm-h { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-title); }
-.tm-cand { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 6px 10px; padding: 10px; background: #fff; border: 1px solid var(--line); border-radius: 3px; }
-.tm-cand-r { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; font-size: 13px; }
-.tm-cand-r small { margin-right: auto; white-space: nowrap; }
-.tm-cand-r b { white-space: nowrap; }
-.tm-cand-r small { font-size: 12px; color: var(--text-dim); }
-.tm-face { display: block; }
-.tm-eff b.dim { color: var(--text-dim); font-weight: 400; }
-.tm-xp small.warn { color: var(--warn); font-weight: 600; }
-.tm-row.wait { background: #f7f8fa; }
-.tm-row.wait .tm-row-main b { color: var(--text-dim); }
-.tm-empty { padding: 18px 14px; color: var(--text-dim); text-align: center; }
-.tm-pot.high { color: var(--good-ink); font-weight: 600; }
-.tm-pot.low { color: var(--warn); }
-.tm-xp small.dim { color: var(--text-dim); }
-.tm-pips i.no { background: none; border: 1px dashed #c4c8ce; height: 2px; }
+.tm-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr); background: #d3d5d9; }
+.tm-body-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--text-dim); background: #d3d5d9; }
+
+/* Список: человек, уровень и роль, вывод словами справа. */
+.tm-list { min-height: 0; overflow: auto; background: #fff; border-right: 1px solid var(--line); }
+.tm-item {
+  width: 100%; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 12px;
+  text-align: left; background: none; border: none; border-bottom: 1px solid var(--row-line); color: var(--text); cursor: pointer; font: inherit;
+}
+.tm-item:hover { background: #f3f5f8; }
+.tm-item.on { background: #e3eefc; }
+.tm-item.wait { opacity: 0.7; }
+.tm-item-main { display: flex; flex-direction: column; min-width: 0; }
+.tm-item-main b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-item-main span { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-item-v { font-size: 12px; white-space: nowrap; }
+
+.tm .good { color: var(--good-ink); }
+.tm-item-v.good, .tm-verdict.good { color: var(--good-ink); font-weight: 600; }
+.tm-item-v.mid, .tm-verdict.mid { color: var(--text-body); }
+.tm-item-v.warn, .tm-verdict.warn { color: var(--warn); font-weight: 600; }
+.tm-item-v.dim, .tm-verdict.dim { color: var(--text-dim); }
+
+/* Карточка сотрудника. */
+.tm-prof { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 14px; padding: 16px 20px; background: #fff; margin: 12px; border: 1px solid var(--line); border-radius: 3px; }
+.tm-prof-head { display: flex; align-items: center; gap: 14px; }
+.tm-prof-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.tm-prof-id h3 { margin: 0; font-size: 20px; font-weight: 600; color: var(--text-title); }
+.tm-prof-id span { font-size: 13px; color: var(--text-dim); }
+.tm-prof-id .tm-wait { color: var(--info-ink); }
+.tm-prof-sal { display: flex; flex-direction: column; align-items: flex-end; }
+.tm-prof-sal b { font-size: 18px; color: var(--bad-ink); }
+.tm-prof-sal span { font-size: 12px; color: var(--text-dim); }
+.tm-verdict { margin: 0; font-size: 14px; }
+
+/* Лестница уровней: четыре ступени; выше потолка - пунктир и серый текст. */
+.tm-ladder { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.tm-step { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; border: 2px solid #c6cbd2; border-radius: 3px; background: #fff; font-size: 13px; font-weight: 600; color: var(--text); }
+.tm-step small { font-size: 11px; font-weight: 400; }
+.tm-step.done, .tm-step.now { color: #fff; }
+.tm-step.done { opacity: 0.55; }
+.tm-step.no { color: #a3a8af; border-style: dashed; border-color: #d4d8de; background: #f6f7f9; }
+
+/* Рост: опыт крупно и что даст следующий уровень. */
+.tm-grow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+.tm-xp-big { display: flex; flex-direction: column; gap: 6px; }
+.tm-xp-top { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-dim); }
+.tm-xp-top b { font-size: 16px; color: var(--text); }
+.tm-bar { display: block; height: 5px; background: #e3e5e9; border-radius: 2px; overflow: hidden; }
+.tm-bar.big { height: 12px; }
+.tm-bar i { display: block; height: 100%; background: var(--c-green); }
+.tm-xp-big small { font-size: 12px; color: var(--text-dim); }
+.tm-xp-big small.warn { color: var(--warn); font-weight: 600; }
+.tm-next { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; margin: 0; font-size: 13px; align-content: start; }
+.tm-next dt { color: var(--text-dim); }
+.tm-next dd { margin: 0; text-align: right; }
+.tm-next dd.good { font-weight: 600; }
+.tm-next dd.bad { color: var(--bad-ink); }
+.tm-next small { color: var(--text-dim); }
+
+.tm-prof-act { display: flex; gap: 8px; margin-top: auto; }
+.tm-prof-act .tm-fire { margin-left: auto; }
+
+/* Найм: карточки кандидатов в две колонки. */
+.tm-hire { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-content: start; padding: 12px 16px; background: #d3d5d9; }
+.tm-cand { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-radius: 3px; }
+.tm-cand .tm-prof-id h3 { font-size: 16px; }
+.tm-cand-foot { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-dim); }
+.tm-cand-foot > span { flex: 1; min-width: 0; }
+.tm-hire-note { grid-column: 1 / -1; font-size: 12px; color: var(--text-dim); }
+.tm-face { display: block; flex: none; }
+
+@container (max-width: 760px) {
+  .tm-body { grid-template-columns: 1fr; }
+  .tm-hire { grid-template-columns: 1fr; }
+  .tm-grow { grid-template-columns: 1fr; }
+}
