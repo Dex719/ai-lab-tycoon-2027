@@ -117,6 +117,26 @@ describe('сделки: звёздные команды', () => {
     expect(lose.late!.teams).toEqual([]);
     expect(modValue(lose, 'researchCost').mult).toBe(1);
   });
+
+  it('реклама соперника, пока письмо о команде ждёт ответа, не делает удержание бесплатным', () => {
+    const s = stateOn('2023-05-01');
+    hireTeam(s, 'posttrain');
+    executeMove(s, { id: 'x', lab: 'openbrain', move: 'poach', fireDay: s.day });
+    const mail = pendingChoice(s)!;
+    expect(mail.eventId).toBe('rival-poach-team');
+    executeMove(s, { id: 'y', lab: 'gogle', move: 'hype', fireDay: s.day });
+    const cash = s.cash;
+    applyChoice(s, mail.id, 0);
+    expect(cash - s.cash).toBe(TEAM_RETAIN_MONTHS * teamDef('posttrain').salary);
+
+    const lose = stateOn('2023-05-01');
+    hireTeam(lose, 'posttrain');
+    executeMove(lose, { id: 'x', lab: 'openbrain', move: 'poach', fireDay: lose.day });
+    const m2 = pendingChoice(lose)!;
+    executeMove(lose, { id: 'y', lab: 'gogle', move: 'hype', fireDay: lose.day });
+    applyChoice(lose, m2.id, 1);
+    expect(lose.late!.teams).toEqual([]);
+  });
 });
 
 describe('сделки: стартапы', () => {

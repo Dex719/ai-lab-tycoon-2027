@@ -350,6 +350,8 @@ const WAR_HYPE_PER_MONTH = 5;
 const HYPE_CAMPAIGN_COST = 300_000;
 const POACH_MONTHS = 3;
 const DENIAL_REP = 20;
+/** «Снять с продажи» в проверке баллов: столько дней модель нельзя вернуть на API (apiHold). */
+export const AUDIT_HOLD_DAYS = 90;
 /** Потолок шанса разоблачения с модификаторами exposure (training.exposureChance после интеграции). */
 export const EXPOSE_CAP_WITH_RIVALS = 0.6;
 /** Рост цен за годы: расходы на кампании и зарплаты × YEAR_MULT[год]. */
@@ -565,12 +567,19 @@ function rivalBasePrice(s: RivalryGame, def: RivalModelDef): number {
 /**
  * Цена соперника $ за 1М токенов на сегодня: базовая × модификатор rivalPrice(target = lab).mult, но не ниже
  * нижней границы (add - доля опорной цены) и не ниже minPrice. Модель, которая и так дешевле границы, не дорожает.
+ * Границы нескольких снижений не складываются (modValue суммирует add): берётся самая высокая из них. Иначе ценовая
+ * война и рывок в финале вместе поднимали границу до 0,6 опорной, и дешёвая модель дорожала.
  */
 export function rivalPriceIn(s: RivalryGame, def: RivalModelDef): number {
   const base = rivalBasePrice(s, def);
   const floorMin = minPrice(s.day);
-  const { mult, add } = modValue(s, asKind('rivalPrice'), def.lab);
+  const { mult } = modValue(s, asKind('rivalPrice'), def.lab);
   if (!(mult < 1)) return Math.max(floorMin, base);
+  let add = 0;
+  for (const m of s.modifiers) {
+    if (m.kind !== asKind('rivalPrice') || m.untilDay < s.day || (m.target !== undefined && m.target !== def.lab)) continue;
+    add = Math.max(add, m.add ?? 0);
+  }
   const floor = Math.max(floorMin, add * refPrice(s.day));
   return Math.max(floorMin, Math.max(base * mult, Math.min(base, floor)));
 }
@@ -1432,12 +1441,20 @@ function fireChoiceEvent(s: RivalryGame, def: EventDef): void {
   added.defaultChoice = def.defaultChoice ?? choices.length - 1;
 }
 
+/**
+ * Контекст письма с выбором один на все письма соперников: новый ход дописывает свои поля и не стирает чужие.
+ * Иначе реклама или проверка баллов, пришедшие, пока письмо о команде ждёт ответа, стирали team, и удержание стоило $0.
+ */
+function setChoice(s: RivalryGame, lab: LabId, patch: { modelId?: string; team?: TeamId } = {}): void {
+  s.rivalry.choice = { ...s.rivalry.choice, lab, ...patch };
+}
+
 function execHype(s: RivalryGame, lab: LabId): string | null {
   const diff = DIFFICULTY[s.difficulty];
   const add = Math.round(20 * diff.k);
   s.hype[lab] = Math.min(100, (s.hype[lab] ?? 0) + add);
-  // modelId сохраняем: письмо проверки баллов могло ещё ждать ответа.
-  s.rivalry.choice = { lab, modelId: s.rivalry.choice?.modelId };
+  // modelId и team сохраняем: письмо проверки баллов или о команде могло ещё ждать ответа.
+  setChoice(s, lab);
   fireChoiceEvent(s, HYPE_EVENT);
   pushActive(s, lab, 'hype');
   return `запустила рекламную кампанию (+${add} шумихи)`;
@@ -1463,7 +1480,7 @@ function execAudit(s: RivalryGame, lab: LabId, modelId?: string): string | null 
   const model = modelId ? s.models.find((m) => m.id === modelId) : auditTarget(s)?.model;
   // Чистую модель не проверяют, даже если слух уже был (подгонка могла раскрыться сама или модель снята с продажи).
   if (!model || model.exposed || !model.onApi || model.releasedDay === null || overfitGap(s, model) < 6) return null;
-  s.rivalry.choice = { lab, modelId: model.id };
+  setChoice(s, lab, { modelId: model.id });
   fireChoiceEvent(s, AUDIT_EVENT);
   pushActive(s, lab, 'audit');
   return `усомнилась в баллах «${model.name}»`;
@@ -1479,12 +1496,12 @@ function poachTeam(s: GameState): TeamId | null {
 function execPoach(s: RivalryGame, lab: LabId): string | null {
   const team = poachTeam(s);
   if (team) {
-    s.rivalry.choice = { lab, modelId: s.rivalry.choice?.modelId, team };
+    setChoice(s, lab, { team });
     fireChoiceEvent(s, TEAM_POACH_EVENT);
     pushActive(s, lab, 'poach');
     return `переманивает: ${teamDef(team).name.toLowerCase()}`;
   }
-  s.rivalry.choice = { lab, modelId: s.rivalry.choice?.modelId };
+  setChoice(s, lab);
   fireChoiceEvent(s, POACH_EVENT);
   pushActive(s, lab, 'poach');
   return 'переманивает исследователей';
@@ -1660,10 +1677,13 @@ const AUDIT_EVENT: EventDef = {
     {
       label: 'Снять с продажи',
       story: 'Модель уйдёт с рынка до конца проверки',
-      hint: 'модель снята с API, -10 шумихи',
+      hint: `модель снята с API на ${AUDIT_HOLD_DAYS} дней, -10 шумихи`,
       apply: (s) => {
         const m = choiceModel(s);
-        if (m) m.onApi = false;
+        if (m) {
+          m.onApi = false;
+          addModifier(s, { id: `rival-audit-hold-${m.id}`, kind: 'apiHold', target: m.id, untilDay: s.day + AUDIT_HOLD_DAYS });
+        }
         s.hype.player = Math.max(0, s.hype.player - 10);
       },
     },

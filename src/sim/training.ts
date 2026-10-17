@@ -591,10 +591,11 @@ export function startReview(s: GameState, modelId: string): Result {
 
 /** Ежедневно (после обучения): проверки, чей срок наступил, пройдены; важное письмо. */
 export function reviewDay(s: GameState): void {
-  // В день открытия подписок сильные модели, выпущенные раньше, тоже должны пройти проверку.
+  // В день открытия подписок сильные модели, выпущенные раньше, тоже должны пройти проверку - и снятые с API:
+  // иначе модель снимали с продажи накануне, возвращали на следующий день и включали подписку без проверки.
   if (s.day === dateToDay(CHAT_MOMENT_DATE)) {
     for (const m of s.models) {
-      if (m.releasedDay === null || m.review !== 'none' || !m.onApi) continue;
+      if (m.releasedDay === null || m.review !== 'none') continue;
       const reason = reviewReason(s, m);
       if (reason === null) continue;
       m.review = 'required';

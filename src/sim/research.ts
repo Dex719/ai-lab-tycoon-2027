@@ -286,12 +286,15 @@ export function rpPerDay(s: GameState): number {
 /** Действие: выбрать текущее исследование (null - остановить). Очки по технологиям сохраняются. */
 export function setResearch(s: GameState, tech: TechId | null): Result {
   if (tech === null) {
+    // Остановка: очередь не запускается сама на следующий день и ничего из неё не теряется.
     s.research.current = null;
+    s.research.stopped = true;
     return { ok: true };
   }
   const reason = researchBlockReason(s, tech);
   if (reason) return { ok: false, error: reason };
   s.research.current = tech;
+  delete s.research.stopped;
   // Выбранное сейчас в очереди не нужно.
   s.research.queue = s.research.queue.filter((t) => t !== tech);
   return { ok: true };
@@ -332,23 +335,39 @@ export function unqueueResearch(s: GameState, tech: TechId): Result {
   return { ok: true };
 }
 
-/** Убрать из очереди то, что уже нельзя исследовать или чьи требования больше не выполняются. */
-function pruneQueue(s: GameState): void {
+/**
+ * Убрать из очереди то, что уже нельзя исследовать или чьи требования больше не выполняются.
+ * Возвращает убранное из-за требований (изученное и повторы не в счёт).
+ */
+function pruneQueue(s: GameState): TechId[] {
   const have = new Set<TechId>(s.research.done);
   if (s.research.current) have.add(s.research.current);
   const kept: TechId[] = [];
+  const dropped: TechId[] = [];
   for (const t of s.research.queue) {
     const dead = (t !== 'algo' && s.research.done.includes(t)) || (t === 'context' && s.research.contextLevel >= CONTEXT_MAX_LEVEL);
-    if (dead || t === s.research.current || kept.includes(t) || techRequires(t).some((r) => !have.has(r))) continue;
+    if (dead || t === s.research.current || kept.includes(t)) continue;
+    if (techRequires(t).some((r) => !have.has(r))) {
+      dropped.push(t);
+      continue;
+    }
     kept.push(t);
     have.add(t);
   }
   s.research.queue = kept;
+  return dropped;
 }
 
 /** Включить следующее исследование из очереди (current должен быть свободен). Возвращает его или null. */
 function startNext(s: GameState): TechId | null {
-  pruneQueue(s);
+  const dropped = pruneQueue(s);
+  if (dropped.length > 0) {
+    addMail(s, {
+      kind: 'research',
+      title: `Убрано из очереди исследований: ${dropped.map((t) => `«${techName(t)}»`).join(', ')}`,
+      body: 'Для них не изучено нужное исследование. Поставьте их в очередь снова, когда оно будет готово.',
+    });
+  }
   while (s.research.queue.length > 0) {
     const next = s.research.queue.shift() as TechId;
     if (canResearch(s, next)) {
@@ -369,7 +388,10 @@ function nextLine(next: TechId | null): string {
  * algo: algoLevel += 1, points.algo = 0, current остаётся 'algo'. Остальные: в done, current = null.
  */
 export function progressDay(s: GameState): void {
-  if (s.research.current === null) startNext(s);
+  if (s.research.current === null) {
+    if (s.research.stopped) return;
+    startNext(s);
+  }
   const tech = s.research.current;
   if (tech === null) return;
   // Защита от кривого состояния: нельзя вести то, что уже изучено или ещё не открыто.
@@ -404,7 +426,7 @@ export function progressDay(s: GameState): void {
     s.research.points.algo = 0;
     const level = s.research.algoLevel;
     // Следующий уровень «Алгоритмических улучшений» идёт сам; очередь передвигается, только если в ней что-то есть.
-    pruneQueue(s);
+    // Очередь чистит startNext: про убранное из-за требований придёт письмо.
     let next: TechId | null = null;
     if (s.research.queue.length > 0) {
       s.research.current = null;

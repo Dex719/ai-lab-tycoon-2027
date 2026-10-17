@@ -10,6 +10,8 @@ import { pool, rentPerDay } from '../../sim/compute';
 import {
   SUBS_PRICE_MAX,
   SUBS_PRICE_MIN,
+  SUBS_PRICE_RATIO_MAX,
+  SUBS_REF_PRICE,
   TIER_API_PRICE_MULT,
   TIER_SUBS_PRICE,
   TOKENS_PER_USER_DAY,
@@ -19,7 +21,7 @@ import { awaitingEvent } from '../../sim/events';
 import { contextLabel } from '../../sim/research';
 import { benchRank, type RaceMetric } from '../../sim/leaderboard';
 import { ARENA_PLACE_TITLE } from '../arena';
-import { minPrice, playerSales, refPrice, subsOpen } from '../../sim/market';
+import { minPrice, overpriceFrom, playerSales, refPrice, subsOpen } from '../../sim/market';
 import { formatDateShort } from '../../sim/time';
 import {
   arenaElo as forecastElo,
@@ -98,6 +100,9 @@ export function reviewState(m: PlayerModel): { text: string; tone: 'warn' | 'inf
 function tierPrice(day: number, m: PlayerModel): number {
   return TIER_API_PRICE_MULT[m.plan.tier] * refPrice(day);
 }
+
+// Подписка дороже этой цены теряет пользователей круче (market.ts, OVERPRICE_K).
+const SUBS_OVERPRICE_FROM = SUBS_PRICE_RATIO_MAX * SUBS_REF_PRICE;
 
 /** Округление до тех знаков, которые показывает fmtPrice: подставленная цена совпадает с видимой. */
 function roundPrice(v: number): number {
@@ -531,6 +536,8 @@ function ApiPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowPr
   const noPool = m.onApi && pool(s, 'api') <= 0;
   const lost = s.market.lostApi;
   const losing = m.onApi && !noPool && lost > 0.01;
+  const over = overpriceFrom(s.day);
+  const overpriced = (price ?? m.price) > over;
 
   function run(r: Result) {
     setErr(r.ok ? null : r.error);
@@ -556,6 +563,9 @@ function ApiPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowPr
         </Alert>
       )}
       {losing && <Alert tone="warn">Не хватает мощности «API»: теряется {fmtShare(lost, 0)} спроса.</Alert>}
+      {overpriced && (
+        <Alert tone="warn">Цена выше {fmtPrice(over)}: клиенты быстро уходят к соперникам, и выручка падает.</Alert>
+      )}
       <div className="mw-metrics">
         <Metric
           label="Токенов в день"
@@ -707,6 +717,9 @@ function SubsPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowP
         </Alert>
       )}
       {losing && <Alert tone="warn">Не хватает мощности «Подписки»: теряется {fmtShare(lost, 0)} спроса.</Alert>}
+      {(price ?? m.subsPrice) > SUBS_OVERPRICE_FROM && (
+        <Alert tone="warn">Подписка дороже {fmtPrice(SUBS_OVERPRICE_FROM)} в месяц: пользователи быстро уходят к соперникам, и выручка падает.</Alert>
+      )}
       <div className="mw-metrics">
         <Metric label="Подписчиков" value={subscribers !== undefined ? fmtNum(Math.round(subscribers)) : '-'} off={subscribers === undefined} />
         <Metric label="Цена в месяц" value={fmtPrice(m.subsPrice)} off={!m.onSubs} />

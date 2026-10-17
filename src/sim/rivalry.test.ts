@@ -5,8 +5,11 @@ import { reactiveNameProblems, RIVAL_REACTIVE } from '../data/rivalReactive';
 import { addMail, modValue } from './events';
 import { minPrice, refPrice } from './market';
 import { rivalDay, rivalDef, rivalPrice, rivalTier } from './rivals';
+import { setOnApi } from './actions';
 import {
+  addRivalModifier,
   applyDifficultyModifiers,
+  AUDIT_HOLD_DAYS,
   availableMoves,
   computeLever,
   DIFFICULTY,
@@ -470,6 +473,23 @@ describe('ценовые ходы', () => {
     expect(s.mail.map((m) => m.title)).toEqual(['OpenBrain снизила цены на API', 'OpenBrain: цены ещё ниже']);
   });
 
+  it('два снижения цен вместе: границы не складываются, дешёвая модель не дорожает', () => {
+    const s = game('2023-09-01');
+    addModel(s, { elo: 1300, price: 1 });
+    setShares(s, 0.4);
+    expect(executeMove(s, pend('openbrain', 'priceWar'))).not.toBeNull();
+    // Модель с ценой 0,45 опорной: выше границы войны (0,3), но ниже суммы двух границ (0,6).
+    const src = rivalDef('gtp-3-5-turbu');
+    const k = (0.45 * refPrice(s.day)) / rivalPrice(src, s.day);
+    const mid = { ...src, id: 'mid-test', priceIn: src.priceIn! * k, priceOut: src.priceOut! * k };
+    const base = rivalPrice(mid, s.day);
+    const war = rivalPriceIn(s, mid);
+    expect(war).toBeLessThan(base);
+    // Рывок в финале добавляет ещё одно снижение со своей границей 0,3 опорной (finale.ts).
+    addRivalModifier(s, { id: 'finale-price-openbrain', kind: 'rivalPrice', target: 'openbrain', mult: 0.75, add: 0.3, untilDay: END_DAY });
+    expect(rivalPriceIn(s, mid)).toBeLessThanOrEqual(war + 1e-9);
+  });
+
   it('Сложная ценовая война держит границу 0,2 опорной цены, Gogle режет сильнее', () => {
     const s = game('2024-03-01', 'hard');
     addModel(s, { elo: 1400, price: 0.5 });
@@ -847,6 +867,15 @@ describe('письма с выбором', () => {
     executeMove(a.s, pend('gogle', 'audit', a.m.id));
     applyChoiceOf(a.s, 'rival-audit', 1);
     expect(a.m.onApi).toBe(false);
+    // Вернуть модель на API сразу нельзя: только через AUDIT_HOLD_DAYS дней.
+    const back = setOnApi(a.s, a.m.id, true);
+    expect(back.ok).toBe(false);
+    if (!back.ok) expect(back.error).toMatch(/^Модель снята с продажи до /);
+    expect(a.m.onApi).toBe(false);
+    expect(setOnApi(a.s, a.m.id, false).ok).toBe(true);
+    a.s.day += AUDIT_HOLD_DAYS + 1;
+    expect(setOnApi(a.s, a.m.id, true).ok).toBe(true);
+    expect(a.m.onApi).toBe(true);
 
     const { s, m } = auditState();
     executeMove(s, pend('gogle', 'audit', m.id));

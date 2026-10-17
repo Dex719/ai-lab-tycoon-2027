@@ -96,9 +96,15 @@ export interface PlayerSales {
   subsRevenueDay: number;
 }
 
-// Отношение цены к опорной в логарифме зажато в [1/20; 20]: дешевле P_ref/20 доля уже не растёт, дороже 20·P_ref - не падает.
+// Отношение цены к опорной в логарифме зажато в [1/20; 20]: дешевле P_ref/20 доля уже не растёт, дороже 20·P_ref у соперников
+// не падает (у игрока выше границы действует OVERPRICE_K).
 const PRICE_RATIO_MIN = 1 / 20;
 const PRICE_RATIO_MAX = 20;
+// Модель игрока дороже верхней границы (20·P_ref, у подписок 4·опорная) получает ещё −OVERPRICE_K·ln(отношение/граница):
+// без этого доля выше границы не падала, а выручка росла вместе с ценой (цена $10 000 давала в сотни раз больше денег).
+// Суммарная эластичность выше границы больше 1 во всех сегментах, поэтому завышение цены только уменьшает выручку.
+// Цены соперников - исторические из каталога, для них остаётся прежний зажим.
+const OVERPRICE_K = 2;
 // Минимальная цена - сотая часть опорной.
 const MIN_PRICE_SHARE = 1 / 100;
 
@@ -164,6 +170,11 @@ export function refPrice(day: number): number {
   return lerpByDate(REF_PRICE, day, true);
 }
 
+/** Цена API $ за 1 млн токенов, выше которой клиенты уходят от модели игрока круче (20·P_ref, OVERPRICE_K). */
+export function overpriceFrom(day: number): number {
+  return PRICE_RATIO_MAX * refPrice(day);
+}
+
 /** Минимальная цена $ за 1 млн токенов: опорная / 100, до тысячных (столько знаков показывает интерфейс). */
 export function minPrice(day: number): number {
   return Math.round(refPrice(day) * MIN_PRICE_SHARE * 1000) / 1000;
@@ -174,6 +185,12 @@ function clampRatio(price: number, ref: number, lo: number, hi: number): number 
   const ratio = price / ref;
   if (ratio > hi) return hi;
   return ratio >= lo ? ratio : lo;
+}
+
+/** ln(цена / (hi·опорная)) выше верхней границы, иначе 0. */
+function overpriceLog(price: number, ref: number, hi: number): number {
+  const ratio = price / ref;
+  return ratio > hi ? Math.log(ratio / hi) : 0;
 }
 
 /** Обычный контекст на рынке в этот день (интерполяция в логарифме). */
@@ -322,11 +339,18 @@ function segmentSnapshot(s: GameState, seg: SegmentId, cands: Candidate[], total
       channel === 'api'
         ? Math.log(clampRatio(c.apiPrice, pRef, PRICE_RATIO_MIN, PRICE_RATIO_MAX))
         : Math.log(clampRatio(c.subsPrice, SUBS_REF_PRICE, SUBS_PRICE_RATIO_MIN, SUBS_PRICE_RATIO_MAX));
+    const overTerm =
+      c.owner !== 'player'
+        ? 0
+        : channel === 'api'
+          ? overpriceLog(c.apiPrice, pRef, PRICE_RATIO_MAX)
+          : overpriceLog(c.subsPrice, SUBS_REF_PRICE, SUBS_PRICE_RATIO_MAX);
     const codeTerm = c.codeLevel === null ? 0 : clamp(c.codeLevel - capYear, -CODE_DIFF_CAP, CODE_DIFF_CAP) / CODE_UTILITY_SCALE;
     const u =
       (def.wQ * (quals[i] - 1000)) / 100 +
       def.wBrand * brand -
-      def.wPrice * priceTerm +
+      def.wPrice * priceTerm -
+      OVERPRICE_K * overTerm +
       def.wCtx * contextLogRatio(c.context, s.day) +
       def.wCode * codeTerm +
       (def.tier[c.tier] ?? 0) +
@@ -528,6 +552,25 @@ export function dayStep(s: GameState): void {
   // Инерция: доли сдвигаются к целевым на шаг SHARE_STEP; дальше всё (спрос, мощность, выручка) - по сдвинутым.
   const held = {} as Record<SegmentId, Record<string, number>>;
   for (const seg of SEGMENT_IDS) held[seg] = stepHeld(targetShares(target.segments[seg]), s.market?.held?.[seg]);
+  // Подорожание своей модели клиенты замечают сразу: её доля падает до целевой без инерции. Иначе цену поднимали
+  // в сотни раз, и месяц, пока доля сползала, получали огромную выручку; приход клиентов по-прежнему плавный.
+  const heldPrice: Record<string, number> = {};
+  for (const seg of SEGMENT_IDS) {
+    const segSnap = target.segments[seg];
+    for (const e of segSnap.entries) {
+      if (e.ref.kind !== 'player') continue;
+      const key = `${segSnap.channel}:${e.ref.id}`;
+      heldPrice[key] = e.price;
+      const prev = s.market?.heldPrice?.[key];
+      const was = held[seg][e.key] ?? 0;
+      if (prev === undefined || !(e.price > prev) || !(was > e.share)) continue;
+      // Ушедшие клиенты делятся между остальными пропорционально их долям: сумма остаётся 1.
+      const k = was < 1 ? (1 - e.share) / (1 - was) : 0;
+      for (const other of Object.keys(held[seg])) if (other !== e.key) held[seg][other] *= k;
+      if (!(was < 1)) held[seg].none = 1 - e.share; // вся доля была у этой модели: ушедшие никуда не перешли
+      held[seg][e.key] = e.share;
+    }
+  }
   const snap: MarketSnapshot = { ...target, segments: {} as Record<SegmentId, SegmentSnapshot> };
   for (const seg of SEGMENT_IDS) snap.segments[seg] = applyHeld(target.segments[seg], held[seg]);
   const need = inferenceNeed(s, snap);
@@ -599,6 +642,7 @@ export function dayStep(s: GameState): void {
     lostSubs,
     segments,
     held,
+    heldPrice,
   };
 }
 

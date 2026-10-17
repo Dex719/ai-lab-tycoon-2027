@@ -604,7 +604,7 @@ const OPTIONAL_FIELDS = new Set([
   'lostApi', 'lostSubs', 'segments', 'consumers', 'enterprise', 'developers', 'trainings', 'nextRunNum',
   'queue', 'techs', 'distill', 'moe', 'codetrain', 'instruct', 'cot', 'quant', 'multimodal', 'synthetic',
   'datacenters', 'capex', 'power', 'yearly', 'rentChangedDay',
-  'quests', 'param', 'results', 'duel', 'from', 'staff', 'retainedUntil', 'potential', 'lastCourseDay', 'course', 'incoming', 'held', 'round',
+  'quests', 'param', 'results', 'duel', 'from', 'staff', 'retainedUntil', 'potential', 'lastCourseDay', 'course', 'incoming', 'held', 'round', 'heldPrice', 'stopped',
 ]);
 /** Необязательные поля по полному пути: имя поля (modelId, price) в других местах обязательно. */
 const OPTIONAL_PATHS = new Set(['mail[].outcome', 'mail[].choices[].story', 'tenders[].application.work', 'contracts[].tender.application.work', 'contracts[].warned', 'rivalry.pending[].modelId', 'rivalry.choice.modelId']);
@@ -613,7 +613,7 @@ const optionalPath = (norm: string): boolean => OPTIONAL_PATHS.has(norm) || /^ri
 const DICTS = new Set([
   'flags', 'yearly.lastFired', 'finance.history[].prices', 'market.shares', 'models[].overfit', 'rivalry.moveCooldown', 'rivalry.overrides', 'rivalry.extra',
   'market.segments.consumers.shares', 'market.segments.enterprise.shares', 'market.segments.developers.shares',
-  'market.held', 'market.held.consumers', 'market.held.enterprise', 'market.held.developers',
+  'market.held', 'market.held.consumers', 'market.held.enterprise', 'market.held.developers', 'market.heldPrice',
 ]);
 
 describe('проверка покрывает каждое поле живого состояния', () => {

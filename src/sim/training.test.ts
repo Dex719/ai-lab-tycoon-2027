@@ -5,6 +5,7 @@ import { benchScore } from './benchmarks';
 import {
   ALGO_MULT,
   ARENA_OPEN_DATE,
+  CHAT_MOMENT_DATE,
   ELO_BASE,
   ELO_PER_CAP,
   ELO_RLHF_BASE,
@@ -29,6 +30,7 @@ import {
   RLHF_LANGUAGE_BONUS,
   TRAIN_FLOP_PER_H100E_DAY,
 } from './constants';
+import { setOnApi, setOnSubs } from './actions';
 import { addModifier, FOREVER } from './events';
 import { EXPOSE_CAP_WITH_RIVALS } from './rivalry';
 import { nextRandom } from './rng';
@@ -1922,6 +1924,20 @@ describe('внешняя проверка сильной модели', () => {
     m.review = 'none';
     expect(startReview(s, 'p1')).toEqual({ ok: false, error: 'Этой модели проверка не нужна.' });
     expect(startReview(s, 'нет').ok).toBe(false);
+  });
+
+  it('в день открытия подписок проверка нужна и модели, снятой с API накануне', () => {
+    const s = withRival();
+    s.day = dateToDay(CHAT_MOMENT_DATE);
+    const on = playerModel({ arenaElo: 1400 });
+    const off = playerModel({ id: 'p2', arenaElo: 1400, onApi: false });
+    s.models.push(on, off);
+    reviewDay(s);
+    expect(on.review).toBe('required');
+    expect(off.review).toBe('required');
+    s.day += 1;
+    expect(setOnApi(s, 'p2', true).ok).toBe(true);
+    expect(setOnSubs(s, 'p2', true)).toEqual({ ok: false, error: 'Сначала пройдите внешнюю проверку.' });
   });
 
   it('reviewDay переводит pending в passed в день срока и шлёт важное письмо; раньше срока ничего не делает', () => {

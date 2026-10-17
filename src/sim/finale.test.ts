@@ -6,7 +6,7 @@ import { RIVAL_MODELS } from '../data/rivalModels';
 import { newGame } from './actions';
 import { botChoice, botAct } from './bots';
 import { applyChoice, pendingChoice } from './events';
-import { FINALE, FINALE_START, finaleDay, finaleThreats, LAST_PUSH_DAY, startUpdate, UPDATE_DAYS, updateQuote } from './finale';
+import { FINALE, FINALE_START, finaleDay, finaleThreats, LAST_PUSH_DAY, startUpdate, UPDATE_DAYS, UPDATE_GAIN, updateQuote } from './finale';
 import { rivalDayIn, rivalEloIn, findRivalDefIn, type Difficulty } from './rivalry';
 import { deserialize, serialize } from './save';
 import { advanceDay, playerBestArenaRank } from './tick';
@@ -170,7 +170,7 @@ describe('финальный квартал: доработка модели', (
     expect(updateQuote(late, 'p1').error).toMatch(/^Не успеет до 31 декабря 2024/);
   });
 
-  it('первая доработка +10 Эло за $60 млн через 28 дней, вторая +6 дороже в 1,5 раза, третьей нет', () => {
+  it('первая доработка +10 Эло за $60 млн через 28 дней, вторая +9 дороже в 1,5 раза, третьей нет', () => {
     const s = stateOn(FINALE_START, 1370);
     const cash = s.cash;
     expect(startUpdate(s, 'p1')).toEqual({ ok: true });
@@ -181,15 +181,17 @@ describe('финальный квартал: доработка модели', (
     expect(s.models[0].arenaElo).toBe(1380);
     expect(s.mail.some((m) => m.title === 'Доработка «Модель p1» завершена' && m.reward)).toBe(true);
     const second = updateQuote(s, 'p1');
-    expect(second).toMatchObject({ nth: 1, gain: 6, cost: 90e6, error: null });
+    expect(second).toMatchObject({ nth: 1, gain: 9, cost: 90e6, error: null });
     expect(startUpdate(s, 'p1')).toEqual({ ok: true });
     liveUntil(s, s.late!.finale.update!.endDay + 1);
-    expect(s.models[0].arenaElo).toBe(1386);
+    expect(s.models[0].arenaElo).toBe(1389);
     expect(updateQuote(s, 'p1').error).toBe('Модель уже доработана дважды.');
   });
 
-  it('доработка сильнее запаса рывка на любой сложности: одной хватает, чтобы остаться выше цели', () => {
-    for (const d of ['easy', 'normal', 'hard'] as Difficulty[]) expect(10).toBeGreaterThan(FINALE[d].margin);
+  it('каждая доработка сильнее запаса рывка на любой сложности, даже с округлением цели: её хватает, чтобы остаться выше', () => {
+    for (const d of ['easy', 'normal', 'hard'] as Difficulty[]) {
+      for (const gain of UPDATE_GAIN) expect(gain, d).toBeGreaterThan(FINALE[d].margin + 0.5);
+    }
   });
 
   it('бот отвечает на рывок доработкой и остаётся первым', () => {

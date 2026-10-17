@@ -57,6 +57,37 @@ describe('очередь исследований', () => {
     expect(queueResearch(s, 'rlhf').ok).toBe(true);
   });
 
+  it('«Остановить» останавливает: очередь не запускается сама и ничего не теряет, пока игрок не выберет исследование', () => {
+    const s = lab();
+    setResearch(s, 'attention');
+    queueResearch(s, 'scaling');
+    queueResearch(s, 'algo');
+    const points = s.research.points.attention;
+    expect(setResearch(s, null)).toEqual({ ok: true });
+    for (let i = 0; i < 5; i++) progressDay(s);
+    expect(s.research.current).toBeNull();
+    expect(s.research.queue).toEqual(['scaling', 'algo']);
+    expect(s.research.points.attention).toBe(points);
+    // Флаг остановки переживает сохранение.
+    const back = deserialize(serialize(s));
+    expect(back.ok && back.state.research.stopped).toBe(true);
+    // Выбрали исследование - очередь снова работает после него.
+    expect(setResearch(s, 'attention')).toEqual({ ok: true });
+    expect(s.research.stopped).toBeUndefined();
+    finishCurrent(s);
+    expect(s.research.current).toBe('scaling');
+  });
+
+  it('убранное из очереди из-за требований приходит письмом', () => {
+    const s = lab();
+    setResearch(s, 'attention');
+    queueResearch(s, 'rlhf'); // требует «Механизм внимания»
+    setResearch(s, 'algo'); // «Механизм внимания» больше не идёт
+    finishCurrent(s);
+    expect(s.research.queue).toEqual([]);
+    expect(s.mail.map((m) => m.title)).toContain('Убрано из очереди исследований: «Обучение на отзывах людей (RLHF)»');
+  });
+
   it('если убрать то, что открывало технологию, зависимая уходит из очереди', () => {
     const s = lab();
     setResearch(s, 'attention');

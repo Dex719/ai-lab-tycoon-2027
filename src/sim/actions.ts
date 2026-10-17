@@ -14,7 +14,7 @@ import { queueResearch, setResearch, unqueueResearch } from './research';
 import { applyDifficultyModifiers } from './rivalry';
 import type { Difficulty } from './rivalry';
 import { createInitialState } from './state';
-import { dateToDay, START_DAY } from './time';
+import { dateToDay, formatDate, START_DAY } from './time';
 import { cancelTraining, reviewReason, reviewTerms, startReview, startTraining } from './training';
 import { refreshCandidates } from './staff';
 // Действия окна «Команда».
@@ -145,6 +145,8 @@ export function setOnApi(s: GameState, modelId: string, onApi: boolean): Result 
   const m = findModel(s, modelId);
   if (!m) return { ok: false, error: 'Нет такой модели' };
   if (m.releasedDay === null) return { ok: false, error: 'Модель ещё не выпущена' };
+  const hold = onApi ? s.modifiers.find((x) => x.kind === 'apiHold' && x.target === m.id && x.untilDay >= s.day) : undefined;
+  if (hold) return { ok: false, error: `Модель снята с продажи до ${formatDate(hold.untilDay)}: идёт проверка баллов.` };
   m.onApi = onApi;
   return { ok: true };
 }

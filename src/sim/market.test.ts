@@ -1166,7 +1166,7 @@ describe('подписки в dayStep', () => {
     expect(playerSales(s, 'нет')).toEqual({ apiTokens: 0, subsUsers: 0, apiRevenueDay: 0, subsRevenueDay: 0 });
   });
 
-  it('цена подписки: дешевле опорной / 4 доля не растёт, дороже × 4 - не падает; −0,8·ln(цена/20)', () => {
+  it('цена подписки: дешевле опорной / 4 доля не растёт; −0,8·ln(цена/20), дороже × 4 - ещё −2·ln(цена/80)', () => {
     const utilityAt = (subsPrice: number): number => {
       const s = makeState();
       s.models.push(player({ onSubs: true, subsPrice }));
@@ -1176,7 +1176,17 @@ describe('подписки в dayStep', () => {
     expect(utilityAt(5) - utilityAt(20)).toBeCloseTo(0.8 * Math.log(4), 9);
     expect(utilityAt(1) - utilityAt(5)).toBeCloseTo(0, 9);
     expect(utilityAt(80) - utilityAt(20)).toBeCloseTo(-0.8 * Math.log(4), 9);
-    expect(utilityAt(200) - utilityAt(80)).toBeCloseTo(0, 9);
+    expect(utilityAt(200) - utilityAt(80)).toBeCloseTo(-2 * Math.log(200 / 80), 9);
+  });
+
+  it('подписка дороже × 4 опорной приносит меньше, чем по $80', () => {
+    const revenueAt = (subsPrice: number): number => {
+      const s = makeState();
+      s.models.push(player({ onSubs: true, subsPrice }));
+      rivalState.list = [rival()];
+      return entryOf(marketSnapshot(s), 'consumers', 'player:p1')!.share * subsPrice;
+    };
+    expect(revenueAt(200)).toBeLessThan(revenueAt(80));
   });
 });
 
@@ -1280,17 +1290,39 @@ describe('границы цены', () => {
     expect(floor).toBeLessThan(0.99);
   });
 
-  it('дороже 20·P_ref доля не падает дальше', () => {
+  it('дороже 20·P_ref доля игрока падает круче, и завышение цены уменьшает выручку', () => {
     const cap = shareAt(60);
-    expect(shareAt(1000)).toBeCloseTo(cap, 12);
-    expect(shareAt(10_000)).toBeCloseTo(cap, 12);
     expect(shareAt(50)).toBeGreaterThan(cap);
+    expect(shareAt(1000)).toBeLessThan(cap);
+    expect(shareAt(10_000)).toBeLessThan(shareAt(1000));
+    for (const seg of ['developers', 'enterprise'] as const) {
+      const revenue = (price: number): number => {
+        const s = makeState(DAY_2024);
+        s.models.push(player({ price }));
+        rivalState.list = [rival()];
+        return entryOf(marketSnapshot(s), seg, 'player:p1')!.share * price;
+      };
+      expect(revenue(1000)).toBeLessThan(revenue(60));
+      expect(revenue(10_000)).toBeLessThan(revenue(1000));
+    }
+  });
+
+  it('цены соперников выше 20·P_ref по-прежнему зажаты', () => {
+    const rivalShareAt = (price: number): number => {
+      const s = makeState(DAY_2024);
+      s.models.push(player());
+      rivalState.list = [rival({ priceIn: price, priceOut: price })];
+      return marketSnapshot(s).segments.developers.entries.find((e) => e.owner !== 'player')!.share;
+    };
+    expect(rivalShareAt(1000)).toBeCloseTo(rivalShareAt(60), 12);
   });
 
   it('полезность: −wPrice·ln(clamp(цена/P_ref, 1/20, 20)); разработчики 1,6, корпоративные 0,6', () => {
     expect(utilityAt(6) - utilityAt(3)).toBeCloseTo(-1.6 * Math.log(2), 9);
     expect(utilityAt(0.01) - utilityAt(3)).toBeCloseTo(1.6 * Math.log(20), 9);
-    expect(utilityAt(1000) - utilityAt(3)).toBeCloseTo(-1.6 * Math.log(20), 9);
+    expect(utilityAt(60) - utilityAt(3)).toBeCloseTo(-1.6 * Math.log(20), 9);
+    // Выше границы у игрока ещё −2·ln(цена / 20·P_ref).
+    expect(utilityAt(1000) - utilityAt(60)).toBeCloseTo(-2 * Math.log(1000 / 60), 9);
     expect(utilityAt(0) - utilityAt(3)).toBeCloseTo(1.6 * Math.log(20), 9);
     expect(utilityAt(6, 'enterprise') - utilityAt(3, 'enterprise')).toBeCloseTo(-0.6 * Math.log(2), 9);
   });
@@ -1505,6 +1537,38 @@ describe('инерция доли рынка', () => {
     const cur = marketSnapshot(s).segments.developers.entries.find((e) => e.key === key)!;
     expect(cur.share).toBeCloseTo(segShare(s), 6);
     expect(cur.target).toBeCloseTo(target, 6);
+  });
+
+  it('подорожание своей модели: доля сразу падает до целевой, и цена ×100 не даёт выручки больше, чем было', () => {
+    const s = twoRivals();
+    s.models.push(player({ arenaElo: 1300 }));
+    s.compute.alloc = { training: 0, contracts: 0, experiments: 0, api: 1, subs: 0 };
+    s.compute.rented.h100 = 1e9;
+    for (let d = 0; d < 120; d++) dayStep(s); // доля устоялась
+    const before = s.finance.month.income.api;
+    dayStep(s);
+    const normalDay = s.finance.month.income.api - before;
+    s.models[0].price *= 100;
+    const mid = s.finance.month.income.api;
+    dayStep(s);
+    const target = marketSnapshot(s, 'target').segments.developers.entries.find((e) => e.key === key)!.share;
+    expect(segShare(s)).toBeCloseTo(target, 6);
+    expect(s.finance.month.income.api - mid).toBeLessThan(normalDay);
+    expect(s.market.heldPrice?.['api:p1']).toBe(s.models[0].price);
+  });
+
+  it('подешевление своей модели: доля растёт постепенно, как раньше', () => {
+    const s = twoRivals();
+    s.models.push(player({ arenaElo: 1300 }));
+    s.compute.alloc = { training: 0, contracts: 0, experiments: 0, api: 1, subs: 0 };
+    s.compute.rented.h100 = 1e9;
+    for (let d = 0; d < 120; d++) dayStep(s);
+    const was = segShare(s);
+    s.models[0].price /= 4;
+    dayStep(s);
+    const target = marketSnapshot(s, 'target').segments.developers.entries.find((e) => e.key === key)!.share;
+    expect(segShare(s)).toBeGreaterThan(was);
+    expect(segShare(s)).toBeLessThan(was + (target - was) * 0.1);
   });
 
   it('соперник подчиняется тому же правилу: новая модель соперника тоже растёт постепенно', () => {

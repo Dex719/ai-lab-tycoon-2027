@@ -287,6 +287,7 @@ export interface Mail {
  * exposure: target - id модели игрока или без target; mult к шансу разоблачения.
  * segBrand: target - `${lab | 'player'}:${SegmentId}`; add к бренду в одном сегменте.
  * subsDemand: mult к спросу на подписки (SUBS_USERS); demand по-прежнему множит только спрос API.
+ * apiHold: target - id модели игрока; пока действует, модель нельзя вернуть в продажу по API (проверка баллов соперником).
  */
 export type ModifierKind =
   | 'rentPrice'
@@ -297,7 +298,8 @@ export type ModifierKind =
   | 'rivalPrice'
   | 'exposure'
   | 'segBrand'
-  | 'subsDemand';
+  | 'subsDemand'
+  | 'apiHold';
 
 export interface Modifier {
   id: string;
@@ -483,6 +485,8 @@ export interface GameState {
     contextLevel: number;
     /** Очередь: что исследовать дальше (до RESEARCH_QUEUE_MAX), когда текущее закончится. */
     queue: TechId[];
+    /** Игрок остановил исследование: очередь сама не запускается, пока он не выберет исследование. */
+    stopped?: boolean;
   };
   /** Идущие проекты обучения (не больше MAX_TRAININGS); доля «Обучение» делится между ними поровну. */
   trainings: TrainingRun[];
@@ -540,5 +544,7 @@ export interface GameState {
      * плюс 'none'. Каждый день они сдвигаются к целевым долям логита, а не прыгают. В старых сохранениях нет - берутся целевые.
      */
     held?: Record<SegmentId, Record<string, number>>;
+    /** Вчерашние цены моделей игрока для инерции: 'api:<id>' - $ за 1 млн токенов, 'subs:<id>' - $ в месяц. */
+    heldPrice?: Record<string, number>;
   };
 }

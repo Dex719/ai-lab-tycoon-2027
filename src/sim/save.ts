@@ -165,6 +165,7 @@ const MODIFIER_KINDS = keysOf<ModifierKind>({
   exposure: true,
   segBrand: true,
   subsDemand: true,
+  apiHold: true,
 });
 
 const ARCHS = ['lstm', 'transformer'];
@@ -531,6 +532,7 @@ const STATE: Record<keyof GameState, Check> = {
     algoLevel: num,
     contextLevel: num,
     queue: arrayOf(oneOf(TECH_IDS)),
+    stopped: optional(bool),
   }),
   trainings: arrayOf(trainingRun),
   nextRunNum: posInt,
@@ -574,6 +576,7 @@ const STATE: Record<keyof GameState, Check> = {
     lostSubs: num,
     segments: record(SEGMENT_IDS, segmentShares),
     held: optional(dict(dict(num))),
+    heldPrice: optional(dict(num)),
   }),
 };
 
