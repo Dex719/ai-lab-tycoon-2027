@@ -49,7 +49,8 @@ export interface EventChoiceDef {
   story?: string | ((s: GameState) => string);
   /** Вариант с жребием: чем кончилось, словами («Журналисты не заметили утечку»). Пишется в исход письма и в уведомление. */
   luck?: { good: string; bad: string };
-  apply: (s: GameState) => void;
+  /** mail - письмо, на которое отвечают: суммы, зависящие от года, считаются по дню письма, как в подсказке. */
+  apply: (s: GameState, mail?: Mail) => void;
 }
 
 export interface EventDef {

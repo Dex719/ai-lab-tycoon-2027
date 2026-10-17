@@ -1,7 +1,9 @@
 // Рост лаборатории на рабочем столе: гараж → офис → этаж в бизнес-центре → кампус.
 // Этап выбирается по лучшему месяцу выручки (только растёт) или по оценке компании; достигнутый этап
-// запоминается флагом газетной заметки (moment:stage-<n>), поэтому лаборатория не «съезжает» обратно,
-// если оценка упала. Ничего не меняет в балансе: только картинка сцены и заметка в «Вестнике».
+// запоминает сама симуляция в конце месяца (stage-reached-<n>, noteLabStage), поэтому лаборатория не «съезжает»
+// обратно, если оценка упала. Раньше память была только во флаге газетной заметки (moment:stage-<n>), который ставит
+// интерфейс: без интерфейса (боты, тесты) этап и места для найма (staff.ts) терялись. Старые сохранения: флаг заметки
+// тоже считается.
 
 import { valuation } from './investors';
 import type { GameState } from './types';
@@ -32,6 +34,8 @@ export const LAB_STAGES: readonly LabStageDef[] = [
 ];
 
 export const stageFlag = (n: number): string => `moment:stage-${n}`;
+/** Флаг симуляции: этап n достигнут (ставит noteLabStage). */
+export const reachedFlag = (n: number): string => `stage-reached-${n}`;
 
 /** Лучший месяц выручки за партию, $. */
 export function bestMonthRevenue(s: GameState): number {
@@ -64,12 +68,18 @@ export function metricStage(s: GameState): { stage: LabStageId; by: 'month' | 'v
 export function labStage(s: GameState): LabStageId {
   let stage = metricStage(s).stage;
   for (let i = LAB_STAGES.length - 1; i > stage; i--) {
-    if (s.flags[stageFlag(i)]) {
+    if (s.flags[reachedFlag(i)] || s.flags[stageFlag(i)]) {
       stage = LAB_STAGES[i].stage;
       break;
     }
   }
   return stage;
+}
+
+/** Конец месяца: запомнить достигнутый этап, чтобы он не терялся при падении оценки. */
+export function noteLabStage(s: GameState): void {
+  const stage = metricStage(s).stage;
+  if (stage > 0) s.flags[reachedFlag(stage)] = true;
 }
 
 /** Кубки на витрине: за каждый год - 1-е место на конец года (золото) или все цели года (серебро). */

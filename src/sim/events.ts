@@ -198,7 +198,7 @@ export function applyChoice(s: GameState, mailId: string, idx: number): Result {
   const before = { cash: s.cash, rep: s.reputation, hype: s.hype.player };
   startRollLog();
   try {
-    choice.apply(s);
+    choice.apply(s, mail);
   } finally {
     const luck = finishRollLog();
     if (luck) mail.outcome = { lucky: luck.lucky, text: outcomeText(choice.luck, luck.lucky, changesText(before, s)) };

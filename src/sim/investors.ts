@@ -16,7 +16,7 @@ import {
 import { addMail } from './events';
 import { endSentence } from './text';
 import { earn, revenueLast90, spend } from './finance';
-import { marketArenaRank } from './leaderboard';
+import { arenaStanding, marketArenaRank, rivalsSellByApi } from './leaderboard';
 import { byYear, formatDateShort, lerpByDate, yearOf } from './time';
 import type { GameState, PendingRound, Result } from './types';
 
@@ -35,11 +35,19 @@ export interface Valuation {
   emergencyMult: number;
 }
 
-/** Деньги в минусе, а годовой перерыв между раундами не прошёл: можно провести экстренный раунд со скидкой. */
+/**
+ * Деньги в минусе, а годовой перерыв между раундами не прошёл: можно провести экстренный раунд со скидкой.
+ * Один раз подряд: после экстренного раунда следующий - только обычный, через перерыв. Иначе экстренные раунды
+ * брали каждые две недели, уходя в минус покупками, и годовой перерыв ничего не значил.
+ */
 export function emergencyRound(s: GameState): boolean {
-  return s.cash < 0 && s.lastRoundDay !== null && s.day < s.lastRoundDay + ROUND_COOLDOWN_DAYS;
+  return (
+    s.cash < 0 && s.lastRoundDay !== null && s.day < s.lastRoundDay + ROUND_COOLDOWN_DAYS && !s.flags[EMERGENCY_USED_FLAG]
+  );
 }
 
+/** Флаг состояния: последний закрытый раунд был экстренным - второго экстренного подряд не будет. */
+export const EMERGENCY_USED_FLAG = 'emergencyRoundUsed';
 /** Флаг состояния: принят план совета директоров, следующий раунд пройдёт по сниженной оценке. */
 export const BOARD_PLAN_FLAG = 'boardPlan';
 /** Флаг состояния: письмо о доле основателя ниже FOUNDER_WARN_SHARE уже отправлено. */
@@ -64,8 +72,14 @@ function rankFactorFor(rank: number | null): number {
   return 0.05;
 }
 
-/** Лучшее место среди выпущенных моделей игрока, которые продаются по API. */
+/**
+ * Лучшее место среди выпущенных моделей игрока, которые продаются по API. Пока соперники по API не продают, место
+ * на рынке всегда 1-е и ничего не значит: тогда берётся место в гонке по главному тесту (SQuAT, затем GLUU), как
+ * на верхней панели. Раньше любая слабая модель на API получала полную технологическую часть оценки.
+ */
 function bestMarketRank(s: GameState): number | null {
+  if (!s.models.some((m) => m.releasedDay !== null && m.onApi)) return null;
+  if (!rivalsSellByApi(s)) return arenaStanding(s)?.rank ?? null;
   let best: number | null = null;
   for (const m of s.models) {
     if (m.releasedDay === null || !m.onApi) continue;
@@ -191,6 +205,8 @@ function closeRound(s: GameState, r: PendingRound): void {
   earn(s, 'investors', r.money);
   s.founderShare *= 1 - r.fraction;
   s.lastRoundDay = s.day;
+  if (r.emergency) s.flags[EMERGENCY_USED_FLAG] = true;
+  else delete s.flags[EMERGENCY_USED_FLAG];
   // План совета директоров действует на один раунд: скидка к оценке снята.
   if (s.flags[BOARD_PLAN_FLAG]) delete s.flags[BOARD_PLAN_FLAG];
   addMail(s, {

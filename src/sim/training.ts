@@ -75,6 +75,8 @@ export type Arch = 'lstm' | 'transformer';
 
 /** Разброс грубой оценки Эло до «Законов масштабирования»: ±12 %. */
 export const ROUGH_ELO_SPREAD = 0.12;
+/** До этого дня включённое обучение игре защищает проекты от срыва (дальше - только первая модель). */
+const TUTORIAL_SAFE_UNTIL = dateToDay('2018-01-01');
 
 export interface TrainingEstimate {
   flop: number;
@@ -298,9 +300,18 @@ export function labelersCost(plan: TrainingPlan): number {
 
 // ---------- Проверка и оценка проекта ----------
 
-/** Мощность на один проект: доля «Обучение» делится поровну между идущими проектами (extra - ещё не начатые, для оценки срока). */
+/** Проект стоит: сорвался и ждёт решения или зажат в точке второго срыва, пока ждёт решение по первому. */
+function runStalled(t: TrainingRun): boolean {
+  return t.failed || (t.failAtFraction !== null && t.flopDone >= t.failAtFraction * t.flopTotal);
+}
+
+/**
+ * Мощность на один проект: доля «Обучение» делится поровну между идущими проектами (extra - ещё не начатые, для оценки
+ * срока). Стоящий проект мощность не занимает: иначе, пока письмо о срыве ждёт ответа, второй проект шёл вдвое медленнее.
+ */
 export function trainingPoolPerRun(s: GameState, extra = 0): number {
-  return pool(s, 'training') / Math.max(1, s.trainings.length + extra);
+  const moving = s.trainings.filter((t) => !runStalled(t)).length;
+  return pool(s, 'training') / Math.max(1, moving + extra);
 }
 
 /**
@@ -419,8 +430,9 @@ export function startTraining(s: GameState, plan: TrainingPlan): Result {
   spend(s, 'labelers', labelersCost(copy));
   const flop = planFlop(copy, trainOverhead(s.day));
   // Первая модель партии (и всё, пока идёт обучение игре) не срывается: плейтест 17.10 - срыв на 9-й день первой модели
-  // посреди обучения игре. Срыв - испытание для опытного игрока, а не для первого знакомства.
-  const firstSteps = !s.models.some((m) => m.releasedDay !== null) || s.tutorial.active;
+  // посреди обучения игре. Срыв - испытание для опытного игрока, а не для первого знакомства. Обучение игре защищает
+  // только в первый год: незакрытая подсказка не должна отменять срывы на всю партию.
+  const firstSteps = !s.models.some((m) => m.releasedDay !== null) || (s.tutorial.active && s.day < TUTORIAL_SAFE_UNTIL);
   const failChance = firstSteps ? 0 : FAIL_BASE + (s.bestFlop > 0 && flop > FAIL_JUMP_RATIO * s.bestFlop ? FAIL_BIG_JUMP : 0);
   const failAtFraction = chance(s, failChance) ? randRange(s, 0.2, 0.8) : null;
   s.trainings.push({

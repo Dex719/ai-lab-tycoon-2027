@@ -12,6 +12,7 @@ import { finaleDay } from './finale';
 import { expireChoices, fireDue, pendingChoice, pruneMail, pruneModifiers } from './events';
 import { beginDay, closeMonth, dayStep as financeDay } from './finance';
 import { goalsDay, yearEnd } from './goals';
+import { noteLabStage } from './labStage';
 import { marketArenaRank, rivalFrontierElo, rivalsSellByApi, updateSaturation } from './leaderboard';
 import { tasksDay } from './tasks';
 import { staffDay } from './staff';
@@ -108,6 +109,7 @@ export function advanceDay(s: GameState): void {
     if (playerBestArenaRank(s) === 1 && rivalsSellByApi(s)) s.monthsFirst += 1;
     for (const o of HYPE_OWNERS) s.hype[o] *= HYPE_MONTHLY_DECAY;
     monthlyExposure(s);
+    noteLabStage(s);
     // Рычаг игрока, накал и планирование ходов соперников: единственное место модуля со случайностью (с 2021 года).
     rivalryMonth(s);
     updateSaturation(s);

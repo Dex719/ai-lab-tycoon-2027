@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LAB_PERSONALITIES, personalityOf } from '../data/labPersonalities';
 import { RIVAL_MODELS } from '../data/rivalModels';
 import { reactiveNameProblems, RIVAL_REACTIVE } from '../data/rivalReactive';
-import { addMail, modValue } from './events';
+import { addMail, applyChoice, modValue } from './events';
 import { minPrice, refPrice } from './market';
 import { rivalDay, rivalDef, rivalPrice, rivalTier } from './rivals';
 import { setOnApi } from './actions';
@@ -724,6 +724,34 @@ describe('ускорение флагмана', () => {
 // ---------- Ответные модели ----------
 
 describe('ответные модели', () => {
+  it('каждый шаблон ответной модели достижим: его дата раньше тихих последних 90 дней игры', () => {
+    for (const t of RIVAL_REACTIVE) expect(dateToDay(t.notBefore), t.id).toBeLessThanOrEqual(END_DAY - 90);
+  });
+
+  it('слух о дешёвой модели не появляется, если ход сработал бы уже в тихие последние 90 дней', () => {
+    const shockAt = (date: string): boolean => {
+      const s = game(date, 'hard');
+      addModel(s, { elo: 1300, price: 5 });
+      setShares(s, 0.3);
+      return availableMoves(s, 'deepcent').includes('cheapShock');
+    };
+    expect(shockAt('2024-08-01')).toBe(true);
+    // 1 октября ещё не тихий конец (он с 3 октября), но ход сработал бы через несколько дней - уже в нём.
+    expect(shockAt('2024-10-01')).toBe(false);
+  });
+
+  it('ответная модель не съедает лимит прибавки Эло лаборатории: флагман после неё всё ещё усиливается', () => {
+    const s = game('2024-07-01', 'hard');
+    addModel(s, { elo: 1300, price: 5 });
+    setShares(s, 0.3);
+    expect(executeMove(s, pend('deepcent', 'cheapShock'))).not.toBeNull();
+    expect(s.rivalry.overrides['mv-deepcent-1']?.eloAdd ?? 0).toBeGreaterThan(DIFFICULTY.hard.eloAddLabCap);
+    const v25 = rivalDef('deepseak-v2-5');
+    const before = rivalEloIn(s, v25);
+    expect(executeMove(s, pend('deepcent', 'flagship', 'deepseak-v2-5'))).not.toBeNull();
+    expect(rivalEloIn(s, v25)).toBeGreaterThan(before);
+  });
+
   it('дешёвая модель: Эло не выше лучшей каталожной − 20, цена втрое ниже новейшей и не ниже minPrice', () => {
     const s = game('2024-07-01');
     addModel(s, { elo: 1300, price: 5 });
@@ -892,6 +920,42 @@ describe('письма с выбором', () => {
     expect(s.reputation).toBe(rep - 20);
     expect(s.flags[`rivalDenied:${m.id}`]).toBeUndefined();
     expect(s.mail.at(-1)?.title).toContain('Отрицание обернулось против лаборатории');
+  });
+
+  it('«Отрицать» наказывает только 180 дней; честные баллы позже штрафа за отрицание не дают', () => {
+    const a = auditState();
+    executeMove(a.s, pend('gogle', 'audit', a.m.id));
+    applyChoiceOf(a.s, 'rival-audit', 2);
+    a.s.day += 181;
+    rivalryDay(a.s);
+    expect(a.s.flags[`rivalDenied:${a.m.id}`]).toBeUndefined();
+    const rep = a.s.reputation;
+    a.m.exposed = true;
+    rivalryDay(a.s);
+    expect(a.s.reputation).toBe(rep);
+
+    const b = auditState();
+    executeMove(b.s, pend('gogle', 'audit', b.m.id));
+    applyChoiceOf(b.s, 'rival-audit', 2);
+    b.s.day += 30;
+    executeMove(b.s, pend('antropik', 'audit', b.m.id));
+    const before = b.s.reputation;
+    applyChoiceOf(b.s, 'rival-audit', 0); // опубликовать честные баллы
+    rivalryDay(b.s);
+    expect(b.s.reputation).toBe(before - 5);
+  });
+
+  it('ответ, отложенный через 1 января, стоит столько, сколько написано в письме', () => {
+    const s = game('2022-12-20');
+    addModel(s, { elo: 1300, price: 1 });
+    s.cash = 1e9;
+    expect(executeMove(s, pend('gogle', 'hype'))).not.toBeNull();
+    const mail = s.mail.find((x) => x.eventId === 'rival-hype')!;
+    expect(mail.choices![0].hint).toBe('-$900 тыс., +15 шумихи'); // 2022: ×3
+    s.day = dateToDay('2023-01-10'); // 2023: ×5
+    const cash = s.cash;
+    expect(applyChoice(s, mail.id, 0).ok).toBe(true);
+    expect(cash - s.cash).toBe(900_000);
   });
 
   it('чистую модель не проверяют', () => {

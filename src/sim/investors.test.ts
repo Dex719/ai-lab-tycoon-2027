@@ -3,9 +3,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GameState, ModelRef, PlayerModel } from './types';
 
-const m = vi.hoisted(() => ({ marketArenaRank: vi.fn() }));
+const m = vi.hoisted(() => ({ marketArenaRank: vi.fn(), rivalsSellByApi: vi.fn(), arenaStanding: vi.fn() }));
 
-vi.mock('./leaderboard', () => ({ marketArenaRank: m.marketArenaRank }));
+vi.mock('./leaderboard', () => ({
+  marketArenaRank: m.marketArenaRank,
+  rivalsSellByApi: m.rivalsSellByApi,
+  arenaStanding: m.arenaStanding,
+}));
 
 import {
   BOARD_BUYBACK_PREMIUM,
@@ -26,6 +30,7 @@ import {
   cancelRound,
   canRaise,
   EMERGENCY_ROUND_DAYS,
+  emergencyRound,
   FOUNDER_WARNED_FLAG,
   investorsDay,
   raiseRound,
@@ -42,10 +47,17 @@ import { byYear, dateToDay, lerpByDate } from './time';
 
 /** Места моделей игрока на Арене: id → место (нет в таблице - null). */
 let ranks: Record<string, number | null> = {};
+/** Соперники продают по API (иначе место - по гонке теста, raceRank). */
+let rivalsOnApi = true;
+let raceRank: number | null = null;
 
 beforeEach(() => {
   ranks = {};
+  rivalsOnApi = true;
+  raceRank = null;
   m.marketArenaRank.mockReset().mockImplementation((_s: GameState, ref: ModelRef) => ranks[ref.id] ?? null);
+  m.rivalsSellByApi.mockReset().mockImplementation(() => rivalsOnApi);
+  m.arenaStanding.mockReset().mockImplementation(() => (raceRank === null ? null : { rank: raceRank }));
 });
 
 function newState(day = 0): GameState {
@@ -227,6 +239,20 @@ describe('valuation: место на Арене', () => {
     const v = valuation(s);
     expect(v.bestRank).toBe(2);
     expect(v.rankFactor).toBe(0.5);
+  });
+
+  it('пока соперники не продают по API, место - по гонке теста, а не всегда 1-е на рынке', () => {
+    const s = newState(day2023);
+    s.models.push(makeModel('p1'));
+    ranks.p1 = 1; // на рынке без соперников - всегда первая
+    rivalsOnApi = false;
+    raceRank = 4;
+    expect(valuation(s)).toMatchObject({ bestRank: 4, rankFactor: 0.2 });
+    raceRank = 1;
+    expect(valuation(s)).toMatchObject({ bestRank: 1, rankFactor: 1 });
+    // Без моделей на API технологий нет, даже если гонка по тесту выиграна.
+    s.models[0].onApi = false;
+    expect(valuation(s).bestRank).toBeNull();
   });
 
   it('невыпущенные и снятые с продажи модели не считаются', () => {
@@ -731,6 +757,25 @@ describe('раунд с переговорами', () => {
     expect(raiseRound(s, 0.1).ok).toBe(true);
     expect(s.round!.emergency).toBe(true);
     expect(s.round!.closeDay).toBe(100 + EMERGENCY_ROUND_DAYS);
+  });
+
+  it('второго экстренного раунда подряд нет: после него - только обычный, через перерыв', () => {
+    const s = newState();
+    raiseRoundNow(s, 0.1);
+    s.day = 100;
+    s.cash = -50_000;
+    expect(raiseRoundNow(s, 0.1).ok).toBe(true);
+    s.day = 130;
+    s.cash = -50_000;
+    expect(emergencyRound(s)).toBe(false);
+    expect(raiseRound(s, 0.1).ok).toBe(false);
+    // Обычный раунд после перерыва снимает запрет.
+    s.day = 100 + ROUND_COOLDOWN_DAYS;
+    s.cash = 1e6;
+    expect(raiseRoundNow(s, 0.1).ok).toBe(true);
+    s.day += 30;
+    s.cash = -50_000;
+    expect(emergencyRound(s)).toBe(true);
   });
 
   it('раунд на переговорах проходит сохранение; старое сохранение без поля загружается без переговоров', () => {

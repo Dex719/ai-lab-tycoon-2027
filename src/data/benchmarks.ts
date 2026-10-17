@@ -32,7 +32,8 @@ export const BENCHMARKS: BenchmarkDef[] = [
     description: 'Школьные текстовые задачи по математике.',
   },
   {
-    id: 'swebench', name: 'SWE-banch', realName: 'SWE-bench Verified', domain: 'code', introduced: '2023-10-10',
+    // Дата - выход исходного SWE-bench (10.10.2023); подмножество Verified вышло только в августе 2024 года.
+    id: 'swebench', name: 'SWE-banch', realName: 'SWE-bench', domain: 'code', introduced: '2023-10-10',
     guess: 0, difficulty: 85.2, spread: 2.1, saturation: 75,
     description: 'Реальные задачи из GitHub: исправление ошибок в чужих репозиториях.',
   },

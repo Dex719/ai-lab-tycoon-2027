@@ -52,6 +52,7 @@ import {
 import { nextRandom } from './rng';
 import { deserialize, serialize } from './save';
 import { createInitialState } from './state';
+import { syncTenders } from './tasks';
 import { byYear, dateToDay, lerpByDate } from './time';
 
 // ---------- Подмены и заготовки ----------
@@ -721,6 +722,16 @@ describe('progressDay: решение по заявке', () => {
     expect(lastMail(s).kind).toBe('contract');
     expect(lastMail(s).title).toMatch(/выигран/);
     expect(s.finance.month.expense.labelers).toBe(0); // обычный тендер без разметчиков
+  });
+
+  it('победа сразу засчитывается в счётчик тендеров, даже если контракт исчезнет в тот же день; повторно не считается', () => {
+    const s = applied({ durationDays: 90 });
+    s.day = 25;
+    progressDay(s);
+    expect(s.quests.tendersWon).toBe(1);
+    s.contracts = []; // сдан в тот же день
+    syncTenders(s);
+    expect(s.quests.tendersWon).toBe(1);
   });
 
   it('победа в RLHF-тендере: разметчики 25 % оплаты', () => {

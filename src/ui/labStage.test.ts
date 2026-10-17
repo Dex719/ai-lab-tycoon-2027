@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { newGame } from '../sim/actions';
 import { runBot } from '../sim/bots';
+import { noteLabStage, reachedFlag } from '../sim/labStage';
 import { dateToDay } from '../sim/time';
 import type { GameState, MonthRecord } from '../sim/types';
 import { LAB_STAGES, labStage, metricStage, stageFlag, yearCups } from './labStage';
@@ -20,6 +21,18 @@ describe('этап лаборатории на рабочем столе', () =>
       expect(LAB_STAGES[i].racks).toBeGreaterThanOrEqual(LAB_STAGES[i - 1].racks);
     }
     for (const d of LAB_STAGES) expect(d.name).not.toMatch(/[—–]/);
+  });
+
+  it('достигнутый этап запоминает симуляция: без газетной заметки он не теряется, когда показатели падают', () => {
+    const s = newGame('Тест', 1);
+    s.finance.history = [];
+    withMonth(s, 2020, 5, 6e6);
+    noteLabStage(s);
+    expect(s.flags[reachedFlag(2)]).toBe(true);
+    expect(s.flags[stageFlag(2)]).toBeUndefined(); // заметку в «Вестнике» по-прежнему ставит интерфейс
+    s.finance.history = [];
+    expect(metricStage(s).stage).toBe(0);
+    expect(labStage(s)).toBe(2);
   });
 
   it('новая партия - гараж', () => {

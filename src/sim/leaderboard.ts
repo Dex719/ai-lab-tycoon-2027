@@ -90,8 +90,11 @@ function rankIn(list: Entry[], ref: ModelRef, value: (e: Entry) => number): numb
   return rank;
 }
 
-/** Модель соперника продаётся по API: в каталоге api, и её не только показали. */
-function rivalOnApi(def: RivalModelDef): boolean {
+/**
+ * Модель соперника продаётся по API: в каталоге api, и её не только показали. По этому правилу считается победа;
+ * финал (finale.ts) берёт его же, а не rivals.rivalOnApi (там и модели только с открытыми весами - для рынка).
+ */
+export function rivalInRace(def: RivalModelDef): boolean {
   return def.api && !def.announcedOnly;
 }
 
@@ -101,7 +104,7 @@ function rivalOnApi(def: RivalModelDef): boolean {
  * кого можно купить», а не среди витрины рынка (marketRivals).
  */
 function onApiOnly(list: Entry[]): Entry[] {
-  return list.filter((e) => (e.rival ? rivalOnApi(e.rival) : (e.model as PlayerModel).onApi));
+  return list.filter((e) => (e.rival ? rivalInRace(e.rival) : (e.model as PlayerModel).onApi));
 }
 
 // ---------- Таблица ----------
@@ -252,7 +255,7 @@ export function rivalsSellByApi(s: GameState): boolean {
 export function expectedLeaderElo(_s: GameState): number {
   let best = 0;
   for (const def of RIVAL_MODELS) {
-    if (!rivalOnApi(def) || rivalDay(def) > END_DAY) continue;
+    if (!rivalInRace(def) || rivalDay(def) > END_DAY) continue;
     if (def.arenaElo > best) best = def.arenaElo;
   }
   return best;

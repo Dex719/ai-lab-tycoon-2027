@@ -29,7 +29,8 @@ import { deserialize, serialize } from './save';
 import { emptyQuests, emptyYearly } from './state';
 import { advanceDay } from './tick';
 import { dateToDay, dayToDate } from './time';
-import type { GameState, MonthRecord, PlayerModel, TechId, YearGoalState } from './types';
+import type { GameState, MonthLedger, MonthRecord, PlayerModel, TechId, YearGoalState } from './types';
+import { ledgerExpense } from './yearStats';
 
 const D = dateToDay;
 
@@ -572,5 +573,17 @@ describe('цели по реальной экономике (плейтест 17
     // Планка 2018 года - $1 млн: цель не выше $2,5 млн, хотя прошлый год дал $4 млн.
     expect(revenueTarget(s, 2018, 1)).toBeLessThanOrEqual(2_500_000);
     expect(revenueTarget(s, 2018, 0)).toBeGreaterThanOrEqual(800_000);
+  });
+});
+
+describe('расходы года', () => {
+  it('включают электричество своих дата-центров и не включают разовые вложения', () => {
+    const l = {
+      year: 2024,
+      month: 1,
+      income: { api: 0, subs: 0, contracts: 0, investors: 0 },
+      expense: { rent: 1, overhead: 2, labelers: 3, penalties: 4, review: 5, capex: 100, power: 6 },
+    } as unknown as MonthLedger;
+    expect(ledgerExpense(l)).toBe(21);
   });
 });

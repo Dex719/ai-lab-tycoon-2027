@@ -5,7 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('./training', () => ({ applyFailChoice: vi.fn() }));
 // marketArenaRank нужен оценке инвесторов (письмо совета директоров называет цену выкупа): моделей на рынке нет.
-vi.mock('./leaderboard', () => ({ bestElo: vi.fn(() => 1000), marketArenaRank: vi.fn(() => null) }));
+vi.mock('./leaderboard', () => ({
+  bestElo: vi.fn(() => 1000),
+  marketArenaRank: vi.fn(() => null),
+  rivalsSellByApi: vi.fn(() => true),
+  arenaStanding: vi.fn(() => null),
+}));
 
 import { EVENTS, findEvent, money } from '../data/events';
 import { pointsWord } from './text';

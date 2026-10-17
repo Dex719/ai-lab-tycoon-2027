@@ -397,14 +397,19 @@ function resolveApplication(s: GameState, t: Tender): void {
     });
     return;
   }
+  const contractId = t.id.replace(/^t/, 'c');
   s.contracts.push({
-    id: t.id.replace(/^t/, 'c'),
+    id: contractId,
     tender: { ...t, work: a.work ?? t.work }, // объём уже посчитан под модель заявки
     modelId: model.id,
     startedDay: s.day,
     deadlineDay: s.day + t.durationDays,
     workDone: 0,
   });
+  // Победа засчитывается сразу (tasks.syncTenders её уже не посчитает): контракт, сданный в тот же день,
+  // иначе исчезал до проверки задач, и задачи и цели «выиграть тендер» его не видели.
+  s.quests.tendersWon += 1;
+  s.quests.knownContracts.push(contractId);
   let labelersNote = '';
   if (t.type === 'rlhf') {
     const labelers = RLHF_TENDER_LABELERS * t.payment;

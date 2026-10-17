@@ -13,10 +13,10 @@ import { LABS } from '../data/labs';
 import { RIVAL_MODELS } from '../data/rivalModels';
 import { addMail } from './events';
 import { spend } from './finance';
-import { marketArenaRank } from './leaderboard';
+import { marketArenaRank, rivalInRace } from './leaderboard';
 import { hasTeam, lateOf, TEAM_UPDATE_MULT, type FinalPush } from './lateState';
 import { addRivalModifier, findRivalDefIn, rivalDayIn, rivalEloIn, STORY_LOCKED, type Difficulty } from './rivalry';
-import { findRivalDef, rivalOnApi } from './rivals';
+import { findRivalDef } from './rivals';
 import { daysWord, endSentence, ruPlural } from './text';
 import { dateToDay, END_DAY, formatDate } from './time';
 import type { GameState, LabId, PlayerModel, Result, Tier } from './types';
@@ -137,7 +137,7 @@ function candidateOf(s: GameState, lab: LabId, playerElo: number, def: FinaleDef
   const list: Candidate[] = [];
   for (const id of s.rivalsReleased) {
     const m = findRivalDef(id); // только каталог: ответные модели - облегчённые версии
-    if (!m || m.lab !== lab || !rivalOnApi(m) || m.announcedOnly) continue;
+    if (!m || m.lab !== lab || !rivalInRace(m) || m.announcedOnly) continue;
     const base = rivalEloIn(s, m);
     if (base >= playerElo) return null; // лаборатория уже впереди
     if (STORY_LOCKED.has(id)) continue;
@@ -146,7 +146,7 @@ function candidateOf(s: GameState, lab: LabId, playerElo: number, def: FinaleDef
     list.push({ lab, modelId: id, name: m.gameName, kind: 'update', base, fireDay });
   }
   for (const m of RIVAL_MODELS) {
-    if (m.lab !== lab || released.has(m.id) || !rivalOnApi(m) || m.announcedOnly) continue;
+    if (m.lab !== lab || released.has(m.id) || !rivalInRace(m) || m.announcedOnly) continue;
     const day = rivalDayIn(s, m);
     if (day > END_DAY) continue;
     const base = rivalEloIn(s, m);
@@ -237,7 +237,7 @@ function announceCatalog(s: GameState): void {
   const me = playerBestApi(s);
   const released = new Set(s.rivalsReleased);
   for (const m of RIVAL_MODELS) {
-    if (released.has(m.id) || f.announced.includes(m.id) || !rivalOnApi(m) || m.announcedOnly) continue;
+    if (released.has(m.id) || f.announced.includes(m.id) || !rivalInRace(m) || m.announcedOnly) continue;
     const day = rivalDayIn(s, m);
     if (day < FIRST_CHECK || day > END_DAY || day - s.day > def.notice) continue;
     const elo = rivalEloIn(s, m);

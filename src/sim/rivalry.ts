@@ -691,9 +691,17 @@ function labDayShiftTotal(s: RivalryGame, lab: LabId): number {
   return total;
 }
 
+// Модели каталога: только их прибавки Эло идут в лимит лаборатории.
+const CATALOG_IDS = new Set(RIVAL_MODELS.map((m) => m.id));
+
+/**
+ * Сколько Эло лаборатория уже добавила моделям каталога (лимит eloAddLabCap). Ответные модели не в счёт: их eloAdd -
+ * разница с устаревшей базой шаблона (+80 и больше), и одна дешёвая модель выбирала лимит лаборатории до конца игры.
+ */
 function labEloAddTotal(s: RivalryGame, lab: LabId): number {
   let total = 0;
   for (const [id, o] of Object.entries(s.rivalry.overrides)) {
+    if (!CATALOG_IDS.has(id)) continue;
     const def = findRivalDef(id);
     if (def && def.lab === lab && o.eloAdd && o.eloAdd > 0) total += o.eloAdd;
   }
@@ -708,12 +716,12 @@ function templateKind(t: ReactiveTemplate): TemplateKind {
   return 'cheap';
 }
 
-/** Первый свободный шаблон лаборатории нужного вида: дата подошла, базовая модель вышла. */
-function pickTemplate(s: RivalryGame, lab: LabId, kind: TemplateKind): ReactiveTemplate | null {
+/** Первый свободный шаблон лаборатории нужного вида: дата подошла (к дню at - дню хода), базовая модель вышла. */
+function pickTemplate(s: RivalryGame, lab: LabId, kind: TemplateKind, at = s.day): ReactiveTemplate | null {
   for (const t of RIVAL_REACTIVE) {
     if (t.lab !== lab || templateKind(t) !== kind) continue;
     if (s.rivalry.extra[t.id] !== undefined) continue;
-    if (s.day < dateToDay(t.notBefore)) continue;
+    if (at < dateToDay(t.notBefore)) continue;
     if (!s.rivalsReleased.includes(t.base)) continue;
     return t;
   }
@@ -730,8 +738,15 @@ function cheapShockCount(s: RivalryGame): number {
 }
 
 /** Можно ли выпустить ещё одну ответную модель: не в последние 90 дней игры, лимит на лабораторию не исчерпан. */
-function extrasAllowed(s: RivalryGame, lab: LabId): boolean {
-  return s.day <= END_DAY - QUIET_END_DAYS && s.rivalry.extraCount[lab] < DIFFICULTY[s.difficulty].extraPerLab;
+/** Ответная модель разрешена: в день at (по умолчанию сегодня) ещё не тихий конец игры и лимит лаборатории не выбран. */
+function extrasAllowed(s: RivalryGame, lab: LabId, at = s.day): boolean {
+  return at <= END_DAY - QUIET_END_DAYS && s.rivalry.extraCount[lab] < DIFFICULTY[s.difficulty].extraPerLab;
+}
+
+/** Через сколько дней после слуха исполняется ход (schedule). */
+function moveDelay(s: RivalryGame, lab: LabId, move: MoveId): number {
+  const diff = DIFFICULTY[s.difficulty];
+  return Math.max(1, Math.round((MOVES[move].price ? diff.priceDelay : diff.delay) * personalityOf(lab).delayMult));
 }
 
 /** Ответная модель выходит: день, поправки, rivalsReleased, счётчик. Письмо пишет вызывающий ход. */
@@ -975,6 +990,8 @@ export function triggerHolds(s: RivalryGame, lab: LabId, move: MoveId): boolean 
   const cheapest = playerCheapestPrice(s);
   const eloP = bestElo(s, 'player');
   const eloL = labBestEloIn(s, lab);
+  // Ход с ответной моделью исполнится через moveDelay дней: слух без шанса сбыться (тихий конец игры) не пускаем.
+  const fireAt = s.day + moveDelay(s, lab, move);
   switch (move) {
     case 'priceCut': {
       if (labNewestApi(s, lab) === null) return false;
@@ -999,10 +1016,10 @@ export function triggerHolds(s: RivalryGame, lab: LabId, move: MoveId): boolean 
         segShare(s, 'developers', 'player') >= diff.shockShare &&
         cheapest !== null &&
         cheapest >= 0.5 * refPrice(s.day) &&
-        extrasAllowed(s, lab) &&
+        extrasAllowed(s, lab, fireAt) &&
         cheapShockCount(s) < CHEAP_SHOCKS_PER_GAME &&
         demandRoom(s, MOVES.cheapShock.demand) &&
-        pickTemplate(s, lab, 'cheap') !== null
+        pickTemplate(s, lab, 'cheap', fireAt) !== null
       );
     case 'hype':
       return (s.hype.player ?? 0) >= (s.hype[lab] ?? 0) + 20 && eloL > 0 && eloL >= eloP - 50;
@@ -1013,14 +1030,14 @@ export function triggerHolds(s: RivalryGame, lab: LabId, move: MoveId): boolean 
       return (
         s.day >= dateToDay('2023-03-01') &&
         (eloL <= eloP - 30 || shareP > shareL) &&
-        extrasAllowed(s, lab) &&
-        pickTemplate(s, lab, 'open') !== null
+        extrasAllowed(s, lab, fireAt) &&
+        pickTemplate(s, lab, 'open', fireAt) !== null
       );
     case 'context': {
       const ctxP = playerMaxContext(s);
       const ctxL = labBestContext(s, lab);
       if (s.day < dateToDay('2023-05-01') || shareP < 0.05 || ctxP <= 0 || ctxL <= 0 || ctxP < 4 * ctxL) return false;
-      return contextTarget(s, lab) !== null || (extrasAllowed(s, lab) && pickTemplate(s, lab, 'context') !== null);
+      return contextTarget(s, lab) !== null || (extrasAllowed(s, lab, fireAt) && pickTemplate(s, lab, 'context', fireAt) !== null);
     }
     case 'audit':
       return auditTarget(s) !== null;
@@ -1162,8 +1179,7 @@ function movesLastYear(s: RivalryGame): number {
 function schedule(s: RivalryGame, lab: LabId, move: MoveId): void {
   const r = s.rivalry;
   const diff = DIFFICULTY[s.difficulty];
-  const p = personalityOf(lab);
-  const days = Math.max(1, Math.round((MOVES[move].price ? diff.priceDelay : diff.delay) * p.delayMult));
+  const days = moveDelay(s, lab, move);
   const modelId = moveModelId(s, lab, move);
   r.heat[lab] = Math.max(0, r.heat[lab] - HEAT_SPEND);
   r.pending.push({ id: `${lab}:${move}:${s.day}`, lab, move, fireDay: s.day + days, modelId });
@@ -1592,7 +1608,12 @@ export function rivalryDay(s: RivalryGame): void {
       delete s.flags[key];
       continue;
     }
-    if (!m.exposed) continue;
+    if (!m.exposed) {
+      // Отрицание грозит штрафом, пока действует повышенный шанс разоблачения (180 дней), а не всю партию.
+      const watched = s.modifiers.some((x) => x.id === `rival-exposure-${id}` && x.untilDay >= s.day);
+      if (!watched) delete s.flags[key];
+      continue;
+    }
     delete s.flags[key];
     s.reputation = clamp(s.reputation - DENIAL_REP, 0, 100);
     addMail(s, {
@@ -1635,8 +1656,9 @@ const HYPE_EVENT: EventDef = {
       story: 'Своя реклама вернёт внимание к вашим моделям',
       hint: '',
       hintFn: (s) => `-${fmtMoney(HYPE_CAMPAIGN_COST * yearMult(s.day))}, +15 шумихи`,
-      apply: (s) => {
-        spend(s, 'overhead', HYPE_CAMPAIGN_COST * yearMult(s.day));
+      // Цена по дню письма, как в подсказке: отложенный через 1 января ответ иначе стоил на 60-70 % дороже.
+      apply: (s, mail) => {
+        spend(s, 'overhead', HYPE_CAMPAIGN_COST * yearMult(mail?.day ?? s.day));
         s.hype.player = Math.min(100, s.hype.player + 15);
       },
     },
@@ -1669,7 +1691,11 @@ const AUDIT_EVENT: EventDef = {
       hint: 'модель разоблачена, -5 репутации, шумиха -20 %',
       apply: (s) => {
         const m = choiceModel(s);
-        if (m) m.exposed = true;
+        if (m) {
+          m.exposed = true;
+          // Обещано «скандала не будет»: прежнее отрицание этой модели больше не наказывается.
+          delete s.flags[`${DENIED_FLAG}${m.id}`];
+        }
         s.reputation = clamp(s.reputation - 5, 0, 100);
         s.hype.player *= 0.8;
       },
@@ -1721,8 +1747,8 @@ const POACH_EVENT: EventDef = {
       story: 'Исследователи остаются, соперник уходит ни с чем',
       hint: '',
       hintFn: (s) => `-${fmtMoney(POACH_MONTHS * OVERHEAD_MONTHLY * yearMult(s.day))}`,
-      apply: (s) => {
-        spend(s, 'overhead', POACH_MONTHS * OVERHEAD_MONTHLY * yearMult(s.day));
+      apply: (s, mail) => {
+        spend(s, 'overhead', POACH_MONTHS * OVERHEAD_MONTHLY * yearMult(mail?.day ?? s.day));
       },
     },
     {

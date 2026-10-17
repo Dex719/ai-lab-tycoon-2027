@@ -40,7 +40,7 @@ export const RIVAL_REACTIVE: ReactiveTemplate[] = [
   { id: 'mv-zhipo-1', lab: 'zhipo', gameName: 'ChatGML2 Lite', base: 'chatgml2-6b', notBefore: '2023-08-01', openWeights: true },
   { id: 'mv-zhipo-2', lab: 'zhipo', gameName: 'GML-4-Lite', base: 'gml-4', notBefore: '2024-02-15' },
   { id: 'mv-zhipo-3', lab: 'zhipo', gameName: 'GML-4-Lite-9B', base: 'gml-4-9b', notBefore: '2024-07-15', openWeights: true },
-  { id: 'mv-zhipo-4', lab: 'zhipo', gameName: 'GML-4-Plos Lite', base: 'gml-4-plos', notBefore: '2024-10-01' },
+  { id: 'mv-zhipo-4', lab: 'zhipo', gameName: 'GML-4-Plos Lite', base: 'gml-4-plos', notBefore: '2024-09-10' },
 
   // Moonshoot: длинный контекст; дешёвая версия - на будущее.
   { id: 'mv-moonshoot-1', lab: 'moonshoot', gameName: 'Kimo Chat 128K', base: 'kimo-chat', notBefore: '2023-11-01', context: 128000 },
@@ -51,13 +51,13 @@ export const RIVAL_REACTIVE: ReactiveTemplate[] = [
   { id: 'mv-deepcent-1', lab: 'deepcent', gameName: 'DeepSeak LLM Lito', base: 'deepseak-llm-67b', notBefore: '2023-12-15' },
   { id: 'mv-deepcent-2', lab: 'deepcent', gameName: 'DeepSeak-MoE Lito', base: 'deepseak-moe-16b', notBefore: '2024-02-01', openWeights: true },
   { id: 'mv-deepcent-3', lab: 'deepcent', gameName: 'DeepSeak-V2 Lito', base: 'deepseak-v2', notBefore: '2024-06-01' },
-  { id: 'mv-deepcent-4', lab: 'deepcent', gameName: 'DeepSeak-V2.5 Lito', base: 'deepseak-v2-5', notBefore: '2024-10-01' },
+  { id: 'mv-deepcent-4', lab: 'deepcent', gameName: 'DeepSeak-V2.5 Lito', base: 'deepseak-v2-5', notBefore: '2024-09-15' },
 
   // Alibabo: открытые веса и дешёвые версии.
   { id: 'mv-alibabo-1', lab: 'alibabo', gameName: 'Qwin-14B Turbu', base: 'qwin-14b', notBefore: '2023-10-15', openWeights: true },
   { id: 'mv-alibabo-2', lab: 'alibabo', gameName: 'Qwin1.5-Turbu', base: 'qwin1-5-72b', notBefore: '2024-03-01' },
   { id: 'mv-alibabo-3', lab: 'alibabo', gameName: 'Qwin2-Turbu', base: 'qwin2-72b', notBefore: '2024-07-01' },
-  { id: 'mv-alibabo-4', lab: 'alibabo', gameName: 'Qwin2.5-Turbu', base: 'qwin2-5-72b', notBefore: '2024-10-15', openWeights: true },
+  { id: 'mv-alibabo-4', lab: 'alibabo', gameName: 'Qwin2.5-Turbu', base: 'qwin2-5-72b', notBefore: '2024-09-25', openWeights: true },
 ];
 
 /**

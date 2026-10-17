@@ -1813,7 +1813,9 @@ describe('параллельное обучение', () => {
     expect(triggerEvent).toHaveBeenCalledTimes(2);
     expect(b.failed).toBe(true);
     expect(b.failAtFraction).toBeNull();
-    expect(a.flopDone / a.flopTotal).toBeCloseTo(0.7, 9);
+    // «Б» стоял в точке срыва и мощность не занимал: «А» получил всю долю (0,8 за день) и дошёл до конца.
+    expect(a.flopDone / a.flopTotal).toBeCloseTo(1.1, 9);
+    expect(s.trainings).toEqual([b]);
   });
 
   it('applyFailChoice действует на проект с failed, а не на первый в списке', () => {
@@ -2046,12 +2048,22 @@ describe('первая модель не срывается (плейтест 17
       expect(s.rng).toBe(ref.rng);
     }
     let broken = 0;
+    let late = 0;
     for (let seed = 1; seed <= 300; seed++) {
       const s = veteranState(seed);
       s.tutorial.active = true;
-      startTraining(s, plan());
+      const day = s.day;
+      s.day = dateToDay('2017-12-31');
+      expect(startTraining(s, planOn(s, { paramsB: 0.17, tokensB: 3.4 }))).toEqual({ ok: true });
       if (s.trainings[0].failAtFraction !== null) broken++;
+      // Незакрытое обучение игре не отменяет срывы на всю партию: со второго года шанс обычный.
+      const v = veteranState(seed);
+      v.tutorial.active = true;
+      v.day = Math.max(day, dateToDay('2018-01-01'));
+      startTraining(v, plan());
+      if (v.trainings[0].failAtFraction !== null) late++;
     }
     expect(broken).toBe(0);
+    expect(late).toBeGreaterThan(0);
   });
 });

@@ -6,8 +6,10 @@ import { dayToDate, yearOf } from './time';
 import type { GameState, MonthLedger } from './types';
 
 export const ledgerRevenue = (l: MonthLedger): number => l.income.api + l.income.subs + l.income.contracts;
+// Текущие расходы, как в окне «Финансы»: всё, кроме разовых вложений в дата-центры и карты (capex). Электричество своих
+// дата-центров - текущий расход: без него итоги года занижали расходы у игроков с дата-центрами.
 export const ledgerExpense = (l: MonthLedger): number =>
-  l.expense.rent + l.expense.overhead + l.expense.labelers + l.expense.penalties + l.expense.review;
+  l.expense.rent + l.expense.overhead + l.expense.labelers + l.expense.penalties + l.expense.review + (l.expense.power ?? 0);
 
 /** Закрытые месяцы года и (если год идёт) текущий месяц. */
 function ledgersOf(s: GameState, year: number): MonthLedger[] {
