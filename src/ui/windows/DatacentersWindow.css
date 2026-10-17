@@ -41,7 +41,7 @@
 .dc-site:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .dc-site-name { font-size: 15px; font-weight: 600; line-height: 1.2; }
 .dc-site-st { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-dim); }
-.dc-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #9aa0a8; }
+.dc-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #9cc7cd; }
 .dc-site-st.building .dc-dot { background: var(--c-orange); }
 .dc-site-st.ready .dc-dot { background: var(--c-green); }
 .dc-site-bar .progress { height: 4px; }
@@ -59,7 +59,7 @@
 .dc-seg button + button { border-left: 1px solid var(--line); }
 .dc-seg button.on { background: var(--row-sel); color: var(--accent-dark); font-weight: 600; }
 .dc-seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.dc-scene { position: relative; flex: none; height: 230px; margin: 0 12px; border: 1px solid var(--line); border-radius: 2px; overflow: hidden; background: #dfe1e4; }
+.dc-scene { position: relative; flex: none; height: 230px; margin: 0 12px; border: 1px solid var(--line); border-radius: 2px; overflow: hidden; background: var(--win-body); }
 .dc-scene-view { position: absolute; inset: 0; }
 .dc-scene-empty { position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; font-size: 13px; color: #3a3d42; pointer-events: none; }
 .dc-detail-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px 12px 12px; }
@@ -79,7 +79,7 @@
 /* Этапы стройки: номер в кружке, сделанные - зелёные с галочкой, текущий - оранжевый с полосой. */
 .dc-stages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .dc-stages li { display: grid; grid-template-columns: 22px auto 1fr; align-items: center; gap: 8px; color: var(--text-dim); }
-.dc-stage-mark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 12px; font-weight: 700; background: #e3e5e9; color: var(--text-dim); }
+.dc-stage-mark { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font-size: 12px; font-weight: 700; background: var(--cream); color: var(--text-dim); }
 .dc-stages li.done { color: var(--text); }
 .dc-stages li.done .dc-stage-mark { background: var(--c-green); color: #fff; }
 .dc-stages li.now { color: var(--text); font-weight: 600; }
@@ -88,7 +88,7 @@
 
 .dc-power-t { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-dim); margin-bottom: 3px; }
 .dc-power-t b { color: var(--text); }
-.dc-empty { padding: 12px; color: var(--text-dim); border: 1px dashed #aeb2b9; border-radius: 2px; font-size: 13px; }
+.dc-empty { padding: 12px; color: var(--text-dim); border: 1px dashed var(--line); border-radius: 2px; font-size: 13px; }
 .dc-gpus { width: 100%; border-collapse: collapse; font-size: 13px; }
 .dc-gpus th { padding: 0 0 4px; font-size: 13px; font-weight: 600; color: var(--text-title); text-align: left; border-bottom: 1px solid var(--line); }
 .dc-gpus th.num, .dc-gpus td.num { text-align: right; }
@@ -97,7 +97,7 @@
 .dc-td-thumb { width: 64px; }
 .dc-td-act { text-align: right; white-space: nowrap; }
 .dc-td-act .btn + .btn { margin-left: 6px; }
-.dc-thumb { display: block; width: 64px; height: 36px; background: #2b2d30; border-radius: 2px; overflow: hidden; }
+.dc-thumb { display: block; width: 64px; height: 36px; background: var(--teal-ink); border-radius: 2px; overflow: hidden; }
 .dc-thumb img { display: block; }
 .dc-order td { color: var(--info-ink); }
 
@@ -105,7 +105,7 @@
 .dc-dialog { display: flex; flex-direction: column; gap: 12px; font-variant-numeric: tabular-nums; }
 .dialog:has(.dc-dialog .gch) { width: min(900px, calc(100vw - 32px)); }
 .dialog:has(.dc-build-dialog) { width: min(620px, calc(100vw - 32px)); }
-.dc-build-preview { position: relative; height: 200px; border: 1px solid var(--line); border-radius: 2px; overflow: hidden; background: #dfe1e4; }
+.dc-build-preview { position: relative; height: 200px; border: 1px solid var(--line); border-radius: 2px; overflow: hidden; background: var(--win-body); }
 .dc-build-view { position: absolute; inset: 0; }
 .dc-sizes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .dc-size {

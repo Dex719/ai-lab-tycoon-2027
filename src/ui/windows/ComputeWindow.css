@@ -64,11 +64,11 @@
 .cw-row-meta { font-size: 13px; color: var(--text-dim); }
 .cw-row-over { min-height: 17px; font-size: 13px; font-weight: 600; color: var(--warn); }
 /* Картинка карты на графитовой подложке, как в превью аренды. */
-.cw-thumb { display: block; flex: none; border-radius: 2px; overflow: hidden; background: #2b2d30; }
+.cw-thumb { display: block; flex: none; border-radius: 2px; overflow: hidden; background: var(--teal-ink); }
 .cw-thumb img { display: block; }
 .cw-empty {
   padding: 18px 14px; color: var(--text-dim); text-align: center;
-  border: 1px dashed #aeb2b9; border-radius: 4px; background: rgba(255, 255, 255, 0.35);
+  border: 1px dashed var(--line); border-radius: 4px; background: rgba(255, 255, 255, 0.35);
 }
 .cw-own {
   display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 13px; color: var(--text-dim);
@@ -84,7 +84,7 @@
 .cw-occ.full { color: var(--good-ink); font-weight: 600; }
 .cw-occ.idle { color: var(--warn); font-weight: 600; }
 /* Полоса долей: сегменты цвета задачи, между ними ручки; ручку тянут мышью или стрелками. */
-.cw-split { position: relative; height: 30px; background: #e3e5e9; border: 1px solid var(--line); border-radius: 3px; }
+.cw-split { position: relative; height: 30px; background: var(--cream); border: 1px solid var(--line); border-radius: 3px; }
 .cw-seg { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; overflow: hidden; color: #fff; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .cw-seg span { padding: 0 8px; }
 .cw-handle { position: absolute; top: -5px; bottom: -5px; width: 16px; margin-left: -8px; z-index: 1; cursor: ew-resize; touch-action: none; }

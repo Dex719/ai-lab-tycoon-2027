@@ -18,13 +18,13 @@
 
 /* Шкала контроля: заливка - доля основателя, серое - у инвесторов, отметки 25 % и 50 %. */
 .inv-own { flex: none; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
-.inv-ctl-bar { position: relative; height: 16px; background: #a9aeb6; }
+.inv-ctl-bar { position: relative; height: 16px; background: #9cc7cd; }
 .inv-ctl-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--c-green); }
 .inv-ctl-bar.warn .inv-ctl-fill { background: #c99a1a; }
 .inv-ctl-bar.bad .inv-ctl-fill { background: var(--c-red); }
 /* Часть доли, которая уйдёт инвесторам при выбранном раунде. */
 .inv-ctl-sold { position: absolute; top: 0; bottom: 0; background: #f0b35a; box-shadow: inset 0 0 0 1px #b8761c; }
-.inv-ctl-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: #1f2023; }
+.inv-ctl-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--teal-ink); }
 .inv-ctl-inv { position: absolute; top: 0; bottom: 0; right: 8px; display: flex; align-items: center; font-size: 12px; color: #fff; white-space: nowrap; }
 .inv-zones { display: flex; margin-top: 4px; }
 .inv-zones .z { padding: 1px 6px 0; font-size: 12px; line-height: 1.3; color: var(--text-dim); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -42,18 +42,18 @@
 
 /* Столбик оценки */
 .inv-vt { display: flex; align-items: flex-start; gap: 16px; }
-.inv-tower { position: relative; flex: none; width: 52px; background: #dfe2e6; }
+.inv-tower { position: relative; flex: none; width: 52px; background: var(--win-body); }
 .inv-seg { position: absolute; left: 0; right: 0; border-top: 1px solid #fff; }
 /* Что отнимают репутация и план совета: верх столбика поверх частей, итог - под чертой. */
 .inv-seg.minus { border-top: none; background: rgba(179, 47, 47, 0.72); }
-.inv-total-line { position: absolute; left: -6px; right: -6px; height: 2px; margin-bottom: -1px; background: #1f2023; }
+.inv-total-line { position: absolute; left: -6px; right: -6px; height: 2px; margin-bottom: -1px; background: var(--teal-ink); }
 .inv-seg.rev, .inv-sw.rev { background: #2e9b4f; }
 .inv-seg.tech, .inv-sw.tech { background: #2f80e4; }
-.inv-seg.floor, .inv-sw.floor { background: #9aa0a8; }
+.inv-seg.floor, .inv-sw.floor { background: #9cc7cd; }
 .inv-seg.hype, .inv-sw.hype { background: #d9822b; }
 .inv-seg.rep, .inv-sw.rep { background: #7b5cd6; }
 .inv-sw.minus { background: rgba(179, 47, 47, 0.72); }
-.inv-sw.line { height: 2px !important; margin-top: 8px; background: #1f2023; }
+.inv-sw.line { height: 2px !important; margin-top: 8px; background: var(--teal-ink); }
 .inv-legend { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .inv-lg { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: start; gap: 2px 9px; }
 .inv-sw { width: 12px; height: 12px; margin-top: 3px; }
@@ -72,7 +72,7 @@
 .inv-cd.wait .inv-cd-t { color: var(--warn); font-weight: 600; }
 .inv-cd.ready .inv-cd-t { color: var(--good-ink); font-weight: 600; }
 .inv-cd-d { font-weight: 400; color: var(--text-dim); }
-.inv-cd-bar { display: block; height: 4px; background: #dfe2e6; }
+.inv-cd-bar { display: block; height: 4px; background: var(--win-body); }
 .inv-cd-bar i { display: block; height: 100%; background: #c99a1a; }
 
 .inv-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); }

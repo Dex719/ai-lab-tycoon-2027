@@ -21,7 +21,7 @@
 /* ---------- Папки ---------- */
 .mail-rail {
   flex: none; width: 196px; display: flex; flex-direction: column; gap: 2px; padding: 10px 8px;
-  background: #d9dce1; border-right: 1px solid var(--line); overflow-y: auto;
+  background: var(--win-body); border-right: 1px solid var(--line); overflow-y: auto;
 }
 .mail-folder {
   --f: var(--accent);
@@ -51,13 +51,13 @@
   flex: none; padding: 6px 8px; background: #fff; border: 1px solid var(--line); border-radius: 2px; color: var(--text);
   font-size: 13px; line-height: 1.3; cursor: pointer; text-align: center;
 }
-.mail-markall:hover:not(:disabled) { background: #f1f3f6; border-color: #b4b8bf; }
+.mail-markall:hover:not(:disabled) { background: var(--cream); border-color: var(--line); }
 .mail-markall:disabled { opacity: 0.5; cursor: default; }
 
 /* ---------- Список ---------- */
 .mail-side {
   width: 310px; flex: none; display: flex; flex-direction: column; min-height: 0;
-  background: #eceef1; border-right: 1px solid var(--line);
+  background: var(--cream); border-right: 1px solid var(--line);
 }
 .mail-head { flex: none; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 12px 12px 8px; }
 .mail-head-t { font-size: 16px; font-weight: 600; color: #1f2023; }
@@ -97,11 +97,11 @@
 .mail-more, .mail-empty { flex: none; padding: 8px 10px; font-size: 13px; color: var(--text-dim); }
 
 /* ---------- Письмо ---------- */
-.mail-view { flex: 1; min-width: 0; overflow: auto; padding: 16px; background: #e4e6ea; user-select: text; }
-.mail-view-empty { flex: 1; min-width: 0; display: grid; place-items: center; background: #e4e6ea; color: var(--text-dim); }
+.mail-view { flex: 1; min-width: 0; overflow: auto; padding: 16px; background: var(--cream); user-select: text; }
+.mail-view-empty { flex: 1; min-width: 0; display: grid; place-items: center; background: var(--cream); color: var(--text-dim); }
 .mail-sheet { max-width: 720px; margin: 0 auto; padding: 16px 20px 20px; background: #fff; border: 1px solid var(--line); border-radius: 3px; }
 .mail-title { margin: 0; font-size: 22px; font-weight: 600; line-height: 1.25; color: #1f2023; letter-spacing: -0.01em; overflow-wrap: anywhere; text-wrap: balance; }
-.mail-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; margin-top: 4px; padding-bottom: 10px; border-bottom: 1px solid #eceef1; font-size: 13px; color: var(--text-dim); }
+.mail-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; margin-top: 4px; padding-bottom: 10px; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--text-dim); }
 .mail-meta-k { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--k); }
 .mail-meta-reward { font-weight: 700; color: var(--gold-ink); }
 .mail-body { margin-top: 12px; max-width: 64ch; line-height: 1.55; color: var(--text-body); font-size: 15px; }
@@ -113,8 +113,8 @@
 .mail-digest-sum > div { display: flex; align-items: baseline; gap: 6px; }
 .mail-digest-sum b { font-size: 18px; font-weight: 700; color: #1f2023; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .mail-digest-sum .paid b { color: var(--good-ink); }
-.mail-digest-rows { display: flex; flex-direction: column; margin-top: 12px; border-top: 1px solid #e3e5e8; }
-.mail-digest-row { display: grid; grid-template-columns: 86px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 9px 2px; border-bottom: 1px solid #e3e5e8; }
+.mail-digest-rows { display: flex; flex-direction: column; margin-top: 12px; border-top: 1px solid var(--line); }
+.mail-digest-row { display: grid; grid-template-columns: 86px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 9px 2px; border-bottom: 1px solid var(--line); }
 .mail-digest-row .st { justify-self: start; font-size: 13px; font-weight: 700; }
 .mail-digest-row.done .st { color: var(--good-ink); }
 .mail-digest-row.won .st { color: var(--info-ink); }
@@ -126,7 +126,7 @@
 .mail-digest-row.done .money { color: var(--good-ink); }
 .mail-digest-row.won .money { color: #4a4d54; }
 
-.mail-decision { max-width: 64ch; margin-top: 18px; padding-top: 12px; border-top: 1px solid #eceef1; }
+.mail-decision { max-width: 64ch; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
 .mail-decided { font-size: 15px; }
 .mail-decision-hint { margin-top: 4px; font-size: 13px; color: var(--text-dim); }
 .mail-decision-h { margin: 0 0 10px; font-size: 16px; font-weight: 600; line-height: 1.2; color: var(--warn); }

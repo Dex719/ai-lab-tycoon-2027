@@ -30,8 +30,8 @@
 .fn-pt.above { fill: #ffb3b3; font-weight: 600; }
 .fn-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 2px 6px 0 44px; font-size: 12px; color: #a3a8b0; }
 .fn-legend span { display: inline-flex; align-items: center; gap: 6px; }
-.fn-legend .dot { width: 9px; height: 9px; border-radius: 50%; border: 2px solid #c9ced6; }
-.fn-legend .dot.done { background: #c9ced6; }
+.fn-legend .dot { width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--line); }
+.fn-legend .dot.done { background: var(--win-body); }
 .fn-legend .line { width: 16px; height: 3px; background: var(--good-on-dark); }
 .fn-legend .calm { width: 14px; height: 10px; background: rgba(94, 211, 127, 0.18); }
 
@@ -60,7 +60,7 @@
 .fn-verdict { min-height: 20px; font-size: 13px; font-weight: 600; color: var(--text-dim); }
 .fn-verdict.good { color: var(--good-ink); }
 .fn-verdict.warn { color: var(--warn); }
-.fn-run { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; background: #eef7f1; border: 1px solid #a9d8b7; }
+.fn-run { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; background: var(--cream); border: 1px solid #a9d8b7; }
 .fn-run-top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
 .fn-run .progress > div { background: var(--c-green); }
 .fn-done { margin: 0; padding: 8px 0 0; border-top: 1px solid var(--line-soft); list-style: none; font-size: 13px; color: var(--text-body); }

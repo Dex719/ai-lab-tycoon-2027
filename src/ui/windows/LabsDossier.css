@@ -30,7 +30,7 @@
 .kv.dos-kv > :nth-child(even) { text-align: left; }
 .dos-threat { display: inline-flex; align-items: center; gap: 8px; }
 .dos-meter { display: inline-block; width: 90px; height: 6px; background: var(--row-line); }
-.dos-meter i { display: block; height: 100%; background: #9aa1aa; }
+.dos-meter i { display: block; height: 100%; background: #9cc7cd; }
 .dos-meter i.mid { background: var(--warn); }
 .dos-meter i.hi { background: var(--bad-ink); }
 

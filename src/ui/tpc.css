@@ -236,3 +236,24 @@ table.grid tr:nth-child(even) td { background: #f2f9fa; }
 .menu-screen .version { color: #fff; font-weight: 800; }
 
 body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
+
+/* ---------- Подписи над местами в сцене: белые плашки с нижней гранью, как кнопки ---------- */
+.lf-tag { border-radius: 12px; box-shadow: inset 0 -3px 0 #b9d6da, 0 3px 10px rgb(20 50 56 / 0.25); }
+.lf-tag::after { background: #fff; }
+.lf-tag b { color: var(--teal-ink); font-weight: 800; }
+.lf-tag span { font-weight: 900; }
+.lf-tag.warn b { color: var(--orange-deep); }
+.lf-bar { background: #d7ecef; height: 6px; }
+.lf-next { background: var(--hud); border-radius: 14px; }
+
+/* ---------- Вкладки внутри окон (свои у «Команды», «Аналитики», «Контрактов», «Дата-центров») - таблетки ---------- */
+.tm-tabs, .an-tabs, .ct-tabs { background: transparent !important; border-bottom: none !important; gap: 6px; padding: 10px 14px !important; }
+.tm-tabs button, .an-tabs .tab, .ct-tabs .tab, .dc-seg button {
+  height: 32px; padding: 0 16px; border-radius: 999px; border: none !important; background: #9cc7cd; color: #fff; font-weight: 800;
+}
+.tm-tabs button:hover, .an-tabs .tab:hover, .ct-tabs .tab:hover, .dc-seg button:hover { background: #8abcc3; color: #fff; }
+.tm-tabs button.on, .an-tabs .tab.on, .ct-tabs .tab.on, .dc-seg button.on { background: var(--orange); color: #fff; }
+/* Шапки окон со сводкой (полоса цифр сверху) - кремовые карточки. */
+.tm-head, .rw-cur, .cw-top { background: var(--cream) !important; border-radius: 0; border-bottom: none !important; }
+/* Строки списков: выбранная - мягкая бирюза, наведённая - светлее. */
+.tm-item.on, .tm-item:hover { background: var(--row-sel); }

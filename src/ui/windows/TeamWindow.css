@@ -60,18 +60,18 @@
 
 /* Лестница уровней: четыре ступени; выше потолка - пунктир и серый текст. */
 .tm-ladder { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.tm-step { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; border: 2px solid #c6cbd2; border-radius: 3px; background: #fff; font-size: 13px; font-weight: 600; color: var(--text); }
+.tm-step { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; border: 2px solid var(--line); border-radius: 3px; background: #fff; font-size: 13px; font-weight: 600; color: var(--text); }
 .tm-step small { font-size: 11px; font-weight: 400; }
 .tm-step.done, .tm-step.now { color: #fff; }
 .tm-step.done { opacity: 0.55; }
-.tm-step.no { color: #a3a8af; border-style: dashed; border-color: #d4d8de; background: #f6f7f9; }
+.tm-step.no { color: #a3a8af; border-style: dashed; border-color: var(--line); background: var(--cream); }
 
 /* Рост: опыт крупно и что даст следующий уровень. */
 .tm-grow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
 .tm-xp-big { display: flex; flex-direction: column; gap: 6px; }
 .tm-xp-top { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-dim); }
 .tm-xp-top b { font-size: 16px; color: var(--text); }
-.tm-bar { display: block; height: 5px; background: #e3e5e9; border-radius: 2px; overflow: hidden; }
+.tm-bar { display: block; height: 5px; background: var(--cream); border-radius: 2px; overflow: hidden; }
 .tm-bar.big { height: 12px; }
 .tm-bar i { display: block; height: 100%; background: var(--c-green); }
 .tm-xp-big small { font-size: 12px; color: var(--text-dim); }

@@ -6,7 +6,7 @@
   flex: none; width: clamp(220px, 30%, 290px); display: flex; flex-direction: column;
   background: var(--win-body); border-right: 1px solid var(--line);
 }
-.mw-side-head { flex: none; padding: 12px 12px 10px; border-bottom: 1px solid var(--line); background: #e2e4e8; }
+.mw-side-head { flex: none; padding: 12px 12px 10px; border-bottom: 1px solid var(--line); background: var(--win-body); }
 .mw-coll { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .mw-coll-t { font-size: 16px; font-weight: 600; color: #1f2023; }
 .mw-coll-n { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
@@ -33,7 +33,7 @@
 .mw-item-name { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mw-item-elo { flex: none; font-size: 13px; font-weight: 600; color: #4a4d54; font-variant-numeric: tabular-nums; }
 .mw-item-state { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font-size: 13px; color: var(--text-dim); }
-.mw-item-state .mw-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #aab0b8; }
+.mw-item-state .mw-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: #9cc7cd; }
 .mw-item-state.sale { color: var(--good-ink); }
 .mw-item-state.sale .mw-dot { background: var(--good); }
 .mw-item-state.idle { color: var(--warn); font-weight: 600; }
@@ -61,7 +61,7 @@
 
 /* Шапка как «Инспектор» в PT: серая панель с обложкой, название, состояние, сведения списком, справа одно крупное число. */
 .mw-insp { display: flex; align-items: flex-start; gap: 18px; padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--line); }
-.mw-pic { flex: none; width: 124px; height: 124px; display: grid; place-items: center; background: #e1e3e7; border-radius: 6px; }
+.mw-pic { flex: none; width: 124px; height: 124px; display: grid; place-items: center; background: var(--win-body); border-radius: 6px; }
 .mw-insp-main { flex: 1; min-width: 0; }
 .mw-name { margin: 0; font-size: 22px; font-weight: 600; line-height: 1.2; color: #1f2023; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mw-head-sub { margin-top: 2px; font-size: 13px; color: #4a4d54; }
@@ -116,7 +116,7 @@
   background: #fff; border: 1px solid var(--line); border-radius: 4px; color: #4a4d54; text-align: left; cursor: pointer;
   font-size: 13px; transition: background-color 100ms ease-out, border-color 100ms ease-out;
 }
-.mw-tier:hover { background: #f1f5fb; }
+.mw-tier:hover { background: var(--cream); }
 .mw-tier:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .mw-tier b { font-size: 16px; font-weight: 600; color: #1f2023; font-variant-numeric: tabular-nums; }
 .mw-tier.on { background: var(--row-sel); border-color: var(--accent); }
@@ -133,7 +133,7 @@
 .mw-score { display: grid; grid-template-columns: 150px minmax(0, 1fr) 128px 44px; align-items: center; gap: 12px; min-height: 30px; }
 .mw-score-name { display: flex; flex-direction: column; font-weight: 600; color: #1f2023; line-height: 1.2; }
 .mw-score-name small { font-size: 12px; font-weight: 400; color: var(--text-dim); }
-.mw-score-bar { position: relative; height: 10px; background: #e6e8ec; border-radius: 5px; }
+.mw-score-bar { position: relative; height: 10px; background: var(--cream); border-radius: 5px; }
 .mw-score-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 5px; background: var(--dc); }
 .mw-score-bar em { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--bad-ink); }
 .mw-score-v { font-size: 14px; font-weight: 600; color: #1f2023; text-align: right; font-variant-numeric: tabular-nums; }
@@ -141,7 +141,7 @@
 .mw-score-rank { font-size: 13px; font-weight: 600; color: #4a4d54; text-align: right; font-variant-numeric: tabular-nums; }
 .mw-score-rank.gold { color: var(--gold-ink); }
 .mw-score.sat { opacity: 0.6; }
-.mw-score.sat .mw-score-bar i { background: #9aa0a8; }
+.mw-score.sat .mw-score-bar i { background: #9cc7cd; }
 
 /* Карточка уже 640 px (окно по умолчанию минус список): показатели в два столбца. */
 @container (max-width: 640px) {
@@ -195,8 +195,8 @@
 .mw-review { display: flex; flex-direction: column; gap: 3px; padding: 9px 12px; border-radius: 4px; font-size: 13px; line-height: 1.35; }
 .mw-review b { font-size: 14px; }
 .mw-review.required { background: #fff4e0; border: 1px solid #e3bf62; color: #4d3800; }
-.mw-review.pending { background: #eef4fc; border: 1px solid #aac3e8; color: #1f3f6b; }
-.mw-review.passed { background: #e9f6ee; border: 1px solid #a9d6b8; color: var(--good-ink); }
+.mw-review.pending { background: var(--cream); border: 1px solid #aac3e8; color: #1f3f6b; }
+.mw-review.passed { background: var(--cream); border: 1px solid #a9d6b8; color: var(--good-ink); }
 .mw-review-act { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 4px; }
 
 /* Выпуск: по строке на канал */

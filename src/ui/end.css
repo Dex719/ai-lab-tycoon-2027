@@ -28,11 +28,11 @@
 .end-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 4px; font-size: 13px; color: var(--text-body); }
 .end-legend span::before { content: ''; display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; }
 .end-legend .mine::before { background: var(--accent); }
-.end-legend .rival::before { background: #8a8e95; }
+.end-legend .rival::before { background: #9cc7cd; }
 
 .end-l { font-size: 13px; color: var(--text-dim); }
 .end-chips { display: flex; flex-direction: column; margin-top: 2px; }
-.end-chip { padding: 4px 0 4px 16px; border-bottom: 1px solid #e3e5e8; font-size: 14px; color: var(--text-title); position: relative; }
+.end-chip { padding: 4px 0 4px 16px; border-bottom: 1px solid var(--line); font-size: 14px; color: var(--text-title); position: relative; }
 .end-chip:last-child { border-bottom: none; }
 .end-chip::before { content: ''; position: absolute; left: 3px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--gold-line); }
 .end-kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 14px; color: var(--text-dim); }

@@ -44,7 +44,7 @@
 .seg-lead-val { font-weight: 600; }
 
 /* Лучшие модели сегмента: название, лаборатория, доля; под ними полоса цвета лаборатории. */
-.seg-list { display: flex; flex-direction: column; gap: 7px; padding-top: 10px; border-top: 1px solid #e3e5e8; }
+.seg-list { display: flex; flex-direction: column; gap: 7px; padding-top: 10px; border-top: 1px solid var(--line); }
 .seg-m { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 8px; align-items: baseline; font-size: 13px; }
 .seg-m-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .seg-m-name .own-dot { align-self: center; }
@@ -52,9 +52,9 @@
 .seg-m-lab { flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--text-dim); }
 .seg-m-val { text-align: right; font-variant-numeric: tabular-nums; color: #1f2023; }
 .seg-m.me .n, .seg-m.me .seg-m-val { font-weight: 600; }
-.seg-m-bar { grid-column: 1 / -1; height: 6px; background: #e6e8ec; border-radius: 1px; overflow: hidden; }
+.seg-m-bar { grid-column: 1 / -1; height: 6px; background: var(--cream); border-radius: 1px; overflow: hidden; }
 .seg-m-fill { display: block; height: 100%; border-radius: 1px; }
-.seg-none { display: flex; justify-content: space-between; gap: 8px; padding-top: 6px; border-top: 1px dashed #d4d7dc; font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.seg-none { display: flex; justify-content: space-between; gap: 8px; padding-top: 6px; border-top: 1px dashed var(--line); font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
 /* ---------- Таблица «Модели на рынке» ---------- */
 .mk-grid { font-size: 13px; }
@@ -62,6 +62,6 @@
 .an-grid.mk-grid thead th { white-space: normal; vertical-align: bottom; line-height: 1.25; }
 .an-grid.mk-grid thead th.num { white-space: normal; }
 .mk-grid .mk-h1 th.gh { text-align: center; border-bottom: 1px solid var(--line); padding-bottom: 3px; }
-.mk-grid .mk-h1 th { border-bottom: 1px solid #e3e5e8; }
+.mk-grid .mk-h1 th { border-bottom: 1px solid var(--line); }
 .mk-grid th.mk-seg { font-weight: 600; }
 .mk-lab { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 400; color: var(--text-dim); }

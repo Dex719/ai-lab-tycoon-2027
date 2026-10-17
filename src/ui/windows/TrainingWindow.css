@@ -13,7 +13,7 @@
 /* ---------- Идущий проект ---------- */
 .nm-run {
   flex: none; display: flex; align-items: center; gap: 10px; padding: 7px 14px;
-  background: #f1f2f4; border-bottom: 1px solid var(--line); font-size: 13px;
+  background: var(--cream); border-bottom: 1px solid var(--line); font-size: 13px;
 }
 .nm-run-name { min-width: 0; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nm-run-bar { flex: 1; min-width: 80px; }
@@ -71,7 +71,7 @@
 .nm-tier.on { background: var(--tier-on); border-color: var(--tier); box-shadow: inset 0 0 0 1px var(--tier); }
 .nm-tier.on b { color: var(--tier-text); }
 .nm-tier:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.nm-tier[aria-disabled='true'] { cursor: not-allowed; background: #eceef1; color: #8a8e95; }
+.nm-tier[aria-disabled='true'] { cursor: not-allowed; background: var(--cream); color: #8a8e95; }
 .nm-tier[aria-disabled='true'] b { color: #8a8e95; }
 
 /* Ползунки */
@@ -101,11 +101,11 @@
 .nm-seg-opt small { color: var(--text-dim); }
 .nm-seg-opt.on { background: var(--accent); color: #fff; font-weight: 600; }
 .nm-seg-opt.on small { color: #dce9ff; }
-.nm-seg-opt.lock { background: #f0f0f2; color: #9a9ea6; cursor: not-allowed; }
+.nm-seg-opt.lock { background: var(--cream); color: #9a9ea6; cursor: not-allowed; }
 .nm-seg-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 /* Чему учить */
-.nm-mixbar { display: flex; height: 10px; overflow: hidden; background: #e3e5e9; border-radius: 5px; }
+.nm-mixbar { display: flex; height: 10px; overflow: hidden; background: var(--cream); border-radius: 5px; }
 .nm-mix-row { display: flex; flex-direction: column; gap: 1px; }
 .nm-mix-top { display: flex; justify-content: space-between; align-items: baseline; }
 .nm-mix-name { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #1f2023; }
@@ -116,16 +116,16 @@
 /* Дообучение */
 .nm-opt { display: flex; flex-direction: column; gap: 4px; padding: 9px 10px; background: #fff; border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
 /* Включено: рамка и светлый фон цвета варианта, как выбранная строка в других окнах (без полосы слева). */
-.nm-opt.on { border-color: var(--c-green); background: #f1faf3; box-shadow: inset 0 0 0 1px var(--c-green); }
+.nm-opt.on { border-color: var(--c-green); background: var(--cream); box-shadow: inset 0 0 0 1px var(--c-green); }
 .nm-opt.off { cursor: default; }
 .nm-opt.off .nm-opt-top { color: #8a8e95; }
 .nm-opt-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
 .nm-opt-d { font-size: 12px; line-height: 1.4; color: var(--text-dim); }
 .nm-opt-d .bad { color: var(--bad-ink); font-weight: 600; }
-.nm-opt.risk { cursor: default; background: #fff7f7; border-color: #e6b3b3; }
+.nm-opt.risk { cursor: default; background: var(--cream); border-color: #e6b3b3; }
 .nm-opt.risk .nm-sl-l { color: var(--bad-ink); font-weight: 600; font-size: 14px; }
 .nm-opt.risk.on { border-color: var(--c-red); box-shadow: inset 0 0 0 1px var(--c-red); }
-.nm-switch { appearance: none; width: 34px; height: 18px; flex: none; margin: 0; border-radius: 9px; background: #c4c7cd; position: relative; cursor: pointer; transition: background 120ms; }
+.nm-switch { appearance: none; width: 34px; height: 18px; flex: none; margin: 0; border-radius: 9px; background: var(--win-body); position: relative; cursor: pointer; transition: background 120ms; }
 .nm-switch::after { content: ''; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left 120ms; }
 .nm-switch:checked { background: var(--c-green); }
 .nm-switch:checked::after { left: 18px; }
@@ -138,7 +138,7 @@
 .nm-tag input { margin: 0; }
 
 /* ---------- Нижняя полоса ---------- */
-.nm-foot { flex: none; display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-top: 1px solid var(--line); background: #f1f2f4; }
+.nm-foot { flex: none; display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-top: 1px solid var(--line); background: var(--cream); }
 .nm-name-wrap { display: flex; flex-direction: column; gap: 2px; }
 .nm-name { width: 220px; }
 .nm-foot-info { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 13px; color: var(--text-dim); text-align: right; }
