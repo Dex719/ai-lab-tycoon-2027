@@ -23,7 +23,7 @@
 .gch-note { color: var(--info-ink); }
 
 .gch-stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.gch-view { flex: 1; min-height: 0; background: #2b2d30; border-radius: 2px; }
+.gch-stage > .gpu-badge { flex: 1; }
 .gch-cap { flex: none; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 8px; }
 .gch-title { font-size: 18px; font-weight: 600; white-space: nowrap; }
 .gch-facts { display: grid; grid-template-columns: auto auto; gap: 0 10px; margin: 0; font-size: 13px; }
@@ -36,7 +36,7 @@
 @media (max-width: 640px) {
   .gch { grid-template-columns: 1fr; height: auto; }
   .gch-stage { order: -1; }
-  .gch-view { flex: none; height: 170px; }
+  .gch-stage > .gpu-badge { flex: none; height: 120px; min-height: 0; }
   .gch-cap { flex-wrap: wrap; }
   .gch-list { overflow: visible; }
 }

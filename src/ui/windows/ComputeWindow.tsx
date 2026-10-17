@@ -50,7 +50,7 @@ import { FlashNum } from '../FlashNum';
 import { actions, store } from '../store';
 import { farmLayout, rentedFarm } from '../three/specs';
 import { GpuChooser, powerFact } from '../three/GpuChooser';
-import { useGpuThumb } from '../three/View3D';
+import { GpuBadge } from '../GpuBadge';
 import './ComputeWindow.css';
 
 /** Аренда списывается каждый день; в интерфейсе стоимость показана за 30 дней. */
@@ -194,22 +194,13 @@ function Side({ s, onRent }: { s: GameState; onRent: () => void }) {
 
 // ---------- Арендованные карты ----------
 
-function GpuThumb({ id, w, h }: { id: GpuId; w: number; h: number }) {
-  const url = useGpuThumb(id, w, h);
-  return (
-    <span className="cw-thumb" style={{ width: w, height: h }}>
-      {url && <img src={url} alt="" width={w} height={h} draggable={false} />}
-    </span>
-  );
-}
-
 function RentedRow({ s, g, onEdit, onGiveBack }: { s: GameState; g: GpuDef; onEdit: () => void; onGiveBack: () => void }) {
   const count = s.compute.rented[g.id];
   const cap = rentCapFor(s, g.id);
   const over = Math.max(0, count - cap);
   return (
     <div className="cw-row">
-      <GpuThumb id={g.id} w={88} h={50} />
+      <GpuBadge id={g.id} size="s" />
       <div className="cw-row-main">
         <div className="cw-row-name">{g.name}</div>
         <div className="cw-row-meta">

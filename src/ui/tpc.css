@@ -349,3 +349,13 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
 .mw-item, .ct-row, .mail-row { flex: none; border-radius: 12px !important; border: none !important; border-radius: 12px; background: #fff; box-shadow: inset 0 -4px 0 #b9d6da; margin: 0 !important; }
 .mw-item.is-selected, .ct-row.on, .mail-row.is-selected { background: var(--row-sel); box-shadow: inset 0 -4px 0 #9cc7cd, 0 0 0 3px var(--teal) !important; }
 .mail-row.decide:not(.is-selected) { background: #fff3dc; box-shadow: inset 0 -4px 0 #f0cf8f; }
+
+/* Плоская метка видеокарты (вместо 3D-миниатюр в окнах) */
+.gpu-badge { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 6px; border-radius: 10px; background: var(--teal-ink); color: #fff; box-shadow: inset 0 -4px 0 var(--ga); font-weight: 800; letter-spacing: .02em; }
+.gpu-badge svg { flex: none; color: var(--ga); }
+.gpu-badge-s { width: 64px; height: 36px; font-size: 12px; gap: 4px; }
+.gpu-badge-s svg { width: 14px; height: 14px; }
+.gpu-badge-m { width: 88px; height: 44px; font-size: 14px; }
+.gpu-badge-m svg { width: 18px; height: 18px; }
+.gpu-badge-l { width: 100%; height: 100%; min-height: 150px; flex-direction: column; gap: 10px; font-size: 30px; border-radius: 16px; box-shadow: inset 0 -8px 0 var(--ga); }
+.gpu-badge-l svg { width: 56px; height: 56px; }

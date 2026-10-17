@@ -6,7 +6,7 @@ import type { CSSProperties, ReactNode } from 'react';
 import { NewBadge } from '../components/common';
 import { dateToDay } from '../../sim/time';
 import type { GpuDef, GpuId } from '../../sim/types';
-import { View3D } from './View3D';
+import { GpuBadge } from '../GpuBadge';
 import './gpuChooser.css';
 
 export interface ChooserItem {
@@ -70,7 +70,7 @@ export function GpuChooser(props: {
           ))}
       </div>
       <div className="gch-stage">
-        {current && <View3D spec={{ kind: 'gpu', gpu: current.id }} label={`Видеокарта ${current.name}, потяните мышью, чтобы повернуть`} className="gch-view" />}
+        {current && <GpuBadge id={current.id} size="l" />}
         <div className="gch-cap">
           <div className="gch-title">{current?.name}</div>
           <dl className="gch-facts">

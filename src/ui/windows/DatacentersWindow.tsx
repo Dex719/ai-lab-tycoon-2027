@@ -38,8 +38,7 @@ import { IconCheck } from '../icons';
 import { playSound } from '../sound';
 import { actions, store } from '../store';
 import { GpuChooser, powerFact } from '../three/GpuChooser';
-import { campusSpec, dcFarm, farmLayout, type CampusSpec } from '../three/specs';
-import { useGpuThumb, View3D } from '../three/View3D';
+import { GpuBadge } from '../GpuBadge';
 import './DatacentersWindow.css';
 
 const MONTH = 30;
@@ -178,11 +177,6 @@ function Stages({ s, dc }: { s: GameState; dc: Datacenter }) {
   );
 }
 
-function GpuThumb({ id }: { id: GpuId }) {
-  const url = useGpuThumb(id, 64, 36);
-  return <span className="dc-thumb">{url && <img src={url} alt="" width={64} height={36} draggable={false} />}</span>;
-}
-
 function ReadyBody(props: { s: GameState; dc: Datacenter; onBuy: () => void; onSell: (gpu: GpuId) => void; onWriteOff: (gpu: GpuId) => void }) {
   const { s, dc } = props;
   const used = usedKw(dc);
@@ -218,7 +212,7 @@ function ReadyBody(props: { s: GameState; dc: Datacenter; onBuy: () => void; onS
             {types.map((g) => (
               <tr key={g.id}>
                 <td className="dc-td-thumb">
-                  <GpuThumb id={g.id} />
+                  <GpuBadge id={g.id} size="s" />
                 </td>
                 <td>{g.name}</td>
                 <td className="num">{fmtInt(dc.gpus[g.id])}</td>
@@ -240,7 +234,7 @@ function ReadyBody(props: { s: GameState; dc: Datacenter; onBuy: () => void; onS
             {dc.orders.map((o, i) => (
               <tr key={`o${i}`} className="dc-order">
                 <td className="dc-td-thumb">
-                  <GpuThumb id={o.gpu} />
+                  <GpuBadge id={o.gpu} size="s" />
                 </td>
                 <td>{gpuDef(o.gpu).name}</td>
                 <td className="num">{fmtInt(o.count)}</td>
@@ -267,8 +261,6 @@ function ReadyBody(props: { s: GameState; dc: Datacenter; onBuy: () => void; onS
   );
 }
 
-type SceneMode = 'campus' | 'hall';
-
 function SiteDetail(props: {
   s: GameState;
   def: DcSiteDef;
@@ -280,9 +272,6 @@ function SiteDetail(props: {
   const { s, def } = props;
   const dc = findDc(s, def.id);
   const ready = !!dc && dcReady(dc);
-  const [mode, setMode] = useState<SceneMode>('campus');
-  const scene = ready && mode === 'hall' ? { ...dcFarm(dc), wide: true } : campusSpec(s, def.id);
-  const hallCards = ready ? farmLayout(dcFarm(dc).groups).cards : 0;
   return (
     <section className="dc-detail" aria-label={def.name}>
       <div className="dc-detail-head">
@@ -290,24 +279,6 @@ function SiteDetail(props: {
           <h3>{def.name}</h3>
           <p>{def.note}</p>
         </div>
-        {ready && (
-          <div className="dc-seg" role="tablist" aria-label="Что показать">
-            <button type="button" role="tab" aria-selected={mode === 'campus'} className={mode === 'campus' ? 'on' : undefined} onClick={() => setMode('campus')}>
-              Площадка
-            </button>
-            <button type="button" role="tab" aria-selected={mode === 'hall'} className={mode === 'hall' ? 'on' : undefined} onClick={() => setMode('hall')}>
-              Зал
-            </button>
-          </div>
-        )}
-      </div>
-      <div className="dc-scene">
-        <View3D
-          spec={scene}
-          label={ready && mode === 'hall' ? `Машинный зал: ${cardsText(hallCards)}` : `Площадка ${def.name}: ${siteStatus(s, def).text}`}
-          className="dc-scene-view"
-        />
-        {ready && mode === 'hall' && hallCards === 0 && <div className="dc-scene-empty">Карт пока нет</div>}
       </div>
       <div className="dc-detail-body">
         {!dc && (
@@ -351,8 +322,6 @@ function BuildDialog({ s, def, onClose }: { s: GameState; def: DcSiteDef; onClos
   const cards = gpusPerMw(def.id, g) * mw;
   const powerFull = (cards * gpuKwAt(def.id, g) * 24 * MONTH * def.powerPrice) / 1000;
   const risk = riskOf(def);
-  // Готовый кампус выбранного размера, пока пустой: так будет выглядеть площадка после стройки
-  const preview: CampusSpec = { kind: 'campus', site: def.id, mw, stage: DC_STAGES, progress: 1, fill: 0, mix: [], trucks: 0 };
   return (
     <ConfirmDialog
       title={`Стройка: ${def.name}`}
@@ -367,9 +336,6 @@ function BuildDialog({ s, def, onClose }: { s: GameState; def: DcSiteDef; onClos
       }}
     >
       <div className="dc-dialog dc-build-dialog">
-        <div className="dc-build-preview">
-          <View3D spec={preview} label={`Дата-центр на ${mw} МВт после стройки`} className="dc-build-view" />
-        </div>
         <div className="dc-sizes" role="radiogroup" aria-label="Мощность дата-центра">
           {DC_SIZES.map((x) => (
             <button
