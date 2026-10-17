@@ -446,3 +446,17 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
 /* Недоступная главная кнопка: не бледная бирюза с белым, а спокойная серая плашка с читаемым текстом */
 .btn.primary:disabled, .btn.primary[aria-disabled='true'] { opacity: 1; background: var(--track); color: var(--text-2); box-shadow: inset 0 -3px 0 var(--edge); }
 .btn.primary[aria-disabled='true']:hover, .btn.primary[aria-disabled='true']:active { background: var(--track); }
+
+/* Полосы прокрутки в стиле игры: без стрелок, скруглённый бирюзовый ползунок на прозрачной дорожке */
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--brand-muted); border: 3px solid transparent; background-clip: padding-box; border-radius: 999px; min-height: 40px; }
+::-webkit-scrollbar-thumb:hover { background-color: var(--brand); }
+::-webkit-scrollbar-button, ::-webkit-scrollbar-corner { display: none; background: transparent; }
+/* На тёмных плашках оболочки ползунок светлее */
+.side ::-webkit-scrollbar-thumb, .hud ::-webkit-scrollbar-thumb, .dock ::-webkit-scrollbar-thumb { background-color: var(--hud-text-2); }
+.side .side-body > div.quests-zone:not(.tutor) { scrollbar-width: auto; scrollbar-color: auto; }
+/* Firefox: только цвет и тонкая ширина */
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: var(--brand-muted) transparent; }
+}
