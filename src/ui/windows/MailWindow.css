@@ -164,3 +164,18 @@
   .mail .mail-digest-row { grid-template-columns: minmax(0, 1fr) auto; }
   .mail .mail-digest-row .st { grid-column: 1 / -1; }
 }
+
+/* Узкое окно: папки - ровные квадратные плитки со значком, счётчик - аккуратный значок в углу */
+@container (max-width: 900px) {
+  .mail .mail-rail { width: 64px; padding: 10px 8px; gap: 8px; align-items: center; }
+  .mail .mail-rail .mail-folder { width: 46px; height: 46px; padding: 0; justify-content: center; border-radius: 12px; background: var(--surface-control); box-shadow: inset 0 -3px 0 var(--edge); }
+  .mail .mail-rail .mail-folder svg { width: 20px; height: 20px; }
+  .mail .mail-rail .mail-folder.on { box-shadow: inset 0 -3px 0 var(--orange-deep, var(--edge)); }
+  .mail .mail-rail .mail-folder-n {
+    position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px;
+    background: var(--surface-control); box-shadow: 0 0 0 2px var(--surface-window); color: var(--text);
+    font-size: 11px; font-weight: var(--fw-title); line-height: 20px; text-align: center;
+  }
+  .mail .mail-rail .mail-folder.on .mail-folder-n { background: var(--surface-control); color: var(--text); }
+  .mail .mail-rail .mail-folder.f-all .mail-folder-n { background: var(--bad-fill); color: #fff; }
+}
