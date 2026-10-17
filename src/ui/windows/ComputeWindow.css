@@ -218,3 +218,11 @@
 .cw-col-top { flex-wrap: nowrap; }
 .cw-col-top .cw-alloc-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cw-col-pct { flex: none; white-space: nowrap; }
+/* Подпись доли не залезает под ручку у левого края сегмента */
+.cw-split .cw-seg span { padding-left: 16px; }
+/* Карты в аренде в узком окне: кнопки уходят под строку, текст не сжимается в столбик, карточка не тянется вниз */
+.cw-cards { container-type: inline-size; align-self: start; }
+@container (max-width: 600px) {
+  .cw-row { grid-template-columns: 64px minmax(0, 1fr) auto; row-gap: 8px; }
+  .cw-row-actions { grid-column: 2 / -1; justify-content: flex-start; }
+}

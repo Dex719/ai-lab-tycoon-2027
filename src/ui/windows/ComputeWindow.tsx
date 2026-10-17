@@ -548,7 +548,7 @@ function SplitBar({ rows, shown, onDrag, onDone }: { rows: typeof ALLOC_ROWS; sh
           <div
             key={`h-${r.key}`}
             className="cw-handle"
-            style={{ left: `${at}%` }}
+            style={{ left: `clamp(10px, ${at}%, calc(100% - 10px))` }}
             role="slider"
             tabIndex={0}
             aria-label={`Граница «${r.label}» и «${b.label}»`}
