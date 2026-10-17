@@ -256,23 +256,50 @@ export function buildLab(spec: LabSpec): Content {
     box(0.55, 0.45, 0.01, '#fff5b8', wbX + 0.85, 1.45, z0 + 0.07).castShadow = false;
   }
 
-  // ---------- Витрина: полка на левой стене ----------
+  // ---------- Витрина: стеклянный шкаф у левой стены, на полках награды моделей и кубки ----------
   const shelfZ = z0 + 2.2;
-  const shelfLen = Math.max(1.6, Math.min(3.2, 0.42 * Math.max(4, spec.models.length + spec.cups.length)));
-  box(0.35, 0.05, shelfLen, '#8a6a4f', x0 + 0.18, 1.9, shelfZ);
-  let sz = shelfZ - shelfLen / 2 + 0.25;
-  spec.models.forEach((m, i) => {
-    const big = i === 0;
-    box(0.26, big ? 0.32 : 0.22, 0.26, m, x0 + 0.18, 1.925 + (big ? 0.16 : 0.11), sz);
-    sz += 0.38;
+  const cabL = 1.7; // вдоль стены
+  const cabD = 0.5;
+  const cabH = 1.9;
+  const cx = x0 + 0.06 + cabD / 2;
+  const wood = '#7a5c43';
+  box(cabD, 0.18, cabL, wood, cx, 0.09, shelfZ); // цоколь
+  box(cabD, 0.06, cabL, wood, cx, cabH - 0.03, shelfZ); // крышка
+  box(0.04, cabH, cabL, shade(wood, 0.25), x0 + 0.08, cabH / 2, shelfZ); // задняя стенка светлее
+  for (const dz of [-cabL / 2 + 0.03, cabL / 2 - 0.03]) box(cabD, cabH, 0.05, wood, cx, cabH / 2, shelfZ + dz); // боковины
+  const SHELF_Y = [0.18, 0.75, 1.32];
+  for (const y of SHELF_Y.slice(1)) box(cabD - 0.06, 0.03, cabL - 0.08, '#e9edf0', cx, y, shelfZ);
+  const vitrine = new THREE.MeshStandardMaterial({ color: '#d9f0f4', transparent: true, opacity: 0.2, roughness: 0.05, depthWrite: false });
+  extraMats.push(vitrine);
+  const front = new THREE.Mesh(geo(new THREE.BoxGeometry(0.02, cabH - 0.24, cabL - 0.1)), vitrine);
+  front.position.set(cx + cabD / 2 - 0.01, 0.18 + (cabH - 0.24) / 2, shelfZ);
+  front.renderOrder = 3;
+  root.add(front);
+  // Подсветка полок: тонкая светлая планка под крышкой
+  box(0.04, 0.02, cabL - 0.14, '#fff6d8', cx + 0.12, cabH - 0.08, shelfZ).castShadow = false;
+  // Награды: модель - подставка с цветной табличкой, кубок - за первое место (золото) или призовое (серебро)
+  const items: ({ kind: 'model'; color: string; big: boolean } | { kind: 'cup'; gold: boolean })[] = [
+    ...spec.cups.map((c) => ({ kind: 'cup' as const, gold: c === 'first' })),
+    ...spec.models.map((m, i) => ({ kind: 'model' as const, color: m, big: i === 0 })),
+  ];
+  const perShelf = 4;
+  const step = (cabL - 0.2) / perShelf;
+  items.slice(0, perShelf * SHELF_Y.length).forEach((it, i) => {
+    const shelf = SHELF_Y.length - 1 - Math.floor(i / perShelf); // сверху вниз: верхняя полка - самые важные
+    const y = SHELF_Y[shelf] + 0.015;
+    const z = shelfZ - (cabL - 0.2) / 2 + step / 2 + (i % perShelf) * step;
+    const x = cx + 0.02;
+    if (it.kind === 'cup') {
+      const col = it.gold ? '#e3b93c' : '#c3c8ce';
+      cyl(0.07, 0.04, '#3a3f46', x, y + 0.02, z);
+      cyl(0.025, 0.1, col, x, y + 0.09, z);
+      cyl(0.09, 0.14, col, x, y + 0.21, z);
+    } else {
+      const h = it.big ? 0.3 : 0.24;
+      box(0.2, 0.05, 0.2, '#3a3f46', x, y + 0.025, z);
+      box(0.05, h, 0.16, it.color, x - 0.02, y + 0.05 + h / 2, z).rotation.z = -0.15;
+    }
   });
-  for (const c of spec.cups) {
-    const col = c === 'first' ? '#e8c34a' : '#c3c6cb';
-    cyl(0.08, 0.06, col, x0 + 0.18, 1.955, sz);
-    cyl(0.03, 0.12, col, x0 + 0.18, 2.04, sz);
-    cyl(0.11, 0.14, col, x0 + 0.18, 2.17, sz);
-    sz += 0.3;
-  }
 
   // ---------- Столы и люди ----------
   const deskArea = { xa: x0 + 4.2, xb: x1 - 1.4, za: z0 + (spec.stage >= 1 ? 2.9 : 2.4), zb: z1 - 1.3 };
@@ -562,7 +589,7 @@ export function buildLab(spec: LabSpec): Content {
     const last = deskPos(Math.min(shown, cols) - 1);
     anchors.training = new THREE.Vector3((deskPos(0).x + last.x) / 2, 1.75, deskPos(0).z - 0.3);
   }
-  anchors.showcase = new THREE.Vector3(x0 + 0.18, 2.55, shelfZ);
+  anchors.showcase = new THREE.Vector3(x0 + 0.55, 1.6, shelfZ);
   if (ghostAt) anchors.seats = ghostAt;
   anchors.rackSlot = rackSlot ?? new THREE.Vector3(rackX(Math.max(0, spec.racks - 1)) - 0.5, 2.55, rackZ + 0.2);
   if (!spec.research) anchors.researchSlot = new THREE.Vector3(wbX, 1.9, z0 + 0.3);

@@ -118,20 +118,28 @@ function factsOf(s: GameState): Facts {
 }
 
 /** Примерный размер подписи: соседние подписи не должны налезать друг на друга. */
-const TAG_W = 220;
+const TAG_W = 190;
 const TAG_H = 64;
+
+/** Точки сцены, у которых есть подпись или кнопка. */
+const SHOWN = new Set(['servers', 'research', 'training', 'showcase', 'seats']);
 
 /** Развести подписи: если две перекрываются, нижняя по экрану остаётся у места, верхняя поднимается выше. */
 function spread(at: At): At {
+  // Подпись ставится у своего предмета; при наезде пробуем сдвиг вбок, вниз, и только потом вверх.
+  // Раньше подпись сразу уезжала вверх и повисала в небе над комнатой (плейтест 17.10).
   const order = Object.entries(at).sort((a, b) => b[1].y - a[1].y);
   const placed: { x: number; y: number }[] = [];
   const out: At = {};
+  const clash = (x: number, y: number) => placed.some((q) => Math.abs(q.x - x) < TAG_W && Math.abs(q.y - y) < TAG_H);
   for (const [k, p0] of order) {
-    const p = { ...p0 };
-    for (let guard = 0; guard < 6; guard++) {
-      const hit = placed.find((q) => Math.abs(q.x - p.x) < TAG_W && Math.abs(q.y - p.y) < TAG_H);
-      if (!hit) break;
-      p.y = hit.y - TAG_H;
+    let p = { ...p0 };
+    if (clash(p.x, p.y)) {
+      const tries: { x: number; y: number }[] = [];
+      tries.push({ x: p0.x, y: p0.y - TAG_H }, { x: p0.x - (TAG_W + 6), y: p0.y }, { x: p0.x + (TAG_W + 6), y: p0.y }, { x: p0.x, y: p0.y + TAG_H });
+      const ok = tries.find((t) => !clash(t.x, t.y));
+      if (ok) p = ok;
+      else for (let guard = 0; guard < 6 && clash(p.x, p.y); guard++) p.y -= TAG_H;
     }
     placed.push(p);
     out[k] = p;
@@ -218,7 +226,9 @@ export function LabFloor({ s, open }: { s: GameState; open: Open }) {
   // Тот же объект описания, пока не изменилось то, что видно: View3D сравнивает по ключу.
   const spec = useMemo(() => f.spec, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   const [at, setAt] = useState<At>({});
-  const onAnchors = useCallback((a: At) => setAt(spread(a)), []);
+  // В раскладке участвуют только точки, у которых на экране есть подпись или кнопка: пустые точки-заготовки
+  // (места под стойку и т. п.) иначе расталкивали настоящие подписи.
+  const onAnchors = useCallback((a: At) => setAt(spread(Object.fromEntries(Object.entries(a).filter(([k]) => SHOWN.has(k))))), []);
   const next = nextStep(s, speed);
   const arrival = nextArrival(s);
   return (
