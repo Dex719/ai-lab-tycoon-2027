@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { newGame } from '../sim/actions';
 import { runBot } from '../sim/bots';
 import { gpusPerMw } from '../sim/datacenters';
@@ -6,7 +6,7 @@ import { emptyDuel } from '../sim/duel';
 import { emptyLate } from '../sim/lateState';
 import { dateToDay } from '../sim/time';
 import type { GameState } from '../sim/types';
-import { ACH_GROUPS, ACHIEVEMENTS } from './achievementList';
+import { ACH_GROUPS, ACHIEVEMENTS, checkAchievements } from './achievementList';
 
 const got = (s: GameState): string[] => ACHIEVEMENTS.filter((a) => a.check(s)).map((a) => a.id);
 
@@ -99,5 +99,24 @@ describe('достижения', () => {
     expect(got(s)).not.toContain('dc-full');
     dc.gpus.h100 = gpusPerMw('lulea', 'h100') * 50;
     expect(got(s)).toContain('dc-full');
+  });
+});
+
+describe('достижения без хранилища', () => {
+  it('если хранилище не пишет, полученное достижение не выдаётся снова на следующий день', () => {
+    vi.stubGlobal('localStorage', {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error('QuotaExceededError');
+      },
+    });
+    try {
+      const s = newGame('Тест', 1);
+      s.outcome = 'bankrupt';
+      expect(checkAchievements(s).map((a) => a.id)).toContain('bankrupt');
+      expect(checkAchievements(s)).toEqual([]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

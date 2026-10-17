@@ -8,6 +8,7 @@ vi.mock('../sim/tick', async (importOriginal) => {
   return { ...real, advanceDay: vi.fn(real.advanceDay) };
 });
 
+import * as actions from '../sim/actions';
 import { newGame } from '../sim/actions';
 import { addMail } from '../sim/events';
 import { chooseGoals, goalOfferOpen, goalsDay } from '../sim/goals';
@@ -319,5 +320,44 @@ describe('выбор целей года', () => {
     expect(goalOfferOpen(s)).toBe(true);
     expect(store.speed).toBe(0);
     expect(store.pauseReason).toBe('Цели года');
+  });
+});
+
+describe('после конца партии', () => {
+  it('можно только смотреть: действия отклоняются, прочитать письма - можно', () => {
+    const { store, s } = newStore();
+    s.outcome = 'finished';
+    const cash = s.cash;
+    const r = store.dispatch(actions.setRent, 'p100', 100);
+    expect(r).toEqual({ ok: false, error: 'Партия окончена: можно только смотреть.' });
+    expect(s.cash).toBe(cash);
+    expect(store.dispatch(actions.markAllRead).ok).toBe(true);
+  });
+});
+
+describe('служебные изменения и клавиши скорости', () => {
+  it('шаг обучения игре не стирает причину паузы', () => {
+    const { store } = newStore();
+    store.setSpeed(2);
+    advanceDay.mockImplementationOnce((s) => {
+      addMail(s, { kind: 'training', title: 'Модель готова', body: '', important: true });
+    });
+    vi.advanceTimersByTime(250);
+    expect(store.pauseReason).toBe('Модель готова');
+    store.note((st: GameState) => {
+      st.tutorial.step += 1;
+    });
+    expect(store.pauseReason).toBe('Модель готова');
+  });
+
+  it('клавиши скорости не запускают время, пока письмо ждёт выбора', () => {
+    const { store, s } = newStore();
+    addMail(s, { kind: 'event', title: 'Выбор', body: '', eventId: 'x', choices: [{ label: 'a', hint: '' }] });
+    store.requestSpeed(1);
+    expect(store.speed).toBe(0);
+    s.mail = [];
+    store.requestSpeed(1);
+    expect(store.speed).toBe(1);
+    store.setSpeed(0);
   });
 });

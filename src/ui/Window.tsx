@@ -139,8 +139,19 @@ export function Window({ title, geom, active, accent, icon: Icon, flush, fullscr
   function moveResize(e: React.PointerEvent) {
     const r = resize.current;
     if (!r) return;
-    onMove({ w: Math.max(280, r.w + e.clientX - r.sx), h: Math.max(160, r.h + e.clientY - r.sy) });
+    // Не шире и не выше стола от левого верхнего угла окна: окно нельзя растянуть за край.
+    const area = deskAreaOf(e.currentTarget as HTMLElement);
+    const maxW = Math.max(280, area.w - geom.x);
+    const maxH = Math.max(160, area.h - geom.y);
+    onMove({
+      w: Math.min(maxW, Math.max(280, r.w + e.clientX - r.sx)),
+      h: Math.min(maxH, Math.max(160, r.h + e.clientY - r.sy)),
+    });
   }
+  // Жест отменён (сенсорный экран, системный жест) или захват потерян: иначе окно «прилипало» к пальцу.
+  const endResize = () => {
+    resize.current = null;
+  };
 
   return (
     <div
@@ -153,7 +164,14 @@ export function Window({ title, geom, active, accent, icon: Icon, flush, fullscr
       onPointerDown={onFocus}
       data-window={title}
     >
-      <div className="titlebar" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag}>
+      <div
+        className="titlebar"
+        onPointerDown={startDrag}
+        onPointerMove={moveDrag}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onLostPointerCapture={endDrag}
+      >
         {fullscreen && (
           <button className="wbtn back" onClick={onMinimize} title="Назад на стол" aria-label="Назад на стол">
             <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
@@ -184,7 +202,9 @@ export function Window({ title, geom, active, accent, icon: Icon, flush, fullscr
           className="resize"
           onPointerDown={startResize}
           onPointerMove={moveResize}
-          onPointerUp={() => (resize.current = null)}
+          onPointerUp={endResize}
+          onPointerCancel={endResize}
+          onLostPointerCapture={endResize}
         />
       )}
     </div>

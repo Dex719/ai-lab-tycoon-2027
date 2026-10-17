@@ -65,8 +65,9 @@ export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState;
   useEffect(() => {
     if (doneIndex === null || doneIndex !== index) return;
     const t = window.setTimeout(() => {
-      if (index >= TUTORIAL.length - 1) store.dispatch(finish);
-      else store.dispatch(setStep, index + 1);
+      // Служебный шаг, не действие игрока: плашка «Пауза: …» от того же события (модель готова) остаётся.
+      if (index >= TUTORIAL.length - 1) store.note(finish);
+      else store.note(setStep, index + 1);
     }, DONE_MS);
     return () => window.clearTimeout(t);
   }, [doneIndex, index]);
@@ -157,17 +158,17 @@ export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState;
             {last ? (
               <span className="skip" aria-hidden="true" />
             ) : (
-              <button className="btn small skip" title="Пропустить обучение игре" onClick={() => store.dispatch(finish)}>
+              <button className="btn small skip" title="Пропустить обучение игре" onClick={() => store.note(finish)}>
                 Пропустить
               </button>
             )}
             {canBack && !showDone && (
-              <button className="btn small" onClick={() => store.dispatch(setStep, index - 1)}>
+              <button className="btn small" onClick={() => store.note(setStep, index - 1)}>
                 Назад
               </button>
             )}
             {!step.done && (
-              <button className="btn small primary" onClick={() => store.dispatch(last ? finish : (st: GameState) => setStep(st, index + 1))}>
+              <button className="btn small primary" onClick={() => store.note(last ? finish : (st: GameState) => setStep(st, index + 1))}>
                 {last ? 'Завершить' : 'Далее'}
               </button>
             )}

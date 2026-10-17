@@ -651,6 +651,7 @@ export function buildLab(spec: LabSpec): Content {
       for (const m of mats.values()) m.dispose();
       for (const m of ledOn.values()) m.dispose();
       for (const m of extraMats) m.dispose();
+      crowd.dispose();
       sun.shadow.map?.dispose();
     },
   };

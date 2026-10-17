@@ -1,7 +1,7 @@
 // Главное меню и его окна: «Новая игра», «Загрузить», «Настройки».
 
 import './alive.css';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { START_CASH } from '../sim/constants';
 import { DIFFICULTY, DIFFICULTY_IDS, type Difficulty } from '../sim/rivalry';
 import { formatDateShort } from '../sim/time';
@@ -33,8 +33,10 @@ type MenuDialog = null | 'new' | 'load' | 'settings' | 'achievements';
 export function MainMenu() {
   const [dialog, setDialog] = useState<MenuDialog>(null);
   const [error, setError] = useState<string | null>(null);
-  const last = latestSlot();
-  const lastMeta = last !== null ? (listSlots().find((x) => x.id === last)?.meta ?? null) : null;
+  // Ячейки разбираются целиком (с состоянием партии): один раз, и снова - когда закрылся диалог (сохранили, удалили).
+  const slots = useMemo(() => listSlots(), [dialog]);
+  const last = latestSlot(slots);
+  const lastMeta = last !== null ? (slots.find((x) => x.id === last)?.meta ?? null) : null;
 
   function cont() {
     if (last === null) return;
@@ -381,7 +383,7 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
       <div style={{ marginTop: 10 }}>
         <ErrorText error={error} />
       </div>
-      <GameCode mode={mode} onLoaded={onClose} />
+      <GameCode mode={mode} inGame={inGame} onLoaded={onClose} />
       {del !== null && delSlot?.meta && (
         // Подтверждение выводится поверх этого окна; Escape в нём не должен закрывать и список ячеек.
         <span onKeyDown={(e) => e.stopPropagation()}>
@@ -562,8 +564,9 @@ function VolumeRow({ label, value, onChange, onRelease }: { label: string; value
 }
 
 /** Код партии: в «Сохранить» - получить и скопировать, в «Загрузить» - вставить и загрузить. */
-function GameCode({ mode, onLoaded }: { mode: 'load' | 'save'; onLoaded: () => void }) {
+function GameCode({ mode, inGame, onLoaded }: { mode: 'load' | 'save'; inGame: boolean; onLoaded: () => void }) {
   const [code, setCode] = useState('');
+  const [ask, setAsk] = useState(false); // посреди партии - как у ячеек: сначала спросить
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -629,12 +632,29 @@ function GameCode({ mode, onLoaded }: { mode: 'load' | 'save'; onLoaded: () => v
             onChange={(e) => {
               setCode(e.target.value);
               setError(null);
+              setAsk(false);
             }}
           />
           <div className="row" style={{ gap: 8 }}>
-            <button className="btn small primary" disabled={busy || !code.trim()} onClick={() => void load()}>
-              Загрузить из кода
-            </button>
+            {ask ? (
+              <>
+                <span className="small">Текущая партия не сохранится. Загрузить?</span>
+                <button className="btn small primary" disabled={busy} onClick={() => void load()}>
+                  Загрузить
+                </button>
+                <button className="btn small" onClick={() => setAsk(false)}>
+                  Отмена
+                </button>
+              </>
+            ) : (
+              <button
+                className="btn small primary"
+                disabled={busy || !code.trim()}
+                onClick={() => (inGame ? setAsk(true) : void load())}
+              >
+                Загрузить из кода
+              </button>
+            )}
           </div>
         </>
       )}

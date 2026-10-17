@@ -417,8 +417,11 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
      дату, деньги и кнопки скорости. Итог месяца встаёт над «Следующим шагом», если тот есть. */
   .game .month-strip { left: calc(48px + (100vw - 96px - 400px) / 2); bottom: 46px; max-width: calc(100vw - 96px - 420px); }
   .game:has(.lf-next) .month-strip { bottom: 152px; }
-  /* «Следующий шаг» прижат к плитке денег справа: слева снизу живут уведомления, и они не должны его закрывать. */
-  .game .lf-next { left: auto; right: 410px; transform: none; width: min(640px, calc(100% - 96px - 420px - 350px)); }
+  /* «Следующий шаг» прижат к плитке денег справа: слева снизу живут уведомления, и они не должны его закрывать.
+     Не уже 320 px: на экранах до ~1200 px свободное место кончалось, и текст стоял столбиком по слову в строке;
+     узкая карточка переносит кнопку под текст. */
+  .game .lf-next { left: auto; right: 410px; transform: none; width: clamp(320px, calc(100% - 96px - 420px - 350px), 640px); flex-wrap: wrap; }
+  .game .lf-next-t { min-width: 200px; }
   .game .month-strip { left: auto; right: 410px; transform: none; }
 }
 

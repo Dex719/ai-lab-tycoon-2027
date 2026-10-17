@@ -79,7 +79,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
       if (speedKey !== undefined) {
         if (target?.closest('[aria-modal="true"]')) return;
         e.preventDefault();
-        store.setSpeed(speedKey);
+        store.requestSpeed(speedKey);
         return;
       }
       // Пробел на кнопке, выбранной с клавиатуры, нажимает её; после щелчка мышью фокус остаётся на кнопке,

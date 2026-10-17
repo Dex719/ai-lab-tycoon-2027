@@ -370,8 +370,9 @@ export default function InvestorsWindow({ s }: WindowProps) {
           confirmLabel="Прервать"
           danger
           onConfirm={() => {
-            store.dispatch(actions.cancelRound);
-            setCancelling(false);
+            const r = store.dispatch(actions.cancelRound);
+            if (r.ok) setCancelling(false);
+            return r;
           }}
           onClose={() => setCancelling(false)}
         >

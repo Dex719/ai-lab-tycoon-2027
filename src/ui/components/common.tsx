@@ -218,10 +218,16 @@ export function ConfirmDialog(props: {
   danger?: boolean;
   /** data-tutorial кнопки подтверждения: обучение игре подсвечивает её. */
   tutorial?: string;
-  onConfirm: () => void;
+  /** Может вернуть результат действия: при ошибке диалог остаётся открытым и показывает её. */
+  onConfirm: () => void | { ok: true } | { ok: false; error: string };
   onClose: () => void;
   children: ReactNode;
 }) {
+  const [error, setError] = useState<string | null>(null);
+  const confirm = () => {
+    const r = props.onConfirm();
+    setError(r && !r.ok ? r.error : null);
+  };
   return createPortal(
     <Dialog
       title={props.title}
@@ -231,13 +237,16 @@ export function ConfirmDialog(props: {
           <button className="btn" onClick={props.onClose}>
             Отмена
           </button>
-          <button className={`btn ${props.danger ? 'danger' : 'primary'}`} data-tutorial={props.tutorial} onClick={props.onConfirm}>
+          <button className={`btn ${props.danger ? 'danger' : 'primary'}`} data-tutorial={props.tutorial} onClick={confirm}>
             {props.confirmLabel}
           </button>
         </>
       }
     >
-      <div className="confirm-body">{props.children}</div>
+      <div className="confirm-body">
+        {props.children}
+        {error && <Alert tone="bad">{error}</Alert>}
+      </div>
     </Dialog>,
     document.body,
   );

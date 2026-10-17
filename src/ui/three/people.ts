@@ -245,6 +245,11 @@ export class Crowd {
     reg(this.blobGeo);
   }
 
+  /** Освободить свой материал тени (текстура общая, kit.blobTex): сцена перестраивается при найме, моделях, исследованиях. */
+  dispose(): void {
+    this.blobMat.dispose();
+  }
+
   /** Сотрудник за столом: стул в точке seat, смотрит на стол (-z); проход ряда - lane. */
   addSeated(look: Look, seat: { x: number; z: number }, lane: number): void {
     this.add(look, { x: seat.x, z: seat.z, face: 0, act: 'look', lane }, true);

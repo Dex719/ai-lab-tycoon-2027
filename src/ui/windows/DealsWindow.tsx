@@ -127,8 +127,9 @@ function TeamsTab({ s }: { s: GameState }) {
           confirmLabel="Нанять"
           onClose={() => setHire(null)}
           onConfirm={() => {
-            setHire(null);
-            store.dispatch(hireTeam, hireDef.id);
+            const r = store.dispatch(hireTeam, hireDef.id);
+            if (r.ok) setHire(null);
+            return r;
           }}
         >
           <div className="kv">
@@ -153,8 +154,9 @@ function TeamsTab({ s }: { s: GameState }) {
           danger
           onClose={() => setFire(null)}
           onConfirm={() => {
-            setFire(null);
-            store.dispatch(releaseTeam, fireDef.id);
+            const r = store.dispatch(releaseTeam, fireDef.id);
+            if (r.ok) setFire(null);
+            return r;
           }}
         >
           <div className="kv">
@@ -251,8 +253,9 @@ function StartupsTab({ s }: { s: GameState }) {
           confirmLabel="Купить"
           onClose={() => setBuy(null)}
           onConfirm={() => {
-            setBuy(null);
-            store.dispatch(buyStartup, buyDef.id);
+            const r = store.dispatch(buyStartup, buyDef.id);
+            if (r.ok) setBuy(null);
+            return r;
           }}
         >
           <div className="kv">
@@ -372,8 +375,9 @@ function CloudTab({ s }: { s: GameState }) {
           confirmLabel="Подписать"
           onClose={() => setSign(null)}
           onConfirm={() => {
-            setSign(null);
-            store.dispatch(signCloud, signDef.id);
+            const r = store.dispatch(signCloud, signDef.id);
+            if (r.ok) setSign(null);
+            return r;
           }}
         >
           <div className="kv">
@@ -400,8 +404,9 @@ function CloudTab({ s }: { s: GameState }) {
           danger
           onClose={() => setExit(false)}
           onConfirm={() => {
-            setExit(false);
-            store.dispatch(endCloud);
+            const r = store.dispatch(endCloud);
+            if (r.ok) setExit(false);
+            return r;
           }}
         >
           <div className="kv">

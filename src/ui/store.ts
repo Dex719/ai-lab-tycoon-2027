@@ -15,6 +15,10 @@ import { runwayMonths } from './runway';
 
 type Listener = () => void;
 
+type AnyAction = (s: GameState, ...args: any[]) => Result | void;
+/** Действия, которые можно делать после конца партии: только просмотр. */
+const AFTER_END_ACTIONS: ReadonlySet<AnyAction> = new Set<AnyAction>([actions.markMailRead, actions.markAllRead, actions.renameModel]);
+
 export class GameStore {
   state: GameState | null = null;
   speed: Speed = 0;
@@ -89,9 +93,15 @@ export class GameStore {
     this.bump();
   }
 
-  /** Выполнить действие игрока и перерисовать интерфейс. */
+  /**
+   * Выполнить действие игрока и перерисовать интерфейс. После конца партии («Посмотреть игру») - только просмотр:
+   * прочитать письма, переименовать модель. Раньше можно было выпускать модели, поднимать раунды и добирать достижения.
+   */
   dispatch<A extends unknown[]>(fn: (s: GameState, ...args: A) => Result | void, ...args: A): Result {
     if (!this.state) return { ok: false, error: 'Игра не начата' };
+    if (this.state.outcome && !AFTER_END_ACTIONS.has(fn as unknown as AnyAction)) {
+      return { ok: false, error: 'Партия окончена: можно только смотреть.' };
+    }
     const r = fn(this.state, ...args) ?? { ok: true };
     if (r.ok) {
       landAction();
@@ -101,6 +111,20 @@ export class GameStore {
     }
     this.bump();
     return r;
+  }
+
+  /** Служебное изменение (шаг обучения игре): не действие игрока, причину паузы на верхней панели не трогает. */
+  note<A extends unknown[]>(fn: (s: GameState, ...args: A) => void, ...args: A): void {
+    if (!this.state) return;
+    fn(this.state, ...args);
+    this.bump();
+  }
+
+  /** Скорость с клавиатуры (1, 2, 3): те же запреты, что у паузы и кнопок скорости. */
+  requestSpeed(speed: Speed): void {
+    const s = this.state;
+    if (!s || s.outcome || blockedByChoice(s) || unseenReview(s) || goalOfferOpen(s)) return;
+    this.setSpeed(speed);
   }
 
   setSpeed(speed: Speed): void {

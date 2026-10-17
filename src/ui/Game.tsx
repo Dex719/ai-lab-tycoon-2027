@@ -134,9 +134,23 @@ export function Game({ s }: { s: GameState }) {
   const [sheet, setSheet] = useState(false); // телефон: боковая панель как нижний лист
   const [tutorOpen, setTutorOpen] = useState(false); // телефон: подсказка обучения развёрнута
   const dockRef = useRef<HTMLDivElement>(null);
+  // Окно уходит 110 мс (закрытие вниз и в прозрачность, сворачивание к панели задач), потом его убирают из списка.
+  const [leaving, setLeaving] = useState<Partial<Record<WindowId, 'close' | 'min'>>>({});
+  const leaveTimers = useRef(new Map<WindowId, number>());
   const open = useCallback(
     (id: WindowId | WindowAlias) => {
       setSheet(false);
+      // Окно открыли снова, пока оно уходило: уход отменяется, иначе таймер закрывал только что открытое окно.
+      const win = resolveWindow(id);
+      const t = leaveTimers.current.get(win);
+      if (t !== undefined) {
+        window.clearTimeout(t);
+        leaveTimers.current.delete(win);
+        setLeaving((x) => {
+          const { [win]: _drop, ...rest } = x;
+          return rest;
+        });
+      }
       openWin(id);
     },
     [openWin],
@@ -150,23 +164,20 @@ export function Game({ s }: { s: GameState }) {
     const ms = speed === 1 ? 500 : speed === 2 ? 250 : speed === 4 ? 125 : 300;
     document.documentElement.style.setProperty('--tick', `${ms}ms`);
   }, [speed]);
-  // Окно уходит 110 мс (закрытие вниз и в прозрачность, сворачивание к панели задач), потом его убирают из списка.
-  const [leaving, setLeaving] = useState<Partial<Record<WindowId, 'close' | 'min'>>>({});
-  const leavingIds = useRef(new Set<WindowId>());
   const leave = useCallback(
     (id: WindowId, how: 'close' | 'min', done: (id: WindowId) => void) => {
       if (phone || reducedMotion()) return done(id);
-      if (leavingIds.current.has(id)) return;
-      leavingIds.current.add(id);
+      if (leaveTimers.current.has(id)) return;
       setLeaving((l) => ({ ...l, [id]: how }));
-      window.setTimeout(() => {
+      const t = window.setTimeout(() => {
+        leaveTimers.current.delete(id);
         done(id);
-        leavingIds.current.delete(id);
         setLeaving((x) => {
           const { [id]: _drop, ...rest } = x;
           return rest;
         });
       }, 110);
+      leaveTimers.current.set(id, t);
     },
     [phone],
   );
@@ -254,7 +265,8 @@ export function Game({ s }: { s: GameState }) {
 
   function startAction(d: GameDialog) {
     setStartOpen(false);
-    if (d === 'save' || d === 'load' || d === 'settings' || d === 'achievements') store.setSpeed(0);
+    // Выход тоже на паузе: пока игрок решает, не должны приходить письма и начинаться банкротство.
+    if (d === 'save' || d === 'load' || d === 'settings' || d === 'achievements' || d === 'quit') store.setSpeed(0);
     setDialog(d);
   }
 
@@ -476,7 +488,8 @@ function MonthsBar({ day }: { day: number }) {
 
 function QuitDialog({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
-  const auto = listSlots().find((x) => x.id === 'auto')?.meta ?? null;
+  // Один раз при открытии: listSlots разбирает все ячейки целиком, а Game перерисовывается на каждом ходу.
+  const [auto] = useState(() => listSlots().find((x) => x.id === 'auto')?.meta ?? null);
   const day = store.state?.day ?? null;
   function saveAndQuit() {
     // В ячейку автосохранения: «Продолжить» в главном меню откроет партию с этого дня.

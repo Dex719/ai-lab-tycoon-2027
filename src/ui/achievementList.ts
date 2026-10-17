@@ -179,21 +179,28 @@ export const ACH_GROUPS: readonly { title: string; ids: readonly string[] }[] = 
 
 const KEY = 'ailab.achievements';
 
+// Полученные за этот запуск: если хранилище не пишет (переполнено сохранениями, запрещено), без этой памяти
+// одни и те же достижения находились заново каждый игровой день - тост и звук раз в день.
+const session: Record<string, string> = {};
+
 /** Полученные достижения: id → дата получения (ISO). */
 export function loadUnlocked(): Record<string, string> {
+  let stored: Record<string, string> = {};
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    if (raw) stored = JSON.parse(raw) as Record<string, string>;
   } catch {
-    return {};
+    // ниже - только полученные за этот запуск
   }
+  return { ...session, ...stored };
 }
 
 function saveUnlocked(u: Record<string, string>): void {
+  Object.assign(session, u);
   try {
     localStorage.setItem(KEY, JSON.stringify(u));
   } catch {
-    // без хранилища достижения проживут до перезагрузки
+    // без хранилища достижения проживут до перезагрузки (session)
   }
 }
 

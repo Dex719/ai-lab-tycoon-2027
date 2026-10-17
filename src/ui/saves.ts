@@ -1,6 +1,6 @@
 // Ячейки сохранений в браузере: 5 ручных и автосохранение. В ячейке - краткие сведения для списка и само состояние.
 
-import type { Difficulty } from '../sim/rivalry';
+import { DIFFICULTY_IDS, type Difficulty } from '../sim/rivalry';
 import { deserialize, serialize } from '../sim/save';
 import { bestArenaPlace } from './arena';
 import type { GameState } from '../sim/types';
@@ -55,6 +55,29 @@ function metaOf(s: GameState): SlotMeta {
   };
 }
 
+const OUTCOMES: readonly (GameState['outcome'] & string)[] = ['victory', 'finished', 'bankrupt'];
+
+/**
+ * Сведения ячейки из хранилища: их рисует меню без проверки состояния, поэтому проверяем здесь. Неизвестная сложность
+ * (ячейка более новой версии) читается как «Обычная», битые поля - ячейка повреждена. Раньше такая ячейка роняла
+ * главное меню в белый экран при каждом запуске.
+ */
+function cleanMeta(m: unknown): SlotMeta | null {
+  if (!m || typeof m !== 'object') return null;
+  const x = m as Record<string, unknown>;
+  const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+  if (typeof x.labName !== 'string' || !num(x.day) || !num(x.cash)) return null;
+  return {
+    labName: x.labName,
+    day: x.day,
+    cash: x.cash,
+    arenaRank: num(x.arenaRank) ? x.arenaRank : null,
+    outcome: OUTCOMES.includes(x.outcome as never) ? (x.outcome as GameState['outcome']) : null,
+    difficulty: DIFFICULTY_IDS.includes(x.difficulty as Difficulty) ? (x.difficulty as Difficulty) : 'normal',
+    savedAt: num(x.savedAt) ? x.savedAt : 0,
+  };
+}
+
 interface Stored {
   v: 1;
   meta: SlotMeta;
@@ -67,9 +90,10 @@ function readRaw(id: SlotId): { stored: Stored | null; broken: boolean } {
   try {
     const data = JSON.parse(raw) as Partial<Stored> & { version?: number };
     if (data.v === 1 && data.meta && data.state) {
-      // Ячейки, записанные до появления сложности: в сведениях её нет, партия шла как «Обычная».
-      const meta: SlotMeta = { ...data.meta, difficulty: data.meta.difficulty ?? 'normal' };
-      return { stored: { v: 1, meta, state: data.state }, broken: false };
+      // Ячейки, записанные до появления сложности: в сведениях её нет, партия шла как «Обычная» (cleanMeta).
+      const meta = cleanMeta(data.meta);
+      if (meta) return { stored: { v: 1, meta, state: data.state }, broken: false };
+      return { stored: null, broken: true };
     }
     // Старый формат: в ключе лежит само состояние.
     if (data.version === 1) {
@@ -89,10 +113,10 @@ export function listSlots(): SlotInfo[] {
   });
 }
 
-/** Самая свежая занятая ячейка (для «Продолжить») или null. */
-export function latestSlot(): SlotId | null {
+/** Самая свежая занятая ячейка (для «Продолжить») или null; slots - уже прочитанный список, чтобы не разбирать ячейки снова. */
+export function latestSlot(slots: SlotInfo[] = listSlots()): SlotId | null {
   let best: SlotInfo | null = null;
-  for (const slot of listSlots()) {
+  for (const slot of slots) {
     if (!slot.meta || slot.meta.outcome) continue;
     if (!best || slot.meta.savedAt > best.meta!.savedAt) best = slot;
   }

@@ -1,6 +1,7 @@
-// Свои подсказки вместо встроенных браузерных: пока курсор над элементом, его title лежит в data-tip
-// (встроенная подсказка не всплывает), а слой рисует подсказку рядом. Когда курсор уходит, title возвращается:
-// React дальше сам меняет или снимает его, и устаревший текст не остаётся. Наведение показывает подсказку
+// Свои подсказки вместо встроенных браузерных: пока курсор над элементом, его title лежит в data-tip, а на месте
+// title - пустая заглушка (встроенная подсказка не всплывает), слой рисует подсказку рядом. Когда курсор уходит,
+// title возвращается, только если заглушка цела: если React за это время снял title (кнопка стала доступна) или
+// поставил новый, его решение остаётся, и устаревший текст не возвращается. Наведение показывает подсказку
 // с задержкой, касание на телефоне - сразу и на 2,5 с.
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -17,20 +18,20 @@ interface Tip {
   below: boolean;
 }
 
-/** Текст подсказки элемента: на время наведения title переносится в data-tip. */
+/** Текст подсказки элемента: на время наведения title переносится в data-tip, на его месте - пустая заглушка. */
 function tipOf(el: HTMLElement): string | null {
   const title = el.getAttribute('title');
-  if (title !== null) {
+  if (title) {
     el.dataset.tip = title;
-    el.removeAttribute('title');
+    el.setAttribute('title', '');
   }
   return el.dataset.tip || null;
 }
 
-/** Вернуть title на место (если React не поставил новый за время наведения). */
+/** Вернуть title на место, если React его не трогал (заглушка цела); снятый или новый title - решение React. */
 function restore(el: HTMLElement | null): void {
   if (!el || el.dataset.tip === undefined) return;
-  if (!el.hasAttribute('title')) el.setAttribute('title', el.dataset.tip);
+  if (el.getAttribute('title') === '') el.setAttribute('title', el.dataset.tip);
   delete el.dataset.tip;
 }
 
