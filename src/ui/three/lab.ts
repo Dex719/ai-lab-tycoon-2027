@@ -5,6 +5,7 @@
 // рисует React (LabFloor) по точкам anchors.
 
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import type { Content } from './engine';
 import { EVENT_MS, live } from './live';
 import { rng } from './kit';
@@ -13,26 +14,33 @@ import type { LabSpec } from './specs';
 interface RoomDef {
   w: number;
   d: number;
+  /** Пол плиткой в шахматку: два тона. */
   floor: string;
+  floorAlt: string;
   back: string;
   side: string;
   trim: string;
+  /** Нижняя цветная полоса стен и крышка по верху среза стены (мягкий «кукольный» разрез, как в тайкунах). */
+  band: string;
+  cap: string;
   /** Окна на задней стене. */
   windows: number;
 }
 
 const ROOMS: RoomDef[] = [
-  { w: 12, d: 9, floor: '#bdb6aa', back: '#e9e3d7', side: '#ddd5c6', trim: '#c9c1b2', windows: 1 },
-  { w: 14, d: 9.5, floor: '#c4a17b', back: '#e3e7ea', side: '#d5dbe0', trim: '#b9c0c7', windows: 2 },
-  { w: 17, d: 11, floor: '#9aa0a8', back: '#eceff2', side: '#dfe3e7', trim: '#c4c9cf', windows: 3 },
-  { w: 20, d: 12.5, floor: '#d3d0c8', back: '#f2f2f0', side: '#e5e4e0', trim: '#cfcdc7', windows: 4 },
+  { w: 12, d: 9, floor: '#c4bcae', floorAlt: '#b8b0a1', back: '#f3e8d2', side: '#eadcc2', trim: '#c9b79c', band: '#e0954f', cap: '#9c6a3c', windows: 1 },
+  { w: 14, d: 9.5, floor: '#ecd6aa', floorAlt: '#e2c996', back: '#e3f3f1', side: '#d6ece9', trim: '#b9d8d6', band: '#35aebb', cap: '#1d8592', windows: 2 },
+  { w: 17, d: 11, floor: '#a9d0de', floorAlt: '#9cc5d4', back: '#f6f1e6', side: '#ede6d8', trim: '#d8cfbf', band: '#f2922c', cap: '#2f3d44', windows: 3 },
+  { w: 20, d: 12.5, floor: '#dcebd2', floorAlt: '#cfe2c3', back: '#ffffff', side: '#f2f2f2', trim: '#dcdcdc', band: '#7b5cd6', cap: '#4b3a8c', windows: 4 },
 ];
 
-const WALL_H = 3.2;
+/** Стены ниже прежнего: срез как в кукольном домике, внутрь видно сверху. */
+const WALL_H = 2.7;
 const SHIRTS = ['#d9822b', '#2f80e4', '#2e9b4f', '#c0504d', '#5d6b7a', '#1fa8a0', '#8a6bbf', '#c9a227'];
 const HAIR = ['#3b2a1e', '#1f1f22', '#8a5a2b', '#6b4a2e', '#b58b55', '#2d2620'];
 const SKIN = ['#e7bf9b', '#c99a74', '#f0d0b0', '#a87a55'];
 const PERSON_CAP = 40;
+const CHAIRS = ['#35aebb', '#f2922c', '#5d6b7a', '#e0574f'];
 
 export function buildLab(spec: LabSpec): Content {
   const room = ROOMS[spec.stage] ?? ROOMS[0];
@@ -47,7 +55,7 @@ export function buildLab(spec: LabSpec): Content {
     const key = `${color}|${glow}`;
     let m = mats.get(key);
     if (!m) {
-      m = new THREE.MeshStandardMaterial({ color, roughness: 0.82, metalness: 0, flatShading: true, emissive: glow ? color : '#000000', emissiveIntensity: glow });
+      m = new THREE.MeshStandardMaterial({ color, roughness: 0.72, metalness: 0, emissive: glow ? color : '#000000', emissiveIntensity: glow });
       mats.set(key, m);
     }
     return m;
@@ -56,8 +64,11 @@ export function buildLab(spec: LabSpec): Content {
     geos.add(g);
     return g;
   };
+  // Мягкий стиль: у всего, что толще 4 см, скруглённые рёбра; тонкие накладки, пол и стены - прямые.
   const box = (w: number, h: number, d: number, color: string, x: number, y: number, z: number, parent: THREE.Object3D = root, glow = 0): THREE.Mesh => {
-    const m = new THREE.Mesh(geo(new THREE.BoxGeometry(w, h, d)), mat(color, glow));
+    const min = Math.min(w, h, d);
+    const g = min >= 0.04 ? new RoundedBoxGeometry(w, h, d, 2, Math.min(0.07, min * 0.35)) : new THREE.BoxGeometry(w, h, d);
+    const m = new THREE.Mesh(geo(g), mat(color, glow));
     m.position.set(x, y, z);
     m.castShadow = glow === 0;
     m.receiveShadow = true;
@@ -65,14 +76,29 @@ export function buildLab(spec: LabSpec): Content {
     return m;
   };
   const cyl = (r: number, h: number, color: string, x: number, y: number, z: number, parent: THREE.Object3D = root): THREE.Mesh => {
-    const m = new THREE.Mesh(geo(new THREE.CylinderGeometry(r, r, h, 10)), mat(color));
+    const m = new THREE.Mesh(geo(new THREE.CylinderGeometry(r, r, h, 20)), mat(color));
+    m.position.set(x, y, z);
+    m.castShadow = true;
+    parent.add(m);
+    return m;
+  };
+  const sharp = (w: number, h: number, d: number, color: string, x: number, y: number, z: number): THREE.Mesh => {
+    const m = new THREE.Mesh(geo(new THREE.BoxGeometry(w, h, d)), mat(color));
+    m.position.set(x, y, z);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    root.add(m);
+    return m;
+  };
+  const capsule = (r: number, len: number, color: string, x: number, y: number, z: number, parent: THREE.Object3D = root): THREE.Mesh => {
+    const m = new THREE.Mesh(geo(new THREE.CapsuleGeometry(r, len, 6, 14)), mat(color));
     m.position.set(x, y, z);
     m.castShadow = true;
     parent.add(m);
     return m;
   };
   const ball = (r: number, color: string, x: number, y: number, z: number, parent: THREE.Object3D = root, glow = 0): THREE.Mesh => {
-    const m = new THREE.Mesh(geo(new THREE.IcosahedronGeometry(r, 1)), mat(color, glow));
+    const m = new THREE.Mesh(geo(new THREE.SphereGeometry(r, 20, 14)), mat(color, glow));
     m.position.set(x, y, z);
     m.castShadow = glow === 0;
     parent.add(m);
@@ -86,12 +112,28 @@ export function buildLab(spec: LabSpec): Content {
 
   // ---------- Пол и стены ----------
   box(W + 1.2, 0.5, D + 1.2, spec.base ?? '#2b2f35', 0, -0.35, 0);
-  box(W, 0.2, D, room.floor, 0, -0.1, 0);
-  for (let x = x0 + 2.5; x < x1; x += 2.5) box(0.02, 0.01, D, shade(room.floor, -0.06), x, 0.005, 0).castShadow = false;
-  box(W + 0.2, WALL_H, 0.2, room.back, -0.1, WALL_H / 2, z0 - 0.1);
-  box(0.2, WALL_H, D, room.side, x0 - 0.1, WALL_H / 2, 0);
-  box(W + 0.2, 0.22, 0.04, room.trim, -0.1, 0.11, z0 + 0.02).castShadow = false;
-  box(0.04, 0.22, D, room.trim, x0 + 0.02, 0.11, 0).castShadow = false;
+  sharp(W, 0.2, D, room.floor, 0, -0.1, 0);
+  // Плитка в шахматку: второй тон - квадратами поверх пола (одна сетка на все плитки).
+  {
+    const tile = geo(new THREE.PlaneGeometry(0.98, 0.98));
+    tile.rotateX(-Math.PI / 2);
+    const cells: [number, number][] = [];
+    for (let ix = 0; ix < Math.floor(W); ix++) for (let iz = 0; iz < Math.floor(D); iz++) if ((ix + iz) % 2 === 0) cells.push([x0 + ix + 0.5, z0 + iz + 0.5]);
+    const tiles = new THREE.InstancedMesh(tile, mat(room.floorAlt), cells.length);
+    cells.forEach(([tx, tz], k) => tiles.setMatrixAt(k, new THREE.Matrix4().makeTranslation(tx, 0.002, tz)));
+    tiles.receiveShadow = true;
+    root.add(tiles);
+  }
+  // Стены: светлая краска, цветная полоса снизу, толстая цветная крышка по срезу.
+  const WT = 0.3;
+  sharp(W + WT, WALL_H, WT, room.back, -WT / 2, WALL_H / 2, z0 - WT / 2);
+  sharp(WT, WALL_H, D, room.side, x0 - WT / 2, WALL_H / 2, 0);
+  sharp(W + WT + 0.02, 0.9, 0.02, room.band, -WT / 2, 0.45, z0 + 0.01);
+  sharp(0.02, 0.9, D, room.band, x0 + 0.01, 0.45, 0);
+  sharp(W + WT + 0.02, 0.05, 0.03, shade(room.band, -0.12), -WT / 2, 0.92, z0 + 0.015);
+  sharp(0.03, 0.05, D, shade(room.band, -0.12), x0 + 0.015, 0.92, 0);
+  box(W + WT + 0.04, 0.12, WT + 0.06, room.cap, -WT / 2, WALL_H + 0.05, z0 - WT / 2);
+  box(WT + 0.06, 0.12, D + 0.04, room.cap, x0 - WT / 2, WALL_H + 0.05, 0);
 
   // Окна на задней стене (в средней части, между доской и серверной).
   const sky = new THREE.MeshBasicMaterial({ color: '#bcd9ef' });
@@ -133,7 +175,7 @@ export function buildLab(spec: LabSpec): Content {
   let litLeft = spec.racksLit;
   for (let i = 0; i < spec.racks; i++) {
     const x = rackX(i);
-    box(RACK_W, 2.1, 0.95, '#2a2d33', x, 1.05, rackZ);
+    box(RACK_W, 2.1, 0.95, '#3a4652', x, 1.05, rackZ);
     box(RACK_W + 0.02, 0.06, 0.97, '#3a3e45', x, 2.12, rackZ);
     // Планка цвета задачи над дверцей (как в «Мощностях»).
     if (spec.racksLit > i * 8) box(RACK_W - 0.06, 0.07, 0.02, spec.rackColors[i] ?? '#7dd87f', x, 2.03, rackZ + 0.49, root, 0.8);
@@ -266,22 +308,24 @@ export function buildLab(spec: LabSpec): Content {
     const g = new THREE.Group();
     g.position.set(x, 0, z);
     g.rotation.y = Math.PI;
-    box(0.55, 0.07, 0.55, '#3b3f46', 0, 0.48, 0, g);
-    box(0.55, 0.55, 0.07, '#3b3f46', 0, 0.8, 0.26, g);
-    cyl(0.04, 0.45, '#555a62', 0, 0.24, 0, g);
-    box(0.36, 0.14, 0.42, '#3d4a5e', 0, 0.58, -0.12, g);
-    const torso = cyl(0.21, 0.6, SHIRTS[i % SHIRTS.length], 0, 0.92, 0, g);
-    torso.scale.z = 0.75;
+    const chair = CHAIRS[i % CHAIRS.length];
+    box(0.56, 0.1, 0.56, chair, 0, 0.48, 0, g);
+    box(0.56, 0.58, 0.1, chair, 0, 0.8, 0.26, g);
+    cyl(0.04, 0.45, '#6b7276', 0, 0.24, 0, g);
+    capsule(0.1, 0.32, '#3d4a5e', -0.1, 0.58, -0.14, g).rotation.x = Math.PI / 2;
+    capsule(0.1, 0.32, '#3d4a5e', 0.1, 0.58, -0.14, g).rotation.x = Math.PI / 2;
+    const torso = capsule(0.22, 0.3, SHIRTS[i % SHIRTS.length], 0, 0.92, 0, g);
+    torso.scale.z = 0.8;
     // Руки к клавиатуре.
     for (const sx of [-1, 1]) {
-      const arm = box(0.1, 0.1, 0.42, SHIRTS[i % SHIRTS.length], sx * 0.2, 1.0, 0.2, g);
-      arm.rotation.x = 0.35;
-      ball(0.055, SKIN[(i * 3) % SKIN.length], sx * 0.17, 0.92, 0.42, g);
+      const arm = capsule(0.065, 0.32, SHIRTS[i % SHIRTS.length], sx * 0.21, 1.0, 0.2, g);
+      arm.rotation.x = Math.PI / 2 - 0.35;
+      ball(0.06, SKIN[(i * 3) % SKIN.length], sx * 0.18, 0.92, 0.42, g);
     }
     const head = new THREE.Group();
-    head.position.set(0, 1.4, 0);
-    ball(0.17, SKIN[(i * 3) % SKIN.length], 0, 0, 0, head);
-    const cap = ball(0.18, HAIR[(i * 5) % HAIR.length], 0, 0.05, 0.03, head);
+    head.position.set(0, 1.44, 0);
+    ball(0.21, SKIN[(i * 3) % SKIN.length], 0, 0, 0, head);
+    const cap = ball(0.22, HAIR[(i * 5) % HAIR.length], 0, 0.06, 0.03, head);
     cap.scale.set(1, 0.75, 1);
     g.add(head);
     heads.push({ m: head, base: head.position.y, phase: rand() * 6 });
@@ -294,12 +338,12 @@ export function buildLab(spec: LabSpec): Content {
     g.position.set(wbX, 0, z0 + 0.95);
     box(0.13, 0.75, 0.15, '#3d4a5e', -0.1, 0.38, 0, g);
     box(0.13, 0.75, 0.15, '#3d4a5e', 0.1, 0.38, 0, g);
-    const t = cyl(0.21, 0.6, '#7b5cd6', 0, 1.05, 0, g);
-    t.scale.z = 0.75;
+    const t = capsule(0.22, 0.32, '#7b5cd6', 0, 1.08, 0, g);
+    t.scale.z = 0.8;
     const head = new THREE.Group();
-    head.position.set(0, 1.53, 0);
-    ball(0.17, SKIN[1], 0, 0, 0, head);
-    const cap = ball(0.18, HAIR[2], 0, 0.05, -0.03, head);
+    head.position.set(0, 1.6, 0);
+    ball(0.21, SKIN[1], 0, 0, 0, head);
+    const cap = ball(0.22, HAIR[2], 0, 0.06, -0.03, head);
     cap.scale.set(1, 0.75, 1);
     g.add(head);
     heads.push({ m: head, base: head.position.y, phase: 1.3 });
@@ -340,8 +384,8 @@ export function buildLab(spec: LabSpec): Content {
   const notes = ['#fff5b8', '#bfe3c3', '#f6c9c1', '#c9dcf6'];
   for (let k = 0; k < 7; k++) box(0.01, 0.16, 0.16, notes[k % 4], x0 + 0.07, 1.78 + (k % 3) * 0.22, z0 + 3.7 + Math.floor(k / 3) * 0.4 + (k % 2) * 0.08).castShadow = false;
   if (spec.racks > 0) {
-    box(1.2, 0.34, 0.26, '#eef0f2', (rackX(0) + rackX(spec.racks - 1)) / 2, 2.78, z0 + 0.14);
-    box(1.0, 0.03, 0.02, '#9aa1a9', (rackX(0) + rackX(spec.racks - 1)) / 2, 2.66, z0 + 0.28).castShadow = false;
+    box(1.2, 0.34, 0.26, '#eef0f2', (rackX(0) + rackX(spec.racks - 1)) / 2, WALL_H - 0.3, z0 + 0.14);
+    box(1.0, 0.03, 0.02, '#9aa1a9', (rackX(0) + rackX(spec.racks - 1)) / 2, WALL_H - 0.42, z0 + 0.28).castShadow = false;
     const ex = rackX(spec.racks - 1) - 0.65;
     cyl(0.09, 0.45, '#d64545', ex, 0.23, z0 + 0.25);
     box(0.06, 0.08, 0.06, '#25282d', ex, 0.5, z0 + 0.25);
@@ -393,8 +437,10 @@ export function buildLab(spec: LabSpec): Content {
   }
 
   // ---------- Свет ----------
-  root.add(new THREE.HemisphereLight('#fdfaf3', '#8a7f70', 1.5));
-  const sun = new THREE.DirectionalLight('#fff4e2', 2.4);
+  // Мягкий яркий свет: сильнее рассеянный, тени с размытым краем.
+  root.add(new THREE.HemisphereLight('#fffaf0', '#9a8f80', 2.1));
+  const sun = new THREE.DirectionalLight('#fff6e8', 2.0);
+  sun.shadow.radius = 5;
   sun.position.set(W * 0.5, 14, D * 0.6);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
