@@ -18,7 +18,6 @@ import {
   payrollMonthly,
   promotedSalary,
   promotionGain,
-  READY_QUIT_DAYS,
   SEVERANCE_MONTHS,
   staffOf,
   staffSeats,
@@ -71,132 +70,116 @@ function verdictLine(e: { level: number; potential?: Employee['potential'] }): s
 
 const pct = (x: number): string => `+${String(Math.round(x * 1000) / 10).replace('.', ',')} %`;
 
-function Face({ role, size = 28 }: { role: StaffRole; size?: number }) {
-  return (
-    <svg className="tm-face" width={size} height={size} viewBox="0 0 28 28" aria-hidden="true">
-      <circle cx="14" cy="10" r="6" fill="#d9b48f" />
-      <path d="M3 28c0-6 5-10 11-10s11 4 11 10z" fill={ROLE_INFO[role].color} />
-    </svg>
-  );
-}
-
-/** Лестница уровней: пройденные и текущий закрашены, достижимые - контуром, выше потолка - штриховкой с подписью. */
-function Ladder({ e }: { e: { level: number; potential?: Employee['potential']; role: StaffRole } }) {
-  const cap = levelCap(e);
-  const color = ROLE_INFO[e.role].color;
-  return (
-    <div className="tm-ladder" role="list" aria-label="Уровни">
-      {LEVEL_NAMES.map((name, i) => (
-        <div
-          key={name}
-          role="listitem"
-          className={`tm-step${i < e.level ? ' done' : i === e.level ? ' now' : i <= cap ? ' can' : ' no'}`}
-          style={i <= e.level ? { background: color, borderColor: color } : undefined}
-        >
-          <span>{name}</span>
-          {i === e.level && <small>сейчас</small>}
-          {i > cap && i === cap + 1 && <small>потолок</small>}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function nextMonthStart(day: number): number {
   let d = day + 1;
   while (!isMonthStart(d)) d++;
   return d;
 }
 
-type Pending = { kind: 'hire'; c: Candidate } | { kind: 'promote'; e: Employee } | { kind: 'fire'; e: Employee } | { kind: 'train'; e: Employee };
-
-/** Карточка выбранного сотрудника: всё о росте - где сейчас, куда дорастёт, что даст следующий уровень и как ускорить. */
-function Profile({ s, e, act }: { s: GameState; e: Employee; act: (p: Pending) => void }) {
-  const v = growthVerdict(e);
-  const working = isWorking(e, s.day);
-  const canGrow = e.level < levelCap(e);
-  const ready = canGrow && e.xp >= 1;
-  const months = monthsToNext(e);
-  const gain = canGrow ? promotionGain(s, e) : 0;
-  const quitIn = e.readyDay !== null ? Math.max(0, READY_QUIT_DAYS - (s.day - e.readyDay)) : null;
+/** Фигурка на карточке: голова и плечи цвета роли. */
+function Bust({ role }: { role: StaffRole }) {
   return (
-    <div className="tm-prof">
-      <div className="tm-prof-head">
-        <Face role={e.role} size={56} />
-        <div className="tm-prof-id">
-          <h3>{e.name}</h3>
-          <span>
-            {LEVEL_NAMES[e.level]}, {ROLE_INFO[e.role].name.toLowerCase()}
-            {e.trait ? ` · ${TRAIT_TEXT[e.trait]}` : ''}
-          </span>
-          {!working && <span className="tm-wait">выйдет на работу {formatDateShort(e.startDay)}</span>}
-        </div>
-        <div className="tm-prof-sal">
-          <b>{fmtMoney(e.salary)}</b>
-          <span>в месяц</span>
-        </div>
+    <svg className="tm-bust" width="84" height="92" viewBox="0 0 84 92" aria-hidden="true">
+      <circle cx="42" cy="30" r="22" fill="#f1c9a5" />
+      <path d="M42 8c-14 0-22 9-22 20 6-6 15-8 22-8s16 2 22 8c0-11-8-20-22-20z" fill="#3b2a1e" />
+      <path d="M6 92c0-22 16-36 36-36s36 14 36 36z" fill={ROLE_INFO[role].color} />
+      <path d="M30 60l12 14 12-14" fill="none" stroke="#fff" strokeWidth="4" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Ступени уровня точками: пройденные и текущая залиты, выше потолка - пусто с пунктиром. */
+function Steps({ e }: { e: { level: number; potential?: Employee['potential'] } }) {
+  const cap = levelCap(e);
+  return (
+    <span className="tm-steps" title={`Потолок: ${LEVEL_NAMES[cap].toLowerCase()}`}>
+      {LEVEL_NAMES.map((n, i) => (
+        <i key={n} className={i <= e.level ? 'on' : i <= cap ? 'can' : 'no'} />
+      ))}
+    </span>
+  );
+}
+
+/** Карточка человека: имя на белой плашке, фигурка, уровень и зарплата, опыт полосой, вывод и одно действие. */
+function PersonCard(props: { s: GameState; e?: Employee; c?: Candidate; act: (p: Pending) => void }) {
+  const { s, e, c, act } = props;
+  const p = (e ?? c)!;
+  const v = growthVerdict(p);
+  const working = e ? isWorking(e, s.day) : true;
+  const canGrow = e ? e.level < levelCap(e) : false;
+  const ready = !!e && canGrow && e.xp >= 1;
+  return (
+    <div className={`tm-card r-${p.role}${ready ? ' ready' : ''}`} style={{ ['--rc' as string]: ROLE_INFO[p.role].color }}>
+      <div className="tm-card-top">
+        <span className="tm-name" title={p.name}>
+          {p.name}
+        </span>
       </div>
-
-      <p className={`tm-verdict ${VERDICT[v].tone}`}>{verdictLine(e)}</p>
-      <Ladder e={e} />
-
-      {canGrow && (
-        <div className="tm-grow">
-          <div className="tm-xp-big">
-            <div className="tm-xp-top">
-              <span>Опыт до уровня «{LEVEL_NAMES[e.level + 1]}»</span>
-              <b>{Math.round(Math.min(1, e.xp) * 100)} %</b>
-            </div>
-            <span className="tm-bar big">
-              <i style={{ width: `${Math.min(1, e.xp) * 100}%`, background: ROLE_INFO[e.role].color }} />
+      <div className="tm-card-art">
+        <span className="tm-lvl">{LEVEL_NAMES[p.level]}</span>
+        <span className="tm-sal">{fmtMoney(p.salary)}/мес.</span>
+        <Bust role={p.role} />
+      </div>
+      <div className="tm-card-body">
+        <span className="tm-role">
+          {ROLE_INFO[p.role].name}
+          <Steps e={p} />
+        </span>
+        {e ? (
+          canGrow ? (
+            <span className="tm-meter" title={monthsToNext(e) !== null ? `≈ ${monthsToNext(e)} мес. работы или курсы до уровня «${LEVEL_NAMES[e.level + 1]}»` : undefined}>
+              <i style={{ width: `${Math.round(Math.min(1, e.xp) * 100)}%` }} />
+              <b>{ready ? 'можно повысить' : `опыт ${Math.round(Math.min(1, e.xp) * 100)} %`}</b>
             </span>
-            <small className={ready ? 'warn' : undefined}>
-              {ready
-                ? `Можно повысить. Без повышения уйдёт через ${fmtDays(quitIn ?? 0)}`
-                : months !== null
-                  ? `≈ ${months} мес. работы или курсы`
-                  : ''}
-            </small>
-          </div>
-          <dl className="tm-next">
-            <dt>Повышение даст</dt>
-            <dd className="good">
-              {pct(gain)} к «{ROLE_INFO[e.role].name}»
-            </dd>
-            <dt>Зарплата станет</dt>
-            <dd className="bad">
-              {fmtMoney(promotedSalary(s, e))} <small>(сейчас {fmtMoney(e.salary)})</small>
-            </dd>
-            <dt>Курс «Обучить»</dt>
-            <dd>
-              {fmtMoney(courseCost(e))} за +{Math.round(courseXp(e) * 100)} % опыта
-            </dd>
-          </dl>
-        </div>
-      )}
-
-      <div className="tm-prof-act">
-        {ready ? (
-          <button className="btn primary" onClick={() => act({ kind: 'promote', e })}>
-            Повысить до уровня «{LEVEL_NAMES[e.level + 1]}»
+          ) : (
+            <span className="tm-meter full">
+              <i style={{ width: '100%' }} />
+              <b>{LEVEL_NAMES[e.level].toLowerCase()} - потолок</b>
+            </span>
+          )
+        ) : (
+          <span className="tm-meter gain">
+            <b>сразу даст {pct(hireGain(s, c!))}</b>
+          </span>
+        )}
+        <span className={`tm-verdict ${ready ? 'warn' : VERDICT[v].tone}`} title={verdictLine(p)}>{ready ? 'опыта хватает' : VERDICT[v].short}</span>
+        {!working && e && <span className="tm-wait">выйдет {formatDateShort(e.startDay)}</span>}
+        {p.trait && <span className="tm-trait">{TRAIT_TEXT[p.trait]}</span>}
+      </div>
+      {e && !canGrow && e.level < 3 && <div className="tm-req">Выше не вырастет</div>}
+      <div className="tm-card-act">
+        {c ? (
+          <GuardButton className="btn primary" reason={hireBlock(s, c)} onClick={() => act({ kind: 'hire', c })}>
+            Нанять
+          </GuardButton>
+        ) : ready ? (
+          <button className="btn primary" onClick={() => act({ kind: 'promote', e: e! })}>
+            Повысить
           </button>
         ) : canGrow ? (
-          <GuardButton className="btn primary" reason={courseBlock(s, e)} onClick={() => act({ kind: 'train', e })}>
-            Обучить за {fmtMoney(courseCost(e))}
+          <GuardButton className="btn primary" reason={courseBlock(s, e!)} onClick={() => act({ kind: 'train', e: e! })}>
+            Обучить · {fmtMoney(courseCost(e!))}
           </GuardButton>
-        ) : null}
-        <button className="btn tm-fire" onClick={() => act({ kind: 'fire', e })}>
-          Уволить
-        </button>
+        ) : (
+          <button className="btn" disabled>
+            Расти некуда
+          </button>
+        )}
+        {e && (
+          <button className="tm-fire" onClick={() => act({ kind: 'fire', e })} title="Уволить">
+            Уволить
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
+type Pending = { kind: 'hire'; c: Candidate } | { kind: 'promote'; e: Employee } | { kind: 'fire'; e: Employee } | { kind: 'train'; e: Employee };
+
 export default function TeamWindow({ s }: WindowProps) {
   const st = staffOf(s);
   const [tab, setTab] = useState<'staff' | 'hire'>(st.people.length === 0 ? 'hire' : 'staff');
-  const [selId, setSelId] = useState<string | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [error, setError] = useState<string | null>(null);
   const seats = staffSeats(s);
@@ -212,7 +195,6 @@ export default function TeamWindow({ s }: WindowProps) {
     const rb = b.xp >= 1 && b.level < levelCap(b) ? -1 : order.indexOf(growthVerdict(b));
     return ra - rb || b.level - a.level;
   });
-  const sel = people.find((p) => p.id === selId) ?? people[0] ?? null;
 
   function confirm() {
     if (!pending) return;
@@ -293,69 +275,18 @@ export default function TeamWindow({ s }: WindowProps) {
             </button>
           </div>
         ) : (
-          <div className="tm-body">
-            <div className="tm-list" role="listbox" aria-label="Сотрудники">
-              {people.map((p) => {
-                const v = growthVerdict(p);
-                const ready = p.xp >= 1 && p.level < levelCap(p);
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    role="option"
-                    aria-selected={sel?.id === p.id}
-                    className={`tm-item${sel?.id === p.id ? ' on' : ''}${isWorking(p, s.day) ? '' : ' wait'}`}
-                    onClick={() => setSelId(p.id)}
-                  >
-                    <Face role={p.role} />
-                    <span className="tm-item-main">
-                      <b>{p.name}</b>
-                      <span>
-                        {LEVEL_NAMES[p.level]}, {ROLE_INFO[p.role].name.toLowerCase()}
-                      </span>
-                    </span>
-                    <span className={`tm-item-v ${ready ? 'warn' : VERDICT[v].tone}`}>{ready ? 'можно повысить' : VERDICT[v].short}</span>
-                  </button>
-                );
-              })}
-            </div>
-            {sel && <Profile s={s} e={sel} act={setPending} />}
+          <div className="tm-cards">
+            {people.map((p) => (
+              <PersonCard key={p.id} s={s} e={p} act={setPending} />
+            ))}
           </div>
         )
       ) : (
-        <div className="tm-hire">
+        <div className="tm-cards">
           {st.candidates.length === 0 && <div className="tm-body-empty">Новые кандидаты придут {formatDateShort(refresh)}.</div>}
-          {st.candidates.map((c) => {
-            const v = growthVerdict(c);
-            return (
-              <div key={c.id} className="tm-cand">
-                <div className="tm-prof-head">
-                  <Face role={c.role} size={40} />
-                  <div className="tm-prof-id">
-                    <h3>{c.name}</h3>
-                    <span>
-                      {LEVEL_NAMES[c.level]}, {ROLE_INFO[c.role].name.toLowerCase()}
-                      {c.trait ? ` · ${TRAIT_TEXT[c.trait]}` : ''}
-                    </span>
-                  </div>
-                  <div className="tm-prof-sal">
-                    <b>{fmtMoney(c.salary)}</b>
-                    <span>в месяц</span>
-                  </div>
-                </div>
-                <p className={`tm-verdict ${VERDICT[v].tone}`}>{verdictLine(c)}</p>
-                <Ladder e={c} />
-                <div className="tm-cand-foot">
-                  <span>
-                    Сразу даст <b className="good">{pct(hireGain(s, c))}</b> к «{ROLE_INFO[c.role].name}», выход через {fmtDays(c.wait)}
-                  </span>
-                  <GuardButton className="btn primary" reason={hireBlock(s, c)} onClick={() => setPending({ kind: 'hire', c })}>
-                    Нанять
-                  </GuardButton>
-                </div>
-              </div>
-            );
-          })}
+          {st.candidates.map((c) => (
+            <PersonCard key={c.id} s={s} c={c} act={setPending} />
+          ))}
           <div className="tm-hire-note">Новые кандидаты - {formatDateShort(refresh)}. Кого не наняли, уйдут к другим.</div>
         </div>
       )}

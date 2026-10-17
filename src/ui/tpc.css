@@ -338,3 +338,14 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
   .game .pause-note { top: auto; bottom: 46px; left: 50%; transform: translateX(-50%); }
   .game .month-strip { bottom: 92px; }
 }
+
+.titlebar .wicon { color: var(--teal-deep); }
+
+/* ---------- Списки слева в окнах (модели, тендеры, письма): строки - отдельные белые карточки, выбранная бирюзой ---------- */
+.mw-list, .ct-list, .mail-list { background: transparent !important; box-shadow: none !important; gap: 6px; padding: 2px; }
+.mail-folder.on { background: var(--orange) !important; color: #fff !important; border-radius: 999px; }
+.mail-folder { border-radius: 999px; font-weight: 800; }
+.mw-panel h3, .mw-panel h4, .ct-doc h3, .mail-sheet h2 { font-weight: 900; }
+.mw-item, .ct-row, .mail-row { flex: none; border-radius: 12px !important; border: none !important; border-radius: 12px; background: #fff; box-shadow: inset 0 -4px 0 #b9d6da; margin: 0 !important; }
+.mw-item.is-selected, .ct-row.on, .mail-row.is-selected { background: var(--row-sel); box-shadow: inset 0 -4px 0 #9cc7cd, 0 0 0 3px var(--teal) !important; }
+.mail-row.decide:not(.is-selected) { background: #fff3dc; box-shadow: inset 0 -4px 0 #f0cf8f; }

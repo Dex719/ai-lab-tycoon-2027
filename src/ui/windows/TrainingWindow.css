@@ -167,3 +167,17 @@
 .nm-confirm dd { margin: 0; text-align: right; }
 .nm-confirm dd.cost { color: var(--bad-ink); font-weight: 600; font-size: 18px; }
 .nm-confirm-note { margin: 10px 0 0; font-size: 13px; color: var(--text-dim); }
+
+/* ---------- По образцу Two Point Campus: шапка-прогноз кремовая, шаги - карточки с номером в оранжевом круге,
+   уровни модели - цветные плитки с нижней гранью ---------- */
+.nm-hero { background: var(--cream); border-bottom: none; }
+.nm-kpi-v { font-weight: 900; color: var(--teal-ink); }
+.nm-card { border: none; border-radius: 14px; background: #fff; box-shadow: inset 0 -5px 0 #b9d6da; }
+.nm-h { font-weight: 900; }
+.nm-n { width: 28px; height: 28px; background: var(--orange); font-size: 14px; font-weight: 900; box-shadow: inset 0 -3px 0 var(--orange-deep); }
+.nm-tier { border: none !important; border-radius: 12px; background: var(--win-body); box-shadow: inset 0 -4px 0 #b9d6da; }
+.nm-tier.on { background: var(--tier, var(--teal)); box-shadow: inset 0 -4px 0 rgb(0 0 0 / 0.2); color: #fff; }
+.nm-tier.on b { color: #fff; }
+.nm-seg { border: none; border-radius: 999px; background: var(--win-body); padding: 3px; gap: 3px; }
+.nm-seg-opt { border-radius: 999px; }
+.nm-run-bar .progress { height: 12px; border-radius: 999px; }

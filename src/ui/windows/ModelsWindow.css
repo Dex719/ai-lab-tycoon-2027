@@ -17,7 +17,7 @@
 .mw-coll-tags b.train { color: var(--info-ink); }
 
 /* Коллекция - белое поле со строками через тонкую линию, как списки других окон. */
-.mw-list { flex: 1; min-height: 0; overflow: auto; margin: 8px; display: flex; flex-direction: column; background: #fff; border: 1px solid var(--line); }
+.mw-list { flex: 1; min-height: 0; overflow: auto; margin: 8px; display: flex; flex-direction: column; background: #fff; border: none; box-shadow: inset 0 -4px 0 #b9d6da; border-radius: 12px; }
 .mw-item {
   display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 10px; flex: none;
   border-radius: 0; color: var(--text); text-align: left; cursor: pointer;
@@ -93,7 +93,7 @@
 .mw-h { margin: 18px 0 6px; font-size: 16px; font-weight: 600; color: #1f2023; }
 .mw-sub { font-size: 13px; color: var(--text-dim); }
 .mw-h + .alert { margin-bottom: 8px; }
-.mw-panel { padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-radius: 4px; }
+.mw-panel { padding: 12px 14px; background: #fff; border: none; box-shadow: inset 0 -4px 0 #b9d6da; border-radius: 12px; }
 
 .mw-edit { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
 .mw-field { display: flex; flex-direction: column; gap: 4px; }
@@ -113,7 +113,7 @@
 .mw-tiers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 6px 0 14px; }
 .mw-tier {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px;
-  background: #fff; border: 1px solid var(--line); border-radius: 4px; color: #4a4d54; text-align: left; cursor: pointer;
+  background: #fff; border: none; box-shadow: inset 0 -4px 0 #b9d6da; border-radius: 12px; color: #4a4d54; text-align: left; cursor: pointer;
   font-size: 13px; transition: background-color 100ms ease-out, border-color 100ms ease-out;
 }
 .mw-tier:hover { background: var(--cream); }
@@ -129,12 +129,12 @@
 .mw-specs dd small { display: block; font-size: 12px; color: var(--text-dim); }
 
 /* ---------- Баллы тестов: полоса балла цвета области, место справа ---------- */
-.mw-scores { display: flex; flex-direction: column; gap: 4px; padding: 8px 14px; background: #fff; border: 1px solid var(--line); border-radius: 4px; }
+.mw-scores { display: flex; flex-direction: column; gap: 4px; padding: 8px 14px; background: #fff; border: none; box-shadow: inset 0 -4px 0 #b9d6da; border-radius: 12px; }
 .mw-score { display: grid; grid-template-columns: 150px minmax(0, 1fr) 128px 44px; align-items: center; gap: 12px; min-height: 30px; }
 .mw-score-name { display: flex; flex-direction: column; font-weight: 600; color: #1f2023; line-height: 1.2; }
 .mw-score-name small { font-size: 12px; font-weight: 400; color: var(--text-dim); }
-.mw-score-bar { position: relative; height: 10px; background: var(--cream); border-radius: 5px; }
-.mw-score-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 5px; background: var(--dc); }
+.mw-score-bar { position: relative; height: 10px; background: var(--cream); border-radius: 999px; }
+.mw-score-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--dc); }
 .mw-score-bar em { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--bad-ink); }
 .mw-score-v { font-size: 14px; font-weight: 600; color: #1f2023; text-align: right; font-variant-numeric: tabular-nums; }
 .mw-honest { display: block; font: 600 12px var(--font); color: var(--bad-ink); }
@@ -165,7 +165,7 @@
 .mw-ch {
   --ch: #2e9b4f; --ch-text: #1d6b36;
   display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 10px 14px 12px;
-  background: #fff; border: 1px solid var(--line); border-radius: 4px;
+  background: #fff; border: none; box-shadow: inset 0 -4px 0 #b9d6da; border-radius: 12px;
 }
 .mw-ch.subs { --ch: #1fa8a0; --ch-text: #0e655f; }
 .mw-ch:not(.on) { --ch: #aab0b8; }

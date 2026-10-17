@@ -75,7 +75,7 @@
 .inv-cd-bar { display: block; height: 4px; background: var(--win-body); }
 .inv-cd-bar i { display: block; height: 100%; background: #c99a1a; }
 
-.inv-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); }
+.inv-table { width: 100%; border-collapse: collapse; background: #fff; border: none; box-shadow: inset 0 -4px 0 #b9d6da; border-radius: 12px; }
 .inv-table th { padding: 6px 10px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-title); border-bottom: 1px solid var(--line); }
 .inv-table th.num { text-align: right; }
 .inv-table td { padding: 8px 10px; border-bottom: 1px solid var(--row-line); vertical-align: middle; }

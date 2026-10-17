@@ -100,3 +100,39 @@
   .tm-hire { grid-template-columns: 1fr; }
   .tm-grow { grid-template-columns: 1fr; }
 }
+
+/* ---------- Карточки людей по образцу (карточки банков в Two Point Campus): шапка цвета роли с белой плашкой имени,
+   фигурка, уровень и зарплата, опыт белой полосой, вывод словами и одна кнопка действия ---------- */
+.tm-cards { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; align-content: start; padding: 4px 14px 14px; }
+.tm-card { display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; background: var(--cream); box-shadow: 0 2px 0 rgb(0 0 0 / 0.08); }
+.tm-card.ready { box-shadow: 0 0 0 3px var(--orange); }
+.tm-card-top { padding: 10px 10px 0; background: var(--rc); }
+.tm-name { display: block; height: 30px; line-height: 30px; padding: 0 12px; border-radius: 999px; background: #fff; color: var(--text); font-weight: 900; font-size: 14px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-card-art { position: relative; height: 104px; display: flex; align-items: flex-end; justify-content: center; background: color-mix(in srgb, var(--rc) 45%, #fff); }
+.tm-bust { display: block; }
+.tm-lvl, .tm-sal { position: absolute; top: 8px; padding: 2px 10px; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 900; }
+.tm-lvl { left: 8px; color: var(--teal-ink); }
+.tm-sal { right: 8px; color: #b3262c; }
+.tm-card-body { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 10px; background: #9cc7cd; color: #fff; }
+.tm-role { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-weight: 900; font-size: 13px; }
+.tm-steps { display: inline-flex; gap: 3px; }
+.tm-steps i { width: 10px; height: 10px; border-radius: 3px; background: rgb(255 255 255 / 0.35); }
+.tm-steps i.on { background: #fff; }
+.tm-steps i.no { background: transparent; box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.5); }
+.tm-meter { position: relative; height: 26px; border-radius: 999px; background: #fff; overflow: hidden; display: flex; align-items: center; }
+.tm-meter i { position: absolute; inset: 0 auto 0 0; background: var(--orange); }
+.tm-meter.full i { background: #c3cfd1; }
+.tm-meter b { position: relative; width: 100%; text-align: center; font-size: 13px; font-weight: 900; color: var(--text); }
+.tm-meter.gain b { color: var(--good-ink); }
+.tm-card .tm-verdict { font-size: 13px; font-weight: 900; text-align: center; }
+.tm-card .tm-verdict.good { color: #fff; }
+.tm-card .tm-verdict.mid, .tm-card .tm-verdict.dim { color: #e9f4f5; }
+.tm-card .tm-verdict.warn { color: #fff3c4; }
+.tm-wait, .tm-trait { font-size: 12px; font-weight: 800; text-align: center; color: #eef8f9; }
+.tm-req { padding: 4px; background: #d9444a; color: #fff; font-size: 12px; font-weight: 900; text-align: center; }
+.tm-card-act { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px; background: #9cc7cd; }
+.tm-card-act .btn, .tm-card-act .guard { width: 100%; }
+.tm-card-act .guard > .btn { flex: 1; }
+.tm-fire { background: none; border: none; padding: 0; color: #fff; font: 800 12px var(--font); text-decoration: underline; cursor: pointer; opacity: 0.85; }
+.tm-fire:hover { opacity: 1; }
+.tm-hire-note { grid-column: 1 / -1; font-size: 13px; color: var(--text-dim); font-weight: 700; }

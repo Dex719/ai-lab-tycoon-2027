@@ -3,7 +3,7 @@
 .dos { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 16px; align-items: start; }
 
 /* Список: белое поле, строки через тонкую линию, выбор - фоном и рамкой акцента (общие .list-item / .on). */
-.dos-list { background: #fff; border: 1px solid var(--line); }
+.dos-list { background: #fff; border: none; box-shadow: inset 0 -4px 0 #b9d6da; border-radius: 12px; }
 .dos-list .list-item:last-child { border-bottom: 0; }
 .dos-row { align-items: center; font-size: 14px; }
 .dos-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -13,7 +13,7 @@
 .dos-row-v { font-variant-numeric: tabular-nums; color: var(--text-dim); white-space: nowrap; }
 
 /* Досье. */
-.dos-card { background: #fff; border: 1px solid var(--line); padding: 16px 20px; min-width: 0; }
+.dos-card { background: #fff; border: none; box-shadow: inset 0 -4px 0 #b9d6da; border-radius: 12px; padding: 16px 20px; min-width: 0; }
 .dos-head { display: flex; gap: 14px; align-items: center; }
 .dos-title { min-width: 0; }
 .dos-title h3 { margin: 0; font-size: 22px; font-weight: 600; color: var(--text); line-height: 1.2; }

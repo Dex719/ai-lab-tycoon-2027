@@ -297,7 +297,7 @@ export function Game({ s }: { s: GameState }) {
               hidden={phone && w.z !== topZ}
               leaving={leaving[w.id]}
               accent={WIN_ACCENT[w.id]}
-              icon={def.icon}
+              icon={RAIL[w.id]}
               onFocus={() => focus(w.id)}
               onClose={() => closeAnim(w.id)}
               onMinimize={() => (phone ? minimizeAll() : minAnim(w.id))}
@@ -458,6 +458,9 @@ function DeskIcon(props: {
     </button>
   );
 }
+
+/** Значок раздела для круга в заголовке окна - тот же белый контурный, что в колонке слева. */
+const RAIL = Object.fromEntries(WINDOWS.map((d) => [d.id, ({ size }: { size?: number }) => <RailIcon id={d.id} size={size} />])) as Record<WindowId, (p: { size?: number }) => ReturnType<typeof RailIcon>>;
 
 const MONTH_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 
