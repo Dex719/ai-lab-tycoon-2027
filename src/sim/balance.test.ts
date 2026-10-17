@@ -18,7 +18,7 @@ import { deserialize, serialize } from './save';
 import { advanceDay, advanceDays, playerBestArenaRank } from './tick';
 import { dateToDay, END_DAY, formatDate } from './time';
 import { SUBS_REF_PRICE } from './constants';
-import { setRent } from './compute';
+import { rentNow } from './compute';
 import { estimate, tierPreset } from './training';
 import type { GameState, MonthLedger, MonthRecord, Tier, TrainingPlan } from './types';
 
@@ -194,7 +194,7 @@ describe('темп обучения (пресеты уровней)', () => {
   function presetDays(date: string, gpu: 'p100' | 'h100', count: number, tier: Tier): number | null {
     const s = newGame('Темп', 1);
     s.day = dateToDay(date);
-    expect(setRent(s, gpu, count)).toEqual({ ok: true });
+    expect(rentNow(s, gpu, count)).toEqual({ ok: true });
     // Доли по умолчанию: обучение 40 %.
     const plan: TrainingPlan = {
       name: 'Темп',

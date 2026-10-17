@@ -1,6 +1,6 @@
 // Деньги, помесячный учёт, накладные расходы и банкротство (FR-1.5, FR-14.5).
 
-import { BANKRUPT_DAYS, OVERHEAD_MONTHLY, OVERHEAD_REVENUE_SHARE } from './constants';
+import { BANKRUPT_DAYS, EMERGENCY_ROUND_DAYS, OVERHEAD_MONTHLY, OVERHEAD_REVENUE_SHARE } from './constants';
 import { rentPerDay } from './compute';
 import { addMail } from './events';
 import { emptyLedger } from './state';
@@ -70,7 +70,7 @@ export function dayStep(s: GameState): void {
         important: true,
         body:
           `Баланс счёта отрицательный. Если за ${BANKRUPT_DAYS} дней он не станет положительным, лаборатория обанкротится. ` +
-          'В «Инвесторах» раунд доступен сразу, даже если год с прошлого не прошёл: при экстренном раунде оценка ниже на 40 %. ' +
+          `В «Инвесторах» экстренный раунд можно начать сразу, даже если год с прошлого не прошёл: переговоры идут ${EMERGENCY_ROUND_DAYS} дней, оценка ниже на 40 %. ` +
           'Ещё помогут меньшая аренда и тендеры.',
       });
     }

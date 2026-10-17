@@ -105,7 +105,7 @@ describe('задачи в партии', () => {
     expect(done.every((m) => m.reward && m.body.startsWith('Награда: '))).toBe(true);
     for (const m of s.mail.filter((x) => x.title.startsWith('Почти: '))) expect(m.read).toBe(false);
     for (const m of s.mail.filter((x) => x.title.startsWith('Задача не выполнена: '))) expect(m.read).toBe(true);
-  });
+  }, 30_000); // целая партия бота: при полном прогоне тестов параллельно 5 с по умолчанию не хватает
 
   it('задачи не раскрывают будущее: соперник в задаче «обогнать» уже вышел, подписчики - только после открытия подписок', () => {
     const s = newGame('Бот', 2);

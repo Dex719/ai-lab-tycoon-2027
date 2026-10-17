@@ -37,11 +37,14 @@ import {
   segmentDemand,
   servedShares,
   servingMult,
+  SHARE_TAU_DAYS,
+  stepHeld,
   servingTokensPerH100eDay,
   subsOpen,
   subsUsers,
 } from './market';
 import type { MarketSnapshot } from './market';
+import { deserialize, serialize } from './save';
 import { addRivalModifier, emptyRivalry } from './rivalry';
 import type { RivalryGame } from './rivalry';
 import { createInitialState } from './state';
@@ -1044,9 +1047,17 @@ describe('dayStep', () => {
     dayStep(s);
     const first = JSON.parse(JSON.stringify(s.market)) as GameState['market'];
     dayStep(s);
-    expect(s.market.shares).toEqual(first.shares);
-    expect(s.market.labShares).toEqual(first.labShares);
-    expect(s.market.segments).toEqual(first.segments);
+    // Цели не изменились: доли стоят на месте (до ошибок округления нормировки инерции).
+    const close = (a: Record<string, number>, b: Record<string, number>) => {
+      expect(Object.keys(a).sort()).toEqual(Object.keys(b).sort());
+      for (const k of Object.keys(b)) expect(a[k]).toBeCloseTo(b[k], 12);
+    };
+    close(s.market.shares, first.shares);
+    close(s.market.labShares, first.labShares);
+    for (const seg of Object.keys(first.segments) as (keyof GameState['market']['segments'])[]) {
+      close(s.market.segments[seg].shares, first.segments[seg].shares);
+      expect(s.market.segments[seg].total).toBe(first.segments[seg].total);
+    }
 
     // модель сняли с API, а соперник пропал с рынка - в записи их больше нет
     s.models[0].onApi = false;
@@ -1456,5 +1467,84 @@ describe('технологии на рынке', () => {
     expect(u(after, 'enterprise')).toBe(u(before, 'enterprise'));
     expect(u(after, 'developers')).toBe(u(before, 'developers'));
     expect(entryOf(after, 'consumers', 'player:p1')!.share).toBeGreaterThan(entryOf(before, 'consumers', 'player:p1')!.share);
+  });
+});
+
+describe('инерция доли рынка', () => {
+  function twoRivals(): GameState {
+    const s = makeState();
+    rivalState.list = [rival(), rival({ id: 'r2', lab: 'gogle', gameName: 'Гем-1', arenaElo: 1120 })];
+    return s;
+  }
+  const key = 'player:p1';
+  const segShare = (s: GameState) => s.market.segments.developers.shares[key] ?? 0;
+
+  it('шаг: за τ дней разрыв закрывается на 63 %, сумма долей остаётся 1', () => {
+    let held: Record<string, number> = { none: 0.5, a: 0.5, b: 0 };
+    const target = { none: 0.2, a: 0.2, b: 0.6 };
+    for (let d = 0; d < SHARE_TAU_DAYS; d++) held = stepHeld(target, held);
+    expect(held.b).toBeCloseTo(0.6 * (1 - Math.exp(-1)), 2);
+    expect(held.none + held.a + held.b).toBeCloseTo(1, 12);
+  });
+
+  it('новая модель игрока набирает долю постепенно, а не в первый день', () => {
+    const s = twoRivals();
+    for (let i = 0; i < 3; i++) dayStep(s); // рынок без игрока устоялся
+    s.models.push(player({ arenaElo: 1300 }));
+    s.compute.alloc = { training: 0, contracts: 0, experiments: 0, api: 1, subs: 0 };
+    s.compute.rented.h100 = 1e9; // мощности с запасом: доля не упирается в обслуживание
+    const target = marketSnapshot(s, 'target').segments.developers.entries.find((e) => e.key === key)!.share;
+    dayStep(s);
+    const day1 = segShare(s);
+    expect(day1).toBeGreaterThan(0);
+    expect(day1).toBeLessThan(target * 0.1);
+    for (let d = 1; d < SHARE_TAU_DAYS; d++) dayStep(s);
+    expect(segShare(s)).toBeGreaterThan(target * 0.55);
+    expect(segShare(s)).toBeLessThan(target * 0.7);
+    // Текущий снимок отдаёт удержанную долю, а целевая - отдельно.
+    const cur = marketSnapshot(s).segments.developers.entries.find((e) => e.key === key)!;
+    expect(cur.share).toBeCloseTo(segShare(s), 6);
+    expect(cur.target).toBeCloseTo(target, 6);
+  });
+
+  it('соперник подчиняется тому же правилу: новая модель соперника тоже растёт постепенно', () => {
+    const s = twoRivals();
+    for (let i = 0; i < 3; i++) dayStep(s);
+    rivalState.list = [...rivalState.list, rival({ id: 'r3', lab: 'antropik', gameName: 'Клод', arenaElo: 1300 })];
+    const target = marketSnapshot(s, 'target').segments.developers.entries.find((e) => e.key === 'rival:r3')!.share;
+    dayStep(s);
+    expect(s.market.segments.developers.shares['rival:r3']).toBeLessThan(target * 0.1);
+  });
+
+  it('модель, снятая с продажи, теряет клиентов сразу', () => {
+    const s = twoRivals();
+    s.models.push(player());
+    s.compute.alloc = { training: 0, contracts: 0, experiments: 0, api: 1, subs: 0 };
+    s.compute.rented.h100 = 1e9;
+    for (let i = 0; i < 10; i++) dayStep(s);
+    expect(segShare(s)).toBeGreaterThan(0);
+    s.models[0].onApi = false;
+    dayStep(s);
+    expect(segShare(s)).toBe(0);
+    expect(Object.values(s.market.held!.developers).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
+  });
+
+  it('старое сохранение без инерции: первый день берёт целевые доли, дальше инерция работает', () => {
+    const s = twoRivals();
+    s.models.push(player());
+    s.compute.alloc = { training: 0, contracts: 0, experiments: 0, api: 1, subs: 0 };
+    s.compute.rented.h100 = 1e9;
+    dayStep(s);
+    const o = JSON.parse(serialize(s)) as { market: Record<string, unknown> };
+    delete o.market.held;
+    const r = deserialize(JSON.stringify(o));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const old = r.state;
+    expect(old.market.held).toBeUndefined();
+    const target = marketSnapshot(old, 'target').segments.developers.entries.find((e) => e.key === key)!.share;
+    expect(marketSnapshot(old).segments.developers.entries.find((e) => e.key === key)!.share).toBeCloseTo(target, 12);
+    dayStep(old);
+    expect(old.market.held).toBeDefined();
   });
 });

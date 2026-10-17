@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GPUS } from '../data/gpus';
-import { setAllocation, setRent } from './compute';
+import { setAllocation, rentNow } from './compute';
 import {
   ALGO_BASE_COST,
   ALGO_COST_GROWTH,
@@ -47,7 +47,7 @@ const ANCHOR_P100 = Math.round(2 / h100eOf('p100'));
 /** Новая игра с мощностью, полностью отданной экспериментам. */
 function labWithExperiments(p100: number): GameState {
   const s = createInitialState('Тест', 1);
-  setRent(s, 'p100', p100);
+  rentNow(s, 'p100', p100);
   setAllocation(s, { training: 0, contracts: 0, experiments: 1, api: 0, subs: 0 });
   return s;
 }
@@ -573,7 +573,7 @@ describe('алгоритмические улучшения повторяютс
 describe('опорный сценарий: внимание успеть до 12.06.2017', () => {
   it('≈ 2 H100e на эксперименты с 01.01.2017 - внимание готово до 12.06.2017', () => {
     const s = createInitialState('Тест', 1);
-    expect(setRent(s, 'p100', ANCHOR_P100)).toEqual({ ok: true });
+    expect(rentNow(s, 'p100', ANCHOR_P100)).toEqual({ ok: true });
     expect(setAllocation(s, { training: 0, contracts: 0, experiments: 1, api: 0, subs: 0 })).toEqual({ ok: true });
     expect(setResearch(s, 'attention')).toEqual({ ok: true });
 

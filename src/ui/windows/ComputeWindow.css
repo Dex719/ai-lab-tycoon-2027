@@ -63,6 +63,8 @@
 .cw-row-meta b { font-weight: var(--fw-strong); color: var(--text); }
 .cw-row-meta { font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }
 .cw-row-over { min-height: 17px; font-size: 13px; font-weight: var(--fw-strong); color: var(--warn-ink); }
+.cw-row-transit { font-size: 13px; font-weight: var(--fw-small); color: var(--brand-ink); }
+.cw-row-transit b { font-weight: var(--fw-strong); }
 /* Картинка карты на графитовой подложке, как в превью аренды. */
 .cw-thumb { display: block; flex: none; border-radius: 2px; overflow: hidden; background: var(--brand-ink); }
 .cw-thumb img { display: block; }
@@ -226,3 +228,5 @@
   .cw-row { grid-template-columns: 64px minmax(0, 1fr) auto; row-gap: 8px; }
   .cw-row-actions { grid-column: 2 / -1; justify-content: flex-start; }
 }
+/* Срок прихода новых карт: строка под итогом диалога аренды, высота постоянная. */
+.cw-eta { min-height: 19px; margin-top: 10px; font-size: 13px; font-weight: var(--fw-strong); color: var(--brand-ink); }

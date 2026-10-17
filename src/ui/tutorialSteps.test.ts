@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { newGame, releaseModel } from '../sim/actions';
 import { GPUS } from '../data/gpus';
-import { pool, setAllocation, setRent } from '../sim/compute';
+import { pool, setAllocation, rentNow } from '../sim/compute';
 import { applyTender, canApply } from '../sim/contracts';
 import { applyChoice, pendingChoice } from '../sim/events';
 import { chooseGoals, goalOfferOpen, goalsDay } from '../sim/goals';
@@ -132,7 +132,7 @@ describe('обучение игре', () => {
 
       const rent = at('Аренда видеокарт');
       expect(done(rent)).toBe(false);
-      expect(setRent(s, 'p100', 96).ok).toBe(true);
+      expect(rentNow(s, 'p100', 96).ok).toBe(true);
       expect(done(rent)).toBe(true);
 
       const research = at('Исследование');
@@ -187,7 +187,7 @@ describe('обучение игре', () => {
       expect(need).toBeGreaterThan(0);
       expect(done(power)).toBe(need <= pool(s, 'contracts') * 1.02);
       const p100 = GPUS.find((g) => g.id === 'p100')!.h100e;
-      expect(setRent(s, 'p100', Math.max(96, Math.ceil(need / 0.6 / p100) + 1)).ok).toBe(true);
+      expect(rentNow(s, 'p100', Math.max(96, Math.ceil(need / 0.6 / p100) + 1)).ok).toBe(true);
       expect(setAllocation(s, { training: 0.1, contracts: 0.6, experiments: 0.3, api: 0, subs: 0 }).ok).toBe(true);
       expect(done(power)).toBe(true);
 
@@ -207,7 +207,7 @@ describe('шаг «Мощность для контракта»', () => {
     const s = newGame('Тест', 9);
     const step = TUTORIAL.find((t) => t.title === 'Мощность для контракта')!;
     const ctx: TutorialCtx = { open: new Set(), speed: 1 };
-    setRent(s, 'p100', 96);
+    rentNow(s, 'p100', 96);
     expect(step.done!(s, ctx)).toBe(true);
     for (let i = 0; i < 40 && s.tenders.length === 0; i++) day(s);
     const t = s.tenders[0];

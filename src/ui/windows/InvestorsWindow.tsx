@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import type { WindowProps } from '.';
 import { FOUNDER_BOARD_SHARE, FOUNDER_WARN_SHARE, MANIA, ROUND_COOLDOWN_DAYS, ROUND_FRACTIONS, VALUATION_FLOOR } from '../../sim/constants';
-import { canRaise, valuation } from '../../sim/investors';
+import { canRaise, pendingRound, ROUND_CANCEL_HYPE, roundDays, valuation } from '../../sim/investors';
 import type { Valuation } from '../../sim/investors';
 import { formatDateShort, lerpByDate } from '../../sim/time';
 import type { GameState } from '../../sim/types';
@@ -209,7 +209,7 @@ function DealRow(props: {
         <GuardButton
           className="btn small primary"
           reason={why}
-          title={why === null ? `Продать ${fmtShare(fraction, 0)} компании за ${fmtMoney(money ?? 0)}` : undefined}
+          title={why === null ? `Начать переговоры: ${fmtShare(fraction, 0)} компании за ${fmtMoney(money ?? 0)}` : undefined}
           onClick={props.onSell}
         >
           Продать
@@ -220,8 +220,9 @@ function DealRow(props: {
 }
 
 /** Подтверждение продажи доли: сводка последствий, кнопка «Продать долю». */
-function SellConfirm(props: { fraction: number; v: Valuation; share: number; onClose: () => void }) {
-  const { fraction, v, share } = props;
+function SellConfirm(props: { s: GameState; fraction: number; v: Valuation; share: number; onClose: () => void }) {
+  const { s, fraction, v, share } = props;
+  const days = roundDays(s, fraction);
   const [err, setErr] = useState<string | null>(null);
   const money = v.total * fraction;
   const after = share * (1 - fraction);
@@ -236,10 +237,10 @@ function SellConfirm(props: { fraction: number; v: Valuation; share: number; onC
   }
 
   return (
-    <ConfirmDialog title="Продажа доли" confirmLabel="Продать долю" danger={crossesBoard || crossesControl} onConfirm={confirm} onClose={props.onClose}>
+    <ConfirmDialog title="Продажа доли" confirmLabel="Начать переговоры" danger={crossesBoard || crossesControl} onConfirm={confirm} onClose={props.onClose}>
       <div className="kv inv-confirm">
         <span>Оценка компании</span>
-        <span>{fmtMoney(v.total)}</span>
+        <span>{fmtMoney(v.total)}, фиксируется сегодня</span>
         <span>Продаётся</span>
         <span>{fmtShare(fraction, 0)}</span>
         <span>Сумма</span>
@@ -248,9 +249,14 @@ function SellConfirm(props: { fraction: number; v: Valuation; share: number; onC
         <span>{fmtShare(share)}</span>
         <span>Доля после</span>
         <span className={toneClass(after)}>{fmtShare(after)}</span>
+        <span>Переговоры</span>
+        <span>
+          {fmtDays(days)}, деньги придут {formatDateShort(s.day + days)}
+        </span>
         <span>Следующий раунд</span>
-        <span>через {fmtDays(ROUND_COOLDOWN_DAYS)}</span>
+        <span>через {fmtDays(ROUND_COOLDOWN_DAYS)} после закрытия</span>
       </div>
+      <p className="inv-note">Доля продаётся в день закрытия. Переговоры можно прервать: денег не будет, шумиха −{ROUND_CANCEL_HYPE}.</p>
       {crossesControl ? (
         <Alert tone="bad">После продажи доля ниже {fmtShare(FOUNDER_WARN_SHARE, 0)}: контроль над компанией перейдёт к совету директоров</Alert>
       ) : crossesBoard ? (
@@ -269,6 +275,8 @@ export default function InvestorsWindow({ s }: WindowProps) {
   const reason = cooldownText(s, blocked);
   const [selling, setSelling] = useState<number | null>(null);
   const [hover, setHover] = useState<number | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const round = pendingRound(s);
 
   const share = s.founderShare;
   const tone = shareTone(share);
@@ -291,7 +299,7 @@ export default function InvestorsWindow({ s }: WindowProps) {
       </div>
 
       <section className="inv-own" aria-label="Доля основателя и пороги контроля">
-        <ControlBar share={share} sell={hover} />
+        <ControlBar share={share} sell={hover ?? round?.fraction ?? null} />
       </section>
 
       <div className="inv-body">
@@ -302,20 +310,40 @@ export default function InvestorsWindow({ s }: WindowProps) {
 
         <section className="inv-col inv-rounds">
           <h3 className="inv-h">Раунд инвестиций</h3>
-          <div className={`inv-cd${reason ? ' wait' : ' ready'}`}>
-            <span className="inv-cd-t">
-              {reason ? <IconLock size={13} /> : <IconCheck size={14} />}
-              <span>
-                {reason ?? 'Раунд можно провести сейчас'}
-                {left > 0 && <span className="inv-cd-d">, {formatDateShort(s.day + left)}</span>}
+          {round ? (
+            <div className="inv-deal">
+              <div className="inv-deal-top">
+                <span className="inv-deal-t">
+                  Переговоры: {fmtShare(round.fraction, 0)} за <b>{fmtMoney(round.money)}</b>
+                </span>
+                <button type="button" className="btn small" onClick={() => setCancelling(true)}>
+                  Прервать
+                </button>
+              </div>
+              <span className="inv-deal-s">
+                {round.emergency ? 'Экстренный раунд, оценка' : 'Оценка'} {fmtMoney(round.valuation)} зафиксирована {formatDateShort(round.startDay)}. Деньги
+                придут {formatDateShort(round.closeDay)}.
               </span>
-            </span>
-            {left > 0 && (
               <span className="inv-cd-bar" aria-hidden="true">
-                <i style={{ width: `${waited * 100}%` }} />
+                <i style={{ width: `${Math.min(100, Math.max(0, ((s.day - round.startDay) / Math.max(1, round.closeDay - round.startDay)) * 100))}%` }} />
               </span>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className={`inv-cd${reason ? ' wait' : ' ready'}`}>
+              <span className="inv-cd-t">
+                {reason ? <IconLock size={13} /> : <IconCheck size={14} />}
+                <span>
+                  {reason ?? 'Раунд можно начать сейчас: переговоры 30-60 дней'}
+                  {left > 0 && <span className="inv-cd-d">, {formatDateShort(s.day + left)}</span>}
+                </span>
+              </span>
+              {left > 0 && (
+                <span className="inv-cd-bar" aria-hidden="true">
+                  <i style={{ width: `${waited * 100}%` }} />
+                </span>
+              )}
+            </div>
+          )}
           <table className="inv-table">
             <thead>
               <tr>
@@ -335,7 +363,24 @@ export default function InvestorsWindow({ s }: WindowProps) {
         </section>
       </div>
 
-      {selling !== null && v && <SellConfirm fraction={selling} v={v} share={share} onClose={() => setSelling(null)} />}
+      {selling !== null && v && <SellConfirm s={s} fraction={selling} v={v} share={share} onClose={() => setSelling(null)} />}
+      {cancelling && round && (
+        <ConfirmDialog
+          title="Прервать переговоры"
+          confirmLabel="Прервать"
+          danger
+          onConfirm={() => {
+            store.dispatch(actions.cancelRound);
+            setCancelling(false);
+          }}
+          onClose={() => setCancelling(false)}
+        >
+          <p>
+            Инвесторы не вложат {fmtMoney(round.money)}, доля основателя не изменится. Рынок узнает о сорванной сделке: шумиха −{ROUND_CANCEL_HYPE}. Новый раунд
+            можно начать сразу, по сегодняшней оценке.
+          </p>
+        </ConfirmDialog>
+      )}
     </div>
   );
 }

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { GPUS } from '../data/gpus';
 import {
+  computeDay,
+  orderedCount,
+  rentDeliveryDays,
+  rentNow,
+  RENT_SHORTAGE_DELIVERY_MULT,
   ALLOC_KEYS,
   availableGpus,
   cheapestH100eDay,
@@ -19,6 +24,7 @@ import {
 } from './compute';
 import { DEFAULT_ALLOC, RENT_HARD_CAP_MULT, RENT_OVER_CAP_MULT } from './constants';
 import { addModifier, FOREVER } from './events';
+import { deserialize, serialize } from './save';
 import { createInitialState } from './state';
 import { dateToDay } from './time';
 import type { GameState, GpuDef, GpuId } from './types';
@@ -234,7 +240,7 @@ describe('мягкий лимит аренды', () => {
     expect(setRent(s, 'p100', 1025)).toEqual({ ok: true });
     expect(setRent(s, 'p100', 2048)).toEqual({ ok: true });
     expect(setRent(s, 'p100', 2049).ok).toBe(false);
-    expect(s.compute.rented.p100).toBe(2048);
+    expect(orderedCount(s, 'p100')).toBe(2048);
   });
 });
 
@@ -384,9 +390,14 @@ describe('setAllocation', () => {
 });
 
 describe('setRent', () => {
-  it('ставит число GPU и сразу меняет мощность', () => {
+  it('ставит число GPU: карты едут, мощность появляется в день прихода', () => {
     const s = createInitialState('Тест', 1);
     expect(setRent(s, 'p100', 105)).toEqual({ ok: true });
+    expect(s.compute.rented.p100).toBe(0);
+    expect(orderedCount(s, 'p100')).toBe(105);
+    expect(totalH100e(s)).toBe(0);
+    s.day += rentDeliveryDays(s, 'p100');
+    computeDay(s);
     expect(s.compute.rented.p100).toBe(105);
     expect(totalH100e(s)).toBeCloseTo(105 * gpuData('p100').h100e, 9);
   });
@@ -421,7 +432,8 @@ describe('setRent', () => {
     s.compute.rented.p100 = 7;
     const cash = s.cash;
     setRent(s, 'a100', 20);
-    expect(s.compute.rented).toEqual({ p100: 7, v100: 0, a100: 20, h100: 0, h200: 0 });
+    expect(s.compute.rented).toEqual({ p100: 7, v100: 0, a100: 0, h100: 0, h200: 0 });
+    expect(orderedCount(s, 'a100')).toBe(20);
     expect(s.cash).toBe(cash);
   });
 
@@ -467,7 +479,7 @@ describe('setRent', () => {
     if (!r.ok) expect(r.error).toContain('1024');
     expect(s.compute.rented.p100).toBe(0);
     expect(setRent(s, 'p100', 1024)).toEqual({ ok: true });
-    expect(s.compute.rented.p100).toBe(1024);
+    expect(orderedCount(s, 'p100')).toBe(1024);
   });
 
   it('потолок растёт вместе с годом', () => {
@@ -484,7 +496,7 @@ describe('setRent', () => {
     expect(setRent(s, 'h100', 1200).ok).toBe(false); // увеличивать нельзя
     expect(setRent(s, 'h100', 1000)).toEqual({ ok: true }); // оставить как есть можно
     expect(setRent(s, 'h100', 500)).toEqual({ ok: true }); // уменьшить можно
-    expect(s.compute.rented.h100).toBe(500);
+    expect(orderedCount(s, 'h100')).toBe(500);
     expect(setRent(s, 'h100', 0)).toEqual({ ok: true });
   });
 
@@ -516,5 +528,69 @@ describe('доли мощности v2: пять ключей', () => {
   it('доля без ключа subs (старый вид) считается нулём, а не NaN', () => {
     const a = normalizeAlloc({ training: 0.5, contracts: 0.5, experiments: 0 } as unknown as Parameters<typeof normalizeAlloc>[0]);
     expect(a).toEqual({ training: 0.5, contracts: 0.5, experiments: 0, api: 0, subs: 0 });
+  });
+});
+
+describe('аренда с поставкой', () => {
+  it('срок поставки по годам: неделя в 2017 году, три недели в 2023-м; при дефиците - вдвое дольше', () => {
+    expect(rentDeliveryDays(stateAt('2017-03-01'), 'p100')).toBe(7);
+    expect(rentDeliveryDays(stateAt('2023-03-01'), 'h100')).toBe(21);
+    const s = stateAt('2021-03-01');
+    const base = rentDeliveryDays(s, 'a100');
+    addModifier(s, { id: 'shortage', kind: 'rentCap', mult: 0.5, untilDay: FOREVER });
+    expect(rentDeliveryDays(s, 'a100')).toBe(base * RENT_SHORTAGE_DELIVERY_MULT);
+  });
+
+  it('аренда платится только с прихода: пока карты едут, rentPerDay не растёт', () => {
+    const s = createInitialState('Тест', 1);
+    setRent(s, 'p100', 100);
+    expect(rentPerDay(s)).toBe(0);
+    s.day += rentDeliveryDays(s, 'p100') - 1;
+    computeDay(s);
+    expect(rentPerDay(s)).toBe(0);
+    s.day += 1;
+    computeDay(s);
+    expect(rentPerDay(s)).toBeCloseTo(rentCostPerDay(s, 'p100', 100), 9);
+    expect(s.compute.incoming).toEqual([]);
+  });
+
+  it('уменьшение сначала отменяет ещё не пришедший заказ (без денег), потом возвращает работающие карты сразу', () => {
+    const s = createInitialState('Тест', 1);
+    rentNow(s, 'p100', 50);
+    setRent(s, 'p100', 80); // 30 едут
+    const cash = s.cash;
+    expect(setRent(s, 'p100', 60)).toEqual({ ok: true }); // заказ 30 → 10
+    expect(s.compute.rented.p100).toBe(50);
+    expect(orderedCount(s, 'p100')).toBe(60);
+    expect(setRent(s, 'p100', 20)).toEqual({ ok: true }); // заказ отменён, 30 работающих возвращены
+    expect(s.compute.incoming).toEqual([]);
+    expect(s.compute.rented.p100).toBe(20);
+    expect(s.cash).toBe(cash);
+  });
+
+  it('прибавка к уже работающим едет отдельно, работающие карты продолжают работать', () => {
+    const s = createInitialState('Тест', 1);
+    rentNow(s, 'p100', 40);
+    setRent(s, 'p100', 100);
+    expect(s.compute.rented.p100).toBe(40);
+    expect(s.compute.incoming).toEqual([{ gpu: 'p100', count: 60, arriveDay: s.day + 7 }]);
+  });
+
+  it('старое сохранение без списка заказов: заказов нет, аренда работает', () => {
+    const fresh = createInitialState('Тест', 1);
+    rentNow(fresh, 'p100', 10);
+    setRent(fresh, 'p100', 15);
+    const round = deserialize(serialize(fresh));
+    expect(round.ok && round.state.compute.incoming).toEqual(fresh.compute.incoming);
+    const o = JSON.parse(serialize(fresh)) as { compute: Record<string, unknown> };
+    delete o.compute.incoming;
+    const r = deserialize(JSON.stringify(o));
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const s = r.state;
+    expect(orderedCount(s, 'p100')).toBe(10);
+    computeDay(s);
+    expect(setRent(s, 'p100', 20)).toEqual({ ok: true });
+    expect(s.compute.incoming).toHaveLength(1);
   });
 });

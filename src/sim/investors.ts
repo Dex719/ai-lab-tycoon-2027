@@ -4,6 +4,7 @@ import {
   BOARD_BUYBACK_PREMIUM,
   BOARD_BUYBACK_SHARE,
   BOARD_PLAN_VALUATION_MULT,
+  EMERGENCY_ROUND_DAYS,
   EMERGENCY_VALUATION_MULT,
   FOUNDER_WARN_SHARE,
   MANIA,
@@ -16,8 +17,8 @@ import { addMail } from './events';
 import { endSentence } from './text';
 import { earn, revenueLast90, spend } from './finance';
 import { marketArenaRank } from './leaderboard';
-import { byYear, lerpByDate, yearOf } from './time';
-import type { GameState, Result } from './types';
+import { byYear, formatDateShort, lerpByDate, yearOf } from './time';
+import type { GameState, PendingRound, Result } from './types';
 
 export interface Valuation {
   total: number;
@@ -128,15 +129,38 @@ function warnFounderShare(s: GameState): void {
   });
 }
 
-/** Причина, почему раунд недоступен (кулдаун - «через N дней»), или null. */
+/**
+ * Сколько дней идут переговоры: 10 % - месяц, 20 % - полтора, 30 % - два (чем больше доля, тем дольше проверка компании).
+ * Экстренный раунд (деньги в минусе) - две недели: иначе он не успевал бы до банкротства (BANKRUPT_DAYS).
+ */
+export { EMERGENCY_ROUND_DAYS };
+export const ROUND_DAYS: Record<number, number> = { 0.1: 30, 0.2: 45, 0.3: 60 };
+/** Прервать переговоры: рынок узнаёт о сорванной сделке, шумиха падает. Без этого можно было бы «бронировать» оценку и отменять. */
+export const ROUND_CANCEL_HYPE = 3;
+
+export function roundDays(s: GameState, fraction: number): number {
+  return emergencyRound(s) ? EMERGENCY_ROUND_DAYS : (ROUND_DAYS[fraction] ?? 45);
+}
+
+/** Раунд на переговорах (или null). */
+export function pendingRound(s: GameState): PendingRound | null {
+  return s.round ?? null;
+}
+
+/** Причина, почему раунд недоступен (переговоры уже идут, кулдаун - «через N дней»), или null. */
 export function canRaise(s: GameState): string | null {
+  const r = pendingRound(s);
+  if (r) return `Идут переговоры до ${formatDateShort(r.closeDay)}`;
   if (s.lastRoundDay === null || emergencyRound(s)) return null;
   const left = s.lastRoundDay + ROUND_COOLDOWN_DAYS - s.day;
   if (left > 0) return `Следующий раунд - через ${left} дн.`;
   return null;
 }
 
-/** Действие: продать долю fraction ∈ ROUND_FRACTIONS. Деньги earn('investors'), доля ×(1 − f), письмо. */
+/**
+ * Действие: начать переговоры о продаже доли fraction ∈ ROUND_FRACTIONS. Оценка и сумма фиксируются сегодня,
+ * деньги earn('investors') и доля ×(1 − f) - в день закрытия (investorsDay), с письмом.
+ */
 export function raiseRound(s: GameState, fraction: number): Result {
   // Допуск на ошибку дробей: 0,1 + 0,2 - это почти 0,3. Дальше считаем по точному значению из списка.
   const f = ROUND_FRACTIONS.find((x) => Math.abs(x - fraction) < 1e-9);
@@ -149,21 +173,48 @@ export function raiseRound(s: GameState, fraction: number): Result {
   if (reason !== null) return { ok: false, error: reason };
   const emergency = emergencyRound(s);
   const value = valuation(s).total;
-  const money = value * f;
-  earn(s, 'investors', money);
-  s.founderShare *= 1 - f;
+  s.round = { fraction: f, valuation: value, money: value * f, startDay: s.day, closeDay: s.day + roundDays(s, f), emergency };
+  return { ok: true };
+}
+
+/** Действие: прервать переговоры. Денег и размытия нет, шумиха −ROUND_CANCEL_HYPE; новый раунд можно начать сразу. */
+export function cancelRound(s: GameState): Result {
+  if (!pendingRound(s)) return { ok: false, error: 'Переговоров нет' };
+  s.round = null;
+  s.hype.player = Math.max(0, s.hype.player - ROUND_CANCEL_HYPE);
+  return { ok: true };
+}
+
+/** Закрыть раунд: деньги, размытие доли, письмо. */
+function closeRound(s: GameState, r: PendingRound): void {
+  s.round = null;
+  earn(s, 'investors', r.money);
+  s.founderShare *= 1 - r.fraction;
   s.lastRoundDay = s.day;
   // План совета директоров действует на один раунд: скидка к оценке снята.
   if (s.flags[BOARD_PLAN_FLAG]) delete s.flags[BOARD_PLAN_FLAG];
   addMail(s, {
     kind: 'finance',
-    title: `${emergency ? 'Экстренный раунд закрыт' : 'Раунд инвестиций закрыт'}: ${fmtMoney(money)}`,
+    title: `${r.emergency ? 'Экстренный раунд закрыт' : 'Раунд инвестиций закрыт'}: ${fmtMoney(r.money)}`,
     reward: true,
     body:
-      `При оценке лаборатории в ${fmtMoney(value)} инвесторы вложили ${fmtMoney(money)} ` +
-      `за ${Math.round(f * 100)} % компании. Доля основателя - ${fmtShare(s.founderShare)} %. ` +
+      `При оценке лаборатории в ${fmtMoney(r.valuation)} инвесторы вложили ${fmtMoney(r.money)} ` +
+      `за ${Math.round(r.fraction * 100)} % компании. Доля основателя - ${fmtShare(s.founderShare)} %. ` +
       `Следующий раунд возможен через ${ROUND_COOLDOWN_DAYS} дн.`,
   });
   warnFounderShare(s);
-  return { ok: true };
+}
+
+/** День: переговоры, дошедшие до срока, закрываются. */
+export function investorsDay(s: GameState): void {
+  const r = pendingRound(s);
+  if (r && s.day >= r.closeDay) closeRound(s, r);
+}
+
+/** Начать и сразу закрыть раунд (без переговоров): для тестов и сценариев, где нужны деньги раунда сегодня. */
+export function raiseRoundNow(s: GameState, fraction: number): Result {
+  const res = raiseRound(s, fraction);
+  if (!res.ok) return res;
+  closeRound(s, s.round!);
+  return res;
 }

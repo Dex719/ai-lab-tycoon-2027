@@ -4,7 +4,7 @@
 
 import { CLIENTS } from '../data/clients';
 import { benchDef } from '../sim/benchmarks';
-import { pool, totalH100e } from '../sim/compute';
+import { computeOrdered, nextArrival, pool, totalH100e } from '../sim/compute';
 import { canApply } from '../sim/contracts';
 import { formatDateShort, START_DAY } from '../sim/time';
 import { modelScore } from '../sim/training';
@@ -14,7 +14,7 @@ import { fmtH100e, fmtMoney } from './format';
 import type { WindowId } from './windows';
 
 export interface NextStep {
-  id: 'rent' | 'contract-power' | 'release' | 'research' | 'first-model' | 'transformer' | 'tender' | 'research-wait' | 'waiting' | 'stopped' | 'time';
+  id: 'rent' | 'rent-wait' | 'contract-power' | 'release' | 'research' | 'first-model' | 'transformer' | 'tender' | 'research-wait' | 'waiting' | 'stopped' | 'time';
   title: string;
   detail: string;
   /** Глагол на кнопке; null - кнопки нет. */
@@ -70,8 +70,18 @@ export function nextStep(s: GameState, speed = 1): NextStep | null {
 function firstStep(s: GameState): NextStep | null {
   if (s.tutorial.active || s.outcome || s.day >= START_DAY + NEXT_STEP_DAYS) return null;
 
-  if (totalH100e(s) <= 0) {
+  if (!computeOrdered(s)) {
     return { id: 'rent', title: 'Арендуйте видеокарты', detail: 'На них обучаются модели и выполняются контракты.', action: 'Арендовать', open: 'compute' };
+  }
+  const arrival = totalH100e(s) <= 0 ? nextArrival(s) : null;
+  if (arrival && s.research.current === null && s.research.done.length === 0) {
+    return {
+      id: 'rent-wait',
+      title: 'Карты в пути',
+      detail: `Видеокарты придут ${formatDateShort(arrival.day)}. Пока выберите исследование: команда работает и без карт.`,
+      action: 'Исследования',
+      open: 'research',
+    };
   }
 
   // Заявки считаются вместе с контрактами: мощность лучше добавить до победы, иначе первые дни контракта пропадут.

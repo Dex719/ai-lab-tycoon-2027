@@ -334,6 +334,16 @@ export interface MonthRecord extends MonthLedger {
 }
 
 /** Заказ карт в свой дата-центр: приедут в день arriveDay. */
+export interface PendingRound {
+  fraction: number;
+  /** Оценка на день старта, $: по ней считается сумма. */
+  valuation: number;
+  money: number;
+  startDay: number;
+  closeDay: number;
+  emergency: boolean;
+}
+
 export interface DcOrder {
   gpu: GpuId;
   count: number;
@@ -452,11 +462,17 @@ export interface GameState {
   reputation: number; // 0..100
   founderShare: number; // 0..1
   lastRoundDay: number | null;
+  /** Раунд на переговорах (investors.ts): условия зафиксированы при старте, деньги и размытие - по закрытию. В старых сохранениях нет. */
+  round?: PendingRound | null;
   /** Сколько закрытых месяцев лучшая модель игрока была №1 на «Арене» среди моделей, доступных по API. */
   monthsFirst: number;
   hype: Record<HypeOwner, number>; // 0..100
-  /** rentChangedDay - день последнего изменения аренды (для мягкого предупреждения о простое); в старых сохранениях нет. */
-  compute: { rented: Record<GpuId, number>; alloc: Allocation; rentChangedDay?: number };
+  /**
+   * rented - карты, которые уже пришли и работают (аренда платится только за них); incoming - заказанные и ещё не пришедшие
+   * (compute.ts, rentDeliveryDays). rentChangedDay - день последнего изменения аренды (для мягкого предупреждения о простое).
+   * В старых сохранениях incoming и rentChangedDay нет.
+   */
+  compute: { rented: Record<GpuId, number>; alloc: Allocation; rentChangedDay?: number; incoming?: DcOrder[] };
   /** Свои дата-центры: день открытия функции (null - ещё закрыта) и список построек. */
   datacenters: { unlockedDay: number | null; list: Datacenter[] };
   research: {
@@ -519,5 +535,10 @@ export interface GameState {
     lostApi: number; // потерянная доля спроса API (0, если нечего обслуживать)
     lostSubs: number; // то же для подписок
     segments: Record<SegmentId, SegmentShares>; // доли по сегментам после ограничения мощностью
+    /**
+     * Инерция рынка (market.ts, SHARE_TAU_DAYS): доли клиентов по сегментам до ограничения мощностью, ключи как в shares
+     * плюс 'none'. Каждый день они сдвигаются к целевым долям логита, а не прыгают. В старых сохранениях нет - берутся целевые.
+     */
+    held?: Record<SegmentId, Record<string, number>>;
   };
 }

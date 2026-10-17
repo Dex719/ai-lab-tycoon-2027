@@ -51,7 +51,7 @@ describe('этап лаборатории на рабочем столе', () =>
     expect(labStage(runBot('reasonable', 1, dateToDay('2021-01-01'), 'normal').state)).toBeGreaterThanOrEqual(1);
     expect(labStage(runBot('reasonable', 1, dateToDay('2018-01-01'), 'normal').state)).toBe(0);
     expect(labStage(runBot('strong', 2, 4000, 'normal').state)).toBe(3);
-  });
+  }, 30_000); // четыре партии ботов: при полном прогоне тестов параллельно им не хватает 5 с по умолчанию
 
   it('кубки: 1-е место на конец года - золото, все цели года - серебро, один кубок за год', () => {
     const s = newGame('Тест', 1);

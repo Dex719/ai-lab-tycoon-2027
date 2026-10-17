@@ -17,6 +17,10 @@ import {
   rentPerDay,
   rentPerGpuDay,
   totalH100e,
+  incomingCount,
+  nextArrival,
+  orderedCount,
+  rentDeliveryDays,
 } from '../../sim/compute';
 import { RENT_OVER_CAP_MULT } from '../../sim/constants';
 import { ownedCards } from '../../sim/datacenters';
@@ -124,7 +128,7 @@ function unitLine(s: GameState, rented: boolean): string {
 
 /** Арендованные карты: строка на тип - сколько, сколько это H100e, цена; свои карты - ссылкой на дата-центры. */
 function CardsPanel({ s, flash, onEdit, onGiveBack, open }: { s: GameState; flash: RentFlash | null; onEdit: (id: GpuId) => void; onGiveBack: (id: GpuId) => void; open: WindowProps['open'] }) {
-  const rentedGpus = GPUS.filter((g) => s.compute.rented[g.id] > 0);
+  const rentedGpus = GPUS.filter((g) => orderedCount(s, g.id) > 0);
   const own = ownedCards(s);
   return (
     <section className="cw-cards">
@@ -165,6 +169,7 @@ function Side({ s, onRent }: { s: GameState; onRent: () => void }) {
   const total = totalH100e(s);
   const caps = availableGpus(s).map((g) => rentCapFor(s, g.id));
   const cap = caps.length ? Math.min(...caps) : 0;
+  const transit = GPUS.reduce((a, g) => a + incomingCount(s, g.id), 0);
   const racks = `${fmtInt(layout.totalRacks)} ${ruPlural(layout.totalRacks, 'стойка', 'стойки', 'стоек')}`;
   return (
     <aside className="cw-side">
@@ -175,7 +180,10 @@ function Side({ s, onRent }: { s: GameState; onRent: () => void }) {
         {fmtH(total)}
         <span>H100e</span>
       </div>
-      <div className="cw-fig-sub">{layout.cards > 0 ? `${fmtCardsCount(layout.cards)} в аренде, ${racks}` : 'Карт в аренде нет'}</div>
+      <div className="cw-fig-sub">
+        {layout.cards > 0 ? `${fmtCardsCount(layout.cards)} в аренде, ${racks}` : 'Карт в аренде нет'}
+        {transit > 0 && `, в пути ${fmtInt(transit)}`}
+      </div>
       <div className="cw-fig-unit" title="H100e - общая единица мощности для карт разных лет: обучение, исследования и контракты считаются в ней">
         {unitLine(s, layout.cards > 0)}
       </div>
@@ -198,28 +206,42 @@ function RentedRow({ s, g, onEdit, onGiveBack }: { s: GameState; g: GpuDef; onEd
   const count = s.compute.rented[g.id];
   const cap = rentCapFor(s, g.id);
   const over = Math.max(0, count - cap);
+  const orders = (s.compute.incoming ?? []).filter((o) => o.gpu === g.id && o.count > 0);
+  const transit = orders.reduce((a, o) => a + o.count, 0);
+  const lastDay = orders.reduce((a, o) => Math.max(a, o.arriveDay), 0);
   return (
     <div className="cw-row">
       <GpuBadge id={g.id} size="s" />
       <div className="cw-row-main">
         <div className="cw-row-name">{g.name}</div>
         <div className="cw-row-meta">
-          <b>{fmtInt(count)} шт.</b>, {fmtH(count * g.h100e)} H100e, {fmtCardMonth(rentPerGpuDay(s, g.id))} за карту в месяц
+          {count > 0 ? (
+            <>
+              <b>{fmtInt(count)} шт.</b>, {fmtH(count * g.h100e)} H100e, {fmtCardMonth(rentPerGpuDay(s, g.id))} за карту в месяц
+            </>
+          ) : (
+            `${fmtCardMonth(rentPerGpuDay(s, g.id))} за карту в месяц`
+          )}
         </div>
+        {transit > 0 && (
+          <div className="cw-row-transit" title="Аренда за эти карты начнётся в день прихода. Ещё не пришедший заказ можно уменьшить или отменить без оплаты.">
+            В пути: <b>{fmtInt(transit)} шт.</b>, {orders.length > 1 ? 'последние ' : ''}придут {formatDateShort(lastDay)}
+          </div>
+        )}
         <div className={`cw-row-over${over > 0 ? '' : ' cw-hide'}`}>
           Сверх лимита {fmtInt(over)} шт.: цена {OVER_TIMES} выше
         </div>
       </div>
       <div className="cw-row-cost">
-        {fmtMoney(monthlyCost(s, g.id, count))}
-        <small>в месяц</small>
+        {fmtMoney(monthlyCost(s, g.id, count > 0 ? count : transit))}
+        <small>{count > 0 ? 'в месяц' : `в месяц с ${formatDateShort(lastDay)}`}</small>
       </div>
       <div className="cw-row-actions">
         <button className="btn small" onClick={onEdit}>
           Изменить
         </button>
-        <button className="btn small" onClick={onGiveBack} title={`Вернуть все карты ${g.name}`}>
-          Вернуть
+        <button className="btn small" onClick={onGiveBack} title={count > 0 ? `Вернуть все карты ${g.name}` : `Отменить заказ ${g.name}`}>
+          {count > 0 ? 'Вернуть' : 'Отменить'}
         </button>
       </div>
     </div>
@@ -235,14 +257,18 @@ interface RentTarget {
 }
 
 function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: RentTarget; onClose: () => void; onDone: (text: string) => void }) {
-  const initial = (id: GpuId, count?: number) => String(count ?? (s.compute.rented[id] > 0 ? s.compute.rented[id] : suggestedCount(s, id)));
+  const initial = (id: GpuId, count?: number) => String(count ?? (orderedCount(s, id) > 0 ? orderedCount(s, id) : suggestedCount(s, id)));
   const [id, setId] = useState<GpuId>(target.id);
   const [text, setText] = useState(initial(target.id, target.count));
   const [error, setError] = useState<string | null>(null);
 
   const list = GPUS.filter((x) => isGpuAvailable(s, x.id));
   const g = GPUS.find((x) => x.id === id) ?? GPUS[0];
-  const rented = s.compute.rented[g.id];
+  // Сколько уже заказано (работают и едут): поле задаёт именно это число.
+  const rented = orderedCount(s, g.id);
+  const working = s.compute.rented[g.id];
+  const transit = incomingCount(s, g.id);
+  const eta = s.day + rentDeliveryDays(s, g.id);
   const cap = rentCapFor(s, g.id);
   const max = Math.max(rentMaxFor(s, g.id), rented);
   const parsed = text.trim() === '' ? NaN : Number(text);
@@ -276,7 +302,7 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
       return;
     }
     const diff = count - rented;
-    onDone(diff > 0 ? `+${fmtCardsCount(diff)} ${g.name}` : `Возвращено ${fmtCardsCount(-diff)} ${g.name}`);
+    onDone(diff > 0 ? `+${fmtCardsCount(diff)} ${g.name}, придут ${formatDateShort(eta)}` : `Возвращено ${fmtCardsCount(-diff)} ${g.name}`);
   };
 
   const cost = count === null ? null : monthlyCost(s, g.id, count);
@@ -359,19 +385,34 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
           <div className="cw-sum-i">
             <span>Карт</span>
             <b>{count === null ? '-' : `${fmtInt(count)} шт.`}</b>
-            <small>сейчас {fmtInt(rented)} шт.</small>
+            <small>
+              сейчас {fmtInt(working)} шт.{transit > 0 ? `, в пути ${fmtInt(transit)}` : ''}
+            </small>
           </div>
           <div className="cw-sum-i">
             <span>На счёте</span>
             <FlashNum value={s.cash} className="on-light">
               <b className={s.cash < 0 ? 'bad' : undefined}>{fmtMoney(s.cash)}</b>
             </FlashNum>
-            <small title="Аренда всех карт после изменения">вся аренда {count === null ? '-' : fmtMoney(rentPerDay(s) * DAYS_IN_MONTH + (delta?.money ?? 0))} в месяц</small>
+            <small title="Аренда всех карт после прихода заказа">вся аренда {count === null ? '-' : fmtMoney(rentPerDay(s) * DAYS_IN_MONTH + (delta?.money ?? 0))} в месяц</small>
           </div>
+        </div>
+        <div className="cw-eta" role="status">
+          {count === null || count === rented
+            ? `Новые карты приходят через ${fmtDaysWord(rentDeliveryDays(s, g.id))}: облако выделяет стойки не сразу.`
+            : count > rented
+              ? `Придут ${formatDateShort(eta)}, через ${fmtDaysWord(rentDeliveryDays(s, g.id))}. Аренда за них - с прихода.`
+              : transit > 0
+                ? `Сначала отменяется заказ в пути (${fmtInt(Math.min(transit, rented - count))} шт., без оплаты), остальное возвращается сразу.`
+                : 'Карты возвращаются сразу, аренда за них больше не списывается.'}
         </div>
       </div>
     </Dialog>
   );
+}
+
+function fmtDaysWord(n: number): string {
+  return `${fmtInt(n)} ${ruPlural(n, 'день', 'дня', 'дней')}`;
 }
 
 /** Строка изменения под числом: «+2,05 H100e» зелёным или красным; без изменения - прочерк. */
@@ -588,6 +629,7 @@ function SplitPanel({ s, open }: { s: GameState; open: WindowProps['open'] }) {
   const current = percentsOf(s.compute.alloc);
   const shown = draft ?? current;
   const total = totalH100e(s);
+  const arrival = nextArrival(s);
   const occ = occupancy(shown);
   const need = safeInferenceNeed(s);
   const rows = visibleRows(s);
@@ -624,9 +666,9 @@ function SplitPanel({ s, open }: { s: GameState; open: WindowProps['open'] }) {
       <div className="cw-panel-head">
         <h2 className="cw-h">Чем заняты карты</h2>
         <div className={`cw-occ ${total > 0 ? occ.tone : 'none'}`} role="status">
-          {error ?? (total > 0 ? occ.text : 'Мощности пока нет: доли заработают после аренды.')}
+          {error ?? (total > 0 ? occ.text : arrival ? `Мощности пока нет: доли заработают, когда придут карты (${formatDateShort(arrival.day)}).` : 'Мощности пока нет: доли заработают после аренды.')}
         </div>
-        <GuardButton className="btn small" reason={total > 0 ? (autoSame ? 'Доли уже такие, как нужно сейчас' : null) : 'Сначала арендуйте карты'} onClick={() => apply(auto)}>
+        <GuardButton className="btn small" reason={total > 0 ? (autoSame ? 'Доли уже такие, как нужно сейчас' : null) : arrival ? 'Карты ещё в пути' : 'Сначала арендуйте карты'} onClick={() => apply(auto)}>
           Как нужно
         </GuardButton>
       </div>

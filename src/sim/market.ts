@@ -60,7 +60,9 @@ export interface MarketEntry {
   codeLevel: number | null; // уровень по коду (leaderboard.codeLevel); null - бенчмарков кода ещё нет
   quality: number; // Q = Elo + hypeMult × k_h × hype[owner]
   utility: number;
-  share: number; // доля спроса сегмента, 0..1 (до ограничения мощностью)
+  share: number; // доля спроса сегмента, 0..1 (до ограничения мощностью); с инерцией - текущая
+  /** Целевая доля (чистый логит), к которой движется share; нет - share и есть целевая. */
+  target?: number;
   demand: number; // спрос в единицах сегмента: токены в день (api) или пользователи (subs), до ограничения мощностью
   tokens: number; // токены в день (у подписки demand × TOKENS_PER_USER_DAY)
 }
@@ -370,11 +372,67 @@ function segmentRevenue(seg: SegmentSnapshot, pRef: number): number {
   return seg.channel === 'api' ? (seg.total * pRef) / 1e6 : (seg.total * SUBS_REF_PRICE) / 30;
 }
 
-/** Чистый расчёт долей по трём сегментам (без изменения состояния). */
-export function marketSnapshot(s: GameState): MarketSnapshot {
+// ---------- Инерция рынка ----------
+
+/**
+ * Клиенты переходят к лучшей модели не сразу: доля каждой модели (и соперников, и игрока) каждый день сдвигается к целевой
+ * доле логита на долю 1 − e^(−1/τ). За τ = 30 дней проходится 63 % разрыва, за 60 дней - 86 %, за 90 - 95 %.
+ * Модель, снятая с продажи, теряет клиентов сразу: их доли делят остальные пропорционально текущим.
+ */
+export const SHARE_TAU_DAYS = 30;
+const SHARE_STEP = 1 - Math.exp(-1 / SHARE_TAU_DAYS);
+
+/** Целевые доли сегмента (по логиту): ключи моделей и 'none'. */
+function targetShares(seg: SegmentSnapshot): Record<string, number> {
+  const out: Record<string, number> = { none: seg.noneShare };
+  for (const e of seg.entries) out[e.key] = e.share;
+  return out;
+}
+
+/** Доли на завтра: шаг от вчерашних к целевым; нет вчерашних (старое сохранение, первый день) - сразу целевые. */
+export function stepHeld(target: Record<string, number>, prev: Record<string, number> | undefined): Record<string, number> {
+  if (!prev || Object.keys(prev).length === 0) return { ...target };
+  const out: Record<string, number> = {};
+  let sum = 0;
+  for (const [k, t] of Object.entries(target)) {
+    const p = prev[k] ?? 0;
+    const v = Math.max(0, p + (t - p) * SHARE_STEP);
+    out[k] = Number.isFinite(v) ? v : t;
+    sum += out[k];
+  }
+  if (!(sum > 0)) return { ...target };
+  for (const k of Object.keys(out)) out[k] /= sum;
+  return out;
+}
+
+/** Снимок сегмента с удержанными долями вместо целевых (спрос и токены пересчитываются). */
+function applyHeld(seg: SegmentSnapshot, held: Record<string, number> | undefined): SegmentSnapshot {
+  if (!held) return seg;
+  const keys = [...seg.entries.map((e) => e.key), 'none'];
+  let sum = 0;
+  for (const k of keys) sum += held[k] ?? 0;
+  if (!(sum > 0)) return seg;
+  const perUnit = seg.channel === 'subs' ? TOKENS_PER_USER_DAY : 1;
+  const entries = seg.entries.map((e) => {
+    const share = (held[e.key] ?? 0) / sum;
+    const demand = share * seg.total;
+    return { ...e, target: e.share, share, demand, tokens: demand * perUnit };
+  });
+  entries.sort((a, b) => b.share - a.share);
+  return { ...seg, entries, noneShare: (held.none ?? 0) / sum };
+}
+
+/**
+ * Расчёт долей по трём сегментам (без изменения состояния). По умолчанию - текущие доли с инерцией (s.market.held);
+ * target - куда доли движутся (чистый логит), для подсказок «доля будет расти к …».
+ */
+export function marketSnapshot(s: GameState, mode: 'current' | 'target' = 'current'): MarketSnapshot {
   const cands = candidates(s);
   const segments = {} as Record<SegmentId, SegmentSnapshot>;
-  for (const seg of SEGMENT_IDS) segments[seg] = segmentSnapshot(s, seg, cands, segmentDemand(s, seg));
+  for (const seg of SEGMENT_IDS) {
+    const target = segmentSnapshot(s, seg, cands, segmentDemand(s, seg));
+    segments[seg] = mode === 'current' ? applyHeld(target, s.market?.held?.[seg]) : target;
+  }
   const pRef = refPrice(s.day);
   const revenues = SEGMENT_IDS.map((seg) => segmentRevenue(segments[seg], pRef));
   const sum = revenues.reduce((a, b) => a + b, 0);
@@ -466,7 +524,12 @@ export function playerSales(s: GameState, modelId: string): PlayerSales {
  * Доли в s.market - после ограничения мощностью: необслуженный спрос игрока достаётся соперникам.
  */
 export function dayStep(s: GameState): void {
-  const snap = marketSnapshot(s);
+  const target = marketSnapshot(s, 'target');
+  // Инерция: доли сдвигаются к целевым на шаг SHARE_STEP; дальше всё (спрос, мощность, выручка) - по сдвинутым.
+  const held = {} as Record<SegmentId, Record<string, number>>;
+  for (const seg of SEGMENT_IDS) held[seg] = stepHeld(targetShares(target.segments[seg]), s.market?.held?.[seg]);
+  const snap: MarketSnapshot = { ...target, segments: {} as Record<SegmentId, SegmentSnapshot> };
+  for (const seg of SEGMENT_IDS) snap.segments[seg] = applyHeld(target.segments[seg], held[seg]);
   const need = inferenceNeed(s, snap);
   // Какую часть спроса игрока удалось обслужить по каждому каналу.
   const servedApi = need.api > 0 ? Math.min(1, pool(s, 'api') / need.api) : 1;
@@ -535,6 +598,7 @@ export function dayStep(s: GameState): void {
     lostApi,
     lostSubs,
     segments,
+    held,
   };
 }
 

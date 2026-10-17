@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { newGame, releaseModel } from '../sim/actions';
-import { setRent } from '../sim/compute';
+import { rentNow, setRent } from '../sim/compute';
 import { applyTender } from '../sim/contracts';
 import { applyChoice, pendingChoice } from '../sim/events';
 import { refPrice } from '../sim/market';
@@ -39,12 +39,23 @@ function midPlan(s: GameState) {
 }
 
 describe('следующий шаг', () => {
+  it('карты заказаны, но ещё едут: не «Арендуйте», а «Карты в пути» с датой и переходом к исследованиям', () => {
+    const s = newGame('Тест', 11);
+    setRent(s, 'p100', 96);
+    const step = nextStep(s);
+    expect(step?.id).toBe('rent-wait');
+    expect(step?.open).toBe('research');
+    expect(step?.detail).toMatch(/придут \d\d\.\d\d\.2017/);
+    setResearch(s, 'attention');
+    expect(nextStep(s)?.id).not.toBe('rent');
+  });
+
   it('ведёт по первым месяцам: карты, исследование, модель на LSTM, выпуск, тендер', () => {
     const s = newGame('Тест', 11);
     expect(nextStep(s)?.id).toBe('rent');
     expect(nextStep(s)?.open).toBe('compute');
 
-    setRent(s, 'p100', 96);
+    rentNow(s, 'p100', 96);
     expect(nextStep(s)?.id).toBe('research');
 
     setResearch(s, 'attention');
@@ -81,7 +92,7 @@ describe('следующий шаг', () => {
     expect(power.title).toBe('Заявке на тендер мало мощности');
     expect(power.open).toBe('compute');
     const need = contractsNeedWithApplications(s)!;
-    expect(setRent(s, 'p100', Math.ceil(need / 0.5 / GPUS.find((g) => g.id === 'p100')!.h100e) + 1).ok).toBe(true);
+    expect(rentNow(s, 'p100', Math.ceil(need / 0.5 / GPUS.find((g) => g.id === 'p100')!.h100e) + 1).ok).toBe(true);
     s.compute.alloc = { ...s.compute.alloc, contracts: 0.5, experiments: s.compute.alloc.experiments + s.compute.alloc.contracts - 0.5 };
     expect(nextStep(s)?.id).not.toBe('contract-power');
     // Пока идёт «Механизм внимания», доля «Обучение» свободна: подсказка - срок исследования и доли.
@@ -95,7 +106,7 @@ describe('следующий шаг', () => {
 
   it('после «Механизма внимания» предлагает модель на «Трансформере»', () => {
     const s = newGame('Тест', 12);
-    setRent(s, 'p100', 96);
+    rentNow(s, 'p100', 96);
     s.research.done.push('attention');
     expect(nextStep(s)?.id).toBe('first-model');
     expect(nextStep(s)?.detail).not.toContain('LSTM');
@@ -104,7 +115,7 @@ describe('следующий шаг', () => {
     expect(nextStep(s)?.id).not.toBe('transformer');
 
     const old = newGame('Тест', 12);
-    setRent(old, 'p100', 96);
+    rentNow(old, 'p100', 96);
     setResearch(old, 'attention');
     startTraining(old, midPlan(old));
     old.research.done.push('attention');
@@ -114,7 +125,7 @@ describe('следующий шаг', () => {
 
   it('предупреждает, когда контракту не хватает мощности', () => {
     const s = newGame('Тест', 13);
-    setRent(s, 'p100', 96);
+    rentNow(s, 'p100', 96);
     setResearch(s, 'attention');
     startTraining(s, midPlan(s));
     for (let i = 0; i < 3; i++) day(s);
@@ -141,7 +152,7 @@ describe('следующий шаг', () => {
 describe('прогнозы сроков', () => {
   it('ползунок исследований: со всей мощностью раньше, без карт - позже, но команда работает', () => {
     const s = newGame('Тест', 21);
-    setRent(s, 'p100', 96);
+    rentNow(s, 'p100', 96);
     const none = researchDaysAt(s, 'attention', 0);
     const part = researchDaysAt(s, 'attention', 0.4);
     const all = researchDaysAt(s, 'attention', 1);
@@ -152,7 +163,7 @@ describe('прогнозы сроков', () => {
 
   it('срок обучения совпадает с тем, что случится в игре', () => {
     const s = newGame('Тест', 22);
-    setRent(s, 'p100', 96);
+    rentNow(s, 'p100', 96);
     startTraining(s, midPlan(s));
     const days = trainingDaysAt(s, s.trainings[0], s.compute.alloc.training)!;
     const start = s.day;

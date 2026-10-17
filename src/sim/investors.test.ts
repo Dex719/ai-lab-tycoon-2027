@@ -19,7 +19,22 @@ import {
   VALUATION_FLOOR,
 } from './constants';
 import { beginDay, earn } from './finance';
-import { BOARD_PLAN_FLAG, buyBackShares, buybackCost, canRaise, FOUNDER_WARNED_FLAG, raiseRound, valuation } from './investors';
+import {
+  BOARD_PLAN_FLAG,
+  buyBackShares,
+  buybackCost,
+  cancelRound,
+  canRaise,
+  EMERGENCY_ROUND_DAYS,
+  FOUNDER_WARNED_FLAG,
+  investorsDay,
+  raiseRound,
+  raiseRoundNow,
+  ROUND_CANCEL_HYPE,
+  ROUND_DAYS,
+  valuation,
+} from './investors';
+import { deserialize, serialize } from './save';
 import { createInitialState } from './state';
 import { byYear, dateToDay, lerpByDate } from './time';
 
@@ -305,12 +320,12 @@ describe('raiseRound', () => {
     for (const bad of [0, 0.05, 0.15, 0.25, 0.5, 1, -0.1, Number.NaN]) {
       const s = newState();
       const cash = s.cash;
-      expect(raiseRound(s, bad)).toMatchObject({ ok: false });
+      expect(raiseRoundNow(s, bad)).toMatchObject({ ok: false });
       expect(s.cash).toBe(cash);
       expect(s.founderShare).toBe(1);
       expect(s.lastRoundDay).toBeNull();
     }
-    for (const f of ROUND_FRACTIONS) expect(raiseRound(newState(), f)).toEqual({ ok: true });
+    for (const f of ROUND_FRACTIONS) expect(raiseRoundNow(newState(), f)).toEqual({ ok: true });
   });
 
   it('деньги = оценка × доля, доля основателя × (1 − f), кулдаун, письмо', () => {
@@ -321,7 +336,7 @@ describe('raiseRound', () => {
     const value = valuation(s).total;
     const cash = s.cash;
 
-    expect(raiseRound(s, 0.2)).toEqual({ ok: true });
+    expect(raiseRoundNow(s, 0.2)).toEqual({ ok: true });
     expect(s.cash).toBeCloseTo(cash + value * 0.2, 2);
     expect(s.finance.month.income.investors).toBeCloseTo(value * 0.2, 2);
     expect(s.founderShare).toBeCloseTo(0.8, 12);
@@ -335,17 +350,17 @@ describe('raiseRound', () => {
 
   it('деньги инвесторов не считаются выручкой', () => {
     const s = newState();
-    raiseRound(s, 0.1);
+    raiseRoundNow(s, 0.1);
     expect(s.finance.revenueDaily.reduce((a, b) => a + b, 0)).toBe(0);
   });
 
   it('второй раунд раньше срока - ошибка с числом дней, ничего не меняется', () => {
     const s = newState(50);
-    expect(raiseRound(s, 0.1).ok).toBe(true);
+    expect(raiseRoundNow(s, 0.1).ok).toBe(true);
     const cash = s.cash;
     const share = s.founderShare;
     s.day = 120;
-    const r = raiseRound(s, 0.1);
+    const r = raiseRoundNow(s, 0.1);
     expect(r).toEqual({ ok: false, error: 'Следующий раунд - через 295 дн.' });
     expect(s.cash).toBe(cash);
     expect(s.founderShare).toBe(share);
@@ -354,11 +369,11 @@ describe('raiseRound', () => {
 
   it('доли основателя перемножаются: 0,9 × 0,8 × 0,7', () => {
     const s = newState();
-    raiseRound(s, 0.1);
+    raiseRoundNow(s, 0.1);
     s.day += ROUND_COOLDOWN_DAYS;
-    raiseRound(s, 0.2);
+    raiseRoundNow(s, 0.2);
     s.day += ROUND_COOLDOWN_DAYS;
-    raiseRound(s, 0.3);
+    raiseRoundNow(s, 0.3);
     expect(s.founderShare).toBeCloseTo(0.9 * 0.8 * 0.7, 12);
     expect(s.lastRoundDay).toBe(2 * ROUND_COOLDOWN_DAYS);
     expect(s.mail.filter((x) => x.kind === 'finance')).toHaveLength(3);
@@ -369,7 +384,7 @@ describe('raiseRound', () => {
       const s = newState(dateToDay('2023-06-01'));
       setDailyRevenue(s, 1_000_000);
       const before = s.cash;
-      raiseRound(s, f);
+      raiseRoundNow(s, f);
       return s.cash - before;
     };
     expect(cashAfter(0.2)).toBeCloseTo(2 * cashAfter(0.1), 2);
@@ -460,32 +475,32 @@ describe('valuation: опорные числа', () => {
 
 describe('raiseRound: подробности', () => {
   it('сообщение об ошибке перечисляет допустимые доли', () => {
-    const r = raiseRound(newState(), 0.25);
+    const r = raiseRoundNow(newState(), 0.25);
     expect(r).toEqual({ ok: false, error: 'Можно продать 10, 20 или 30 % компании' });
   });
 
   it('ошибка округления дроби не мешает: 0,1 + 0,2 считается как 0,3', () => {
     const s = newState();
-    expect(raiseRound(s, 0.1 + 0.2)).toEqual({ ok: true });
+    expect(raiseRoundNow(s, 0.1 + 0.2)).toEqual({ ok: true });
     expect(s.founderShare).toBeCloseTo(0.7, 12);
     expect(s.mail[s.mail.length - 1].body).toContain('30 %');
   });
 
   it('отказ из-за кулдауна не добавляет письмо и не двигает дату раунда', () => {
     const s = newState(10);
-    raiseRound(s, 0.1);
+    raiseRoundNow(s, 0.1);
     const mails = s.mail.length;
     s.day = 20;
-    expect(raiseRound(s, 0.2).ok).toBe(false);
+    expect(raiseRoundNow(s, 0.2).ok).toBe(false);
     expect(s.mail).toHaveLength(mails);
     expect(s.lastRoundDay).toBe(10);
   });
 
   it('неверная доля проверяется раньше кулдауна', () => {
     const s = newState(10);
-    raiseRound(s, 0.1);
+    raiseRoundNow(s, 0.1);
     s.day = 20;
-    expect(raiseRound(s, 0.25)).toEqual({ ok: false, error: 'Можно продать 10, 20 или 30 % компании' });
+    expect(raiseRoundNow(s, 0.25)).toEqual({ ok: false, error: 'Можно продать 10, 20 или 30 % компании' });
   });
 
   it('оценка для денег считается в момент раунда, до продажи', () => {
@@ -493,7 +508,7 @@ describe('raiseRound: подробности', () => {
     setDailyRevenue(s, 1_000_000);
     s.reputation = 50;
     const cash = s.cash;
-    raiseRound(s, 0.1);
+    raiseRoundNow(s, 0.1);
     expect(s.cash - cash).toBeCloseTo(73_000_000, 0); // 10 % от $730 млн
   });
 
@@ -501,7 +516,7 @@ describe('raiseRound: подробности', () => {
     const s = newState(dateToDay('2024-06-01'));
     setDailyRevenue(s, 1_000_000);
     s.reputation = 50;
-    raiseRound(s, 0.1);
+    raiseRoundNow(s, 0.1);
     const body = s.mail[s.mail.length - 1].body;
     expect(body).toContain('$730 млн');
     expect(body).toContain('$73 млн');
@@ -512,18 +527,18 @@ describe('raiseRound: подробности', () => {
 
   it('доля основателя в письме с десятыми: 0,9 × 0,8 = 72 %, потом × 0,7 = 50,4 %', () => {
     const s = newState();
-    raiseRound(s, 0.1);
+    raiseRoundNow(s, 0.1);
     s.day += ROUND_COOLDOWN_DAYS;
-    raiseRound(s, 0.2);
+    raiseRoundNow(s, 0.2);
     expect(s.mail[s.mail.length - 1].body).toContain('Доля основателя - 72 %');
     s.day += ROUND_COOLDOWN_DAYS;
-    raiseRound(s, 0.3);
+    raiseRoundNow(s, 0.3);
     expect(s.mail[s.mail.length - 1].body).toContain('Доля основателя - 50,4 %');
   });
 
   it('деньги от раунда идут в статью «investors» и не попадают в выручку', () => {
     const s = newState();
-    raiseRound(s, 0.3);
+    raiseRoundNow(s, 0.3);
     expect(s.finance.month.income.investors).toBeGreaterThan(0);
     expect(s.finance.month.income.api).toBe(0);
     expect(s.finance.month.income.contracts).toBe(0);
@@ -553,7 +568,7 @@ describe('план совета директоров (флаг boardPlan)', () =
     const full = valuation(s).total;
     s.flags[BOARD_PLAN_FLAG] = true;
     const cash = s.cash;
-    expect(raiseRound(s, 0.1)).toEqual({ ok: true });
+    expect(raiseRoundNow(s, 0.1)).toEqual({ ok: true });
     expect(s.cash - cash).toBeCloseTo(full * BOARD_PLAN_VALUATION_MULT * 0.1, 2);
     expect(s.flags[BOARD_PLAN_FLAG]).toBeUndefined();
     expect(valuation(s).boardMult).toBe(1);
@@ -597,16 +612,16 @@ describe('предупреждение о доле основателя', () => 
 
   it('приходит один раз, когда доля падает ниже FOUNDER_WARN_SHARE', () => {
     const s = newState();
-    raiseRound(s, 0.3); // 0,7
+    raiseRoundNow(s, 0.3); // 0,7
     s.day += ROUND_COOLDOWN_DAYS;
-    raiseRound(s, 0.3); // 0,49
+    raiseRoundNow(s, 0.3); // 0,49
     s.day += ROUND_COOLDOWN_DAYS;
-    raiseRound(s, 0.3); // 0,343
+    raiseRoundNow(s, 0.3); // 0,343
     expect(warnings(s)).toHaveLength(0);
     expect(s.flags[FOUNDER_WARNED_FLAG]).toBeUndefined();
 
     s.day += ROUND_COOLDOWN_DAYS;
-    raiseRound(s, 0.3); // 0,24 < 0,25
+    raiseRoundNow(s, 0.3); // 0,24 < 0,25
     expect(s.founderShare).toBeLessThan(FOUNDER_WARN_SHARE);
     const [w] = warnings(s);
     expect(w).toBeDefined();
@@ -615,14 +630,14 @@ describe('предупреждение о доле основателя', () => 
     expect(s.flags[FOUNDER_WARNED_FLAG]).toBe(true);
 
     s.day += ROUND_COOLDOWN_DAYS;
-    raiseRound(s, 0.3); // 0,168 - повторного письма нет
+    raiseRoundNow(s, 0.3); // 0,168 - повторного письма нет
     expect(warnings(s)).toHaveLength(1);
   });
 
   it('ровно на границе письма нет', () => {
     const s = newState();
     s.founderShare = 0.3125; // после раунда 20 % доля станет ровно 0,25 (двоичная точность: 5/16 × 0,8)
-    raiseRound(s, 0.2);
+    raiseRoundNow(s, 0.2);
     expect(s.founderShare).toBe(FOUNDER_WARN_SHARE);
     expect(warnings(s)).toHaveLength(0);
   });
@@ -640,7 +655,7 @@ describe('экстренный раунд', () => {
     expect(canRaise(s)).toBeNull();
     expect(valuation(s).emergencyMult).toBe(0.6);
     expect(valuation(s).total).toBeCloseTo(normal * 0.6, 6);
-    expect(raiseRound(s, 0.1).ok).toBe(true);
+    expect(raiseRoundNow(s, 0.1).ok).toBe(true);
     expect(s.mail[s.mail.length - 1].title).toMatch(/^Экстренный раунд закрыт/);
     expect(s.cash).toBeGreaterThan(0);
   });
@@ -651,5 +666,86 @@ describe('экстренный раунд', () => {
     s.lastRoundDay = 400;
     s.cash = -1_000;
     expect(valuation(s).emergencyMult).toBe(1);
+  });
+});
+
+describe('раунд с переговорами', () => {
+  it('старт фиксирует оценку и сумму; денег и размытия до закрытия нет; срок по доле 30-45-60 дней', () => {
+    for (const f of [0.1, 0.2, 0.3]) {
+      const s = newState();
+      const cash = s.cash;
+      const v = valuation(s).total;
+      expect(raiseRound(s, f)).toEqual({ ok: true });
+      expect(s.round).toEqual({ fraction: f, valuation: v, money: v * f, startDay: 0, closeDay: ROUND_DAYS[f], emergency: false });
+      expect(s.cash).toBe(cash);
+      expect(s.founderShare).toBe(1);
+      expect(s.lastRoundDay).toBeNull();
+    }
+    expect([ROUND_DAYS[0.1], ROUND_DAYS[0.2], ROUND_DAYS[0.3]]).toEqual([30, 45, 60]);
+  });
+
+  it('закрытие в срок: деньги по зафиксированной оценке, доля ×(1 − f), письмо, отсчёт перерыва - от закрытия', () => {
+    const s = newState();
+    raiseRound(s, 0.2);
+    const money = s.round!.money;
+    s.hype.player = 90; // оценка выросла бы, но сумма уже зафиксирована
+    const cash = s.cash;
+    s.day = ROUND_DAYS[0.2] - 1;
+    investorsDay(s);
+    expect(s.round).not.toBeNull();
+    s.day += 1;
+    investorsDay(s);
+    expect(s.round).toBeNull();
+    expect(s.cash).toBeCloseTo(cash + money, 6);
+    expect(s.founderShare).toBeCloseTo(0.8, 12);
+    expect(s.lastRoundDay).toBe(ROUND_DAYS[0.2]);
+    expect(s.mail.at(-1)!.title).toMatch(/^Раунд инвестиций закрыт/);
+  });
+
+  it('пока идут переговоры, второй раунд не начать - причина с датой закрытия', () => {
+    const s = newState();
+    raiseRound(s, 0.1);
+    const r = raiseRound(s, 0.2);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/^Идут переговоры до /);
+    expect(canRaise(s)).toMatch(/переговоры/);
+  });
+
+  it('отмена: без денег и размытия, шумиха −3, новый раунд можно начать сразу', () => {
+    const s = newState();
+    s.hype.player = 20;
+    raiseRound(s, 0.3);
+    expect(cancelRound(s)).toEqual({ ok: true });
+    expect(s.round).toBeNull();
+    expect(s.founderShare).toBe(1);
+    expect(s.hype.player).toBe(20 - ROUND_CANCEL_HYPE);
+    expect(raiseRound(s, 0.1).ok).toBe(true);
+    expect(cancelRound(newState()).ok).toBe(false);
+  });
+
+  it('экстренный раунд (деньги в минусе) закрывается за две недели - раньше банкротства', () => {
+    const s = newState();
+    raiseRoundNow(s, 0.1);
+    s.day = 100;
+    s.cash = -50_000;
+    expect(raiseRound(s, 0.1).ok).toBe(true);
+    expect(s.round!.emergency).toBe(true);
+    expect(s.round!.closeDay).toBe(100 + EMERGENCY_ROUND_DAYS);
+  });
+
+  it('раунд на переговорах проходит сохранение; старое сохранение без поля загружается без переговоров', () => {
+    const s = newState();
+    raiseRound(s, 0.2);
+    const r = deserialize(serialize(s));
+    expect(r.ok && r.state.round).toEqual(s.round);
+    const o = JSON.parse(serialize(s)) as Record<string, unknown>;
+    delete o.round;
+    const old = deserialize(JSON.stringify(o));
+    expect(old.ok).toBe(true);
+    if (!old.ok) return;
+    expect(old.state.round).toBeUndefined();
+    expect(canRaise(old.state)).toBeNull();
+    investorsDay(old.state);
+    expect(raiseRound(old.state, 0.1).ok).toBe(true);
   });
 });

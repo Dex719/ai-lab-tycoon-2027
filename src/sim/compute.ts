@@ -5,7 +5,7 @@ import { GPUS } from '../data/gpus';
 import { DEFAULT_ALLOC, RENT_CAP_2017, RENT_HARD_CAP_MULT, RENT_OVER_CAP_MULT } from './constants';
 import { modValue } from './events';
 import { byYear, dateToDay, yearOf } from './time';
-import type { Allocation, GameState, GpuDef, GpuId, Result } from './types';
+import type { Allocation, DcOrder, GameState, GpuDef, GpuId, Result } from './types';
 
 export const ALLOC_KEYS: readonly (keyof Allocation)[] = ['training', 'contracts', 'experiments', 'api', 'subs'];
 
@@ -125,7 +125,38 @@ export function setAllocation(s: GameState, a: Allocation): Result {
 }
 
 /**
- * Действие: поставить число арендованных GPU типа (целое 0..потолок rentMaxFor, тип доступен; уменьшать можно всегда).
+ * Срок поставки арендованных карт, дней: облако выделяет стойки не сразу. По годам - от недели в 2017-2019 годах
+ * до трёх недель в 2023 году (очереди на H100); во время дефицита (модификатор rentCap < 1) - вдвое дольше.
+ */
+export const RENT_DELIVERY_DAYS: Record<number, number> = { 2017: 7, 2018: 7, 2019: 7, 2020: 10, 2021: 10, 2022: 14, 2023: 21, 2024: 14 };
+export const RENT_SHORTAGE_DELIVERY_MULT = 2;
+
+export function rentDeliveryDays(s: GameState, id: GpuId): number {
+  const base = byYear(RENT_DELIVERY_DAYS, yearOf(s.day));
+  return modValue(s, 'rentCap', id).mult < 1 ? base * RENT_SHORTAGE_DELIVERY_MULT : base;
+}
+
+/** Заказанные и ещё не пришедшие карты (в старых сохранениях списка нет - заводится пустым). */
+export function rentIncoming(s: GameState): DcOrder[] {
+  if (!s.compute.incoming) s.compute.incoming = [];
+  return s.compute.incoming;
+}
+
+/** Сколько карт типа едет. */
+export function incomingCount(s: GameState, id: GpuId): number {
+  return (s.compute.incoming ?? []).reduce((a, o) => (o.gpu === id ? a + o.count : a), 0);
+}
+
+/** Карт типа в аренде вместе с теми, что едут: то самое число, которое ставит игрок. */
+export function orderedCount(s: GameState, id: GpuId): number {
+  return s.compute.rented[id] + incomingCount(s, id);
+}
+
+/**
+ * Действие: поставить число арендованных GPU типа вместе с заказанными (целое 0..потолок rentMaxFor, тип доступен;
+ * уменьшать можно всегда). Прибавка приезжает через rentDeliveryDays, аренда за неё платится с прихода.
+ * Уменьшение сначала отменяет ещё не пришедшие заказы (без штрафа, деньги за них не платились), потом возвращает
+ * работающие карты сразу: облачная аренда посуточная, минимального срока нет.
  * Сверх лимита rentCapFor карты принимаются, но стоят дороже (rentCostPerDay).
  */
 export function setRent(s: GameState, id: GpuId, count: number): Result {
@@ -134,15 +165,67 @@ export function setRent(s: GameState, id: GpuId, count: number): Result {
   if (!Number.isInteger(count) || count < 0) {
     return { ok: false, error: 'Число карт должно быть целым и не меньше нуля' };
   }
+  const current = orderedCount(s, id);
   // Уменьшать (и оставлять как есть) можно всегда, даже если потолок упал.
-  if (count > s.compute.rented[id]) {
+  if (count > current) {
     if (!isGpuAvailable(s, id)) return { ok: false, error: 'Эта карта ещё не вышла' };
     const max = rentMaxFor(s, id);
     if (count > max) {
       return { ok: false, error: `Потолок аренды ${def.name} в этом году - ${max} шт.` };
     }
+    rentIncoming(s).push({ gpu: id, count: count - current, arriveDay: s.day + rentDeliveryDays(s, id) });
+  } else if (count < current) {
+    let cut = current - count;
+    const list = rentIncoming(s);
+    // Сначала отменяем самые поздние заказы этого типа.
+    for (let i = list.length - 1; i >= 0 && cut > 0; i--) {
+      const o = list[i];
+      if (o.gpu !== id) continue;
+      const take = Math.min(o.count, cut);
+      o.count -= take;
+      cut -= take;
+      if (o.count === 0) list.splice(i, 1);
+    }
+    if (cut > 0) s.compute.rented[id] = s.compute.rented[id] - cut + 0; // «+ 0» превращает −0 в обычный 0
   }
-  if (s.compute.rented[id] !== count) s.compute.rentChangedDay = s.day;
-  s.compute.rented[id] = count + 0; // «+ 0» превращает −0 в обычный 0
+  if (count !== current) s.compute.rentChangedDay = s.day;
   return { ok: true };
+}
+
+/** День: пришедшие заказы встают в стойки и начинают работать (и оплачиваться). */
+export function computeDay(s: GameState): void {
+  const list = s.compute.incoming;
+  if (!list || list.length === 0) return;
+  let arrived = false;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const o = list[i];
+    if (s.day < o.arriveDay) continue;
+    s.compute.rented[o.gpu] += o.count;
+    list.splice(i, 1);
+    arrived = true;
+  }
+  // Предупреждение о простое молчит пару дней после прихода карт, как после изменения аренды.
+  if (arrived) s.compute.rentChangedDay = s.day;
+}
+
+/** Поставить карты сразу, без поставки (setRent + приход в тот же день). Для тестов и сценариев, где нужна готовая мощность. */
+export function rentNow(s: GameState, id: GpuId, count: number): Result {
+  const r = setRent(s, id, count);
+  if (!r.ok) return r;
+  for (const o of rentIncoming(s)) if (o.gpu === id) o.arriveDay = s.day;
+  computeDay(s);
+  return r;
+}
+
+/** Есть ли мощность или хотя бы заказ на неё (для подсказок: «арендуйте» не нужно, если карты уже едут). */
+export function computeOrdered(s: GameState): boolean {
+  return totalH100e(s) > 0 || (s.compute.incoming ?? []).some((o) => o.count > 0);
+}
+
+/** Ближайший приход заказанных карт: сколько и когда (null - ничего не едет). */
+export function nextArrival(s: GameState): { count: number; day: number } | null {
+  const list = (s.compute.incoming ?? []).filter((o) => o.count > 0);
+  if (list.length === 0) return null;
+  const day = Math.min(...list.map((o) => o.arriveDay));
+  return { day, count: list.filter((o) => o.arriveDay === day).reduce((a, o) => a + o.count, 0) };
 }

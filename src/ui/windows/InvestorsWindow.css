@@ -106,3 +106,11 @@
   .inv-col { padding: 12px; }
 }
 
+
+/* Раунд на переговорах: что продаётся и за сколько, когда придут деньги, полоса срока и «Прервать». */
+.inv-deal { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; padding: 10px 12px 12px; border-radius: 12px; background: var(--surface-control); box-shadow: inset 0 -4px 0 var(--edge); }
+.inv-deal-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.inv-deal-t { font-size: 15px; font-weight: var(--fw-strong); color: var(--text); }
+.inv-deal-t b { font-weight: var(--fw-title); color: var(--good-ink); }
+.inv-deal-s { font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }
+.inv-note { margin: 8px 0 0; font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }

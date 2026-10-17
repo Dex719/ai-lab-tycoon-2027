@@ -9,7 +9,8 @@ import { idleWarnings } from '../sim/idle';
 import { LAB_STAGES, labStage, metricStage, yearCups } from '../sim/labStage';
 import { rpPerDay, techCost, TECHS } from '../sim/research';
 import { staffSeats } from '../sim/staff';
-import { totalH100e } from '../sim/compute';
+import { nextArrival, totalH100e } from '../sim/compute';
+import { formatDateShort } from '../sim/time';
 import type { GameState, PlayerModel, Tier } from '../sim/types';
 import { distribute, ALLOC_ROWS } from './alloc';
 import { fmtH100e, fmtMoney, fmtNum, fmtShare, ruPlural } from './format';
@@ -219,6 +220,7 @@ export function LabFloor({ s, open }: { s: GameState; open: Open }) {
   const [at, setAt] = useState<At>({});
   const onAnchors = useCallback((a: At) => setAt(spread(a)), []);
   const next = nextStep(s, speed);
+  const arrival = nextArrival(s);
   return (
     <div className="lab-floor">
       <View3D spec={spec} interactive={false} label="Лаборатория" className="lf-view" onAnchors={onAnchors} />
@@ -226,7 +228,13 @@ export function LabFloor({ s, open }: { s: GameState; open: Open }) {
         <Tag
           at={at.servers}
           k={f.cards > 0 ? `Серверная · ${fmtH100e(f.h100e)} H100e` : 'Серверная'}
-          v={f.cards > 0 ? `${fmtNum(f.cards)} ${ruPlural(f.cards, 'карта', 'карты', 'карт')}${f.idle ? ', есть простой' : ''}` : 'Карт нет: арендовать'}
+          v={
+            f.cards > 0
+              ? `${fmtNum(f.cards)} ${ruPlural(f.cards, 'карта', 'карты', 'карт')}${f.idle ? ', есть простой' : ''}`
+              : arrival
+                ? `Карты в пути: придут ${formatDateShort(arrival.day)}`
+                : 'Карт нет: арендовать'
+          }
           warn={f.idle || f.cards === 0}
           onClick={() => open('compute')}
           tutorial="scene-compute"

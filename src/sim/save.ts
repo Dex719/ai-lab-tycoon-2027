@@ -19,6 +19,7 @@ import type {
   Datacenter,
   GoalOffer,
   DcOrder,
+  PendingRound,
   ExpenseKind,
   GameState,
   IncomeKind,
@@ -513,11 +514,13 @@ const STATE: Record<keyof GameState, Check> = {
   reputation: num,
   founderShare: num,
   lastRoundDay: nullable(num),
+  round: optional(nullable(shapeOf<PendingRound>({ fraction: num, valuation: num, money: num, startDay: num, closeDay: num, emergency: bool }))),
   monthsFirst: int,
   hype: record(HYPE_OWNERS, num),
   compute: shapeOf<GameState['compute']>({
     rented: record(GPU_IDS, nonNeg),
     rentChangedDay: optional(num),
+    incoming: optional(arrayOf(dcOrder)),
     alloc: shapeOf<GameState['compute']['alloc']>({ training: nonNeg, contracts: nonNeg, experiments: nonNeg, api: nonNeg, subs: nonNeg }),
   }),
   datacenters: shapeOf<GameState['datacenters']>({ unlockedDay: nullable(num), list: arrayOf(datacenter) }),
@@ -570,6 +573,7 @@ const STATE: Record<keyof GameState, Check> = {
     lostApi: num,
     lostSubs: num,
     segments: record(SEGMENT_IDS, segmentShares),
+    held: optional(dict(dict(num))),
   }),
 };
 

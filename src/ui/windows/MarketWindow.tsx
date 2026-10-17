@@ -161,6 +161,8 @@ export interface MarketRow {
   seg: Record<SegmentId, number | null>;
   /** Общая доля (взвешена по выручке сегментов). */
   share: number;
+  /** Общая целевая доля: к ней доля движется (клиенты переходят постепенно, market.ts SHARE_TAU_DAYS). */
+  target: number;
   /** Спрос по API, токенов в день, до ограничения мощностью; null - нет в API. */
   apiTokens: number | null;
   /** Спрос подписчиков, пользователей, до ограничения мощностью; null - нет в подписке. */
@@ -188,6 +190,7 @@ export function marketRows(s: GameState, snap: MarketSnapshot): MarketRow[] {
           subsPrice: null,
           seg: { consumers: null, enterprise: null, developers: null },
           share: 0,
+          target: 0,
           apiTokens: null,
           subsUsers: null,
         };
@@ -196,6 +199,7 @@ export function marketRows(s: GameState, snap: MarketSnapshot): MarketRow[] {
       const share = src.share(e);
       r.seg[id] = share;
       combined.set(e.key, (combined.get(e.key) ?? 0) + seg.weight * share);
+      r.target += seg.weight * (e.target ?? e.share);
       if (seg.channel === 'api') {
         r.apiPrice = e.price;
         r.apiTokens = (r.apiTokens ?? 0) + e.demand;
@@ -442,7 +446,14 @@ function MarketTable({ s, rows }: { s: GameState; rows: MarketRow[] | null }) {
                   {r.seg[id] !== null ? fmtShare(r.seg[id] as number) : <Dash />}
                 </td>
               ))}
-              <td className="num">{fmtShare(r.share)}</td>
+              <td className="num">
+                {fmtShare(r.share)}
+                {Math.abs(r.target - r.share) >= 0.005 && (
+                  <small className="mk-trend" title="Клиенты переходят к лучшей модели постепенно: за месяц доля проходит около двух третей пути к этой цифре">
+                    {r.target > r.share ? 'растёт' : 'падает'} к {fmtShare(r.target)}
+                  </small>
+                )}
+              </td>
               <td className="num">{r.apiTokens !== null ? fmtNum(r.apiTokens) : <Dash />}</td>
               {subs && <td className="num">{r.subsUsers !== null ? fmtNum(r.subsUsers) : <Dash />}</td>}
             </tr>

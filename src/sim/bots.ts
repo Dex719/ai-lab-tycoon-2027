@@ -5,7 +5,7 @@ import { EXTRA_EVENTS } from '../data/events';
 import { activeBenchmarks } from './benchmarks';
 import { botDatacenters } from './botsDatacenters';
 import { botFinale } from './finale';
-import { availableGpus, pool, rentCapFor, rentMaxFor, rentPerGpuDay, setAllocation, setRent, totalH100e } from './compute';
+import { availableGpus, orderedCount, pool, rentCapFor, rentMaxFor, rentPerGpuDay, setAllocation, setRent, totalH100e } from './compute';
 import { FAIL_ROLLBACK, RENT_OVER_CAP_MULT, ROUND_COOLDOWN_DAYS, TIER_API_PRICE_MULT, TRAIN_FLOP_PER_H100E_DAY } from './constants';
 import { applyTender, canApply, contractWorkFor } from './contracts';
 import { applyChoice, pendingChoice } from './events';
@@ -101,6 +101,8 @@ export function affordableRent(s: GameState, id: GpuId, budgetPerDay: number): n
 
 /** Дней до следующего возможного раунда инвестиций (0 - раунд доступен сейчас). */
 function daysToRound(s: GameState): number {
+  // Идут переговоры: деньги придут в день закрытия.
+  if (s.round) return Math.max(0, s.round.closeDay - s.day);
   return s.lastRoundDay === null ? 0 : Math.max(0, s.lastRoundDay + ROUND_COOLDOWN_DAYS - s.day);
 }
 
@@ -119,7 +121,9 @@ function contractPayoutsDue(s: GameState, horizon: number): number {
  */
 function runwayRentPerDay(s: GameState): number {
   const horizon = Math.max(BOT_RUNWAY_DAYS, Math.min(daysToRound(s), END_DAY - s.day));
-  const perDay = Math.min(s.cash / BOT_RUNWAY_DAYS, (s.cash + contractPayoutsDue(s, horizon)) / horizon);
+  // Деньги раунда на переговорах придут к закрытию: на горизонт до него их считать нельзя, после - можно.
+  const roundMoney = s.round && s.round.closeDay <= s.day + horizon ? s.round.money : 0;
+  const perDay = Math.min(s.cash / BOT_RUNWAY_DAYS, (s.cash + roundMoney + contractPayoutsDue(s, horizon)) / horizon);
   const apiPerDay = (s.finance.history.at(-1)?.income.api ?? 0) / 30;
   return perDay + apiPerDay - overheadPerDay(s);
 }
@@ -141,15 +145,24 @@ function cheapestPlan(s: GameState, p: BotProfile): { id: GpuId; h100e: number; 
   return { id: best.id, h100e: best.h100e, count: affordableRent(s, best.id, rentBudget(s, p)) };
 }
 
-/** Арендовать самые дешёвые H100e на бюджет (при деньгах - и сверх лимита), остальные типы вернуть. */
+/**
+ * Арендовать самые дешёвые H100e на бюджет (при деньгах - и сверх лимита), остальные типы вернуть.
+ * Карты едут rentDeliveryDays: старые типы возвращаются, только когда новых пришло почти столько, сколько нужно,
+ * а мощность под контракты заказывается уже под поданные заявки (plannedLoad), чтобы успеть к победе.
+ */
 function manageRent(s: GameState, p: BotProfile): void {
   const plan = cheapestPlan(s, p);
   if (!plan) return;
   let count = plan.count;
   // Выигранные контракты окупают аренду: карт должно хватать, чтобы доля «Контракты» закрывала все сроки.
-  const needed = Math.ceil(loadNeed(activeLoad(s)) / BOT_CONTRACTS_MAX_SHARE / plan.h100e);
+  const needed = Math.ceil(loadNeed(plannedLoad(s)) / BOT_CONTRACTS_MAX_SHARE / plan.h100e);
   if (needed > count) count = Math.min(rentMaxFor(s, plan.id), needed);
-  for (const g of availableGpus(s)) if (g.id !== plan.id && s.compute.rented[g.id] > 0) setRent(s, g.id, 0);
+  const switched = s.compute.rented[plan.id] >= 0.9 * count;
+  for (const g of availableGpus(s)) {
+    if (g.id === plan.id || orderedCount(s, g.id) === 0) continue;
+    // Пока новые карты едут, старые работают; ещё не пришедшие заказы старых типов отменяются сразу.
+    setRent(s, g.id, switched ? 0 : s.compute.rented[g.id]);
+  }
   setRent(s, plan.id, Math.max(0, count));
 }
 

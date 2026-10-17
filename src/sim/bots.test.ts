@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { newGame } from './actions';
 import { botAct, botChoice, chinchillaPlan, nextTech, runBot } from './bots';
-import { setRent } from './compute';
+import { computeDay, orderedCount, rentNow } from './compute';
 import { FAIL_ROLLBACK, TRAIN_FLOP_PER_H100E_DAY } from './constants';
 import { minPrice } from './market';
 import { botPriceReflex } from './rivalry';
@@ -36,7 +36,7 @@ describe('botChoice', () => {
 
   it('откат успевает до конца игры - откат (вариант 0)', () => {
     const s = newGame('Бот', 1);
-    setRent(s, 'p100', 100);
+    rentNow(s, 'p100', 100);
     s.compute.alloc = { training: 1, contracts: 0, experiments: 0, api: 0, subs: 0 };
     const perDay = 100 * 0.0214 * TRAIN_FLOP_PER_H100E_DAY;
     s.trainings = [run(perDay * 100, perDay * 50)];
@@ -45,7 +45,7 @@ describe('botChoice', () => {
 
   it('откат не успевает до конца игры - продолжить (вариант 1)', () => {
     const s = newGame('Бот', 1);
-    setRent(s, 'p100', 100);
+    rentNow(s, 'p100', 100);
     s.compute.alloc = { training: 1, contracts: 0, experiments: 0, api: 0, subs: 0 };
     const perDay = 100 * 0.0214 * TRAIN_FLOP_PER_H100E_DAY;
     s.day = END_DAY - 60;
@@ -57,7 +57,7 @@ describe('botChoice', () => {
 
   it('решение принимается по проекту с failed, а не по первому в списке', () => {
     const s = newGame('Бот', 1);
-    setRent(s, 'p100', 100);
+    rentNow(s, 'p100', 100);
     s.compute.alloc = { training: 1, contracts: 0, experiments: 0, api: 0, subs: 0 };
     const perDay = 100 * 0.0214 * TRAIN_FLOP_PER_H100E_DAY;
     s.day = END_DAY - 60;
@@ -73,6 +73,10 @@ describe('тендеры бота', () => {
   it('без мощности заявок нет, с мощностью - подаются в рамках половины пула', () => {
     const s = newGame('Бот', 1);
     s.day = 100;
+    botAct(s, 'reasonable');
+    expect(orderedCount(s, 'p100')).toBeGreaterThan(0); // заказано, карты едут
+    s.day += 30;
+    computeDay(s);
     botAct(s, 'reasonable');
     expect(s.compute.rented.p100).toBeGreaterThan(0);
     const alloc = s.compute.alloc;
@@ -194,9 +198,13 @@ describe('бот и рынок v2', () => {
     const s = newGame('Бот', 1);
     s.day = dateToDay('2024-06-01');
     s.rivalsReleased = ['gtp-4-turbu'];
-    setRent(s, 'h100', 10);
+    rentNow(s, 'h100', 10);
     // Две модели в продаже по обоим каналам с огромным спросом: нужно мощности больше, чем есть.
     s.models.push({ ...apiModel('p1', 0.1), arenaElo: 1400, onSubs: true }, { ...apiModel('p2', 0.1), arenaElo: 1390, onSubs: true });
+    botAct(s, 'reasonable');
+    // Заказанные ботом карты приходят через поставку: доли считаются уже по пришедшей мощности.
+    for (const o of s.compute.incoming ?? []) o.arriveDay = s.day;
+    computeDay(s);
     botAct(s, 'reasonable');
     const a = s.compute.alloc;
     expect(a.api).toBeLessThanOrEqual(0.5 + 1e-9);

@@ -7,7 +7,7 @@ import { applyTender, cancelContract, setAutoApply } from './contracts';
 import { buildDatacenter, buyDcGpus, sellDcGpus, writeOffDcGpus } from './datacenters';
 import { addMail, applyChoice, deferChoice, markRead } from './events';
 import { ackYearReview } from './goals';
-import { raiseRound } from './investors';
+import { cancelRound, raiseRound } from './investors';
 import { releaseHypeBonus, updateSaturation } from './leaderboard';
 import { minPrice, subsOpen } from './market';
 import { queueResearch, setResearch, unqueueResearch } from './research';
@@ -187,6 +187,7 @@ export {
   deferChoice,
   queueResearch,
   raiseRound,
+  cancelRound,
   setAllocation,
   setAutoApply,
   setRent,

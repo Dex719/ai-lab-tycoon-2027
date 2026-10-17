@@ -3,7 +3,7 @@
 // Первая модель учится сразу, на LSTM, пока идёт «Механизм внимания»: её баллов хватает для тендеров 2017 года,
 // и первые месяцы партии не проходят в ожидании исследования.
 
-import { pool, totalH100e } from '../sim/compute';
+import { computeOrdered, pool } from '../sim/compute';
 import { goalOfferOpen } from '../sim/goals';
 import type { GameState, Speed } from '../sim/types';
 import { contractsNeedWithApplications } from './forecast';
@@ -59,9 +59,9 @@ export const TUTORIAL: TutorialStep[] = [
   },
   {
     title: 'Аренда видеокарт',
-    text: 'Нажмите «Арендовать». Для начала хватит предложенных 96 карт Fermi P100: подтвердите аренду.',
+    text: 'Нажмите «Арендовать». Для начала хватит предложенных 96 карт Fermi P100: подтвердите аренду. Карты придут примерно через неделю.',
     targets: ['rent-confirm', 'rent-button', 'icon-compute'],
-    done: (s) => totalH100e(s) > 0,
+    done: (s) => computeOrdered(s),
   },
   {
     title: 'Доли мощности',

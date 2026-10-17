@@ -65,3 +65,5 @@
 .mk-grid .mk-h1 th { border-bottom: 1px solid var(--line); }
 .mk-grid th.mk-seg { font-weight: var(--fw-strong); }
 .mk-lab { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: var(--fw-small); color: var(--text-2); }
+/* «растёт к 12 %»: куда движется доля (инерция рынка), под текущей долей. */
+.mk-grid .mk-trend { display: block; font-size: 12px; font-weight: var(--fw-small); color: var(--text-2); white-space: nowrap; }

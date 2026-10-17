@@ -3,6 +3,8 @@
 import { HYPE_MONTHLY_DECAY, HYPE_OWNERS } from './constants';
 import { generateMonthly, progressDay as contractsDay } from './contracts';
 import { introduceDue } from './benchmarks';
+import { computeDay } from './compute';
+import { investorsDay } from './investors';
 import { datacentersDay } from './datacenters';
 import { duelDay } from './duel';
 import { dealsDay, dealsMonthEnd } from './deals';
@@ -74,6 +76,8 @@ export function advanceDay(s: GameState): void {
   staffDay(s); // команда: зарплаты; в начале месяца - кандидаты, опыт, уход неповышенных, переманивание
   expireChoices(s);
   fireDue(s);
+  investorsDay(s); // переговоры о раунде инвестиций: в срок закрываются, деньги приходят
+  computeDay(s); // арендованные карты, заказанные раньше, приходят и начинают работать
   datacentersDay(s); // свои дата-центры: этапы стройки, доставка карт (мощность нужна уже сегодня), электричество
   randomEventDay(s); // случайное письмо с выбором: своё расписание и свой поток случайных чисел
   goalsDay(s); // цели года: выдача в начале года и проверка выполнения

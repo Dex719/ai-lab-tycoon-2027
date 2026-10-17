@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { newGame, releaseModel } from './actions';
-import { setAllocation, setRent } from './compute';
+import { rentNow, setAllocation, setRent } from './compute';
 import { RESEARCH_QUEUE_MAX } from './constants';
 import { addMail, pruneMail } from './events';
 import { idleCompute, idleQuiet, idleTotal, idleWarnings } from './idle';
@@ -16,7 +16,7 @@ import type { GameState, PlayerModel } from './types';
 
 function lab(): GameState {
   const s = newGame('Тест', 1);
-  setRent(s, 'p100', 200);
+  rentNow(s, 'p100', 200);
   setAllocation(s, { training: 0, contracts: 0, experiments: 1, api: 0, subs: 0 });
   return s;
 }

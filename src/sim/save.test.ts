@@ -20,7 +20,8 @@ type Json = Record<string, unknown>;
 function richState(): GameState {
   const s = newGame('Бот', 1);
   let days = 0;
-  while (!s.outcome && (days < 900 || (s.trainings.length === 0 && days < 1500))) {
+  // Нужны и обучение, и хотя бы один открытый тендер (тендеры выходят раз в месяц и разбираются ботом).
+  while (!s.outcome && (days < 900 || ((s.trainings.length === 0 || s.tenders.length === 0) && days < 1500))) {
     const pending = pendingChoice(s);
     if (pending) {
       applyChoice(s, pending.id, 0);
@@ -48,6 +49,9 @@ function richState(): GameState {
   s.modifiers.push({ id: 'mod-c', kind: 'rivalPrice', target: 'gogle', mult: 0.7, add: 0.3, untilDay: s.day + 120 });
   s.modifiers.push({ id: 'mod-d', kind: 'exposure', target: s.models[0].id, mult: 2, untilDay: s.day + 180 });
   s.flags.exportControls = true;
+  // Ожидания во времени: карты в пути и раунд на переговорах (их поля тоже должны проходить проверку).
+  s.compute.incoming = [{ gpu: 'p100', count: 5, arriveDay: s.day + 7 }];
+  s.round = { fraction: 0.1, valuation: 10_000_000, money: 1_000_000, startDay: s.day, closeDay: s.day + 30, emergency: false };
   // Соперники с характерами спят до 2021 года: слух, активный ход, поправки, память и письмо с выбором добавляем руками.
   // Слухи не срабатывают (день после конца игры), письмо отложено - загруженная игра идёт дальше без остановки.
   const r = s.rivalry;
@@ -600,7 +604,7 @@ const OPTIONAL_FIELDS = new Set([
   'lostApi', 'lostSubs', 'segments', 'consumers', 'enterprise', 'developers', 'trainings', 'nextRunNum',
   'queue', 'techs', 'distill', 'moe', 'codetrain', 'instruct', 'cot', 'quant', 'multimodal', 'synthetic',
   'datacenters', 'capex', 'power', 'yearly', 'rentChangedDay',
-  'quests', 'param', 'results', 'duel', 'from', 'staff', 'retainedUntil', 'potential', 'lastCourseDay',
+  'quests', 'param', 'results', 'duel', 'from', 'staff', 'retainedUntil', 'potential', 'lastCourseDay', 'course', 'incoming', 'held', 'round',
 ]);
 /** Необязательные поля по полному пути: имя поля (modelId, price) в других местах обязательно. */
 const OPTIONAL_PATHS = new Set(['mail[].outcome', 'mail[].choices[].story', 'tenders[].application.work', 'contracts[].tender.application.work', 'contracts[].warned', 'rivalry.pending[].modelId', 'rivalry.choice.modelId']);
@@ -609,6 +613,7 @@ const optionalPath = (norm: string): boolean => OPTIONAL_PATHS.has(norm) || /^ri
 const DICTS = new Set([
   'flags', 'yearly.lastFired', 'finance.history[].prices', 'market.shares', 'models[].overfit', 'rivalry.moveCooldown', 'rivalry.overrides', 'rivalry.extra',
   'market.segments.consumers.shares', 'market.segments.enterprise.shares', 'market.segments.developers.shares',
+  'market.held', 'market.held.consumers', 'market.held.enterprise', 'market.held.developers',
 ]);
 
 describe('проверка покрывает каждое поле живого состояния', () => {

@@ -22,7 +22,8 @@ describe('личное соперничество', () => {
 
   it('письма соперников приходят редко и подписаны лабораторией', () => {
     const names = LABS.map((l) => l.name);
-    const letters = s.mail.filter((m) => m.kind === 'rival' && names.some((n) => m.title.startsWith(`${n}: `)));
+    // Личные письма соперника подписаны (from); новости о ходах соперников («Zhipo: цены ещё ниже») - нет, у них свой ритм.
+    const letters = s.mail.filter((m) => m.kind === 'rival' && m.from !== undefined && names.some((n) => m.title.startsWith(`${n}: `)));
     expect(letters.length).toBeGreaterThan(0);
     const days = letters.map((m) => m.day).sort((a, b) => a - b);
     for (let i = 1; i < days.length; i++) expect(days[i] - days[i - 1]).toBeGreaterThanOrEqual(DUEL_LETTER_GAP);
