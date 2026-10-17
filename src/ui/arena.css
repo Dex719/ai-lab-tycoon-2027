@@ -52,7 +52,7 @@
 .arb-n .ar-name { max-width: 170px; }
 .arb-v { text-align: right; color: var(--text-body); }
 .arb-note { width: 1%; text-align: right; font-size: 12px; font-weight: 600; }
-.arb-rows tr.me td { background: #e3eefc; font-weight: 600; }
+.arb-rows tr.me td { background: var(--row-sel); font-weight: 600; }
 .arb-rows tr.me .arb-v { color: var(--text); }
 .arb-you { font-size: 12px; font-weight: 600; color: var(--accent-dark); }
 .arb-rows tr.passed .arb-note { color: var(--good-ink); }

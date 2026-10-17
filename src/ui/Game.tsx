@@ -11,7 +11,7 @@ import { EndDialog } from './EndDialog';
 import { YearReviewModal } from './YearReviewModal';
 import { GoalChoiceModal } from './GoalChoice';
 import { IconExit, IconFolder, IconGear, IconLogo, IconSave, IconTrophy } from './icons';
-import { formatDateShort } from '../sim/time';
+import { dayToDate, formatDateShort } from '../sim/time';
 import { SettingsDialog, SlotsDialog } from './MainMenu';
 import { SidePanel } from './SidePanel';
 import { store, useSpeed } from './store';
@@ -42,7 +42,7 @@ interface OpenWin extends WinGeom {
 }
 
 /** Отступ слева и ширина сводки справа: окна открываются между ними. Разделы - в доке на панели задач. */
-const LEFT_ICONS = 16;
+const LEFT_ICONS = 96;
 const RIGHT_ICONS = 316;
 
 interface BodyProps extends WindowProps {
@@ -296,6 +296,7 @@ export function Game({ s }: { s: GameState }) {
               hidden={phone && w.z !== topZ}
               leaving={leaving[w.id]}
               accent={WIN_ACCENT[w.id]}
+              icon={def.icon}
               onFocus={() => focus(w.id)}
               onClose={() => closeAnim(w.id)}
               onMinimize={() => (phone ? minimizeAll() : minAnim(w.id))}
@@ -405,6 +406,7 @@ export function Game({ s }: { s: GameState }) {
           );
         })}
         <MonthStrip s={s} />
+        {!phone && <MonthsBar day={s.day} />}
         <div className="task-clock">{clock}</div>
       </footer>
     </div>
@@ -453,6 +455,24 @@ function DeskIcon(props: {
       {newSince != null && day !== undefined && isFresh(day, newSince) && <span className="new-badge desk-new">Новое</span>}
       <span className="icon-label">{def.title}</span>
     </button>
+  );
+}
+
+const MONTH_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+
+/** Полоса месяцев года внизу экрана: прошедшие светлее, текущий - бирюзой с полосой прошедших дней. */
+function MonthsBar({ day }: { day: number }) {
+  const d = dayToDate(day);
+  return (
+    <div className="months-bar" aria-label={`${d.year} год`}>
+      <b className="mb-year">{d.year}</b>
+      {MONTH_SHORT.map((m, i) => (
+        <span key={m} className={i + 1 < d.month ? 'past' : i + 1 === d.month ? 'now' : undefined}>
+          {i + 1 === d.month && <i style={{ width: `${Math.round(((d.day - 1) / 30) * 100)}%` }} />}
+          <em>{m}</em>
+        </span>
+      ))}
+    </div>
   );
 }
 

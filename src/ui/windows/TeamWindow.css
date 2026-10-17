@@ -19,12 +19,12 @@
 
 .tm-tabs { flex: none; display: flex; align-items: center; gap: 4px; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
 .tm-tabs button { padding: 6px 12px; background: none; border: none; border-radius: 3px; font-size: 14px; color: var(--text); cursor: pointer; }
-.tm-tabs button:hover { background: #e9ecf0; }
-.tm-tabs button.on { background: #e3eefc; color: var(--info-ink); font-weight: 600; }
+.tm-tabs button:hover { background: var(--row-hover); }
+.tm-tabs button.on { background: var(--row-sel); color: var(--info-ink); font-weight: 600; }
 .tm-tabs .error { margin-left: auto; }
 
-.tm-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr); background: #d3d5d9; }
-.tm-body-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--text-dim); background: #d3d5d9; }
+.tm-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr); background: var(--win-body); }
+.tm-body-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--text-dim); background: var(--win-body); }
 
 /* Список: человек, уровень и роль, вывод словами справа. */
 .tm-list { min-height: 0; overflow: auto; background: #fff; border-right: 1px solid var(--line); }
@@ -32,8 +32,8 @@
   width: 100%; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 12px;
   text-align: left; background: none; border: none; border-bottom: 1px solid var(--row-line); color: var(--text); cursor: pointer; font: inherit;
 }
-.tm-item:hover { background: #f3f5f8; }
-.tm-item.on { background: #e3eefc; }
+.tm-item:hover { background: var(--row-hover); }
+.tm-item.on { background: var(--row-sel); }
 .tm-item.wait { opacity: 0.7; }
 .tm-item-main { display: flex; flex-direction: column; min-width: 0; }
 .tm-item-main b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -87,7 +87,7 @@
 .tm-prof-act .tm-fire { margin-left: auto; }
 
 /* Найм: карточки кандидатов в две колонки. */
-.tm-hire { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-content: start; padding: 12px 16px; background: #d3d5d9; }
+.tm-hire { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-content: start; padding: 12px 16px; background: var(--win-body); }
 .tm-cand { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-radius: 3px; }
 .tm-cand .tm-prof-id h3 { font-size: 16px; }
 .tm-cand-foot { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-dim); }

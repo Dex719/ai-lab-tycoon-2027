@@ -1,0 +1,238 @@
+/* Интерфейс по образцу, который выбрал владелец (Two Point Campus, кадры 83 и 84 из Game UI Database):
+   бирюзовые панели с кремовыми карточками, лента заголовка окна с круглым значком, кнопки-таблетки с нижней гранью,
+   тёмно-бирюзовые плашки HUD поверх 3D-сцены, полоса месяцев внизу, разделы - колонкой значков слева.
+   Система - proto/sys/tp (system.json, контраст проверен). Файл подключается последним и переопределяет тему;
+   раскладка HUD - только на компьютере (от 768 px), телефон остаётся прежним. */
+
+:root {
+  --font: 'Nunito Variable', 'Segoe UI', Roboto, Arial, sans-serif;
+  /* Образец: бирюза ленты и кнопок, тёмная грань, светлая бирюза тела окна, крем карточек, оранжевый второй цвет. */
+  --teal: #1fa3b3;
+  --teal-deep: #137a87;
+  --teal-ink: #0f6672;
+  --hud: rgb(30 62 70 / 0.9);
+  --hud-2: rgb(19 44 51 / 0.92);
+  --cream: #f7f2e7;
+  --orange: #f2922c;
+  --orange-deep: #c46d14;
+
+  --desk: #79a957;
+  --bar: var(--hud-2);
+  --win-title: var(--teal);
+  --win-body: #d3e9ec;
+  --panel: var(--cream);
+  --line: #a9cdd2;
+  --line-soft: #c4dfe2;
+  --text: #1c2b2f;
+  --text-dim: #4b6065;
+  --text-body: #26383d;
+  --text-title: #1c2b2f;
+  --accent: #137a87;
+  --accent-dark: #0f6672;
+  --info-ink: #0f6672;
+  --row-hover: #e7f5f6;
+  --row-sel: #cdeef1;
+  --row-line: #d2e6e8;
+  --side: var(--hud);
+}
+
+body { font-family: var(--font); font-weight: 600; }
+b, strong, h1, h2, h3, h4 { font-weight: 800; }
+
+/* ---------- Кнопки: таблетки с нижней гранью ---------- */
+.btn {
+  height: 34px; padding: 0 16px; border-radius: 999px; border: none; background: #fff; color: var(--teal-ink);
+  font-weight: 800; box-shadow: inset 0 -3px 0 #b9d6da;
+}
+.btn:hover:not(:disabled) { background: #eef8f9; }
+.btn:active:not(:disabled) { box-shadow: inset 0 -1px 0 #b9d6da; transform: translateY(1px); }
+.btn.primary { background: var(--teal); color: #fff; box-shadow: inset 0 -4px 0 var(--teal-deep); }
+.btn.primary:hover:not(:disabled) { background: #26b3c4; }
+.btn.primary:active:not(:disabled) { box-shadow: inset 0 -1px 0 var(--teal-deep); }
+.btn.danger { color: #c0353b; }
+.btn.danger:hover:not(:disabled) { background: #fdeceb; }
+.btn.small { height: 28px; padding: 0 12px; }
+.btn.big { height: 40px; padding: 0 22px; font-weight: 900; }
+.btn[aria-disabled='true']:hover, .btn[aria-disabled='true']:active { background: #fff; transform: none; }
+.btn.primary[aria-disabled='true']:hover, .btn.primary[aria-disabled='true']:active { background: var(--teal); }
+.new-badge { background: var(--orange); }
+
+input[type='text'], input[type='number'], select { border-radius: 999px; border: 2px solid #b9d6da; padding: 0 12px; font-weight: 700; }
+input[type='text']:focus, input[type='number']:focus, select:focus { border-color: var(--teal); border-bottom-width: 2px; }
+
+/* ---------- Вкладки: таблетки, активная оранжевая ---------- */
+.tabs { gap: 6px; padding: 10px 14px; background: transparent; border-bottom: none; }
+.tab { height: 32px; padding: 0 16px; border-radius: 999px; border: none; background: #9cc7cd; color: #fff; font-size: 14px; font-weight: 800; }
+.tab:hover { background: #8abcc3; color: #fff; }
+.tab.on { background: var(--orange); color: #fff; border-bottom: none; }
+
+/* ---------- Таблицы и карточки ---------- */
+table.grid { border: none; border-radius: 10px; overflow: hidden; }
+table.grid th { background: var(--teal); color: #fff; font-weight: 800; border-bottom: none; }
+table.grid tr:nth-child(even) td { background: #f2f9fa; }
+.card { background: var(--cream); border: none; border-radius: 10px; }
+.badge { background: #d9444a; }
+
+@media (min-width: 768px) {
+  /* ---------- Окна: лента заголовка с круглым значком, бирюзовое тело ---------- */
+  .game .window {
+    border-radius: 14px; overflow: visible; background: var(--win-body);
+    box-shadow: 0 10px 30px rgb(20 50 56 / 0.35), 0 0 0 3px rgb(255 255 255 / 0.85);
+  }
+  .game .window .titlebar {
+    height: 46px; padding: 0 8px 0 10px; gap: 10px; border-radius: 14px 14px 0 0; border-bottom: none;
+    background: var(--teal); color: #fff; box-shadow: inset 0 -4px 0 var(--teal-deep);
+    font-size: 19px; font-weight: 900; letter-spacing: 0.03em; text-transform: uppercase;
+  }
+  .game .window:not(.active) .titlebar { background: #5fb3be; box-shadow: inset 0 -4px 0 #3f8f99; }
+  .game .window.active .titlebar { color: #fff; }
+  .titlebar .wicon { width: 34px; height: 34px; flex: none; border-radius: 50%; background: #fff; display: grid; place-items: center; }
+  .game .titlebar .wbtn { width: 30px; height: 30px; border-radius: 50%; background: rgb(255 255 255 / 0.2); color: #fff; }
+  .game .titlebar .wbtn:hover { background: rgb(255 255 255 / 0.35); }
+  .game .titlebar .wbtn.close:hover { background: #d9444a; }
+  .game .window-body { border-radius: 0 0 14px 14px; }
+
+  /* ---------- Рабочий стол: трава вокруг лаборатории ---------- */
+  .game .desk { background: var(--desk); }
+
+  /* ---------- Верхняя панель разобрана на плашки HUD ---------- */
+  html .game .topbar {
+    position: fixed; inset: 0; height: auto; display: block; padding: 0; background: none; box-shadow: none; pointer-events: none; z-index: 900;
+  }
+  html .game .topbar > * { pointer-events: auto; }
+  /* Лаборатория - лента слева сверху. */
+  html .game .topbar-left {
+    position: absolute; top: 0; left: 0; height: 52px; padding: 0 56px 0 14px; gap: 10px; color: #dff3f5; font-size: 14px;
+    background: var(--teal); clip-path: polygon(0 0, 100% 0, calc(100% - 34px) 100%, 0 100%); box-shadow: inset 0 -5px 0 var(--teal-deep);
+  }
+  html .game .topbar-left b { color: #fff; font-size: 20px; font-weight: 900; letter-spacing: 0.02em; }
+  .game .tb-logo { width: 34px; height: 34px; border-radius: 50%; background: #fff; color: var(--teal-deep); }
+  .game .tb-founder::before { color: #a7dfe5; }
+  .tb-stage::before { color: #a7dfe5; }
+  .tb-stage { color: #e6f7f8; }
+  .tb-stage-bar { background: var(--teal-deep); }
+  .tb-stage-bar > i { background: var(--orange); }
+  /* Деньги, расход, дата и скорость - плашка справа снизу. */
+  html .game .topbar-center {
+    position: absolute; right: 12px; bottom: 44px; display: grid; grid-template-columns: auto auto; gap: 6px 10px; align-items: center;
+    padding: 10px 12px; background: var(--hud); border-radius: 14px; color: #fff;
+  }
+  html .game .topbar-center .tb-sep { display: none; }
+  .game .tb-money {
+    grid-column: 1 / -1; height: 44px; padding: 0 16px 0 6px; border-radius: 999px; background: #fff; color: var(--text); font-size: 24px; font-weight: 900; gap: 10px;
+  }
+  .game .tb-money > svg { width: 34px; height: 34px; padding: 6px; border-radius: 50%; background: var(--orange); color: #fff; }
+  .game .tb-money .tb-bad { color: #c0353b; }
+  .game .tb-rate { font-size: 14px; font-weight: 800; }
+  .game .tb-rate .tb-good { color: #8ee2a8; }
+  .game .tb-rate .tb-bad { color: #ff9b94; }
+  .game .tb-date { font-size: 15px; font-weight: 900; justify-self: end; }
+  .game .tb-date svg, .game .tb-rate svg { color: #a7dfe5; }
+  .game .speed { grid-column: 1 / -1; justify-self: end; gap: 4px; }
+  html .game .speed button { width: 38px; height: 32px; border-radius: 8px; background: #fff; color: var(--teal-deep); }
+  html .game .speed button:hover { background: #e7f5f6; color: var(--teal-deep); }
+  html .game .speed button.on { background: var(--orange); color: #fff; }
+  html .game .speed button.on[aria-label^='Пауза'] { background: #d9444a; color: #fff; }
+  .game .topbar.paused .topbar-center { box-shadow: 0 0 0 3px #d9444a; }
+  /* Доля, репутация, шумиха и гонка - плашка над деньгами. */
+  html .game .topbar-right {
+    position: absolute; right: 12px; bottom: 228px; display: flex; gap: 12px; align-items: center; padding: 8px 14px;
+    background: var(--hud); border-radius: 14px; color: #fff;
+  }
+  .game .pause-note { top: 60px; background: #d9444a; color: #fff; border: none; border-radius: 999px; font-weight: 800; padding: 6px 16px; }
+
+  /* ---------- Панель задач: полоса месяцев внизу, разделы - колонкой значков слева ---------- */
+  html .game .taskbar { height: 34px; padding: 0; gap: 0; background: var(--hud-2); box-shadow: none; }
+  .game .task-clock, .game .task-sep { display: none; }
+  .game .task-start {
+    position: fixed; left: 12px; bottom: 46px; width: 60px; height: 60px; border-radius: 16px; background: var(--hud); color: #fff; z-index: 905;
+  }
+  .game .task-start:hover, .game .task-start.on { background: var(--teal); }
+  .game .start-menu { bottom: 116px; left: 12px; border-radius: 14px; background: var(--hud-2); }
+  html .game .dock {
+    position: fixed; left: 0; top: 50%; transform: translateY(-50%); flex: none; height: auto; flex-direction: column; justify-content: flex-start;
+    gap: 6px; padding: 10px 8px; background: var(--hud); border-radius: 0 16px 16px 0; z-index: 905;
+  }
+  html .game .dock-btn {
+    width: 60px; height: 56px; border-radius: 12px; background: var(--teal); color: #fff; box-shadow: inset 0 -4px 0 var(--teal-deep); gap: 1px;
+  }
+  html .game .dock-btn span { font-size: 9px; font-weight: 800; max-width: 56px; }
+  html .game .dock-btn:hover { background: #26b3c4; }
+  html .game .dock-btn.active { background: var(--orange); box-shadow: inset 0 -4px 0 var(--orange-deep); }
+  html .game .dock-btn.open::after { bottom: auto; top: 50%; left: auto; right: -9px; width: 5px; height: 5px; transform: translateY(-50%); background: #fff; }
+  html .game .dock-btn.active::after { width: 4px; height: 24px; right: -10px; background: var(--orange); }
+  html .game .dock-btn .count { top: -5px; right: -5px; background: #d9444a; border: 2px solid #fff; }
+  .months-bar { flex: 1; height: 100%; display: grid; grid-template-columns: 64px repeat(12, 1fr); }
+  .months-bar .mb-year { display: grid; place-items: center; background: var(--teal-deep); color: #fff; font-weight: 900; }
+  .months-bar span { position: relative; display: grid; place-items: center; border-right: 2px solid rgb(0 0 0 / 0.25); color: #9cc2c8; font-size: 13px; font-weight: 800; overflow: hidden; }
+  .months-bar span.past { background: rgb(31 163 179 / 0.32); color: #fff; }
+  .months-bar span.now { background: rgb(31 163 179 / 0.45); color: #fff; }
+  .months-bar span.now i { position: absolute; inset: 0 auto 0 0; background: var(--teal); }
+  .months-bar em { position: relative; font-style: normal; }
+  /* Итог месяца всплывает над полосой месяцев по центру. */
+  .game .month-strip { position: fixed; left: 50%; bottom: 44px; transform: translateX(-50%); max-width: 70%; height: 46px; border-radius: 14px; background: var(--hud-2); z-index: 905; }
+
+  /* ---------- Сводка справа: тёмно-бирюзовая плашка, бирюзовые шапки ---------- */
+  .game .side { top: 12px; right: 12px; bottom: 300px; }
+  .game .side-body { border-radius: 14px; background: var(--hud); }
+  .game .side-head { border-top: none; background: var(--teal); color: #fff; font-weight: 900; padding: 8px 14px; }
+  .game .side-tab { background: var(--hud); color: #fff; border-radius: 10px 0 0 10px; }
+  .game .side-tabs button { border-radius: 999px; font-weight: 800; }
+  .game .side-tabs button.on { background: var(--orange); }
+  .game .side-item { border-bottom-color: rgb(255 255 255 / 0.08); }
+  .game .side .progress { height: 10px; border-radius: 999px; background: #173a42; overflow: hidden; }
+  .game .side .progress > div { border-radius: 999px; }
+}
+
+/* ---------- Диалоги: лента заголовка и бирюзовое тело, как окна ---------- */
+.dialog { border-radius: 14px; background: var(--win-body); box-shadow: 0 14px 40px rgb(20 50 56 / 0.4), 0 0 0 3px rgb(255 255 255 / 0.85); overflow: hidden; }
+.dialog .titlebar {
+  height: 46px; padding: 0 10px 0 16px; background: var(--teal); color: #fff; border-bottom: none; border-radius: 0;
+  box-shadow: inset 0 -4px 0 var(--teal-deep); font-size: 18px; font-weight: 900; letter-spacing: 0.02em;
+}
+.dialog .titlebar .wbtn { width: 30px; height: 30px; border-radius: 50%; background: rgb(255 255 255 / 0.2); color: #fff; }
+.dialog .titlebar .wbtn:hover { background: #d9444a; }
+.dialog .body.white { background: var(--cream); }
+.modal-backdrop { background: rgb(14 40 46 / 0.45); }
+
+/* ---------- Уведомления: кремовые карточки с бирюзовой каймой ---------- */
+.toast { border-radius: 14px; background: var(--cream); border: 3px solid #fff; box-shadow: 0 6px 18px rgb(20 50 56 / 0.25); }
+.toast.important { border-color: var(--orange); }
+.toast .ta button { color: var(--teal-ink); font-weight: 800; }
+.toast-x { border-radius: 50%; }
+
+@media (min-width: 768px) {
+  /* Уведомления - слева снизу, рядом с колонкой разделов: справа снизу деньги и скорость. */
+  .toasts { right: auto; left: 96px; bottom: 46px; }
+}
+
+/* ---------- Главное меню: лаборатория на траве, лента с названием, бирюзовая панель с кнопками-таблетками ---------- */
+.menu-screen.mm { background: var(--desk); color: var(--text); grid-template-columns: minmax(380px, 34%) minmax(0, 1fr); }
+.mm-hall { inset: 0 0 0 -8vw; }
+.mm-left { position: relative; z-index: 1; padding: 0 0 40px 0; justify-content: flex-start; }
+.mm-title {
+  padding: 14px 70px 18px 28px; background: var(--teal); color: #fff; font-size: clamp(30px, 3vw, 44px); font-weight: 900; letter-spacing: 0.03em;
+  text-transform: uppercase; clip-path: polygon(0 0, 100% 0, calc(100% - 44px) 100%, 0 100%); box-shadow: inset 0 -6px 0 var(--teal-deep);
+}
+.mm-years { margin: 12px 0 0 28px; padding: 4px 14px; border-radius: 999px; background: rgb(255 255 255 / 0.9); color: var(--teal-ink); font-weight: 800; }
+.mm-cont {
+  margin: 6vh 0 0 28px; width: min(380px, calc(100% - 56px)); padding: 14px 18px; background: var(--cream); border: 3px solid #fff; border-radius: 14px;
+  box-shadow: inset 0 -5px 0 #d9cfba; color: var(--text);
+}
+.mm-cont:hover, .mm-cont:focus-visible { border-color: var(--orange); background: #fffaf0; }
+.mm-cont-k { color: var(--orange-deep); font-weight: 900; }
+.mm-cont-n { color: var(--text); font-weight: 900; }
+.mm-cont-d { color: var(--text-dim); }
+.mm-items {
+  margin: 16px 0 0 28px !important; width: min(380px, calc(100% - 56px)); padding: 12px; gap: 8px; background: var(--win-body); border-radius: 14px;
+  align-items: stretch; box-shadow: 0 0 0 3px rgb(255 255 255 / 0.85);
+}
+.mm-item {
+  height: 46px; padding: 0 20px; border-radius: 999px; background: #fff; color: var(--teal-ink); font-size: 18px; font-weight: 900; text-align: left;
+  box-shadow: inset 0 -4px 0 #b9d6da;
+}
+.mm-item:hover, .mm-item:focus-visible { text-decoration: none; background: var(--teal); color: #fff; box-shadow: inset 0 -4px 0 var(--teal-deep); }
+.mm-error { margin-left: 28px; color: #b3262c; font-weight: 800; }
+.menu-screen .version { color: #fff; font-weight: 800; }
+
+body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }

@@ -100,6 +100,7 @@ function factsOf(s: GameState): Facts {
     training: !!training && !training.stalled,
     models: shelf.map((m, i) => (i === 0 && place === 1 ? '#e8c34a' : TIER_COLOR[m.plan.tier])),
     cups: yearCups(s).slice(-6).map((c) => c.kind),
+    base: '#5f8f45',
   };
   return {
     spec,

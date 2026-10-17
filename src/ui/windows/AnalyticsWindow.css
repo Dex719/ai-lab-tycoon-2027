@@ -120,7 +120,7 @@
 .bar-track { height: 10px; background: #eceef1; border-radius: 1px; }
 .bar-fill { display: block; height: 100%; }
 .bar-val { text-align: right; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.bar-row.me { background: #e3eefc; color: #1f2023; font-weight: 600; }
+.bar-row.me { background: var(--row-sel); color: #1f2023; font-weight: 600; }
 .bar-row.none { margin-top: 4px; padding-top: 4px; border-top: 1px solid #e3e5e8; border-radius: 0; color: #6b6f76; }
 .bars-meta { margin-top: 6px; padding: 8px 4px 2px; border-top: 1px solid #e3e5e8; color: var(--text-dim); font-size: 13px; }
 .bars-meta .r { display: flex; justify-content: space-between; gap: 16px; line-height: 1.7; }
@@ -203,7 +203,7 @@
 .arn-medal.bronze { background: #d39867; color: #2b1606; }
 .arn-gap { color: var(--bad-ink); font-variant-numeric: tabular-nums; }
 .arn-gap.lead { color: var(--gold-ink); font-weight: 700; }
-table.grid.arn-grid tr.player td { background: #e3eefc; font-weight: 600; }
+table.grid.arn-grid tr.player td { background: var(--row-sel); font-weight: 600; }
 table.grid.arn-grid tr.arn-out td { color: var(--text-dim); }
 table.grid.arn-grid tr.arn-out .arn-model-n { font-weight: 400; }
 

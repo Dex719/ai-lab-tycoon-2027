@@ -2,7 +2,7 @@
    внизу одна полоса долей с перетаскиваемыми границами и колонки «что даёт доля». */
 
 .cw {
-  --cw-well: #d3d5d9;
+  --cw-well: var(--win-body);
   container-type: inline-size;
   display: flex;
   flex-direction: column;

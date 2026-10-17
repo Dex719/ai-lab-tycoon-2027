@@ -9,6 +9,8 @@ import { initRealNames } from './ui/realNamesDom';
 import { actions, store } from './ui/store';
 import './ui/theme.css';
 import './ui/responsive.css';
+import '@fontsource-variable/nunito';
+import './ui/tpc.css';
 
 // Отладка и проверка агентом во встроенном браузере (NFR-4).
 if (import.meta.env.DEV) {

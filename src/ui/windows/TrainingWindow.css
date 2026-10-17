@@ -61,7 +61,7 @@
 .nm-tier-wrap { position: relative; display: flex; min-width: 0; }
 .nm-tier-wrap .deny-note { left: 0; right: auto; }
 .nm-tier {
-  --tier: var(--accent); --tier-text: var(--info-ink); --tier-on: #e3eefc;
+  --tier: var(--accent); --tier-text: var(--info-ink); --tier-on: var(--row-sel);
   flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 4px;
   background: #fff; color: #4a4d54; border: 1px solid var(--line); border-radius: 4px; cursor: pointer; font-size: 12px;
 }

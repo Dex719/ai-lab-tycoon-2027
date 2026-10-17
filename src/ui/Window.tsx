@@ -1,6 +1,6 @@
 // Окно рабочего стола: перетаскивание за заголовок, изменение размера за угол, выход на передний план.
 
-import { useRef, type ReactNode } from 'react';
+import { useRef, type ComponentType, type ReactNode } from 'react';
 
 export interface WinGeom {
   x: number;
@@ -44,6 +44,7 @@ interface Props {
   geom: WinGeom;
   active: boolean;
   accent?: string; // цвет верхней полосы заголовка
+  icon?: ComponentType<{ size?: number }>; // значок раздела в круге слева от названия
   flush?: boolean; // тело без отступов (окно само раскладывает панели)
   fullscreen?: boolean; // телефон: окно на весь стол, без перетаскивания и изменения размера
   hidden?: boolean; // телефон: окно открыто, но показано другое
@@ -55,7 +56,7 @@ interface Props {
   children: ReactNode;
 }
 
-export function Window({ title, geom, active, accent, flush, fullscreen, hidden, leaving, onFocus, onClose, onMinimize, onMove, children }: Props) {
+export function Window({ title, geom, active, accent, icon: Icon, flush, fullscreen, hidden, leaving, onFocus, onClose, onMinimize, onMove, children }: Props) {
   const drag = useRef<{ dx: number; dy: number } | null>(null);
 
   function startDrag(e: React.PointerEvent) {
@@ -102,6 +103,11 @@ export function Window({ title, geom, active, accent, flush, fullscreen, hidden,
               <path d="M9 2L4 7l5 5" fill="none" stroke="currentColor" strokeWidth="1.8" />
             </svg>
           </button>
+        )}
+        {Icon && (
+          <span className="wicon" aria-hidden="true">
+            <Icon size={22} />
+          </span>
         )}
         <span className="t">{title}</span>
         <button className="wbtn min" onClick={onMinimize} title="Свернуть" aria-label="Свернуть">

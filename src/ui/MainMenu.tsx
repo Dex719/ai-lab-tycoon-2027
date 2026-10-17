@@ -19,8 +19,7 @@ import { applySfxVolume, playSound } from './sound';
 import { getSettings, setSettings } from './settings';
 import { store } from './store';
 import { ALLOC_ROWS } from './alloc';
-import { DEFAULT_ALLOC } from '../sim/constants';
-import type { FarmSpec } from './three/specs';
+import type { LabSpec } from './three/specs';
 import { View3D } from './three/View3D';
 import { desktop } from './desktop';
 import { ScreenSettings } from './ScreenSettings';
@@ -86,7 +85,7 @@ export function MainMenu() {
         </div>
       </div>
       <div className="mm-right" aria-hidden="true">
-        <View3D spec={MENU_HALL} label="Машинный зал лаборатории" className="mm-hall" />
+        <View3D spec={MENU_HALL} label="Лаборатория" className="mm-hall" />
       </div>
       <div className="version">{VERSION}</div>
       {dialog === 'new' && <NewGameDialog onClose={() => setDialog(null)} />}
@@ -97,12 +96,20 @@ export function MainMenu() {
   );
 }
 
-/** Зал на экране меню: несколько рядов стоек с планками задач по стартовым долям. */
-const MENU_HALL: FarmSpec = {
-  kind: 'farm',
-  groups: [{ gpu: 'v100', cards: 1100 }],
-  tasks: ALLOC_ROWS.map((r) => ({ color: r.color, share: DEFAULT_ALLOC[r.key] })),
-  backdrop: '#202124',
+/** Лаборатория на экране меню: офис с людьми за работой на траве - то, что игрок построит. */
+const MENU_HALL: LabSpec = {
+  kind: 'lab',
+  stage: 1,
+  people: 8,
+  freeSeats: 0,
+  racks: 3,
+  racksLit: 20,
+  rackColors: ALLOC_ROWS.slice(0, 3).map((r) => r.color),
+  research: true,
+  training: true,
+  models: ['#e8c34a', '#2f80e4', '#1fa8a0'],
+  cups: ['goals'],
+  base: '#5f8f45',
 };
 
 /** Чем сложности отличаются, словами и числами (из DIFFICULTY). */
