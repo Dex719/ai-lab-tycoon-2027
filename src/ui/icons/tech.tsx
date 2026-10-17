@@ -14,21 +14,18 @@ export interface TechIconProps {
 
 type Draw = (t: Tone) => ReactElement;
 
-/** Механизм внимания: ряд слов, от выделенного слова дуги внимания к остальным. */
+/** Механизм внимания: глаз смотрит на одно выделенное слово в ряду слов. */
 const attention: Draw = (t) => (
   <>
-    <g fill="none" stroke={t('#2f80e4')} strokeLinecap="round">
-      <path d="M32 44 Q20.5 4 9 44" strokeWidth={4.2} />
-      <path d="M32 44 Q26 24 20.5 44" strokeWidth={2} />
-      <path d="M32 44 Q38 24 43.5 44" strokeWidth={2.6} />
-      <path d="M32 44 Q43.5 10 55 44" strokeWidth={1.6} />
-    </g>
-    <rect x={3.5} y={45} width={11} height={11} rx={2.5} fill={t('#9cc2f0')} />
-    <rect x={15} y={45} width={11} height={11} rx={2.5} fill={t('#9cc2f0')} />
-    <rect x={26.5} y={45} width={11} height={11} rx={2.5} fill={t('#1f5aa8')} />
-    <rect x={38} y={45} width={11} height={11} rx={2.5} fill={t('#9cc2f0')} />
-    <rect x={49.5} y={45} width={11} height={11} rx={2.5} fill={t('#9cc2f0')} />
-    <circle cx={32} cy={50.5} r={2.2} fill={t('#ffd34d')} />
+    <path d="M26 31 L38 31 L42 45 L22 45 Z" fill={t('#cfe1f8')} />
+    <path d="M8 21 Q32 0 56 21 Q32 42 8 21 Z" fill={t('#e6f0fc')} stroke={t('#2f80e4')} strokeWidth={3.5} strokeLinejoin="round" />
+    <circle cx={32} cy={21} r={8.5} fill={t('#2f80e4')} />
+    <circle cx={32} cy={21} r={3.8} fill={t('#173f78')} />
+    <circle cx={34.6} cy={18.4} r={1.7} fill={t('#ffffff')} />
+    <rect x={3} y={46} width={17} height={11} rx={2.5} fill={t('#9cc2f0')} />
+    <rect x={23.5} y={46} width={17} height={11} rx={2.5} fill={t('#1f5aa8')} />
+    <rect x={44} y={46} width={17} height={11} rx={2.5} fill={t('#9cc2f0')} />
+    <circle cx={32} cy={51.5} r={2.4} fill={t('#ffd34d')} />
   </>
 );
 
