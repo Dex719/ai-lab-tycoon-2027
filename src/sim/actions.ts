@@ -43,6 +43,9 @@ function findModel(s: GameState, modelId: string) {
   return s.models.find((m) => m.id === modelId);
 }
 
+/** Конец «раннего» рынка API: с 11.06.2020 (GTP-3 по API) спрос вырастает в разы (constants.DEMAND_TOKENS). */
+const EARLY_API_END = '2020-06-11';
+
 const MAX_PRICE = 10_000; // $ за 1 млн токенов
 
 /** «$1», «$0,6», «$0,025», «$10 000». */
@@ -103,6 +106,17 @@ export function releaseModel(s: GameState, modelId: string, price: number, opts:
     title: `Модель «${m.name}» выпущена`,
     body: `Модель доступна клиентам по API${m.onSubs ? ' и по подписке' : ''}. Шумиха от выпуска: +${Math.round(bonus)}.`,
   });
+  // Первая модель до 2020 года: объяснить, почему выручка API пока мала (плейтест 17.10 - игрок ждал денег от API).
+  if (s.models.filter((x) => x.releasedDay !== null).length === 1 && s.day < dateToDay(EARLY_API_END)) {
+    addMail(s, {
+      kind: 'finance',
+      title: 'Откуда деньги в первые годы',
+      body:
+        'Рынок API пока маленький: по API языковые модели почти никто не покупает, весь рынок - несколько тысяч долларов в день. ' +
+        'Первая модель нужна прежде всего для тендеров: клиенты платят сотни тысяч и миллионы за модель с нужным баллом. ' +
+        'Остальное - раунды инвесторов. Выручка API вырастет с выходом GTP-3 по API в 2020 году и с качеством ваших моделей.',
+    });
+  }
   if (reason !== null) {
     addMail(s, {
       kind: 'training',

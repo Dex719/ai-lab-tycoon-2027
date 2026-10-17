@@ -763,7 +763,8 @@ function ScoresBlock({ s, m, benches }: { s: GameState; m: PlayerModel; benches:
           const overfit = (m.overfit[b] ?? 0) > 0;
           const shown = modelScore(m, b, false);
           const honest = modelScore(m, b, true);
-          const rank = released ? benchRank(s, ref, b) : null;
+          // Место по тесту - только если по нему есть модели соперников: иначе «1-е» среди своих моделей путает (плейтест 17.10).
+          const rank = released && hasRivals(s, { kind: 'bench', bid: b, name: benchDef(b).name }) ? benchRank(s, ref, b) : null;
           const style = { '--dc': DOMAIN_COLOR[def.domain] } as CSSProperties;
           return (
             <div key={b} className={`mw-score${saturated ? ' sat' : ''}`} style={style}>
@@ -935,6 +936,8 @@ function Specs(props: { arch: 'lstm' | 'transformer'; plan: TrainingPlan; dates:
 const DAYS_IN_MONTH = 30;
 
 function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: WindowProps['open'] }) {
+  const [stopping, setStopping] = useState(false);
+  const [stopErr, setStopErr] = useState<string | null>(null);
   const frac = t.flopTotal > 0 ? Math.min(1, t.flopDone / t.flopTotal) : 0;
   const power = trainingPoolPerRun(s); // доля «Обучение» делится между идущими проектами
   const perDay = power * TRAIN_FLOP_PER_H100E_DAY;
@@ -999,10 +1002,32 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
                 <button className="btn small" onClick={() => open('newModel')}>
                   Открыть «Новая модель»
                 </button>
+                <button className="btn small danger" onClick={() => setStopping(true)}>
+                  Прервать обучение
+                </button>
               </span>
             </div>
+            <ErrorText error={stopErr} />
           </div>
         </section>
+        {stopping && (
+          <ConfirmDialog
+            title="Прервать обучение"
+            confirmLabel="Прервать"
+            danger
+            onConfirm={() => {
+              const r = store.dispatch(actions.cancelTraining, t.id);
+              setStopping(false);
+              setStopErr(r.ok ? null : r.error);
+            }}
+            onClose={() => setStopping(false)}
+          >
+            <p>
+              «{t.plan.name}» готова на {fmtShare(frac, 0)}. Модели не будет, вычисления пропадут. Ничего не возвращается: аренда за прошедшие дни и
+              разметчики уже оплачены. Доля «Обучение» освободится для нового проекта.
+            </p>
+          </ConfirmDialog>
+        )}
         <Specs arch={t.arch} plan={t.plan} dates={[['Начато', t.startedDay]]} />
       </div>
     </div>

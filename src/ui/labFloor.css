@@ -19,6 +19,8 @@
 .lf-tag:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .lf-tag b { font-size: 12px; font-weight: var(--fw-strong); color: var(--text-2); white-space: nowrap; }
 .lf-tag span { font-size: 14px; font-weight: var(--fw-title); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Подпись-призыв («Карт нет: арендовать», «Карты в пути: придут …») переносится, а не обрезается. */
+.lf-tag.warn span { white-space: normal; }
 .lf-tag.warn b { color: var(--warn-ink); }
 .lf-bar { display: block; height: 5px; margin-top: 5px; background: var(--track); border-radius: 3px; overflow: hidden; }
 .lf-bar > i { display: block; height: 100%; background: var(--brand); }

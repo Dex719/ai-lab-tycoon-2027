@@ -130,7 +130,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
           aria-label={title}
           aria-pressed={speed === sp}
           disabled={locked && sp !== 0}
-          data-tutorial={sp === 1 ? 'speed-play' : undefined}
+          data-tutorial={sp === 1 ? 'speed-play' : sp === 4 ? 'speed-fast' : undefined}
           onClick={() => store.setSpeed(sp)}
         >
           <Icon />
@@ -277,7 +277,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
               aria-label={title}
               aria-pressed={speed === sp}
               disabled={locked && sp !== 0}
-              data-tutorial={sp === 1 ? 'speed-play' : undefined}
+              data-tutorial={sp === 1 ? 'speed-play' : sp === 4 ? 'speed-fast' : undefined}
               onClick={() => store.setSpeed(sp)}
             >
               <Icon />

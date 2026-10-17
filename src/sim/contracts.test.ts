@@ -44,6 +44,8 @@ import {
   cancelContract,
   contractWorkFor,
   generateMonthly,
+  LATE_GRACE_DAYS,
+  lateContracts,
   progressDay,
   setAutoApply,
 } from './contracts';
@@ -1658,11 +1660,38 @@ describe('progressDay: предупреждение «не успевает»', 
     expect(s.mail.length).toBe(before + 1); // второй раз не пишем
   });
 
-  it('раньше чем за 30 дней до срока не предупреждает', () => {
+  it('в первые дни после победы при далёком сроке не предупреждает: игрок успеет поднять долю', () => {
     const s = withContract(makeContract({ deadlineDay: 90 }, { work: 100 }));
     s.day = 0;
     const before = s.mail.length;
     progressDay(s);
     expect(s.mail.length).toBe(before);
+  });
+});
+
+describe('контракт не успевает: сразу видно и письмо не ждёт последнего месяца', () => {
+  it('срок далеко, но мощности не хватает: письмо приходит после LATE_GRACE_DAYS дней, а не за 30 дней до срока', () => {
+    const s = withContract(makeContract({ deadlineDay: 120 }, { work: 1000 }));
+    poolValue = 2; // 2 H100e в день: 1000 работы за 120 дней не успеть
+    s.day = LATE_GRACE_DAYS - 1;
+    const before = s.mail.length;
+    progressDay(s);
+    expect(s.mail.length).toBe(before);
+    s.day = LATE_GRACE_DAYS;
+    progressDay(s);
+    expect(lastMail(s).title).toMatch(/^Контракт не успевает/);
+    expect(lastMail(s).important).toBe(true);
+  });
+
+  it('lateContracts: доля делится поровну, в списке те, кому не хватает; нужно - остаток на оставшиеся дни', () => {
+    const s = withContract(makeContract({ deadlineDay: 100 }, { work: 300 }));
+    s.contracts.push(makeContract({ id: 'c2', deadlineDay: 100 }, { id: 't2', work: 100 }));
+    poolValue = 4; // по 2 в день каждому: 300 за 100 дней не успеть, 100 - успеть
+    const late = lateContracts(s);
+    expect(late.map((l) => l.contract.id)).toEqual(['c1']);
+    expect(late[0].need).toBeCloseTo(3, 9);
+    expect(late[0].have).toBeCloseTo(2, 9);
+    poolValue = 6;
+    expect(lateContracts(s)).toEqual([]);
   });
 });

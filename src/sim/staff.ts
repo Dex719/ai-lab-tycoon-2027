@@ -435,10 +435,21 @@ export function retainPoached(s: GameState): void {
   if (s.staff) s.staff.poach = null;
 }
 
-/** Отпустить: уходит к сопернику. */
+/** Отпустить: уходит к сопернику. Письмо с причиной: кто переманил и сколько предложил (плейтест 17.10 - уход без объяснения). */
 export function releasePoached(s: GameState): void {
   const e = poachTarget(s);
-  if (e && s.staff) s.staff.people = s.staff.people.filter((x) => x.id !== e.id);
+  const lab = s.staff?.poach?.lab ?? 'Соперник';
+  if (e && s.staff) {
+    s.staff.people = s.staff.people.filter((x) => x.id !== e.id);
+    addMail(s, {
+      kind: 'news',
+      title: `Из команды ушли: ${e.name}`,
+      body:
+        `${lab} переманила сотрудника ${e.name} (${LEVEL_NAMES[e.level].toLowerCase()}, ${ROLE_INFO[e.role].name.toLowerCase()}): ` +
+        `предложили вдвое больше - около ${money(e.salary * 2)} в месяц против ${money(e.salary)}. ` +
+        `Удержать стоило ${money(retainCost(e))}. Вклад ${LEVEL_NAMES_GEN[e.level]} в команду пропал.`,
+    });
+  }
   if (s.staff) s.staff.poach = null;
 }
 

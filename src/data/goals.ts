@@ -615,11 +615,23 @@ interface Made {
 }
 type Maker = { id: string; make: (s: GameState, year: number, rnd: () => number) => Made | null };
 
-/** Порог денежной цели «выручка за год»: больше и планки обычной партии, и прошлого года. */
-function revenueTarget(s: GameState, year: number, r: number): number {
+/**
+ * Порог денежной цели «выручка за год»: не ниже планки обычной партии и чуть выше прошлого года. Рост от прошлого года
+ * ограничен REVENUE_GROWTH_CAP планками: в 2017-2019 годах деньги - разовые оплаты тендеров, и один крупный контракт
+ * прошлого года делал цель невыполнимой (плейтест 17.10: $5 млн на 2018 год при реальных $1,1 млн).
+ */
+const REVENUE_GROWTH_CAP = 2.5;
+export function revenueTarget(s: GameState, year: number, r: number): number {
   const last = yearRevenue(s, year - 1);
-  return niceMoney(Math.max(pickBy(REVENUE_FLOOR, year) * (0.8 + 0.3 * r), last * (1.2 + 0.3 * r)));
+  const floor = pickBy(REVENUE_FLOOR, year);
+  return niceMoney(Math.max(floor * (0.8 + 0.3 * r), Math.min(last * (1.1 + 0.2 * r), floor * REVENUE_GROWTH_CAP)));
 }
+
+/**
+ * Цели «выручка за месяц» - только с 2020 года: до выхода GTP-3 по API рынок API крошечный, и месяц закрывался одной
+ * оплатой тендера (плейтест 17.10: «$40 тыс. за месяц» выполнялась одним заказом за награду $150 тыс.).
+ */
+export const MONTH_GOALS_FROM = 2020;
 
 function shareTarget(cur: number, r: number, risky: boolean): number {
   const raw = risky ? Math.max(cur * (1.5 + 0.3 * r), cur + 0.08, 0.12) : Math.max(cur * (1.2 + 0.2 * r), cur + 0.03, 0.05 + 0.05 * r);
@@ -658,6 +670,7 @@ const MAKERS: Record<GoalStyle, Maker[]> = {
     {
       id: 'm-month',
       make: (s, year, rnd) => {
+        if (year < MONTH_GOALS_FROM) return null;
         const floor = (pickBy(REVENUE_FLOOR, year) / 12) * (1.6 + 0.4 * rnd());
         return { target: niceMoney(Math.max(floor, lastMonthRevenue(s) * (1.4 + 0.4 * rnd()))), base: 0 };
       },
@@ -773,6 +786,7 @@ const MAKERS: Record<GoalStyle, Maker[]> = {
     {
       id: 'x-month',
       make: (s, year, rnd) => {
+        if (year < MONTH_GOALS_FROM) return null;
         const floor = (pickBy(REVENUE_FLOOR, year) / 12) * (2.8 + 0.6 * rnd());
         return { target: niceMoney(Math.max(floor, lastMonthRevenue(s) * (2.5 + 0.5 * rnd()))), base: 0 };
       },

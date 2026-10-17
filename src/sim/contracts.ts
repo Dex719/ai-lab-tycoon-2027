@@ -466,8 +466,38 @@ export function progressDay(s: GameState): void {
   }
 }
 
-/** За сколько дней до срока предупреждать, что контракт не успевает. */
+/** За сколько дней до срока предупреждать, что контракт не успевает, даже если он только что взят. */
 export const WARN_DAYS = 30;
+/**
+ * Дней после победы, чтобы игрок успел поднять долю «Контракты»: дальше письмо приходит сразу, как только видно, что
+ * контракт не успевает (плейтест 17.10: два контракта на всю мощность, предупреждение пришло за месяц до срока - поздно).
+ */
+export const LATE_GRACE_DAYS = 3;
+
+export interface LateContract {
+  contract: Contract;
+  /** Сколько H100e в день нужно, чтобы успеть. */
+  need: number;
+  /** Сколько сейчас достаётся контракту (доля «Контракты» поровну). */
+  have: number;
+  /** Дней до срока. */
+  left: number;
+}
+
+/** Контракты, которые при нынешней доле «Контракты» не успевают к сроку. */
+export function lateContracts(s: GameState): LateContract[] {
+  if (s.contracts.length === 0) return [];
+  const share = pool(s, 'contracts') / s.contracts.length;
+  const out: LateContract[] = [];
+  for (const c of s.contracts) {
+    const left = c.deadlineDay - s.day;
+    if (left <= 0) continue;
+    const remaining = Math.max(0, c.tender.work - c.workDone);
+    const eta = share > 0 ? Math.ceil(remaining / share) : Infinity;
+    if (eta > left) out.push({ contract: c, need: remaining / left, have: share, left });
+  }
+  return out;
+}
 
 const h100e = (n: number): string => String(Math.round(n * 100) / 100).replace('.', ',');
 
@@ -475,7 +505,8 @@ const h100e = (n: number): string => String(Math.round(n * 100) / 100).replace('
 function warnIfLate(s: GameState, c: Contract, share: number): void {
   if (c.warned) return;
   const left = c.deadlineDay - s.day;
-  if (left > WARN_DAYS || left <= 0) return;
+  if (left <= 0) return;
+  if (left > WARN_DAYS && s.day - c.startedDay < LATE_GRACE_DAYS) return;
   const remaining = Math.max(0, c.tender.work - c.workDone);
   const eta = share > 0 ? Math.ceil(remaining / share) : Infinity;
   if (eta <= left) return;

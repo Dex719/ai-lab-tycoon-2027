@@ -39,6 +39,63 @@ export function clampPos(g: Pick<WinGeom, 'x' | 'y' | 'w'>, area: DeskArea): Pic
   };
 }
 
+/**
+ * Свободная от HUD область стола (на компьютере, tpc.css): слева колонка разделов, сверху лента лаборатории, справа сводка,
+ * справа снизу показатели (доля, репутация, шумиха, гонка) и плитка даты и денег, по центру снизу «Следующий шаг».
+ * Окно, заходящее правее HUD_STATS_W от правого края, должно кончаться выше показателей; остальные - выше «Следующего шага».
+ */
+export const HUD_LEFT = 96;
+export const HUD_TOP = 60;
+export const HUD_RIGHT = 316;
+/** Ширина показателей справа снизу и их верх от низа стола (.hud-stats: bottom 180 px, высота ~56, минус полоса месяцев 34 px). */
+export const HUD_STATS_W = 510;
+export const HUD_STATS_TOP = 210;
+/** Низ свободной области для окна, которое не заходит под показатели (над «Следующим шагом» и плиткой даты). */
+export const HUD_BOTTOM = 124;
+
+export interface FreeRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** Свободная область для окна ширины w: если окно помещается левее показателей, ему доступна почти вся высота. */
+export function freeRectFor(area: DeskArea, w: number): FreeRect {
+  const right = area.w - HUD_RIGHT;
+  const narrowRight = area.w - HUD_STATS_W;
+  const fitsLeft = HUD_LEFT + w <= narrowRight;
+  return {
+    left: HUD_LEFT,
+    top: HUD_TOP,
+    right: fitsLeft ? narrowRight : right,
+    bottom: area.h - (fitsLeft ? HUD_BOTTOM : HUD_STATS_TOP),
+  };
+}
+
+/**
+ * Где открыть новое окно: ширина и высота по умолчанию, но не больше свободной области (тело окна прокручивается),
+ * по центру области, каскадом по n уже открытых окон. Узкий экран (свободной ширины меньше 480 px) - окно на весь стол.
+ */
+export function placeWindow(def: { w: number; h: number }, area: DeskArea, n: number): Pick<WinGeom, 'x' | 'y' | 'w' | 'h'> {
+  const maxW = area.w - HUD_LEFT - HUD_RIGHT;
+  if (maxW < 480) {
+    const w = Math.max(320, Math.min(def.w, area.w - HUD_LEFT - 16));
+    const h = Math.max(200, Math.min(def.h, area.h - 24));
+    return { x: HUD_LEFT, y: Math.max(8, (area.h - h) / 2), w, h };
+  }
+  // Сначала пробуем уместить окно левее показателей (тогда ему доступна почти вся высота), иначе - во всю ширину.
+  const narrow = area.w - HUD_STATS_W - HUD_LEFT;
+  const w = Math.max(320, Math.min(def.w, def.w <= narrow + 40 ? narrow : maxW));
+  const r = freeRectFor(area, w);
+  const h = Math.max(200, Math.min(def.h, r.bottom - r.top));
+  const cx = r.left + Math.max(0, (r.right - r.left - w) / 2);
+  const cy = r.top + Math.max(0, (r.bottom - r.top - h) / 2);
+  const x = Math.max(r.left, Math.min(r.right - w, cx + n * 26));
+  const y = Math.max(r.top, Math.min(r.bottom - h, cy + n * 22));
+  return { x, y, w, h };
+}
+
 interface Props {
   title: string;
   geom: WinGeom;

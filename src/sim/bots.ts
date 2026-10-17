@@ -8,7 +8,7 @@ import { botFinale } from './finale';
 import { availableGpus, orderedCount, pool, rentCapFor, rentMaxFor, rentPerGpuDay, setAllocation, setRent, totalH100e } from './compute';
 import { FAIL_ROLLBACK, RENT_OVER_CAP_MULT, ROUND_COOLDOWN_DAYS, TIER_API_PRICE_MULT, TRAIN_FLOP_PER_H100E_DAY } from './constants';
 import { applyTender, canApply, contractWorkFor } from './contracts';
-import { applyChoice, pendingChoice } from './events';
+import { applyChoice, openChoices, pendingChoice } from './events';
 import { overheadPerDay } from './finance';
 import { canRaise, raiseRound } from './investors';
 import { inferenceNeed, marketSnapshot, minPrice, refPrice, subsOpen } from './market';
@@ -373,7 +373,8 @@ export function runBot(kind: BotKind, seed: number, maxDays = 4000, difficulty: 
   const s = newGame('Бот', seed, difficulty);
   let days = 0;
   while (!s.outcome && days < maxDays) {
-    const pending = pendingChoice(s);
+    // Отложенные мелкие письма бот тоже разбирает сразу: как раньше, когда они ставили игру на паузу.
+    const pending = pendingChoice(s) ?? openChoices(s)[0] ?? null;
     if (pending) {
       applyChoice(s, pending.id, botChoice(s, pending.eventId));
       continue;

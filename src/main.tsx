@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { botAct, type BotKind } from './sim/bots';
-import { applyChoice, pendingChoice } from './sim/events';
+import { applyChoice, openChoices, pendingChoice } from './sim/events';
 import { advanceDay } from './sim/tick';
 import { App } from './ui/App';
 import { initMusic } from './ui/music';
@@ -27,7 +27,7 @@ if (import.meta.env.DEV) {
       if (!s) return 0;
       let done = 0;
       while (done < days && !s.outcome) {
-        const pending = pendingChoice(s);
+        const pending = pendingChoice(s) ?? openChoices(s)[0] ?? null;
         if (pending) {
           applyChoice(s, pending.id, 0);
           continue;

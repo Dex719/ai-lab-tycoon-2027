@@ -7,6 +7,7 @@
 // (боты отвечают вариантом по умолчанию, balance.test.ts).
 
 import { EVENTS, EXTRA_EVENTS } from '../data/events';
+import { EARLY_EVENTS } from '../data/earlyEvents';
 import { openChoices, triggerEvent } from './events';
 import { nextRandom, randInt } from './rng';
 import { dateToDay } from './time';
@@ -57,6 +58,18 @@ export function randomCandidates(s: GameState): RandomCandidate[] {
   return out;
 }
 
+/**
+ * Мелкие письма с выбором (ранние заказы и гранты, случайные письма) не останавливают игру: приходят сразу отложенными,
+ * ответ - в «Почте» до срока, без ответа срабатывает вариант по умолчанию. Плейтест 17.10: такие письма каждые 10-15 дней
+ * ставили игру на паузу. Сюжетные письма, соперники, команда и срыв обучения по-прежнему ждут ответа.
+ */
+const EARLY_IDS = new Set(EARLY_EVENTS.map((e) => e.id));
+
+function deferLast(s: GameState): void {
+  const m = s.mail[s.mail.length - 1];
+  if (m?.choices && m.chosen === undefined) m.deferred = true;
+}
+
 /** Выбор по весам; r - число из [0, 1). */
 export function pickWeighted(list: readonly RandomCandidate[], r: number): RandomCandidate | null {
   const total = list.reduce((a, c) => a + c.weight, 0);
@@ -80,6 +93,7 @@ export function extraDateEventsDay(s: GameState): void {
     if (def.random || def.repeatable || s.firedEvents.includes(def.id) || !('check' in def.when)) continue;
     if (!def.when.check(s)) continue;
     triggerEvent(s, def.id);
+    if (EARLY_IDS.has(def.id)) deferLast(s);
     return; // не больше одного письма за день
   }
 }
@@ -102,4 +116,5 @@ export function randomEventDay(s: GameState): void {
   y.lastFired[pick.id] = s.day;
   y.nextEventDay = s.day + randInt(y, RANDOM_GAP_MIN, RANDOM_GAP_MAX);
   triggerEvent(s, pick.id);
+  deferLast(s);
 }

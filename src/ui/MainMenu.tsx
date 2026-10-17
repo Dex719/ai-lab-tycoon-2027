@@ -176,8 +176,8 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
                 </span>
               </label>
               <label className="ng-field">
-                <span className="ng-l">Основатель</span>
-                <input type="text" value={founder} maxLength={FOUNDER_MAX} placeholder="Можно оставить пустым" onChange={(e) => setFounder(e.target.value)} />
+                <span className="ng-l">Основатель <small>(необязательно)</small></span>
+                <input type="text" value={founder} maxLength={FOUNDER_MAX} placeholder="Ваше имя" onChange={(e) => setFounder(e.target.value)} />
                 <span className="ng-count">
                   {founder.length}/{FOUNDER_MAX}
                 </span>

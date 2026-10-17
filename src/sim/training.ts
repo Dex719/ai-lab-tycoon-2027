@@ -418,7 +418,10 @@ export function startTraining(s: GameState, plan: TrainingPlan): Result {
   };
   spend(s, 'labelers', labelersCost(copy));
   const flop = planFlop(copy, trainOverhead(s.day));
-  const failChance = FAIL_BASE + (s.bestFlop > 0 && flop > FAIL_JUMP_RATIO * s.bestFlop ? FAIL_BIG_JUMP : 0);
+  // Первая модель партии (и всё, пока идёт обучение игре) не срывается: плейтест 17.10 - срыв на 9-й день первой модели
+  // посреди обучения игре. Срыв - испытание для опытного игрока, а не для первого знакомства.
+  const firstSteps = !s.models.some((m) => m.releasedDay !== null) || s.tutorial.active;
+  const failChance = firstSteps ? 0 : FAIL_BASE + (s.bestFlop > 0 && flop > FAIL_JUMP_RATIO * s.bestFlop ? FAIL_BIG_JUMP : 0);
   const failAtFraction = chance(s, failChance) ? randRange(s, 0.2, 0.8) : null;
   s.trainings.push({
     id: `t${s.nextRunNum++}`,

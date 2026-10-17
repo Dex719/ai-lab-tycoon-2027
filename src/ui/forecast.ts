@@ -47,13 +47,23 @@ export function contractsNeed(s: GameState): number | null {
  * Заявка считается как контракт, который только начался. null - ни контрактов, ни заявок.
  */
 export function contractsNeedWithApplications(s: GameState): number | null {
+  return contractsNeedWith(s, null);
+}
+
+/**
+ * Сколько H100e понадобится доле «Контракты», если выиграть все поданные заявки и ещё одну - extra (работа и срок
+ * нового тендера). Так окно заявки показывает суммарную нагрузку: уже взятое плюс этот тендер. null - считать нечего.
+ */
+export function contractsNeedWith(s: GameState, extra: { work: number; days: number } | null): number | null {
   const apps = s.tenders.filter((t) => t.application !== null);
-  if (s.contracts.length === 0 && apps.length === 0) return null;
+  const count = s.contracts.length + apps.length + (extra ? 1 : 0);
+  if (count === 0) return null;
   let worst = 0;
   for (const c of s.contracts) {
     const left = Math.max(0, c.tender.work - c.workDone);
     worst = Math.max(worst, left / Math.max(1, c.deadlineDay - s.day));
   }
   for (const t of apps) worst = Math.max(worst, (t.application?.work ?? t.work) / Math.max(1, t.durationDays));
-  return worst * (s.contracts.length + apps.length);
+  if (extra) worst = Math.max(worst, extra.work / Math.max(1, extra.days));
+  return worst * count;
 }

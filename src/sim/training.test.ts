@@ -157,6 +157,14 @@ function lateState(seed = 1): GameState {
   return s;
 }
 
+/** Поздняя партия, где уже есть выпущенная модель: срыв обучения возможен (первая модель партии не срывается). */
+function veteranState(seed = 1): GameState {
+  const s = lateState(seed);
+  s.models.push(playerModel({ id: 'p0', name: 'Ветеран', releasedDay: s.day - 100 }));
+  s.tutorial.active = false;
+  return s;
+}
+
 function playerModel(over: Partial<PlayerModel> = {}): PlayerModel {
   const p = plan();
   return {
@@ -785,7 +793,7 @@ describe('startTraining / cancelTraining', () => {
     const failRate = (setup: (s: GameState) => void, p: TrainingPlan): number => {
       let fails = 0;
       for (let seed = 1; seed <= trials; seed++) {
-        const s = lateState(seed);
+        const s = veteranState(seed);
         setup(s);
         startTraining(s, p);
         if (s.trainings[0].failAtFraction !== null) fails++;
@@ -815,7 +823,7 @@ describe('startTraining / cancelTraining', () => {
     it('точка срыва лежит в диапазоне 20-80 %', () => {
       let seen = 0;
       for (let seed = 1; seed <= trials; seed++) {
-        const s = lateState(seed);
+        const s = veteranState(seed);
         startTraining(s, plan());
         const f = s.trainings[0].failAtFraction;
         if (f === null) continue;
@@ -1322,7 +1330,7 @@ describe('startTraining: расход случайных чисел', () => {
     let calm = 0;
     let broken = 0;
     for (let seed = 1; seed <= 2000 && (calm < 5 || broken < 5); seed++) {
-      const s = lateState(seed);
+      const s = veteranState(seed);
       const ref = { rng: s.rng };
       const failed = nextRandom(ref) < FAIL_BASE;
       const expectedAt = failed ? 0.2 + nextRandom(ref) * (0.8 - 0.2) : null;
@@ -1350,7 +1358,7 @@ describe('startTraining: расход случайных чисел', () => {
     expect(seed).toBeLessThan(5000);
     const p = plan();
     const at = (ratio: number): number | null => {
-      const s = lateState(seed);
+      const s = veteranState(seed);
       s.bestFlop = planFlop(p) / ratio;
       startTraining(s, p);
       return s.trainings[0].failAtFraction;
@@ -1358,7 +1366,7 @@ describe('startTraining: расход случайных чисел', () => {
     expect(at(9.9)).toBeNull();
     expect(at(10.1)).not.toBeNull();
     // без прошлых проектов (bestFlop = 0) скачка нет
-    const first = lateState(seed);
+    const first = veteranState(seed);
     startTraining(first, p);
     expect(first.trainings[0].failAtFraction).toBeNull();
   });
@@ -2008,5 +2016,26 @@ describe('технологии в обучении', () => {
     s.research.done.push('synthetic');
     expect(maxTokensB(s)).toBe(MAX_TOKENS_B[2024] * 1.5);
     expect(validatePlan(s, plan({ tokensB: MAX_TOKENS_B[2024] * 1.2 }))).toBeNull();
+  });
+});
+
+describe('первая модель не срывается (плейтест 17.10)', () => {
+  it('пока нет выпущенной модели или идёт обучение игре, шанс срыва 0, а случайное число всё равно тратится', () => {
+    for (let seed = 1; seed <= 300; seed++) {
+      const s = lateState(seed);
+      const ref = { rng: s.rng };
+      nextRandom(ref);
+      startTraining(s, plan());
+      expect(s.trainings[0].failAtFraction).toBeNull();
+      expect(s.rng).toBe(ref.rng);
+    }
+    let broken = 0;
+    for (let seed = 1; seed <= 300; seed++) {
+      const s = veteranState(seed);
+      s.tutorial.active = true;
+      startTraining(s, plan());
+      if (s.trainings[0].failAtFraction !== null) broken++;
+    }
+    expect(broken).toBe(0);
   });
 });

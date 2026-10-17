@@ -93,7 +93,12 @@ export class GameStore {
   dispatch<A extends unknown[]>(fn: (s: GameState, ...args: A) => Result | void, ...args: A): Result {
     if (!this.state) return { ok: false, error: 'Игра не начата' };
     const r = fn(this.state, ...args) ?? { ok: true };
-    if (r.ok) landAction();
+    if (r.ok) {
+      landAction();
+      // Игрок ответил на событие (выбор в письме, действие в окне): плашка «Пауза: …» больше не нужна, сама пауза остаётся
+      // (плейтест 17.10 - старая причина висела минутами после решения).
+      this.pauseReason = null;
+    }
     this.bump();
     return r;
   }
@@ -172,6 +177,11 @@ export class GameStore {
     }
     const goals = s.yearly.year * 100 + s.yearly.goals.filter((g) => g.done).length;
     if (set.pauseOnGoal && goals > mark.goals && goals % 100 > 0) return 'Цель года выполнена';
+    // Готовая модель не выпущена: напоминание с паузой каждые READY_REMIND_DAYS дней (плейтест 17.10 - простояла 113 дней).
+    if (set.pauseOnReady) {
+      const idle = s.models.find((m) => m.releasedDay === null && s.day > m.trainedDay && (s.day - m.trainedDay) % READY_REMIND_DAYS === 0);
+      if (idle) return `Модель «${idle.name}» готова ${s.day - idle.trainedDay} дн. и не выпущена`;
+    }
     return null;
   }
 
@@ -224,6 +234,9 @@ export class GameStore {
     this.bump();
   }
 }
+
+/** Через сколько дней (и потом каждые столько же) напомнить о готовой, но не выпущенной модели. */
+export const READY_REMIND_DAYS = 30;
 
 interface AdvanceMark {
   /** Номер, который получит следующее письмо (s.nextMailNum до шага). */

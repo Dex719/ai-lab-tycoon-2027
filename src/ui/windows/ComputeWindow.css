@@ -221,7 +221,8 @@
 .cw-col-top .cw-alloc-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cw-col-pct { flex: none; white-space: nowrap; }
 /* Подпись доли не залезает под ручку у левого края сегмента */
-.cw-split .cw-seg span { padding-left: 16px; }
+/* Подпись доли начинается правее ручки границы (14 px ручка + отступ): «Контракты 100 %» не закрывается ручкой у края. */
+.cw-split .cw-seg span { padding-left: 22px; padding-right: 12px; overflow: hidden; text-overflow: ellipsis; }
 /* Карты в аренде в узком окне: кнопки уходят под строку, текст не сжимается в столбик, карточка не тянется вниз */
 .cw-cards { container-type: inline-size; align-self: start; }
 @container (max-width: 600px) {

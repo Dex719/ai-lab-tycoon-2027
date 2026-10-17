@@ -51,21 +51,17 @@ export function ChoiceList({ mail }: { mail: Mail }) {
   return (
     <div className="choice-list">
       {mail.choices.map((c, i) => (
-        <button
-          key={i}
-          className="choice"
-          title={`Выбрать: ${c.label}`}
-          onClick={() => store.dispatch(actions.chooseOption, mail.id, i)}
-        >
+        // Выбор - только кнопкой «Выбрать»: раньше кликалась вся карточка, и вариант выбирался случайным щелчком (плейтест 17.10).
+        <div key={i} className="choice">
           <span className="choice-main">
             <span className="choice-l">{c.label}</span>
             {c.story && <span className="choice-s">{c.story}</span>}
             <HintLine hint={c.hint} />
           </span>
-          <span className="choice-go" aria-hidden="true">
+          <button type="button" className="choice-go" aria-label={`Выбрать: ${c.label}`} onClick={() => store.dispatch(actions.chooseOption, mail.id, i)}>
             Выбрать
-          </span>
-        </button>
+          </button>
+        </div>
       ))}
     </div>
   );

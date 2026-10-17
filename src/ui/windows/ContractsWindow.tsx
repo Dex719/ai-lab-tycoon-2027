@@ -6,7 +6,7 @@ import { useState, type ReactNode } from 'react';
 import type { WindowProps } from '.';
 import { CLIENTS } from '../../data/clients';
 import { benchDef } from '../../sim/benchmarks';
-import { cheapestH100eDay, pool } from '../../sim/compute';
+import { cheapestH100eDay, orderedH100e, pool, totalH100e } from '../../sim/compute';
 import { REP_CONTRACT_FAIL, RLHF_TENDER_LABELERS } from '../../sim/constants';
 import { applyChance, canApply, contractWorkFor } from '../../sim/contracts';
 import { formatDateShort } from '../../sim/time';
@@ -14,7 +14,8 @@ import { modelScore } from '../../sim/training';
 import type { Contract, GameState, PlayerModel, Tender } from '../../sim/types';
 import { Cards } from '../components/Cards';
 import { Alert, ConfirmDialog, ErrorText, GuardButton } from '../components/common';
-import { endSentence, fmtDays, fmtH100e, fmtMoney, fmtPct, fmtShare } from '../format';
+import { endSentence, fmtDays, fmtH100e, fmtInt, fmtMoney, fmtPct, fmtShare, h100ePerCard } from '../format';
+import { contractsNeedWith, contractsNeedWithApplications } from '../forecast';
 import { IconAlert, IconCheck, IconChevronLeft } from '../icons';
 import { ClientEmblem } from '../icons/clients';
 import { actions, store } from '../store';
@@ -25,6 +26,16 @@ type TypeFilter = 'all' | Tender['type'];
 type OpenFn = WindowProps['open'];
 
 const REP_LOSS = `−${Math.abs(REP_CONTRACT_FAIL)}`;
+/** «последний день» / «ещё 3 дня»: тендер без заявки исчезает в конце дня expiresDay, подать можно и в этот день. */
+export function tenderLeftText(left: number): string {
+  return left <= 0 ? 'последний день' : `ещё ${fmtDays(left)}`;
+}
+
+/** Когда решение по заявке: «в конце дня» в последний день, иначе дата. */
+function decideText(s: GameState, decide: number): string {
+  return decide <= 0 ? 'решение в конце дня' : `решение ${formatDateShort(s.day + decide)}`;
+}
+
 const AUTO_APPLY_HINT = 'В начале месяца на каждый новый тендер подаётся заявка лучшей подходящей моделью';
 
 // ---------- Общие помощники ----------
@@ -175,7 +186,7 @@ function TenderItem({ s, t, released, on, onPick }: { s: GameState; t: Tender; r
         </span>
         <span className="ct-row-sub">
           {t.type === 'rlhf' ? 'RLHF, ' : ''}
-          {benchDef(t.benchmark).name} от {fmtPct(t.requirement, 0)}, ещё {fmtDays(left)}
+          {benchDef(t.benchmark).name} от {fmtPct(t.requirement, 0)}, {tenderLeftText(left)}
         </span>
         <span className={`ct-row-fit ${fit.tone}`}>{fit.text}</span>
       </span>
@@ -330,6 +341,15 @@ function TenderCard(props: {
   const needed = work / Math.max(1, t.durationDays);
   const best = bestPicks(s, t, suitable);
   const contractsPool = pool(s, 'contracts');
+  // Суммарная нагрузка: взятые контракты, поданные заявки и этот тендер (если заявки по нему ещё нет).
+  const others = s.contracts.length + s.tenders.filter((x) => x.application !== null && x.id !== t.id).length;
+  const totalNeed = (app ? contractsNeedWithApplications(s) : contractsNeedWith(s, { work, days: t.durationDays })) ?? needed;
+  const have = totalH100e(s);
+  const ordered = orderedH100e(s);
+  const perCard = h100ePerCard(s);
+  const deficit = totalNeed - ordered;
+  const overload = model !== null && deficit > ordered * 0.02 + 1e-9;
+  const poolShort = model !== null && !overload && totalNeed > contractsPool * 1.02 + 1e-9;
 
   function submit() {
     setConfirming(false);
@@ -413,7 +433,7 @@ function TenderCard(props: {
             tone: chanceTone(chance),
             sub: app ? 'заявка подана' : model ? `модель «${model.name}»` : released.length === 0 ? 'моделей ещё нет' : 'модель не подходит',
           },
-          { label: 'Срок работы', value: fmtDays(t.durationDays), sub: `решение через ${fmtDays(decide)}` },
+          { label: 'Срок работы', value: fmtDays(t.durationDays), sub: decideText(s, decide) },
         ]}
       />
 
@@ -450,6 +470,14 @@ function TenderCard(props: {
               {perDay(needed)}
               <Cards s={s} h100e={needed} block />
             </dd>
+            {others > 0 && (
+              <>
+                <dt title="Доля «Контракты» делится поровну: нужно столько, чтобы успел самый требовательный, на каждый контракт">
+                  Всем контрактам
+                </dt>
+                <dd className={overload ? 'bad' : poolShort ? 'warn' : ''}>{perDay(totalNeed)}</dd>
+              </>
+            )}
             <dt>Решение</dt>
             <dd>{formatDateShort(s.day + decide)}</dd>
           </dl>
@@ -457,6 +485,18 @@ function TenderCard(props: {
       </div>
 
       {weak && honest !== null && <Alert tone="bad">Честный балл модели - {fmtPct(honest)}: при сдаче контракт провалится.</Alert>}
+      {overload && (
+        <Alert tone="bad" action={{ label: 'Мощности', onClick: () => open('compute') }}>
+          {others > 0 ? `Не потянете вместе с ${others === 1 ? 'уже взятым' : `ещё ${others}`}` : 'Не потянете'}: нужно {perDay(totalNeed)}, всей мощности{' '}
+          {perDay(have)}
+          {ordered > have + 1e-9 ? `, с заказанными картами ${perDay(ordered)}` : ''}. Арендуйте ещё ≈{fmtInt(Math.ceil(deficit / perCard))} карт или не подавайте заявку.
+        </Alert>
+      )}
+      {poolShort && (
+        <Alert tone="warn" action={{ label: 'Мощности', onClick: () => open('compute') }}>
+          Доле «Контракты» не хватит: нужно {perDay(totalNeed)}, выделено {perDay(contractsPool)}. Мощности хватает, после победы поднимите долю.
+        </Alert>
+      )}
 
       <div className="ct-foot">
         {app ? (
@@ -466,8 +506,8 @@ function TenderCard(props: {
           </span>
         ) : (
           <>
-            <span className="ct-why">{model ? `Решение при закрытии тендера, через ${fmtDays(left)}` : ' '}</span>
-            <GuardButton className="btn primary" data-tutorial="apply" reason={reason} onClick={() => (trap ? setConfirming(true) : submit())}>
+            <span className="ct-why">{model ? (left <= 0 ? 'Последний день: решение в конце дня' : `Решение при закрытии тендера, ${formatDateShort(t.expiresDay)}`) : ' '}</span>
+            <GuardButton className="btn primary" data-tutorial="apply" reason={reason} onClick={() => (trap || overload ? setConfirming(true) : submit())}>
               Подать заявку
             </GuardButton>
           </>
@@ -477,12 +517,23 @@ function TenderCard(props: {
 
       {confirming && model && honest !== null && (
         <ConfirmDialog title="Подтверждение заявки" confirmLabel="Подать заявку" onConfirm={submit} onClose={() => setConfirming(false)}>
-          <div>Честный балл модели «{model.name}» ниже требования: при победе в тендере контракт будет провален при сдаче.</div>
+          {trap ? (
+            <div>Честный балл модели «{model.name}» ниже требования: при победе в тендере контракт будет провален при сдаче.</div>
+          ) : (
+            <div>
+              Мощности не хватит: всем контрактам нужно {perDay(totalNeed)}, а всей мощности {perDay(ordered)}. Если не арендовать ещё карт, контракт
+              будет просрочен.
+            </div>
+          )}
           <div className="kv">
-            <span>Честный балл</span>
-            <span>{fmtPct(honest)}</span>
-            <span>Требование</span>
-            <span>от {fmtPct(t.requirement, 0)}</span>
+            {trap && (
+              <>
+                <span>Честный балл</span>
+                <span>{fmtPct(honest)}</span>
+                <span>Требование</span>
+                <span>от {fmtPct(t.requirement, 0)}</span>
+              </>
+            )}
             <span>Штраф</span>
             <span>{fmtMoney(t.penalty)}</span>
             <span>Репутация</span>

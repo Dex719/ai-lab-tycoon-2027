@@ -19,7 +19,10 @@
 .goal-row .gt-name, .task-row .tr-title { flex: 1; min-width: 0; color: var(--hud-text); font-size: 14px; font-weight: var(--fw-strong); line-height: 1.3; }
 /* Галочка - у первой строки названия, даже когда название в две-три строки. */
 .goal-row .gt-ok { flex: none; align-self: flex-start; margin-top: 3px; color: var(--good-on-hud); }
-.goal-row .gt-reward, .task-row .tr-reward { flex: none; max-width: 48%; text-align: right; color: var(--hud-text); font-size: 12px; font-weight: var(--fw-strong); font-variant-numeric: tabular-nums; }
+/* Награда не рвётся на строки («Исследования -10» и «%» отдельно): короткая стоит справа, длинная уходит строкой ниже целиком. */
+.goal-row .gt, .task-row .tr-top { flex-wrap: wrap; }
+.goal-row .gt-name, .task-row .tr-title { flex: 1 1 55%; }
+.goal-row .gt-reward, .task-row .tr-reward { flex: 0 1 auto; margin-left: auto; white-space: nowrap; text-align: right; color: var(--hud-text); font-size: 12px; font-weight: var(--fw-strong); font-variant-numeric: tabular-nums; }
 .goal-row .gt-reward.ok { color: var(--good-on-hud); }
 .goal-row .gp { margin-top: 1px; line-height: 1.35; font-variant-numeric: tabular-nums; }
 .goal-row .gp-almost, .task-row .tr-almost { color: var(--warn-on-hud); font-weight: var(--fw-strong); }

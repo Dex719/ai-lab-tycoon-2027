@@ -157,7 +157,7 @@ export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState;
             {last ? (
               <span className="skip" aria-hidden="true" />
             ) : (
-              <button className="skip" title="Пропустить обучение игре" onClick={() => store.dispatch(finish)}>
+              <button className="btn small skip" title="Пропустить обучение игре" onClick={() => store.dispatch(finish)}>
                 Пропустить
               </button>
             )}

@@ -264,9 +264,10 @@ export function LabFloor({ s, open }: { s: GameState; open: Open }) {
           onClick={() => open(f.released > 0 ? 'models' : 'newModel')}
         />
         <Plus at={at.seats} label={`Нанять (${fmtNum(f.freeSeats)} ${ruPlural(f.freeSeats, 'место', 'места', 'мест')})`} onClick={() => open('team')} />
-        <Plus at={at.rackSlot} label={f.cards > 0 ? 'Больше карт' : 'Арендовать карты'} onClick={() => open('compute')} tutorial="scene-rent" />
-        <Plus at={at.researchSlot} label="Начать исследование" onClick={() => open('research')} />
-        <Plus at={at.trainSlot} label="Новая модель" onClick={() => open('newModel')} />
+        {/* Кнопка «+» - только если подпись рядом не предлагает то же самое: иначе пузыри дублировали друг друга и
+            налезали («Свободно: новая модель» и «+ Новая модель», плейтест 17.10). */}
+        {f.research && <Plus at={at.researchSlot} label="Исследование в очередь" onClick={() => open('research')} />}
+        {f.training && <Plus at={at.trainSlot} label="Ещё модель" onClick={() => open('newModel')} />}
       </div>
       {next && <NextPlate step={next} open={open} />}
     </div>

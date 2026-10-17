@@ -12,6 +12,7 @@ import { IconClose, IconTrophy } from './icons';
 import { TierBadge } from './components/TierBadge';
 import { fmtInt, fmtMoney, fmtNum, fmtPct } from './format';
 import { useCountUp } from './Juice';
+import { modelRacePlace, raceMetricOf, raceRows } from './race';
 import './release.css';
 
 const LAB_COLOR = new Map<HypeOwner, string>(LABS.map((l) => [l.id, l.color]));
@@ -30,7 +31,8 @@ export function ReleaseCard({ s, modelId, onClose }: { s: GameState; modelId: st
   const { ref, onKeyDown } = useModalFocus<HTMLDivElement>(modelId);
   const m = s.models.find((x) => x.id === modelId);
   const st = arenaStanding(s);
-  const metric = st?.metric ?? null;
+  // Гонка - та же, что в списке «Моделей» и на верхней панели (ui/race.ts): без соперников это гонка по тесту, а не «без места».
+  const metric = st?.metric ?? raceMetricOf(s);
 
   // Прошлая лучшая модель игрока в той же гонке: с ней сравниваем рост.
   let prev: PlayerModel | null = null;
@@ -54,7 +56,9 @@ export function ReleaseCard({ s, modelId, onClose }: { s: GameState; modelId: st
   if (!m) return null;
 
   const ref0 = { kind: 'player' as const, id: m.id };
-  const place = metric ? (metric.kind === 'arena' ? marketArenaRank(s, ref0) : benchRank(s, ref0, metric.bid)) : null;
+  // Место - как в «Моделях»: только когда в гонке есть соперники; без них - «Соперников нет», а не «Без места».
+  const rivals = !!metric && raceRows(s, metric).some((x) => x.owner !== 'player');
+  const place = rivals && metric ? (metric.kind === 'arena' ? marketArenaRank(s, ref0) : (modelRacePlace(s, m, metric) ?? benchRank(s, ref0, metric.bid))) : null;
   const isBest = !!st && st.modelId === m.id;
   const prevValue = metric && prev ? raceValue(metric, prev) : -Infinity;
   const passed = isBest && metric ? st.behind.filter((n) => n.value > prevValue) : [];
@@ -62,8 +66,10 @@ export function ReleaseCard({ s, modelId, onClose }: { s: GameState; modelId: st
   const benches = activeBenchmarks(s);
   const eloDelta = prev ? Math.round(elo - prev.arenaElo) : null;
 
-  const placeSub = !metric
+  const placeSub = !metric || !rivals
     ? 'Соперников пока нет'
+    : !st
+      ? 'Соперников в продаже пока нет'
     : isBest && st.above
       ? `До ${st.above.name}: ${fmtGap(metric, st.above.gap)}`
       : isBest
@@ -98,7 +104,10 @@ export function ReleaseCard({ s, modelId, onClose }: { s: GameState; modelId: st
 
           <div className="rc-main">
             <div className="rc-elo">
-              <span className="rc-big">{fmtInt(shownElo)}</span>
+              {/* Число растёт от прошлой модели к новой; итоговое значение - в подписи для чтения с экрана и подсказке. */}
+              <span className="rc-big" title={`${fmtInt(elo)} Эло`} aria-label={`${fmtInt(elo)} Эло`}>
+                {fmtInt(shownElo)}
+              </span>
               <span className="rc-l">Эло на «Арене»</span>
               <span className={`rc-sub ${eloDelta !== null && eloDelta > 0 ? 'good' : eloDelta !== null && eloDelta < 0 ? 'bad' : ''}`}>
                 {eloDelta === null ? 'Первая модель в продаже' : `${eloDelta >= 0 ? '+' : '−'}${fmtInt(Math.abs(eloDelta))} к «${prev?.name}»`}
@@ -107,7 +116,7 @@ export function ReleaseCard({ s, modelId, onClose }: { s: GameState; modelId: st
             <div className="rc-place">
               <span className={`rc-mid${place === 1 ? ' gold' : place === null ? ' dim' : ''}`}>
                 {place === 1 && <IconTrophy size={20} />}
-                {place !== null ? `${place}-е место` : 'Без места'}
+                {place !== null ? `${place}-е место` : rivals ? 'Не в зачёте' : 'Соперников нет'}
               </span>
               <span className="rc-l">{metric ? raceName(metric) : 'Место в гонке'}</span>
               <span className="rc-sub">{placeSub}</span>

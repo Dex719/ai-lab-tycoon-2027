@@ -7,7 +7,7 @@ import { rentPerDay } from '../../sim/compute';
 import { BANKRUPT_DAYS, OVERHEAD_MONTHLY, OVERHEAD_REVENUE_SHARE } from '../../sim/constants';
 import { overheadPerDay, revenueLast90 } from '../../sim/finance';
 import { subsOpen } from '../../sim/market';
-import { dayToDate, formatMonth } from '../../sim/time';
+import { dateToDay, dayToDate, formatMonth } from '../../sim/time';
 import type { ExpenseKind, IncomeKind, MonthLedger, MonthRecord } from '../../sim/types';
 import { Alert } from '../components/common';
 import { fmtDays, fmtMoney, fmtNum, fmtShare } from '../format';
@@ -96,6 +96,9 @@ function LedgerRow({
   );
 }
 
+/** До этой даты рынок API крошечный (DEMAND_TOKENS: скачок 11.06.2020, выход GTP-3 по API). */
+const EARLY_API_END_DAY = dateToDay('2020-06-11');
+
 export default function FinanceTab({ s }: WindowProps) {
   const history = s.finance.history;
   const data = useMemo(() => buildChartData(history, FLOW_SERIES), [history, history.length]);
@@ -142,6 +145,13 @@ export default function FinanceTab({ s }: WindowProps) {
       {negDays > 0 && (
         <Alert tone="bad">
           Деньги в минусе {fmtDays(negDays)}. До банкротства осталось {fmtDays(Math.max(0, BANKRUPT_DAYS - negDays))}.
+        </Alert>
+      )}
+
+      {s.day < EARLY_API_END_DAY && (
+        <Alert tone="info">
+          До середины 2020 года рынок API маленький: по API языковые модели почти никто не покупает (весь рынок - несколько тысяч долларов в день).
+          Главные деньги этих лет - тендеры и инвесторы. Выручка API вырастет вместе с рынком (выход GTP-3 по API, 2020 год) и качеством ваших моделей.
         </Alert>
       )}
 

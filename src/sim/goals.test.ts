@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { EXTRA_EVENTS } from '../data/events';
-import { GOAL_STYLES, goalStyle, RISK_PENALTY, STYLE_REWARD, trainingProgress } from '../data/goals';
+import { GOAL_STYLES, goalStyle, makeOffer, revenueTarget, RISK_PENALTY, STYLE_REWARD, trainingProgress } from '../data/goals';
 import { activeBonuses } from '../data/questKit';
 import { RIVAL_MODELS } from '../data/rivalModels';
 import { newGame } from './actions';
@@ -550,5 +550,27 @@ describe('цель «Выпустить новую модель»: какая м
     );
     s.models.push(model({ id: 'p4', name: 'Вторая свежая', trainedDay: D('2019-01-20'), releasedDay: null }));
     expect(trainingProgress(s, '').text).toBe('«Свежая» обучена, осталось выпустить');
+  });
+});
+
+describe('цели по реальной экономике (плейтест 17.10)', () => {
+  it('до 2020 года целей «выручка за месяц» нет: месяц закрывался одной оплатой тендера', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      let r = seed / 31;
+      const rnd = () => (r = (r * 9301 + 49297) % 1);
+      for (const year of [2017, 2018, 2019]) {
+        const ids = makeOffer(quietGame(D(`${year}-01-01`), seed), year, rnd).map((g) => g.id);
+        expect(ids).not.toContain('m-month');
+        expect(ids).not.toContain('x-month');
+      }
+    }
+  });
+
+  it('выручка за год: крупный контракт прошлого года не задирает цель выше REVENUE_GROWTH_CAP планок', () => {
+    const s = quietGame(D('2018-01-01'));
+    s.finance.history = [month(2017, 11, 0, 4_000_000), month(2017, 12, 20_000)];
+    // Планка 2018 года - $1 млн: цель не выше $2,5 млн, хотя прошлый год дал $4 млн.
+    expect(revenueTarget(s, 2018, 1)).toBeLessThanOrEqual(2_500_000);
+    expect(revenueTarget(s, 2018, 0)).toBeGreaterThanOrEqual(800_000);
   });
 });

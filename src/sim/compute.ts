@@ -217,6 +217,13 @@ export function rentNow(s: GameState, id: GpuId, count: number): Result {
   return r;
 }
 
+/** Мощность с учётом заказанных карт, которые ещё едут (как будет после прихода), H100e. */
+export function orderedH100e(s: GameState): number {
+  let transit = 0;
+  for (const o of s.compute.incoming ?? []) transit += o.count * gpuDef(o.gpu).h100e;
+  return totalH100e(s) + transit * (1 + staffEffect(s, 'infra'));
+}
+
 /** Есть ли мощность или хотя бы заказ на неё (для подсказок: «арендуйте» не нужно, если карты уже едут). */
 export function computeOrdered(s: GameState): boolean {
   return totalH100e(s) > 0 || (s.compute.incoming ?? []).some((o) => o.count > 0);

@@ -345,3 +345,18 @@ describe('команда: обучение занимает время', () => {
     }
   });
 });
+
+describe('уход переманенного сотрудника объяснён', () => {
+  it('отпустили (или не ответили): письмо с лабораторией, предложением и ценой удержания', () => {
+    const s = game();
+    staffOf(s).people = [employee({ id: 'b', name: 'Борис Шевцов', level: 2, salary: 30_000 })];
+    startPoach(s, 'b', 'OpenBrain');
+    const p = pendingChoice(s)!;
+    applyChoice(s, p.id, 1);
+    expect(staffOf(s).people).toEqual([]);
+    const m = s.mail.find((x) => x.title === 'Из команды ушли: Борис Шевцов');
+    expect(m).toBeDefined();
+    expect(m!.body).toMatch(/OpenBrain переманила/);
+    expect(m!.body).toMatch(/\$60 тыс\./);
+  });
+});

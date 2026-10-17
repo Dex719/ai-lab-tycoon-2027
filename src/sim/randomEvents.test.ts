@@ -339,3 +339,28 @@ describe('расписание', () => {
     expect(applyChoice(r.state, pendingChoice(r.state)!.id, 1).ok).toBe(true);
   });
 });
+
+describe('мелкие письма не останавливают игру (плейтест 17.10)', () => {
+  it('случайное письмо и ранний заказ приходят отложенными: игра идёт, ответ - в «Почте» до срока', () => {
+    const s = newGame('Тест', 3);
+    let checked = 0;
+    for (let d = 0; d < 900 && checked < 3; d++) {
+      const before = s.mail.length;
+      advanceDay(s);
+      for (const m of s.mail.slice(before)) {
+        const def = findEvent(m.eventId);
+        if (!m.choices || !def) continue;
+        const minor = !!def.random || EARLY_EVENTS.some((e) => e.id === def.id);
+        if (!minor) continue;
+        expect(m.deferred).toBe(true);
+        expect(pendingChoice(s)?.id).not.toBe(m.id);
+        checked++;
+      }
+      // Сюжетные письма разбираем, чтобы время шло дальше.
+      const p = pendingChoice(s);
+      if (p) applyChoice(s, p.id, botChoice(s, p.eventId));
+      for (const m of openChoices(s)) if (m.deferred) applyChoice(s, m.id, botChoice(s, m.eventId));
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+});

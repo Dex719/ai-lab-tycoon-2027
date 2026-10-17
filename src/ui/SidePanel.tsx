@@ -9,6 +9,7 @@ import { LABS } from '../data/labs';
 import { useState, type ReactElement, type ReactNode } from 'react';
 import { pool } from '../sim/compute';
 import { idleWarnings, type IdleItem } from '../sim/idle';
+import { canApply, lateContracts } from '../sim/contracts';
 import { TRAIN_FLOP_PER_H100E_DAY } from '../sim/constants';
 import { playerSales, subsOpen } from '../sim/market';
 import { researchDaysLeft, rpPerDay, TECHS, techCost } from '../sim/research';
@@ -286,6 +287,71 @@ function Idle({ items, open }: { items: IdleItem[]; open: (id: WindowId | Window
   );
 }
 
+/** Тендер закрывается: показываем, когда осталось столько дней или меньше (0 - последний день). */
+export const TENDER_SOON_DAYS = 2;
+
+interface SideAlert {
+  key: string;
+  label: string;
+  text: string;
+  title?: string;
+  action: string;
+  open: WindowId | WindowAlias;
+}
+
+/** Что ждёт игрока прямо сейчас: контракт не успевает, тендер закрывается, модель готова и не выпущена. */
+export function sideAlerts(s: GameState): SideAlert[] {
+  const out: SideAlert[] = [];
+  const client = (id: string) => CLIENTS.find((c) => c.id === id)?.name ?? id;
+  for (const l of lateContracts(s)) {
+    out.push({
+      key: `late:${l.contract.id}`,
+      label: 'Контракт не успевает',
+      text: `${client(l.contract.tender.clientId)}: нужно ${fmtH100e(l.need)}, есть ${fmtH100e(l.have)} H100e`,
+      title: `До срока ${l.left} дн. Поднимите долю «Контракты» или арендуйте карты, иначе штраф ${fmtMoney(l.contract.tender.penalty)}`,
+      action: 'Мощности',
+      open: 'compute',
+    });
+  }
+  for (const m of s.models) {
+    if (m.releasedDay !== null) continue;
+    out.push({ key: `ready:${m.id}`, label: 'Модель готова', text: `«${m.name}» ждёт выпуска`, action: 'Выпустить', open: 'models' });
+  }
+  const released = s.models.filter((m) => m.releasedDay !== null);
+  for (const t of s.tenders) {
+    const left = t.expiresDay - s.day;
+    if (t.application !== null || left > TENDER_SOON_DAYS) continue;
+    if (!released.some((m) => canApply(s, t, m) === null)) continue;
+    out.push({
+      key: `tender:${t.id}`,
+      label: 'Тендер закрывается',
+      text: `${client(t.clientId)}, ${left <= 0 ? 'последний день' : `через ${left} дн.`}`,
+      action: 'Подать',
+      open: 'contracts',
+    });
+  }
+  return out;
+}
+
+/** Тревоги в сводке: белые карточки как «Простой», красное только слово-причина, кнопка ведёт туда, где это исправить. */
+function Alerts({ items, open }: { items: SideAlert[]; open: (id: WindowId | WindowAlias) => void }) {
+  if (items.length === 0) return null;
+  return (
+    <>
+      {items.slice(0, 3).map((a) => (
+        <div key={a.key} className="side-idle" role="alert">
+          <span className="txt" title={a.title}>
+            <b>{a.label}:</b> {a.text}
+          </span>
+          <button type="button" className="btn small" onClick={() => open(a.open)}>
+            {a.action}
+          </button>
+        </div>
+      ))}
+    </>
+  );
+}
+
 export function SidePanel({
   s,
   open,
@@ -317,6 +383,7 @@ export function SidePanel({
       </div>
       <Goal s={s} open={open} />
       <MainRival s={s} open={open} />
+      <Alerts items={sideAlerts(s)} open={open} />
       <Idle items={idleWarnings(s)} open={open} />
       <GoalsPanel s={s} open={open} />
       <div className="side-tabs">

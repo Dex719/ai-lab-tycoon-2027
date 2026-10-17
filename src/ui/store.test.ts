@@ -14,7 +14,7 @@ import { chooseGoals, goalOfferOpen, goalsDay } from '../sim/goals';
 import * as tick from '../sim/tick';
 import type { GameState } from '../sim/types';
 import { setSettings } from './settings';
-import { GameStore } from './store';
+import { GameStore, READY_REMIND_DAYS } from './store';
 
 // Автосохранение пишется в ячейку «авто» (см. ./saves).
 const AUTOSAVE_SLOT_KEY = 'ailab.slot.auto';
@@ -263,6 +263,19 @@ describe('автопауза по галочкам настроек', () => {
     });
     vi.advanceTimersByTime(500);
     expect(store.speed).toBe(1);
+  });
+
+  it('готовая модель не выпущена 30 дней: напоминание с паузой', () => {
+    const { store, s } = newStore();
+    setSettings({ pauseOnReady: true, pauseOnResearch: false, pauseOnTender: false, pauseOnGoal: false });
+    s.models.push({ id: 'p9', name: 'Ждущая', releasedDay: null, trainedDay: s.day - READY_REMIND_DAYS + 1 } as GameState['models'][number]);
+    store.setSpeed(1);
+    advanceDay.mockImplementationOnce((st) => {
+      st.day += 1;
+    });
+    vi.advanceTimersByTime(500);
+    expect(store.speed).toBe(0);
+    expect(store.pauseReason).toBe(`Модель «Ждущая» готова ${READY_REMIND_DAYS} дн. и не выпущена`);
   });
 
   it('«Модель готова» с выключенной галочкой не останавливает игру, хотя письмо важное', () => {

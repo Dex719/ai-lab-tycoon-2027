@@ -480,7 +480,9 @@ function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
           <>
             <div className={`nm-kpi-v${est.roughElo === null ? ' dim' : ''}`}>{est.roughElo === null ? '?' : roughRange(est.roughElo)}</div>
             <div className="nm-kpi-s">
-              {est.roughElo === null ? 'Прогноз откроется после исследования' : 'Грубо. Точный прогноз и место в гонке откроет исследование'}{' '}
+              {est.roughElo === null
+                ? 'Прогноз откроется после исследования'
+                : `Грубо, по алгоритмам уровня ${s.research.algoLevel} на день старта (улучшения во время обучения модель не получит). Точный прогноз и место откроет исследование`}{' '}
               <button className="nm-link" onClick={() => open('research')}>
                 «Законы масштабирования»
               </button>
@@ -491,8 +493,10 @@ function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
       <div className="nm-kpi">
         <div className="nm-kpi-l">Срок</div>
         <div className={`nm-kpi-v${days === null ? ' dim' : ''}`}>{days !== null ? `${fmtNum(days)} дн.` : '-'}</div>
-        <div className={`nm-kpi-s${late ? ' warn' : ''}`}>
-          {days !== null ? `Готово ${formatDateShort(s.day + days)}${late ? ', позже конца игры' : ''} · ${fmtCards(s, power)}` : 'Нет мощности на обучение'}
+        <div className={`nm-kpi-s${late || (days !== null && days > LONG_RUN_DAYS) ? ' warn' : ''}`}>
+          {days !== null
+            ? `Готово ${formatDateShort(s.day + days)}${late ? ', позже конца игры' : days > LONG_RUN_DAYS ? ', дольше года' : ''} · ${fmtCards(s, power)}`
+            : 'Нет мощности на обучение'}
         </div>
         {overhead >= 1.05 && (
           <span className="nm-chip warn" title="Фреймворки и сети ранних лет медленные; множитель падает каждый месяц, к середине 2020 года - обычная скорость.">
@@ -548,6 +552,9 @@ function TierOption(props: { s: GameState; tier: Tier; selected: boolean; onPick
 // ---------- Подтверждение ----------
 
 /** Окно перед стартом: стоимость, срок и мощность проекта, кнопка-глагол. */
+/** Дольше этого срок обучения - предупреждение перед стартом. */
+export const LONG_RUN_DAYS = 365;
+
 function StartConfirm(props: { s: GameState; plan: TrainingPlan; est: Est; onConfirm: () => void; onClose: () => void }) {
   const { s, plan, est } = props;
   const { days, power, cost, rent } = projectNumbers(s, est);
@@ -578,6 +585,12 @@ function StartConfirm(props: { s: GameState; plan: TrainingPlan; est: Est; onCon
           {fmtH100e(power)} H100e <Cards s={s} h100e={power} />
         </dd>
       </dl>
+      {days !== null && days > LONG_RUN_DAYS && (
+        <Alert tone="warn">
+          Обучение займёт больше года: за это время выйдут новые модели соперников и карты. Обычно выгоднее модель поменьше сейчас, а следующую - на новых
+          картах.
+        </Alert>
+      )}
       {s.trainings.length > 0 && <p className="nm-confirm-note">Доля «Обучение» разделится поровну между проектами: идущий станет медленнее.</p>}
     </ConfirmDialog>
   );
@@ -662,9 +675,9 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
     patch({ targets: has ? d.targets.filter((x) => x !== b) : [...d.targets, b] });
   }
 
-  // Выбор уровня подставляет пресет: размер и данные. Повторный щелчок по выбранному уровню ничего не меняет.
+  // Выбор уровня подставляет пресет: размер и данные. Щелчок и по уже выбранному уровню возвращает его пресет
+  // (плейтест 17.10: ползунок на максимуме, «Флагман» не сбросил размер - модель пошла на 494 дня).
   function chooseTier(next: Tier) {
-    if (next === tier) return;
     patch({ tier: next, ...presetOf(s, next) });
   }
 

@@ -218,3 +218,5 @@
 .rs-prog i { display: block; height: 100%; min-width: 9px; border-radius: 999px; background: var(--brand); }
 .rs-node .rs-name, .rs-node .rs-st, .rs-node .rs-sub { line-height: 14px; }
 .rs-chainrow .rs-st.cur { flex: none; width: 120px; margin-top: 0; }
+/* Длинное слово («Мультимодальность») переносится по слогам, а не обрезается краем плитки (плейтест 17.10). */
+.rs-node .rs-name { hyphens: auto; overflow-wrap: anywhere; }

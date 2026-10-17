@@ -410,9 +410,16 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
 }
 
 @media (min-width: 768px) {
-  /* Причина паузы - плашка по центру над полосой месяцев (сверху её закрывали подписи сцены). */
-  .game .pause-note { top: auto; bottom: 46px; left: 50%; transform: translateX(-50%); }
-  .game .month-strip { bottom: 92px; }
+  /* Причина паузы - сверху по центру, над окнами (они начинаются ниже, HUD_TOP) и над подписями сцены; внизу она
+     наезжала на «Следующий шаг» (плейтест 17.10). */
+  .game .pause-note { top: 6px; bottom: auto; left: 50%; transform: translateX(-50%); z-index: 905; }
+  /* Итог месяца и «Следующий шаг» - по центру свободной области между колонкой разделов и плиткой денег: не закрывают
+     дату, деньги и кнопки скорости. Итог месяца встаёт над «Следующим шагом», если тот есть. */
+  .game .month-strip { left: calc(48px + (100vw - 96px - 400px) / 2); bottom: 46px; max-width: calc(100vw - 96px - 420px); }
+  .game:has(.lf-next) .month-strip { bottom: 152px; }
+  /* «Следующий шаг» прижат к плитке денег справа: слева снизу живут уведомления, и они не должны его закрывать. */
+  .game .lf-next { left: auto; right: 410px; transform: none; width: min(640px, calc(100% - 96px - 420px - 350px)); }
+  .game .month-strip { left: auto; right: 410px; transform: none; }
 }
 
 .titlebar .wicon { color: var(--brand-edge); }

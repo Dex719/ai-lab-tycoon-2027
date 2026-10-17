@@ -34,7 +34,7 @@ import { AchievementsDialog, AchievementToasts } from './Achievements';
 import { TopBar } from './TopBar';
 import { TutorialPanel } from './Tutorial';
 import { useViewport } from './viewport';
-import { clampPos, deskAreaOf, Window, type WinGeom } from './Window';
+import { clampPos, deskAreaOf, placeWindow, Window, type WinGeom } from './Window';
 import { resolveWindow, WINDOWS, type WindowAlias, type WindowId, type WindowProps } from './windows';
 
 interface OpenWin extends WinGeom {
@@ -42,9 +42,6 @@ interface OpenWin extends WinGeom {
   min: boolean;
 }
 
-/** Отступ слева и ширина сводки справа: окна открываются между ними. Разделы - в доке на панели задач. */
-const LEFT_ICONS = 96;
-const RIGHT_ICONS = 316;
 
 interface BodyProps extends WindowProps {
   C: ComponentType<WindowProps>;
@@ -70,15 +67,9 @@ function useWindows(deskRef: React.RefObject<HTMLDivElement | null>) {
         const existing = ws.find((w) => w.id === id);
         if (existing) return ws.map((w) => (w.id === id ? { ...w, ...clampPos(w, area), z: top, min: false } : w));
         const def = WINDOWS.find((d) => d.id === id)!;
-        const free = area.w - LEFT_ICONS - RIGHT_ICONS;
-        const w = Math.max(320, Math.min(def.w, free > 480 ? free - 16 : area.w - LEFT_ICONS - 16));
-        const h = Math.max(200, Math.min(def.h, area.h - 24));
+        // Окно раскладывается в свободной от HUD области: не под сводку, не под показатели и плитку денег (плейтест 17.10).
         const n = ws.filter((x) => !x.min).length;
-        const cx = LEFT_ICONS + Math.max(0, (free - w) / 2);
-        // Каскад не заводит окно под боковую панель: на 1366 px кнопки справа (например, «Выпустить») уходили под сводку.
-        const x = Math.max(LEFT_ICONS, Math.min(area.w - w - 8, area.w - RIGHT_ICONS - w, cx + n * 26));
-        const y = Math.max(8, Math.min(area.h - h - 8, (area.h - h) / 2 + n * 22));
-        return [...ws, { id, x, y, w, h, z: top, min: false }];
+        return [...ws, { id, ...placeWindow(def, area, n), z: top, min: false }];
       });
     },
     [deskRef],
@@ -256,6 +247,8 @@ export function Game({ s }: { s: GameState }) {
   function iconCount(id: WindowId): number {
     if (id === 'mail') return unread;
     if (id === 'contracts') return newTenders;
+    // Обученные и не выпущенные модели: плейтест 17.10 - модель простояла готовой почти четыре месяца незамеченной.
+    if (id === 'models') return s.models.filter((m) => m.releasedDay === null).length;
     return 0;
   }
 

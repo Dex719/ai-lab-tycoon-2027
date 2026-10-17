@@ -501,7 +501,7 @@ function RowEffect({ s, k, share }: { s: GameState; k: 'training' | 'experiments
  * Доли «как нужно»: контрактам и клиентам - сколько им нужно сейчас (+5 %), остальное - обучению и исследованиям
  * в прежнем соотношении (если идёт только что-то одно - ему всё).
  */
-function autoPercents(s: GameState, cur: Percents): Percents {
+export function autoPercents(s: GameState, cur: Percents): Percents {
   const total = totalH100e(s);
   if (!(total > 0)) return cur;
   const need = safeInferenceNeed(s);
@@ -509,18 +509,25 @@ function autoPercents(s: GameState, cur: Percents): Percents {
   let contracts = pct(contractsNeedWithApplications(s) ?? 0);
   let api = need ? pct(need.api) : cur.api;
   let subs = need ? pct(need.subs) : cur.subs;
+  // Идущие обучение и исследование «Как нужно» не обнуляет (плейтест 17.10: контракту не хватало и с 100 %, а модель
+  // встала): им остаётся хотя бы нынешняя доля, но не больше 30 % и 15 %. Чего не хватит контрактам - видно в строке «Нужно».
+  const research = s.research.current !== null;
+  const training = s.trainings.some((r) => !r.failed);
+  const keepT = training ? Math.min(cur.training, 30) : 0;
+  const keepE = research ? Math.min(cur.experiments, 15) : 0;
+  const keep = keepT + keepE;
+  const room = 100 - keep;
   const used = contracts + api + subs;
-  if (used > 100) {
-    [contracts, api, subs] = distribute([contracts, api, subs], 100);
+  if (used > room) {
+    [contracts, api, subs] = distribute([contracts, api, subs], room);
   }
   const rest = 100 - contracts - api - subs;
   // Обучению доля остаётся всегда: если модель сейчас не учится, её скоро начнут (плейтест 16.10 - «Как нужно» обнулял
   // обучение, и новую модель было не начать). Исследованиям - только пока исследование идёт.
-  const research = s.research.current !== null;
   const wT = Math.max(1, cur.training);
   const wE = research ? Math.max(1, cur.experiments) : 0;
-  const [t, e] = distribute([wT, wE], rest);
-  return { training: t, contracts, experiments: e, api, subs };
+  const [t, e] = distribute([wT, wE], rest - keep);
+  return { training: keepT + t, contracts, experiments: keepE + e, api, subs };
 }
 
 /** Одна полоса долей: границы между соседними долями тянутся мышью или стрелками, отпустили - доли применены. */

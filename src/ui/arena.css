@@ -72,7 +72,7 @@
 /* Летящие суммы под деньгами: тёмная подпись, как подсказка верхней панели; плывёт вверх и гаснет. */
 .flies { position: absolute; left: 50%; top: 100%; width: 0; height: 0; pointer-events: none; z-index: 960; }
 .fly {
-  position: absolute; transform: translateX(-50%); display: flex; align-items: baseline; gap: 6px; padding: 3px 8px;
+  position: absolute; top: calc(4px + var(--i, 0) * 30px); transform: translateX(-50%); display: flex; align-items: baseline; gap: 6px; padding: 3px 8px;
   white-space: nowrap; background: var(--hud-2); border: none; border-radius: 8px;
   font: var(--fw-strong) 14px var(--font); font-variant-numeric: tabular-nums;
 }
@@ -112,3 +112,8 @@
    Последние 30 дней - красным. */
 .tb-final { margin-left: 6px; padding: 1px 7px; border: 1px solid currentColor; border-radius: 999px; font-size: 13px; font-weight: var(--fw-strong); color: var(--warn-on-hud); }
 .tb-final.hot { color: var(--bad-on-hud); }
+/* В HUD справа снизу под деньгами - кнопки скорости: суммы летят над деньгами, а не закрывают кнопки (плейтест 17.10). */
+@media (min-width: 768px) {
+  .topbar.tpc .flies { top: auto; bottom: calc(100% + 6px); }
+  .topbar.tpc .fly { top: auto; bottom: calc(var(--i, 0) * 30px); }
+}
