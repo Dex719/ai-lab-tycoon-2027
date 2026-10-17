@@ -498,8 +498,8 @@ function RowEffect({ s, k, share }: { s: GameState; k: 'training' | 'experiments
 }
 
 /**
- * Доли «как нужно»: контрактам и клиентам - сколько им нужно сейчас (+5 %), остальное - обучению и исследованиям
- * в прежнем соотношении (если идёт только что-то одно - ему всё).
+ * Доли «как нужно»: контрактам и клиентам - сколько им нужно сейчас (+5 %), остальное - обучению и исследованиям:
+ * идущему обучению две трети, исследованию треть; если идёт только что-то одно - почти всё ему.
  */
 export function autoPercents(s: GameState, cur: Percents): Percents {
   const total = totalH100e(s);
@@ -524,8 +524,10 @@ export function autoPercents(s: GameState, cur: Percents): Percents {
   const rest = 100 - contracts - api - subs;
   // Обучению доля остаётся всегда: если модель сейчас не учится, её скоро начнут (плейтест 16.10 - «Как нужно» обнулял
   // обучение, и новую модель было не начать). Исследованиям - только пока исследование идёт.
-  const wT = Math.max(1, cur.training);
-  const wE = research ? Math.max(1, cur.experiments) : 0;
+  // Веса не зависят от прежних долей: раньше остаток делился «в прежнем соотношении», и стоило обучению один раз
+  // упасть почти до нуля (модель не училась), как дальше исследования забирали 90 % и больше, а модель шла месяцами.
+  const wT = training ? 2 : research ? 0.1 : 1;
+  const wE = research ? 1 : 0;
   const [t, e] = distribute([wT, wE], rest - keep);
   return { training: keepT + t, contracts, experiments: keepE + e, api, subs };
 }

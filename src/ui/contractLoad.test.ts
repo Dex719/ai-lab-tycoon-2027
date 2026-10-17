@@ -49,7 +49,7 @@ describe('нагрузка контрактов', () => {
     const a = sideAlerts(s).find((x) => x.label === 'Контракт не успевает');
     expect(a).toBeDefined();
     expect(a!.open).toBe('compute');
-    expect(a!.text).toMatch(/нужно 3,8.*есть/);
+    expect(a!.text).toBe('Банк «Северный»: не хватает 3,39 из 3,8 H100e');
   });
 
   it('сводка: тендер, который можно подать, в последние дни - «Тендер закрывается»', () => {
@@ -96,6 +96,17 @@ describe('нагрузка контрактов', () => {
     const p = autoPercents(s, { training: 40, contracts: 20, experiments: 30, api: 10, subs: 0 });
     expect(p.training).toBeGreaterThanOrEqual(30);
     expect(p.experiments).toBeGreaterThanOrEqual(15);
+    expect(p.training + p.contracts + p.experiments + p.api + p.subs).toBe(100);
+  });
+
+  it('«Как нужно» не застревает на маленькой доле обучения: идущему обучению больше, чем исследованию', () => {
+    const s = newGame('Тест', 1);
+    rentNow(s, 'p100', 96);
+    s.research.current = 'attention';
+    s.trainings.push({ id: 't1', failed: false } as never);
+    // Прежнее нажатие, когда модель не училась, оставило обучению 5 %.
+    const p = autoPercents(s, { training: 5, contracts: 0, experiments: 94, api: 1, subs: 0 });
+    expect(p.training).toBeGreaterThan(p.experiments);
     expect(p.training + p.contracts + p.experiments + p.api + p.subs).toBe(100);
   });
 });

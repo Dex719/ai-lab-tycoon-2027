@@ -7,7 +7,7 @@ import type { ReactNode, RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
 import { GPUS } from '../../data/gpus';
-import { pool, rentPerDay, totalH100e } from '../../sim/compute';
+import { nextArrival, pool, rentPerDay, totalH100e } from '../../sim/compute';
 import { ALGO_MULT, CONTEXT_LEVELS, RP_BASE, RP_K } from '../../sim/constants';
 import {
   BRANCH_NAMES,
@@ -295,7 +295,10 @@ function NowStrip(props: {
   };
 
   let powerText: ReactNode;
-  if (!cards) powerText = <span className="warn">Карты не арендованы: работает только команда</span>;
+  // Карты заказаны, но ещё не пришли: «не арендованы» новичок читал как «аренда не прошла» (плейтест 18.10).
+  const arrival = cards ? null : nextArrival(s);
+  if (!cards && arrival) powerText = <span className="warn">Карты в пути, придут {formatDateShort(arrival.day)}: пока работает только команда</span>;
+  else if (!cards) powerText = <span className="warn">Карты не арендованы: работает только команда</span>;
   else if (power <= 0) powerText = <span className="warn">Мощность не выделена: работает только команда</span>;
   else if (!current) powerText = <span className="warn">Простаивает {fmtNum(power)} H100e</span>;
   else
@@ -719,7 +722,9 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
               </div>
               {noCards ? (
                 <div className="rs-d-empty">
-                  <span>Карты не арендованы: работает только команда.</span>
+                  <span>
+                    {nextArrival(s) ? `Карты в пути, придут ${formatDateShort(nextArrival(s)!.day)}: пока работает только команда.` : 'Карты не арендованы: работает только команда.'}
+                  </span>
                   <button className="btn small" onClick={onRent}>
                     Открыть «Мощности»
                   </button>

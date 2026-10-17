@@ -25,6 +25,7 @@ import { fmtH100e, fmtMoney, fmtNum, fmtPrice, fmtShare } from './format';
 import { IconChevronLeft, IconChevronRight } from './icons';
 import { GoalsPanel } from './GoalsPanel';
 import { reviewNote } from './labels';
+import { store } from './store';
 import type { Viewport } from './viewport';
 import type { WindowAlias, WindowId } from './windows';
 
@@ -41,7 +42,16 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
   // Отложенные решения сверху: у них есть срок.
   for (const m of openChoices(s).filter((x) => x.deferred)) {
     items.push(
-      <div className="side-item t-decision decision" key={m.id} onClick={() => open('mail')} style={{ cursor: 'pointer' }}>
+      // Открыть именно это письмо, а не верхнее в списке (плейтест 18.10).
+      <div
+        className="side-item t-decision decision"
+        key={m.id}
+        onClick={() => {
+          store.focusMail(m.id);
+          open('mail');
+        }}
+        style={{ cursor: 'pointer' }}
+      >
         <div className="t">Решение: {m.title}</div>
         <div className="r">
           <span>Ответить до</span>
@@ -307,7 +317,8 @@ export function sideAlerts(s: GameState): SideAlert[] {
     out.push({
       key: `late:${l.contract.id}`,
       label: 'Контракт не успевает',
-      text: `${client(l.contract.tender.clientId)}: нужно ${fmtH100e(l.need)}, есть ${fmtH100e(l.have)} H100e`,
+      // Сколько не хватает, а не «нужно 1,75, есть 1,75»: при округлении до сотых разница пропадала (плейтест 18.10).
+      text: `${client(l.contract.tender.clientId)}: не хватает ${fmtH100e(l.need - l.have)} из ${fmtH100e(l.need)} H100e`,
       title: `До срока ${l.left} дн. Поднимите долю «Контракты» или арендуйте карты, иначе штраф ${fmtMoney(l.contract.tender.penalty)}`,
       action: 'Мощности',
       open: 'compute',
