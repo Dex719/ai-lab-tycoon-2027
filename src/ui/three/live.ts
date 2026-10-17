@@ -2,7 +2,7 @@
 // не в беде ли деньги, и короткие события (обучение началось, модель вышла). Без three.js и без React:
 // пишет SceneLive (из состояния партии), читает движок. Симуляцию не трогает.
 
-export type SceneEventKind = 'trainStart' | 'trainDone' | 'release' | 'trouble';
+export type SceneEventKind = 'trainStart' | 'trainDone' | 'release' | 'trouble' | 'hardware' | 'hire';
 
 export interface LiveState {
   /** Время идёт (не пауза). В главном меню - true: зал живёт сам. */

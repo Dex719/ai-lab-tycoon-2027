@@ -602,7 +602,7 @@ export function buildFarm(spec: FarmSpec, prev: FarmSpec | null): Content {
         return LED_OFF;
     }
   };
-  const EVENT_CODE: Record<SceneEventKind, number> = { trainStart: 2, trainDone: 4, release: 5, trouble: 6 };
+  const EVENT_CODE: Record<SceneEventKind, number> = { trainStart: 2, trainDone: 4, release: 5, trouble: 6, hardware: 2, hire: 4 };
   const anyFresh = fresh.some(Boolean);
   let lastAt = 0;
   let angle = 0;

@@ -9,6 +9,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import type { Content } from './engine';
 import { EVENT_MS, live } from './live';
 import { rng } from './kit';
+import { Crowd, type Look, type Spot } from './people';
 import type { LabSpec } from './specs';
 
 interface RoomDef {
@@ -88,13 +89,6 @@ export function buildLab(spec: LabSpec): Content {
     m.castShadow = true;
     m.receiveShadow = true;
     root.add(m);
-    return m;
-  };
-  const capsule = (r: number, len: number, color: string, x: number, y: number, z: number, parent: THREE.Object3D = root): THREE.Mesh => {
-    const m = new THREE.Mesh(geo(new THREE.CapsuleGeometry(r, len, 6, 14)), mat(color));
-    m.position.set(x, y, z);
-    m.castShadow = true;
-    parent.add(m);
     return m;
   };
   const ball = (r: number, color: string, x: number, y: number, z: number, parent: THREE.Object3D = root, glow = 0): THREE.Mesh => {
@@ -203,8 +197,9 @@ export function buildLab(spec: LabSpec): Content {
     const pane = new THREE.Mesh(geo(new THREE.BoxGeometry(0.04, 2.6, 1.9)), glass);
     pane.position.set(gx, 1.3, z0 + 0.95);
     root.add(pane);
-    const front = new THREE.Mesh(geo(new THREE.BoxGeometry(x1 - gx, 2.6, 0.04)), glass);
-    front.position.set((gx + x1) / 2, 1.3, z0 + 1.9);
+    const front = new THREE.Mesh(geo(new THREE.BoxGeometry(x1 - gx - 0.9, 2.6, 0.04)), glass);
+    front.position.set((gx + 0.9 + x1) / 2, 1.3, z0 + 1.9);
+    box(0.06, 2.6, 0.06, '#9aa1a9', gx + 0.9, 1.3, z0 + 1.9);
     root.add(front);
     box(0.06, 2.6, 0.06, '#9aa1a9', gx, 1.3, z0 + 1.9);
   }
@@ -251,12 +246,11 @@ export function buildLab(spec: LabSpec): Content {
     return { x: deskArea.xa + COL / 2 + c * COL, z: deskArea.za + r * ROW };
   };
   const screens: THREE.Mesh[] = [];
-  const heads: { m: THREE.Object3D; base: number; phase: number }[] = [];
   const screenColor = spec.training ? '#3a7bd5' : '#4a5563';
   for (let i = 0; i < shown; i++) {
     const { x, z } = deskPos(i);
     desk(x, z, i);
-    person(x - 0.15, z + 0.85, i);
+    chairAt(x - 0.15, z + 0.85, i);
   }
   let ghostAt: THREE.Vector3 | null = null;
   if (ghosts) {
@@ -320,59 +314,12 @@ export function buildLab(spec: LabSpec): Content {
     }
   }
 
-  function person(x: number, z: number, i: number) {
-    const g = new THREE.Group();
-    g.position.set(x, 0, z);
-    // Вперёд (к столу) - это -z: ноги и руки туда, спинка стула сзади (+z).
-    const chair = CHAIRS[i % CHAIRS.length];
-    box(0.56, 0.1, 0.56, chair, 0, 0.48, 0, g);
-    box(0.56, 0.58, 0.1, chair, 0, 0.8, 0.26, g);
-    cyl(0.04, 0.45, '#6b7276', 0, 0.24, 0, g);
-    capsule(0.1, 0.32, '#3d4a5e', -0.1, 0.58, -0.14, g).rotation.x = Math.PI / 2;
-    capsule(0.1, 0.32, '#3d4a5e', 0.1, 0.58, -0.14, g).rotation.x = Math.PI / 2;
-    const torso = capsule(0.22, 0.3, SHIRTS[i % SHIRTS.length], 0, 0.92, 0, g);
-    torso.scale.z = 0.8;
-    // Руки к клавиатуре.
-    for (const sx of [-1, 1]) {
-      const arm = capsule(0.065, 0.32, SHIRTS[i % SHIRTS.length], sx * 0.21, 0.98, -0.2, g);
-      arm.rotation.x = Math.PI / 2 + 0.35;
-      ball(0.06, SKIN[(i * 3) % SKIN.length], sx * 0.17, 0.88, -0.4, g);
-    }
-    // Голени вниз от колен к полу.
-    capsule(0.08, 0.36, '#3d4a5e', -0.1, 0.27, -0.3, g);
-    capsule(0.08, 0.36, '#3d4a5e', 0.1, 0.27, -0.3, g);
-    box(0.13, 0.07, 0.22, '#2b2f35', -0.1, 0.04, -0.36, g);
-    box(0.13, 0.07, 0.22, '#2b2f35', 0.1, 0.04, -0.36, g);
-    const head = new THREE.Group();
-    head.position.set(0, 1.44, 0);
-    ball(0.21, SKIN[(i * 3) % SKIN.length], 0, 0, 0, head);
-    const cap = ball(0.22, HAIR[(i * 5) % HAIR.length], 0, 0.06, 0.04, head);
-    cap.scale.set(1, 0.75, 1);
-    g.add(head);
-    heads.push({ m: head, base: head.position.y, phase: rand() * 6 });
-    root.add(g);
-  }
-
-  // Исследователь у доски - когда исследование идёт.
-  if (spec.research) {
-    const g = new THREE.Group();
-    g.position.set(wbX, 0, z0 + 0.95);
-    capsule(0.08, 0.6, '#3d4a5e', -0.1, 0.4, 0, g);
-    capsule(0.08, 0.6, '#3d4a5e', 0.1, 0.4, 0, g);
-    const t = capsule(0.22, 0.32, '#7b5cd6', 0, 1.08, 0, g);
-    t.scale.z = 0.8;
-    const head = new THREE.Group();
-    head.position.set(0, 1.6, 0);
-    ball(0.21, SKIN[1], 0, 0, 0, head);
-    const cap = ball(0.22, HAIR[2], 0, 0.06, 0.04, head);
-    // Рука с маркером к доске.
-    const arm = capsule(0.065, 0.34, '#7b5cd6', 0.22, 1.25, -0.18, g);
-    arm.rotation.x = Math.PI / 2 + 0.6;
-    ball(0.06, SKIN[1], 0.22, 1.42, -0.36, g);
-    cap.scale.set(1, 0.75, 1);
-    g.add(head);
-    heads.push({ m: head, base: head.position.y, phase: 1.3 });
-    root.add(g);
+  function chairAt(x: number, z: number, i: number) {
+    const c = CHAIRS[i % CHAIRS.length];
+    box(0.56, 0.1, 0.56, c, x, 0.5, z);
+    box(0.56, 0.58, 0.1, c, x, 0.82, z + 0.28);
+    cyl(0.04, 0.45, '#6b7276', x, 0.24, z);
+    cyl(0.22, 0.04, '#6b7276', x, 0.03, z);
   }
 
   // Переговорный стол спереди справа - если передний ряд столов свободен.
@@ -517,6 +464,49 @@ export function buildLab(spec: LabSpec): Content {
   sun.shadow.bias = -0.0006;
   root.add(sun, sun.target);
 
+  // ---------- Люди ----------
+  const laneX = deskArea.xa - 0.25;
+  const TZ = deskArea.za - (spec.stage >= 1 ? 0.75 : 0.95);
+  const spots: Spot[] = [];
+  const at = (x: number, z: number, face: number, act: Spot['act'], lane = TZ): Spot => ({ x, z, face, act, lane });
+  spots.push(at(x0 + 1.15, z0 + 4.2, Math.PI / 2, 'drink'));
+  spots.push(at(wbX + 0.85, z0 + 1.05, 0, 'look'));
+  if (room.windows > 0) spots.push(at(x0 + 5 + winSpan / room.windows / 2, z0 + 1.0, 0, 'look'));
+  if (spec.racks > 0) spots.push(at(rackX(spec.racks - 1) - 1.45, z0 + 1.0, 0, 'print'));
+  if (spec.stage >= 1) spots.push(at(x0 + 0.95, z0 + 6.8, Math.PI / 2, 'drink'));
+  for (let k = 0; k < Math.min(3, shown); k++) {
+    const j = Math.floor(rand() * shown);
+    const d = deskPos(j);
+    spots.push(at(d.x + 0.45, d.z + 1.25, Math.PI * 0.75, 'chat', d.z + 1.4));
+  }
+  const gapX = rackX(spec.racks - 1) - 0.75 + 0.45;
+  const serverSpots: Spot[] = [];
+  for (let i = 0; i < spec.racks; i++) {
+    const sp = at(rackX(i), rackZ + 0.95, 0, 'tap');
+    if (spec.stage >= 1) sp.via = [{ x: gapX, z: TZ }, { x: gapX, z: rackZ + 0.95 }];
+    serverSpots.push(sp);
+  }
+  const door = spec.stage >= 1 ? { x: x0 + 0.55, z: z1 - 0.8 } : { x: x0 + 0.7, z: z1 - 2.6 };
+  const crowd = new Crowd(
+    (g, color) => {
+      const m = new THREE.Mesh(g, mat(color));
+      m.castShadow = false;
+      return m;
+    },
+    (g) => geos.add(g),
+    laneX,
+    spots,
+    serverSpots,
+    door,
+    rand,
+  );
+  for (let i = 0; i < shown; i++) {
+    const d = deskPos(i);
+    crowd.addSeated(lookOf(i), { x: d.x - 0.15, z: d.z + 0.85 }, d.z + 1.4);
+  }
+  if (spec.research) crowd.addStanding({ ...lookOf(97), coat: true }, at(wbX, z0 + 0.95, 0, 'write'));
+  root.add(crowd.root);
+
   // ---------- Точки подписей ----------
   const anchors: Record<string, THREE.Vector3> = {};
   if (spec.racks > 0) anchors.servers = new THREE.Vector3((rackX(0) + rackX(spec.racks - 1)) / 2, 2.6, rackZ);
@@ -541,7 +531,6 @@ export function buildLab(spec: LabSpec): Content {
       else on = Math.sin(now / (trouble ? 420 : 160) + l.seed * 40) > 1 - 2 * busy * (0.6 + 0.4 * l.seed);
       l.mesh.material = on ? ledMat(color) : ledOff;
     }
-    for (const h of heads) h.m.position.y = h.base + (animated ? Math.sin(now / 380 + h.phase) * 0.018 : 0);
     const k = eventOn ? 1.6 : animated && spec.training ? 0.8 + Math.sin(now / 700) * 0.12 : spec.training ? 0.8 : 0.4;
     if (k !== lastLit) {
       for (const s of screens) (s.material as THREE.MeshStandardMaterial).emissiveIntensity = k;
@@ -557,7 +546,9 @@ export function buildLab(spec: LabSpec): Content {
     const eventOn = !ctx.reduced && !!ev && age >= 0 && age < EVENT_MS;
     const animated = !ctx.reduced && live.running;
     const dirty = paint(ctx.now, animated, eventOn);
-    return { dirty, next: eventOn ? 60 : animated ? (ctx.slow ? 260 : 150) : Infinity };
+    const people = crowd.update(ctx.now, animated, ev ? { kind: ev.kind, seq: ev.seq, age } : null);
+    const next = people.moving ? (ctx.slow ? 66 : 33) : eventOn ? 60 : animated ? (ctx.slow ? 200 : 90) : Infinity;
+    return { dirty: dirty || people.dirty, next };
   };
 
   const box3 = new THREE.Box3(new THREE.Vector3(x0 - M, -0.6, z0 - M), new THREE.Vector3(x1 + M, WALL_H, z1 + M));
@@ -589,6 +580,20 @@ export function buildLab(spec: LabSpec): Content {
 }
 
 /** Цвет темнее (k < 0) или светлее (k > 0). */
+const PANTS = ['#3d4a5e', '#2f3d44', '#6b5a4a', '#4a5a3a', '#5a4a6b'];
+const STYLES: Look['style'][] = ['short', 'bun', 'curly', 'long', 'short', 'bald'];
+
+function lookOf(i: number): Look {
+  return {
+    shirt: SHIRTS[i % SHIRTS.length],
+    pants: PANTS[(i * 3) % PANTS.length],
+    skin: SKIN[(i * 7) % SKIN.length],
+    hair: HAIR[(i * 5) % HAIR.length],
+    style: STYLES[(i * 5 + 1) % STYLES.length],
+    glasses: i % 3 === 1,
+  };
+}
+
 function shade(hex: string, k: number): string {
   const c = new THREE.Color(hex);
   c.offsetHSL(0, 0, k);

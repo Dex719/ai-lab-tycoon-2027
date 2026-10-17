@@ -15,6 +15,16 @@ interface Snap {
   trainings: number;
   released: number;
   negative: boolean;
+  /** Карт всего (аренда и свои) и вышедших на работу сотрудников: рост - событие для людей в зале. */
+  cards: number;
+  staff: number;
+}
+
+function cardsOf(s: GameState): number {
+  let n = 0;
+  for (const v of Object.values(s.compute.rented)) n += v ?? 0;
+  for (const dc of s.datacenters?.list ?? []) for (const v of Object.values(dc.gpus)) n += v ?? 0;
+  return n;
 }
 
 /** Доля мощности, занятая работой, шагами по 0,1 (чтобы залы не перерисовывались от каждой сотой). */
@@ -40,6 +50,8 @@ export function SceneLive({ s }: { s: GameState }) {
       trainings: s.trainings.length,
       released: s.models.filter((m) => m.releasedDay !== null).length,
       negative: s.finance.negativeDays > 0,
+      cards: cardsOf(s),
+      staff: s.staff?.people.filter((e) => e.startDay <= s.day).length ?? 0,
     };
     const p = prev.current;
     prev.current = now;
@@ -50,6 +62,8 @@ export function SceneLive({ s }: { s: GameState }) {
     else if (now.trainings < p.trainings) fireSceneEvent('trainDone');
     else if (now.trainings > p.trainings) fireSceneEvent('trainStart');
     else if (!p.negative && now.negative) fireSceneEvent('trouble');
+    else if (now.staff > p.staff) fireSceneEvent('hire');
+    else if (now.cards > p.cards) fireSceneEvent('hardware');
   });
 
   useEffect(() => () => resetLive(), []);
