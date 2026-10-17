@@ -22,6 +22,7 @@ import { SceneLive } from './SceneLive';
 import { ReleaseCard } from './ReleaseCard';
 import { Moments } from './Moments';
 import { LabFloor } from './LabFloor';
+import { RailIcon } from './railIcons';
 import './shell.css';
 import './feel.css';
 import { FeelLayer } from './FeelLayer';
@@ -376,8 +377,8 @@ export function Game({ s }: { s: GameState }) {
                   data-tutorial={`icon-${d.id}`}
                   onClick={() => (active ? minAnim(d.id) : w ? focus(d.id) : open(d.id))}
                 >
-                  <d.icon size={26} />
-                  <span>{d.title}</span>
+                  <RailIcon id={d.id} />
+                  <span className="dock-tip">{d.title}</span>
                   {count > 0 && (
                     <i className="count" key={count}>
                       {count}

@@ -112,33 +112,6 @@ table.grid tr:nth-child(even) td { background: #f2f9fa; }
   .tb-stage { color: #e6f7f8; }
   .tb-stage-bar { background: var(--teal-deep); }
   .tb-stage-bar > i { background: var(--orange); }
-  /* Деньги, расход, дата и скорость - плашка справа снизу. */
-  html .game .topbar-center {
-    position: absolute; right: 12px; bottom: 44px; display: grid; grid-template-columns: auto auto; gap: 6px 10px; align-items: center;
-    padding: 10px 12px; background: var(--hud); border-radius: 14px; color: #fff;
-  }
-  html .game .topbar-center .tb-sep { display: none; }
-  .game .tb-money {
-    grid-column: 1 / -1; height: 44px; padding: 0 16px 0 6px; border-radius: 999px; background: #fff; color: var(--text); font-size: 24px; font-weight: 900; gap: 10px;
-  }
-  .game .tb-money > svg { width: 34px; height: 34px; padding: 6px; border-radius: 50%; background: var(--orange); color: #fff; }
-  .game .tb-money .tb-bad { color: #c0353b; }
-  .game .tb-rate { font-size: 14px; font-weight: 800; }
-  .game .tb-rate .tb-good { color: #8ee2a8; }
-  .game .tb-rate .tb-bad { color: #ff9b94; }
-  .game .tb-date { font-size: 15px; font-weight: 900; justify-self: end; }
-  .game .tb-date svg, .game .tb-rate svg { color: #a7dfe5; }
-  .game .speed { grid-column: 1 / -1; justify-self: end; gap: 4px; }
-  html .game .speed button { width: 38px; height: 32px; border-radius: 8px; background: #fff; color: var(--teal-deep); }
-  html .game .speed button:hover { background: #e7f5f6; color: var(--teal-deep); }
-  html .game .speed button.on { background: var(--orange); color: #fff; }
-  html .game .speed button.on[aria-label^='Пауза'] { background: #d9444a; color: #fff; }
-  .game .topbar.paused .topbar-center { box-shadow: 0 0 0 3px #d9444a; }
-  /* Доля, репутация, шумиха и гонка - плашка над деньгами. */
-  html .game .topbar-right {
-    position: absolute; right: 12px; bottom: 228px; display: flex; gap: 12px; align-items: center; padding: 8px 14px;
-    background: var(--hud); border-radius: 14px; color: #fff;
-  }
   .game .pause-note { top: 60px; background: #d9444a; color: #fff; border: none; border-radius: 999px; font-weight: 800; padding: 6px 16px; }
 
   /* ---------- Панель задач: полоса месяцев внизу, разделы - колонкой значков слева ---------- */
@@ -257,3 +230,111 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
 .tm-head, .rw-cur, .cw-top { background: var(--cream) !important; border-radius: 0; border-bottom: none !important; }
 /* Строки списков: выбранная - мягкая бирюза, наведённая - светлее. */
 .tm-item.on, .tm-item:hover { background: var(--row-sel); }
+
+@media (min-width: 768px) {
+  /* ---------- HUD справа снизу, как в образце: плитка даты, монета и деньги в белой таблетке, квадратные кнопки скорости ---------- */
+  .topbar.tpc .hud-br {
+    position: absolute; right: 12px; bottom: 44px; display: flex; align-items: stretch; gap: 8px; padding: 8px; background: var(--hud); border-radius: 16px;
+  }
+  .hb-date {
+    width: 76px; flex: none; display: flex; flex-direction: column; align-items: center; overflow: hidden; border-radius: 12px; background: #fff;
+    box-shadow: inset 0 -4px 0 #b9d6da;
+  }
+  .hb-date b { align-self: stretch; text-align: center; padding: 2px 0; background: var(--teal); color: #fff; font-size: 14px; font-weight: 900; }
+  .hb-date span { margin-top: 4px; font-size: 24px; font-weight: 900; line-height: 1; color: var(--teal-ink); }
+  .hb-date small { font-size: 13px; font-weight: 800; color: var(--text-dim); }
+  .hb-main { display: flex; flex-direction: column; gap: 6px; min-width: 250px; }
+  .hb-money { position: relative; display: flex; align-items: center; gap: 0; cursor: default; }
+  .hb-coin {
+    position: relative; z-index: 1; width: 42px; height: 42px; flex: none; border-radius: 50%; display: grid; place-items: center;
+    background: var(--orange); color: #fff; font-size: 24px; font-weight: 900; box-shadow: inset 0 -4px 0 var(--orange-deep), 0 0 0 3px #fff;
+  }
+  .hb-pill {
+    flex: 1; height: 38px; margin-left: -16px; padding: 0 16px 0 26px; display: flex; align-items: center; justify-content: flex-end;
+    border-radius: 0 999px 999px 0; background: #fff; color: var(--text); font-size: 22px; font-weight: 900; box-shadow: inset 0 -4px 0 #b9d6da;
+  }
+  .hb-pill .tb-bad { color: #c0353b; }
+  .hb-row { display: flex; align-items: center; gap: 8px; }
+  .hb-sub:empty { display: none; }
+  html .game .topbar.tpc .speed { display: flex; gap: 3px; }
+  html .game .topbar.tpc .speed button {
+    width: 34px; height: 32px; border-radius: 8px; background: #fff; color: var(--teal-deep); box-shadow: inset 0 -3px 0 #b9d6da;
+  }
+  html .game .topbar.tpc .speed button:hover { background: #e7f5f6; }
+  html .game .topbar.tpc .speed button.on { background: var(--orange); color: #fff; box-shadow: inset 0 -3px 0 var(--orange-deep); }
+  html .game .topbar.tpc .speed button.on[aria-label^='Пауза'] { background: #d9444a; color: #fff; box-shadow: inset 0 -3px 0 #a3272c; }
+  .hb-rate { margin-left: auto; padding: 4px 10px; border-radius: 999px; background: #173a42; font-size: 14px; font-weight: 900; white-space: nowrap; }
+  .hb-rate.good { color: #8ee2a8; }
+  .hb-rate.bad { color: #ff9b94; }
+  .hb-sub { color: #e6f7f8; font-size: 13px; }
+  .hb-sub .tb-runway { margin: 0; }
+  .topbar.tpc.paused .hud-br { box-shadow: 0 0 0 3px #d9444a; }
+
+  /* Показатели над HUD: белые таблетки с оранжевыми шкалами. */
+  .topbar.tpc .hud-stats { position: absolute; right: 12px; bottom: 180px; display: flex; gap: 6px; align-items: stretch; }
+  .topbar.tpc .lab-stat, .topbar.tpc .ar-strip {
+    display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 12px; border-radius: 12px; background: #fff; color: var(--text);
+    box-shadow: inset 0 -4px 0 #b9d6da;
+  }
+  .topbar.tpc .ls-k, .topbar.tpc .ar-k { font-size: 11px; font-weight: 800; color: var(--text-dim); }
+  .topbar.tpc .ls-v { font-size: 18px; font-weight: 900; color: var(--teal-ink); }
+  .topbar.tpc .ls-bar { display: block; height: 7px; border-radius: 999px; background: #d7ecef; overflow: hidden; }
+  .topbar.tpc .ls-bar i { display: block; height: 100%; background: var(--orange); }
+  .topbar.tpc .ar-strip { flex-direction: row; align-items: center; gap: 10px; }
+  .topbar.tpc .ar-r { color: var(--teal-ink); font-weight: 900; }
+  .topbar.tpc .ar-r.first { color: var(--orange-deep); }
+  .topbar.tpc .ar-n { color: var(--text); font-weight: 700; }
+  .topbar.tpc .ar-gap { color: var(--text-dim); }
+}
+
+@media (min-width: 768px) {
+  /* ---------- Колонка разделов: квадратные бирюзовые кнопки с белыми значками; название - подсказкой справа ---------- */
+  html .game .dock-btn { width: 52px; height: 52px; border-radius: 12px; }
+  html .game .dock-btn .dock-tip {
+    position: absolute; left: 62px; top: 50%; transform: translateY(-50%); max-width: none; padding: 5px 12px; border-radius: 999px;
+    background: #fff; color: var(--teal-ink); font-size: 14px; font-weight: 900; white-space: nowrap; pointer-events: none;
+    box-shadow: 0 2px 8px rgb(20 50 56 / 0.25); opacity: 0; transition: opacity 120ms ease-out;
+  }
+  html .game .dock-btn:hover .dock-tip, html .game .dock-btn:focus-visible .dock-tip { opacity: 1; }
+  html .game .dock-btn .dock-new { top: auto; bottom: -6px; left: 50%; font-size: 10px; }
+}
+
+@media (min-width: 768px) {
+  /* ---------- Сводка справа, как панель целей в образце ---------- */
+  .game .side-body { background: var(--hud); border-radius: 16px; overflow: hidden; }
+  .game .side-head { font-size: 17px; letter-spacing: 0.02em; box-shadow: inset 0 -4px 0 var(--teal-deep); }
+  /* Гонка - белая карточка: крупное место и разрыв. */
+  .game .side-race { margin: 10px 10px 4px; padding: 8px 12px; border: none; border-radius: 12px; background: #fff; color: var(--text); box-shadow: inset 0 -4px 0 #b9d6da; }
+  .game .side-race .sr-place { color: var(--teal-ink); font-weight: 900; }
+  .game .side-race.first .sr-place { color: var(--orange-deep); }
+  .game .side-race .sr-k, .game .side-race .sr-m { color: var(--text-dim); font-weight: 700; }
+  .game .side-race .sr-v { color: var(--text); font-weight: 900; }
+  .game .side-rival { margin: 0 10px 6px; border: none; border-radius: 999px; background: rgb(255 255 255 / 0.12); color: #cfe9ec; }
+  .game .side-rival b { color: #fff; }
+  /* Простой и другие тревоги - красная плашка с белой кнопкой. */
+  .game .side-idle { margin: 6px 10px; padding: 8px 10px 8px 14px; border: none; border-radius: 12px; background: #d9444a; color: #fff; font-size: 13px; }
+  .game .side-idle b { color: #fff; }
+  .game .side-idle .btn { background: #fff; color: #b3262c; box-shadow: inset 0 -3px 0 #f0b9bb; }
+  /* Шапки «Цели года» и «Задачи» - бирюзовые полосы. */
+  .game .goal-head, .game .task-head { margin-top: 8px; padding: 7px 12px; background: var(--teal); color: #fff; font-size: 15px; font-weight: 900; box-shadow: inset 0 -3px 0 var(--teal-deep); }
+  .game .goal-head .n, .game .task-head .n { color: #dff3f5; font-weight: 800; }
+  .game .goal-row, .game .task-row { padding: 8px 12px 6px; color: #b9d3d7; }
+  .game .goal-row:hover, .game .task-row:hover { background: rgb(255 255 255 / 0.06); }
+  .game .goal-row .gt-name, .game .task-row .tr-title { font-weight: 800; }
+  .game .goal-row .gt-name::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 8px; background: #fff; vertical-align: 1px; }
+  .game .goal-row .gt-reward, .game .task-row .tr-reward { color: #ffc27a; font-weight: 800; }
+  .game .goal-row .gt-reward.ok { color: #8ee2a8; }
+  .game .goal-bar, .game .task-bar { height: 12px; margin-top: 6px; border-radius: 999px; background: #173a42; }
+  .game .goal-bar > div, .game .task-bar > div { background: var(--teal); border-radius: 999px; }
+  .game .goal-row.done .goal-bar > div { background: #5cc283; }
+  .game .side-tabs { padding: 10px 12px; }
+  .game .side-tabs button { background: rgb(255 255 255 / 0.14); color: #fff; }
+  .game .side-item { margin: 0 10px 6px; border: none; border-radius: 12px; background: rgb(255 255 255 / 0.07); }
+  .game .side-item.decision { background: #6b4a12; box-shadow: inset 0 0 0 2px var(--orange); }
+}
+
+@media (min-width: 768px) {
+  /* Причина паузы - красная таблетка по центру над полосой месяцев (сверху её закрывали подписи сцены). */
+  .game .pause-note { top: auto; bottom: 46px; left: 50%; transform: translateX(-50%); }
+  .game .month-strip { bottom: 92px; }
+}

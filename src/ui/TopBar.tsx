@@ -11,6 +11,7 @@ import { dayToDate, END_DAY, formatDateShort } from '../sim/time';
 
 /** С 1 октября 2024 года рядом с датой идёт отсчёт до конца партии. */
 const FINAL_DAYS = 92;
+const MONTH3 = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 import type { GameState, Speed } from '../sim/types';
 import { fmtDays, fmtMoney } from './format';
 import { subsOpen } from '../sim/market';
@@ -118,6 +119,102 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
   const negative = s.finance.negativeDays > 0;
   // Пауза и ожидание ответа на письмо выглядят одинаково: игра стоит.
   const paused = (speed === 0 || locked) && !s.outcome;
+
+  const speedButtons = (
+    <div className="speed" role="group" aria-label="Скорость">
+      {SPEEDS.map(({ speed: sp, title, Icon }) => (
+        <button
+          key={sp}
+          className={speed === sp ? 'on' : undefined}
+          title={title}
+          aria-label={title}
+          aria-pressed={speed === sp}
+          disabled={locked && sp !== 0}
+          data-tutorial={sp === 1 ? 'speed-play' : undefined}
+          onClick={() => store.setSpeed(sp)}
+        >
+          <Icon />
+        </button>
+      ))}
+    </div>
+  );
+  const pauseNote = (store.pauseReason || negative) && speed === 0 && (
+    <div className="pause-note">
+      {store.pauseReason ? `Пауза: ${store.pauseReason}` : 'Деньги в минусе'}
+      {negative && ` · до банкротства ${Math.max(0, 60 - s.finance.negativeDays)} дн.`}
+    </div>
+  );
+
+  // Компьютер: лента лаборатории слева сверху, плашка денег, даты и скорости справа снизу (по образцу Two Point Campus).
+  if (!phone)
+    return (
+      <header className={`topbar tpc${paused ? ' paused' : ''}`}>
+        <div className="topbar-left">
+          <span className="tb-logo" aria-hidden="true">
+            <IconLogo size={18} />
+          </span>
+          <b>{s.labName}</b>
+          {s.founderName && <span className="tb-founder">{s.founderName}</span>}
+          <StageMark s={s} />
+          {store.autosaveError && (
+            <span className="tb-bad" title={store.autosaveError} style={{ display: 'flex' }}>
+              <IconAlert />
+            </span>
+          )}
+        </div>
+        <div className="hud-stats">
+          <LabStats s={s} />
+          <ArenaStrip s={s} />
+        </div>
+        <div className="hud-br">
+          <div className="hb-date" title={formatDateShort(s.day)}>
+            <b>{ymd.year}</b>
+            <span key={beat.n} className={beat.n > 0 ? `tb-date-v beat${beat.year ? ' year' : ''}` : 'tb-date-v'}>
+              {MONTH3[ymd.month - 1]}
+            </span>
+            <small>{ymd.day}</small>
+          </div>
+          <div className="hb-main">
+            <div
+              className="tb-money hb-money"
+              onMouseEnter={() => setHover(true)}
+              onMouseLeave={() => setHover(false)}
+              onClick={() => isCoarsePointer() && setPinned((v) => !v)}
+            >
+              <span className="hb-coin" aria-hidden="true">
+                $
+              </span>
+              <span className="hb-pill">
+                <FlashNum value={s.cash}>
+                  <span className={s.cash < 0 ? 'tb-bad' : undefined}>{fmtMoney(cashShown)}</span>
+                </FlashNum>
+              </span>
+              <MoneyFlies />
+              {(hover || pinned) && <MoneyPopup s={s} />}
+            </div>
+            <div className="hb-row">
+              {speedButtons}
+              <span
+                className={`hb-rate ${rate >= 0 ? 'good' : 'bad'}`}
+                title="Средний доход за 3 месяца (API, подписки, контракты) минус постоянные расходы: аренда, зарплаты, дата-центры. Инвесторы и разовые платежи не входят"
+              >
+                {rate >= 0 ? '+' : '−'}
+                {fmtMoney(Math.abs(rate))}/мес.
+              </span>
+            </div>
+            <div className="hb-row hb-sub">
+              <Runway cash={s.cash} rate={rate} />
+              {!s.outcome && END_DAY - s.day <= FINAL_DAYS && (
+                <span className={`tb-final${END_DAY - s.day <= 30 ? ' hot' : ''}`} title="31.12.2024 партия заканчивается: побеждает первая модель на «Арене» среди моделей в продаже">
+                  До финала {fmtDays(Math.max(0, END_DAY - s.day))}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        {pauseNote}
+      </header>
+    );
 
   return (
     <header className={`topbar${paused ? ' paused' : ''}`}>
