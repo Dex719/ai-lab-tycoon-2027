@@ -1,7 +1,7 @@
 // Главное меню и его окна: «Новая игра», «Загрузить», «Настройки».
 
 import './alive.css';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { START_CASH } from '../sim/constants';
 import { DIFFICULTY, DIFFICULTY_IDS, type Difficulty } from '../sim/rivalry';
 import { formatDateShort } from '../sim/time';
@@ -554,7 +554,7 @@ function VolumeRow({ label, value, onChange, onRelease }: { label: string; value
         onChange={(e) => onChange(Number(e.target.value) / 100)}
         onPointerUp={onRelease}
         onKeyUp={onRelease}
-        style={{ flex: 1 }}
+        style={{ flex: 1, '--v': `${Math.round(value * 100)}%` } as CSSProperties}
       />
       <span style={{ width: 44, textAlign: 'right' }}>{value > 0 ? `${Math.round(value * 100)} %` : 'Выкл.'}</span>
     </label>

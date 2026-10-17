@@ -460,3 +460,47 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
 @supports not selector(::-webkit-scrollbar) {
   * { scrollbar-width: thin; scrollbar-color: var(--brand-muted) transparent; }
 }
+
+/* ---------- Настройки в стиле игры: разделы - таблетки, пункты - белые плитки с переключателем ---------- */
+.st { grid-template-columns: 170px minmax(0, 1fr); gap: 16px; height: min(420px, 62vh); }
+.st-nav { gap: 8px; padding-right: 16px; border-right: none; box-shadow: inset -2px 0 0 var(--edge); }
+.st-tab { padding: 10px 14px; border-radius: 999px; background: var(--surface-control); color: var(--brand-ink); font-size: 15px; font-weight: var(--fw-strong); box-shadow: inset 0 -3px 0 var(--edge); }
+.st-tab:hover { background: var(--surface-control); color: var(--brand); }
+.st-tab.on, .st-tab.on:hover { background: var(--select); color: var(--on-select); font-weight: var(--fw-title); box-shadow: inset 0 -3px 0 var(--select-edge); }
+.st-tab:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.st-body > .col { gap: 8px !important; }
+.st-body .settings-h { margin: 6px 0 0; font-size: 15px; font-weight: var(--fw-title); color: var(--text); }
+.st-body .settings-h:first-child { margin-top: 0; }
+.st-body label.row {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; cursor: pointer;
+  background: var(--surface-control); box-shadow: inset 0 -3px 0 var(--edge); font-weight: var(--fw-text); color: var(--text);
+}
+.st-body label.row > span { flex: 1; }
+/* Переключатель вместо системной галочки */
+.st-body label.row > input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none; flex: none; order: 2; margin: 0; position: relative;
+  width: 44px; height: 26px; border-radius: 999px; background: var(--track); box-shadow: inset 0 0 0 2px var(--edge); cursor: pointer;
+  transition: background-color 120ms ease-out;
+}
+.st-body label.row > input[type="checkbox"]::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--surface-control); box-shadow: 0 2px 0 var(--edge); transition: transform 120ms ease-out;
+}
+.st-body label.row > input[type="checkbox"]:checked { background: var(--brand); box-shadow: inset 0 0 0 2px var(--brand-edge); }
+.st-body label.row > input[type="checkbox"]:checked::after { transform: translateX(18px); box-shadow: 0 2px 0 var(--brand-edge); }
+.st-body label.row > input[type="checkbox"]:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.st-keys dt { color: var(--text-2); font-weight: var(--fw-small); }
+.st-keys kbd { font-weight: var(--fw-strong); border: none; border-radius: 8px; box-shadow: inset 0 -3px 0 var(--edge); background: var(--surface-control); padding: 3px 9px 5px; }
+@media (prefers-reduced-motion: reduce) {
+  .st-body label.row > input[type="checkbox"], .st-body label.row > input[type="checkbox"]::after { transition: none; }
+}
+@media (max-width: 760px) { .st-nav { box-shadow: none; padding: 0 0 8px; } }
+/* Ползунки громкости: подписи фиксированной ширины, сам ползунок - таблетка с бирюзовым заполнением */
+.st-body label.row:has(input[type="range"]) > span { flex: none; font-weight: var(--fw-strong); }
+.st-body input[type="range"] { -webkit-appearance: none; appearance: none; height: 12px; border-radius: 999px; background: var(--track); box-shadow: inset 0 0 0 2px var(--edge); accent-color: var(--brand); cursor: pointer; }
+.st-body input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--brand); border: 3px solid var(--surface-control); box-shadow: 0 2px 0 var(--brand-edge); }
+.st-body input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--brand); border: 3px solid var(--surface-control); }
+.st-body input[type="range"]::-moz-range-progress { height: 12px; border-radius: 999px; background: var(--brand); }
+.st-body input[type="range"]:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
+/* Заполненная часть ползунка: две ровные зоны без перехода (--v задаёт VolumeRow) */
+.st-body input[type="range"] { background: linear-gradient(to right, var(--brand) 0 var(--v, 0%), var(--track) var(--v, 0%) 100%); }
