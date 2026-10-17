@@ -483,16 +483,24 @@ function autoPercents(s: GameState, cur: Percents): Percents {
 }
 
 /** Одна полоса долей: границы между соседними долями тянутся мышью или стрелками, отпустили - доли применены. */
+/** Минимальная видимая ширина ненулевой доли в полосе, %. */
+const SEG_MIN = 6;
+
 function SplitBar({ rows, shown, onDrag, onDone }: { rows: typeof ALLOC_ROWS; shown: Percents; onDrag: (p: Percents) => void; onDone: (p: Percents) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   // cands - границы, стоящие в одной точке (доли между ними нулевые): какую тянуть, решает первое движение мыши.
   const drag = useRef<{ a: AllocKey; b: AllocKey; x0: number; a0: number; b0: number; last: Percents; cands: number[] | null } | null>(null);
   const boundary = (i: number) => rows.slice(0, i + 1).reduce((a, x) => a + shown[x.key], 0);
+  // Ненулевая доля всегда видна: каждой даётся минимум SEG_MIN % ширины, остальное - пропорционально.
+  const live = rows.filter((r) => shown[r.key] > 0).length;
+  const scale = (100 - SEG_MIN * live) / 100;
+  const vw = (w: number) => (w > 0 ? SEG_MIN + w * scale : 0);
+  const vAt = (i: number) => rows.slice(0, i + 1).reduce((a, x) => a + vw(shown[x.key]), 0);
   const moveTo = (clientX: number) => {
     const d = drag.current;
     const el = ref.current;
     if (!d || !el) return;
-    const delta = Math.round(((clientX - d.x0) / el.clientWidth) * 100);
+    const delta = Math.round(((clientX - d.x0) / el.clientWidth) * 100 / scale);
     if (d.cands && delta !== 0) {
       // Влево тянем ту, у которой слева есть что отдать; вправо - ту, у которой есть что отдать справа.
       const j =
@@ -522,7 +530,7 @@ function SplitBar({ rows, shown, onDrag, onDone }: { rows: typeof ALLOC_ROWS; sh
       {rows.map((r) => {
         const w = shown[r.key];
         const seg = (
-          <div key={r.key} className="cw-seg" style={{ left: `${left}%`, width: `${w}%`, background: r.color }}>
+          <div key={r.key} className="cw-seg" style={{ left: `${left}%`, width: `${vw(w)}%`, background: r.color }}>
             {w >= 9 && (
               <span>
                 {r.label} {w} %
@@ -530,12 +538,12 @@ function SplitBar({ rows, shown, onDrag, onDone }: { rows: typeof ALLOC_ROWS; sh
             )}
           </div>
         );
-        left += w;
+        left += vw(w);
         return seg;
       })}
       {rows.slice(0, -1).map((r, i) => {
         const b = rows[i + 1];
-        const at = rows.slice(0, i + 1).reduce((a, x) => a + shown[x.key], 0);
+        const at = vAt(i);
         return (
           <div
             key={`h-${r.key}`}

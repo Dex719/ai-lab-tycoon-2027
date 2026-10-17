@@ -208,3 +208,7 @@
 .cw-col-val { font-weight: 800; color: var(--text); }
 .cw-need-short { color: #b3262c; font-weight: 900; }
 .cw-idle { border: none; border-radius: 12px; background: #fff3c4; box-shadow: inset 0 -4px 0 #edd27a; font-weight: 700; }
+/* В узкой колонке процент не переносится на вторую строку */
+.cw-col-top { flex-wrap: nowrap; }
+.cw-col-top .cw-alloc-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-col-pct { flex: none; white-space: nowrap; }

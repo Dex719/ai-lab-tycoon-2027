@@ -132,7 +132,17 @@ function StatusLine({ s, id, status, rp }: { s: GameState; id: TechId; status: S
       </span>
     );
   }
-  if (status === 'current') return <span className="rs-st cur">Идёт: {fmtPct(progressOf(s, id) * 100, 0)}</span>;
+  if (status === 'current') {
+    const p = progressOf(s, id);
+    return (
+      <span className="rs-st cur" title="Идёт исследование">
+        <span className="rs-prog" aria-hidden="true">
+          <i style={{ width: `${p * 100}%` }} />
+        </span>
+        <b>{fmtPct(p * 100, 0)}</b>
+      </span>
+    );
+  }
   if (q > 0) return <span className="rs-st q">В очереди: {q}</span>;
   if (status === 'blocked') {
     return (
@@ -166,11 +176,6 @@ function MapNode({ s, id, rp, onOpen }: { s: GameState; id: GraphTech; rp: numbe
         <span className="rs-name">{MAP_LABEL[id] ?? info.name}</span>
         <StatusLine s={s} id={id} status={status} rp={rp} />
       </span>
-      {(status === 'current' || status === 'done') && (
-        <span className="rs-bar" aria-hidden="true">
-          <i style={{ width: `${(status === 'done' ? 1 : progressOf(s, id)) * 100}%` }} />
-        </span>
-      )}
     </button>
   );
 }
@@ -213,11 +218,6 @@ function ChainNode({ s, id, x, rp, onOpen }: { s: GameState; id: 'algo' | 'conte
           {status !== 'done' && <StatusLine s={s} id={id} status={status} rp={rp} />}
         </span>
       </span>
-      {status === 'current' && (
-        <span className="rs-bar" aria-hidden="true">
-          <i style={{ width: `${progressOf(s, id) * 100}%` }} />
-        </span>
-      )}
     </button>
   );
 }
