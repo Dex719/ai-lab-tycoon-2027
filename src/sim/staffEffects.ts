@@ -45,6 +45,19 @@ export interface Employee {
   readyDay: number | null;
   /** До этого дня соперники его не переманивают (удержали премией). */
   retainedUntil?: number;
+  /** Курс обучения: с startDay по endDay (не включая) сотрудник учится и не даёт вклада; опыт xp - по окончании. В старых сохранениях нет. */
+  course?: EmployeeCourse | null;
+}
+
+export interface EmployeeCourse {
+  startDay: number;
+  endDay: number;
+  xp: number;
+}
+
+/** Учится ли сотрудник сегодня (ушёл на курс и ещё не вернулся). */
+export function isOnCourse(e: Employee, day: number): boolean {
+  return !!e.course && day < e.course.endDay;
 }
 
 export interface Candidate {
@@ -107,10 +120,11 @@ export function isWorking(e: Employee, day: number): boolean {
   return e.startDay <= day;
 }
 
-/** Очки вклада роли: сумма весов уровней работающих сотрудников. */
+/** Очки вклада роли: сумма весов уровней работающих сотрудников (кто на курсе - не считается). */
 export function rolePoints(s: { day: number; staff?: StaffState }, role: StaffRole): number {
   let p = 0;
-  for (const e of s.staff?.people ?? []) if (e.role === role && isWorking(e, s.day)) p += LEVEL_WEIGHT[e.level] ?? 1;
+  // На курсе сотрудник учится, а не работает: вклада в роль нет.
+  for (const e of s.staff?.people ?? []) if (e.role === role && isWorking(e, s.day) && !isOnCourse(e, s.day)) p += LEVEL_WEIGHT[e.level] ?? 1;
   return p;
 }
 

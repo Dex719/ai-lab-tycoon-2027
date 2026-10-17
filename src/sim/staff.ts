@@ -16,6 +16,7 @@ import {
   LEVEL_NAMES_GEN,
   ROLE_INFO,
   STAFF_ROLES,
+  isOnCourse,
   isWorking,
   type Candidate,
   type Employee,
@@ -86,10 +87,16 @@ export function levelSalary(level: number, day: number, trait: StaffTrait | null
   return Math.round((trait === 'equity' ? base * EQUITY_SALARY : base) / 100) * 100;
 }
 
-/** Курс обучения (прокачка): стоит COURSE_MONTHS зарплат, даёт COURSE_XP опыта × потенциал; не чаще раза в COURSE_COOLDOWN дней. */
+/**
+ * Курс обучения (прокачка): стоит COURSE_MONTHS зарплат (платится при старте), идёт COURSE_DAYS дней по уровню,
+ * всё это время сотрудник учится и не даёт вклада в роль; по окончании - COURSE_XP опыта × потенциал.
+ * Следующий курс - не раньше чем через COURSE_COOLDOWN дней от начала предыдущего.
+ */
 export const COURSE_MONTHS = 2;
 export const COURSE_XP = 0.35;
 export const COURSE_COOLDOWN = 90;
+/** Сколько дней идёт курс: джуниор → мидл - месяц, мидл → сеньор - полтора, сеньор → ведущий - два. */
+export const COURSE_DAYS = [30, 45, 60] as const;
 
 export function courseCost(e: Employee): number {
   return e.salary * COURSE_MONTHS;
@@ -100,9 +107,22 @@ export function courseXp(e: Employee): number {
   return COURSE_XP * POTENTIAL_INFO[e.potential ?? 'mid'].course;
 }
 
+/** Сколько дней займёт курс для сотрудника его уровня. */
+export function courseDays(e: Employee): number {
+  return COURSE_DAYS[Math.max(0, Math.min(COURSE_DAYS.length - 1, e.level))];
+}
+
+/** Доля пройденного курса, 0..1 (0 - курса нет). */
+export function courseProgress(e: Employee, day: number): number {
+  if (!e.course) return 0;
+  const len = Math.max(1, e.course.endDay - e.course.startDay);
+  return Math.max(0, Math.min(1, (day - e.course.startDay) / len));
+}
+
 /** Почему курс сейчас недоступен (или null). */
 export function courseBlock(s: GameState, e: Employee): string | null {
   if (!isWorking(e, s.day)) return 'Сотрудник ещё не вышел на работу';
+  if (isOnCourse(e, s.day)) return `Уже на обучении до ${formatDateShort(e.course!.endDay)}`;
   if (e.level >= levelCap(e)) return `Потолок: выше уровня «${LEVEL_NAMES[e.level]}» не вырастет`;
   if (e.xp >= 1) return 'Опыта уже хватает: сначала повысьте';
   const since = s.day - (e.lastCourseDay ?? -100_000);
@@ -111,7 +131,7 @@ export function courseBlock(s: GameState, e: Employee): string | null {
   return null;
 }
 
-/** Действие: отправить на курс - опыт растёт сразу, деньги списываются. */
+/** Действие: отправить на курс - деньги сразу, опыт по окончании курса (staffDay). */
 export function trainEmployee(s: GameState, id: string): Result {
   const e = staffOf(s).people.find((x) => x.id === id);
   if (!e) return { ok: false, error: 'Сотрудника уже нет в лаборатории' };
@@ -119,9 +139,28 @@ export function trainEmployee(s: GameState, id: string): Result {
   if (block) return { ok: false, error: block };
   spend(s, 'overhead', courseCost(e));
   e.lastCourseDay = s.day;
-  e.xp = Math.min(1, e.xp + courseXp(e));
-  if (e.xp >= 1) e.readyDay = s.day;
+  e.course = { startDay: s.day, endDay: s.day + courseDays(e), xp: courseXp(e) };
   return { ok: true };
+}
+
+/** Ежедневно: кто закончил курс - получает опыт и письмо. */
+function finishCourses(s: GameState, st: StaffState): void {
+  for (const e of st.people) {
+    if (!e.course || s.day < e.course.endDay) continue;
+    const gain = e.course.xp;
+    e.course = null;
+    const before = e.xp;
+    e.xp = Math.min(1, e.xp + gain);
+    const ready = e.xp >= 1 && before < 1 && e.level < levelCap(e);
+    if (ready) e.readyDay = s.day;
+    addMail(s, {
+      kind: 'news',
+      title: `Курс пройден: ${e.name}`,
+      body: ready
+        ? `Курс окончен, ${e.name} снова в работе. Опыта теперь хватает для уровня «${LEVEL_NAMES[e.level + 1]}»: повысить можно в окне «Команда», зарплата станет ${money(promotedSalary(s, e))} в месяц.`
+        : `Курс окончен, ${e.name} снова в работе. Опыт +${Math.round(gain * 100)} %: до уровня «${LEVEL_NAMES[Math.min(3, e.level + 1)]}» набрано ${Math.round(e.xp * 100)} %.`,
+    });
+  }
 }
 
 /** Вывод о росте: top - высший уровень, capped - потолок потенциала, worth / normal / slow - растёт с высоким, средним, низким потенциалом. */
@@ -310,6 +349,7 @@ export function staffDay(s: GameState): void {
   let pay = 0;
   for (const e of st.people) if (isWorking(e, s.day)) pay += e.salary / 30;
   spend(s, 'overhead', pay);
+  finishCourses(s, st);
   if (!isMonthStart(s.day)) return;
   refreshCandidates(s);
   growExperience(s, st);
@@ -320,7 +360,8 @@ export function staffDay(s: GameState): void {
 function growExperience(s: GameState, st: StaffState): void {
   for (const e of st.people) {
     // На потолке опыт не растёт: дальше этого уровня сотрудник не вырастет (потенциал).
-    if (!isWorking(e, s.day) || e.level >= levelCap(e) || e.xp >= 1) continue;
+    // На курсе опыт от работы не идёт: он придёт целиком по окончании курса.
+    if (!isWorking(e, s.day) || isOnCourse(e, s.day) || e.level >= levelCap(e) || e.xp >= 1) continue;
     const growth = POTENTIAL_INFO[e.potential ?? 'mid'].growth * (e.trait === 'fast' ? FAST_XP : 1);
     e.xp = Math.min(1, e.xp + (1 / XP_MONTHS[e.level]) * growth);
     if (e.xp >= 1) {

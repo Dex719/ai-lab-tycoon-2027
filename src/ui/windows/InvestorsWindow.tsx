@@ -119,7 +119,7 @@ export function valuationParts(s: GameState, v: Valuation): Part[] {
   const parts: Part[] = [
     { key: 'rev', label: 'Продажи', sub: v.annualRevenue > 0 ? `выручка ${fmtMoney(v.annualRevenue)} в год по темпу 3 месяцев` : 'продаж пока нет', value: v.revenuePart },
     { key: 'tech', label: 'Лучшая модель', sub: rank, value: v.techPart },
-    { key: 'floor', label: 'Минимальная оценка', sub: `оценка не ниже ${fmtMoney(VALUATION_FLOOR)}`, value: floorFill },
+    { key: 'floor', label: 'Минимальная оценка', sub: `не ниже ${fmtMoney(VALUATION_FLOOR)} до поправок на шумиху и репутацию`, value: floorFill },
     { key: 'hype', label: 'Шумиха', sub: `уровень ${fmtNum(s.hype.player)} из 100`, value: hype },
     { key: 'rep', label: 'Репутация', sub: `уровень ${fmtNum(s.reputation)} из 100`, value: rep },
     { key: 'board', label: 'План совета директоров', sub: 'скидка до следующего раунда', value: board },

@@ -450,6 +450,7 @@ const staff = shapeOf<StaffState>({
       startDay: int,
       readyDay: nullable(int),
       retainedUntil: optional(int),
+      course: optional(nullable(shapeOf<NonNullable<StaffState['people'][number]['course']>>({ startDay: int, endDay: int, xp: num }))),
     }),
   ),
   candidates: arrayOf(

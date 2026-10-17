@@ -15,7 +15,10 @@ import {
   startPoach,
   trainEmployee,
   courseCost,
+  courseDays,
+  courseBlock,
   COURSE_COOLDOWN,
+  COURSE_DAYS,
 } from './staff';
 import { ROLE_INFO, rolePoints, staffEffect, type Employee } from './staffEffects';
 import { isMonthStart } from './time';
@@ -27,6 +30,14 @@ function game(): GameState {
 
 function employee(over: Partial<Employee> = {}): Employee {
   return { id: 'e1', name: 'Анна Соколова', role: 'research', level: 0, xp: 0, salary: 3_000, trait: null, startDay: 0, readyDay: null, ...over };
+}
+
+/** Прожить n дней: только дневная часть команды (зарплаты, окончание курсов, месячные дела 1-го числа). */
+function runDays(s: GameState, n: number): void {
+  for (let i = 0; i < n; i++) {
+    s.day++;
+    staffDay(s);
+  }
 }
 
 /** До начала следующего месяца (staffDay делает месячную часть 1-го числа). */
@@ -217,7 +228,7 @@ describe('команда: потенциал и прокачка', () => {
     expect(promoteEmployee(s, 'e1').ok).toBe(false);
   });
 
-  it('курс: две зарплаты, опыт по потенциалу (высокий - больше, низкий - меньше), повтор не раньше чем через 90 дней', () => {
+  it('курс: две зарплаты при старте, опыт по потенциалу после окончания (высокий - больше, низкий - меньше), повтор не раньше чем через 90 дней', () => {
     const s = game();
     staffOf(s).people = [employee({ id: 'h', potential: 'high', salary: 10_000 }), employee({ id: 'l', potential: 'low', salary: 10_000 })];
     const c0 = s.cash;
@@ -225,12 +236,14 @@ describe('команда: потенциал и прокачка', () => {
     expect(trainEmployee(s, 'l')).toEqual({ ok: true });
     expect(c0 - s.cash).toBe(2 * courseCost(staffOf(s).people[0]));
     const [h, l] = staffOf(s).people;
+    expect(h.xp).toBe(0);
+    runDays(s, COURSE_DAYS[0]);
     expect(h.xp).toBeGreaterThan(l.xp);
     expect(h.xp).toBeCloseTo(0.525, 9);
     expect(l.xp).toBeCloseTo(0.175, 9);
     const again = trainEmployee(s, 'h');
     expect(again.ok).toBe(false);
-    s.day += COURSE_COOLDOWN;
+    s.day = (h.lastCourseDay ?? 0) + COURSE_COOLDOWN;
     expect(trainEmployee(s, 'h').ok).toBe(true);
   });
 
@@ -247,5 +260,88 @@ describe('команда: потенциал и прокачка', () => {
     h.xp = 1;
     expect(promoteEmployee(s, 'h')).toEqual({ ok: true });
     expect(h.level).toBe(3);
+  });
+});
+
+describe('команда: обучение занимает время', () => {
+  it('старт: деньги сразу, сотрудник уходит на курс на срок по уровню, опыта сразу не прибавляется', () => {
+    const s = game();
+    staffOf(s).people = [employee({ id: 'j', level: 0 }), employee({ id: 'm', level: 1 }), employee({ id: 's', level: 2, potential: 'high' })];
+    const cash = s.cash;
+    for (const id of ['j', 'm', 's']) expect(trainEmployee(s, id).ok).toBe(true);
+    expect(s.cash).toBeLessThan(cash);
+    const [j, m, sn] = staffOf(s).people;
+    expect(j.course).toEqual({ startDay: s.day, endDay: s.day + COURSE_DAYS[0], xp: expect.any(Number) });
+    expect(courseDays(j)).toBeLessThan(courseDays(m));
+    expect(courseDays(m)).toBeLessThan(courseDays(sn));
+    expect(j.xp).toBe(0);
+  });
+
+  it('пока идёт курс, повторно отправить нельзя - причина с датой окончания', () => {
+    const s = game();
+    staffOf(s).people = [employee()];
+    trainEmployee(s, 'e1');
+    const r = trainEmployee(s, 'e1');
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/^Уже на обучении до /);
+    expect(courseBlock(s, staffOf(s).people[0])).toMatch(/на обучении/);
+  });
+
+  it('во время курса вклада в роль нет, после окончания вклад возвращается', () => {
+    const s = game();
+    staffOf(s).people = [employee({ role: 'training' })];
+    const before = staffEffect(s, 'training');
+    expect(before).toBeGreaterThan(0);
+    trainEmployee(s, 'e1');
+    expect(rolePoints(s, 'training')).toBe(0);
+    expect(staffEffect(s, 'training')).toBe(0);
+    runDays(s, COURSE_DAYS[0]);
+    expect(rolePoints(s, 'training')).toBeGreaterThan(0);
+  });
+
+  it('курс кончается ровно в срок: опыт прибавляется, курс снимается, приходит письмо; опыт от работы на курсе не копится', () => {
+    const s = game();
+    staffOf(s).people = [employee()];
+    trainEmployee(s, 'e1');
+    const e = staffOf(s).people[0];
+    runDays(s, COURSE_DAYS[0] - 1);
+    expect(e.course).toBeTruthy();
+    expect(e.xp).toBe(0);
+    const mails = s.mail.length;
+    runDays(s, 1);
+    expect(e.course).toBeNull();
+    expect(e.xp).toBeCloseTo(0.35, 9);
+    expect(s.mail.length).toBe(mails + 1);
+    expect(s.mail.some((m) => m.title === `Курс пройден: ${e.name}`)).toBe(true);
+  });
+
+  it('курс, который добирает опыт до 1, делает сотрудника готовым к повышению', () => {
+    const s = game();
+    staffOf(s).people = [employee({ xp: 0.9 })];
+    trainEmployee(s, 'e1');
+    runDays(s, COURSE_DAYS[0]);
+    const e = staffOf(s).people[0];
+    expect(e.xp).toBe(1);
+    expect(e.readyDay).toBe(s.day);
+    expect(promoteEmployee(s, 'e1').ok).toBe(true);
+  });
+
+  it('курс проходит сохранение; старое сохранение без поля курса загружается, сотрудник не на курсе', () => {
+    const s = game();
+    staffOf(s).people = [employee(), employee({ id: 'e2', name: 'Дмитрий Ким' })];
+    trainEmployee(s, 'e1');
+    const r = deserialize(serialize(s));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(staffOf(r.state).people[0].course).toEqual(staffOf(s).people[0].course);
+    const o = JSON.parse(serialize(s)) as { staff: { people: Record<string, unknown>[] } };
+    for (const p of o.staff.people) delete p.course;
+    const old = deserialize(JSON.stringify(o));
+    expect(old.ok).toBe(true);
+    if (old.ok) {
+      const e = staffOf(old.state).people[0];
+      expect(e.course).toBeUndefined();
+      expect(rolePoints(old.state, 'research')).toBeGreaterThan(0);
+      expect(courseBlock(old.state, e)).toMatch(/Следующий курс/);
+    }
   });
 });

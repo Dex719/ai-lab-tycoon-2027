@@ -7,6 +7,8 @@ import type { WindowProps } from '.';
 import {
   courseBlock,
   courseCost,
+  courseDays,
+  courseProgress,
   courseXp,
   COURSE_COOLDOWN,
   EQUITY_SHARE,
@@ -24,6 +26,7 @@ import {
   type GrowthVerdict,
 } from '../../sim/staff';
 import {
+  isOnCourse,
   isWorking,
   LEVEL_NAMES,
   LEVEL_NAMES_GEN,
@@ -109,6 +112,8 @@ function PersonCard(props: { s: GameState; e?: Employee; c?: Candidate; act: (p:
   const canGrow = e ? e.level < levelCap(e) : false;
   const ready = !!e && canGrow && e.xp >= 1;
   const xp = e ? Math.round(Math.min(1, e.xp) * 100) : 0;
+  const studying = !!e && isOnCourse(e, s.day);
+  const study = e && studying ? Math.round(courseProgress(e, s.day) * 100) : 0;
   return (
     <div className={`tm-card r-${p.role}${ready ? ' ready' : ''}`} style={{ ['--rc' as string]: ROLE_INFO[p.role].color }}>
       <div className="tm-card-top">
@@ -133,6 +138,17 @@ function PersonCard(props: { s: GameState; e?: Employee; c?: Candidate; act: (p:
             {fmtMoney(p.salary)}<small>/мес.</small>
           </span>
         </div>
+        {studying && e?.course && (
+          <div className="tm-xp tm-course" title={`Курс: опыт +${Math.round(e.course.xp * 100)} % по окончании. Пока идёт курс, вклада в команду нет.`}>
+            <span className="tm-xp-l">
+              <b>На обучении до {formatDateShort(e.course.endDay)}</b>
+              <span>{study} %</span>
+            </span>
+            <span className="tm-meter">
+              <i style={{ width: `${study}%` }} />
+            </span>
+          </div>
+        )}
         {e ? (
           canGrow ? (
             <div className="tm-xp" title={monthsToNext(e) !== null ? `≈ ${monthsToNext(e)} мес. работы или курсы до уровня «${LEVEL_NAMES[e.level + 1]}»` : undefined}>
@@ -172,7 +188,7 @@ function PersonCard(props: { s: GameState; e?: Employee; c?: Candidate; act: (p:
           </button>
         ) : canGrow ? (
           <GuardButton className="btn primary" reason={courseBlock(s, e!)} onClick={() => act({ kind: 'train', e: e! })}>
-            Обучить · {fmtMoney(courseCost(e!))}
+            {studying ? 'На обучении' : `Обучить · ${fmtMoney(courseCost(e!))}`}
           </GuardButton>
         ) : (
           <button className="btn" disabled>
@@ -230,7 +246,7 @@ export default function TeamWindow({ s }: WindowProps) {
       pushNotice({ kind: 'news', label: 'Повышение', title: `${p.e.name}: теперь ${LEVEL_NAMES[p.e.level + 1].toLowerCase()}`, win: 'team', tone: 'good' });
     } else if (p.kind === 'train') {
       playSound('research');
-      pushNotice({ kind: 'news', label: 'Курс пройден', title: `${p.e.name}: опыт +${Math.round(courseXp(p.e) * 100)} %`, win: 'team', tone: 'good' });
+      pushNotice({ kind: 'news', label: 'Курс начат', title: `${p.e.name}: учёба ${fmtDays(courseDays(p.e))}, опыт +${Math.round(courseXp(p.e) * 100)} % по окончании`, win: 'team' });
     } else if (p.kind === 'hire') {
       playSound('coin');
       setTab('staff');
@@ -366,7 +382,13 @@ export default function TeamWindow({ s }: WindowProps) {
             <span>{POTENTIAL_INFO[pending.e.potential ?? 'mid'].name}</span>
             <span>Курс стоит</span>
             <span className="bad">{fmtMoney(courseCost(pending.e))}</span>
-            <span>Опыт</span>
+            <span>Срок</span>
+            <span>
+              {fmtDays(courseDays(pending.e))}, до {formatDateShort(s.day + courseDays(pending.e))}
+            </span>
+            <span>На это время</span>
+            <span>учится и не даёт вклада в роль «{ROLE_INFO[pending.e.role].name}»</span>
+            <span>Опыт по окончании</span>
             <span className="good">
               {Math.round(pending.e.xp * 100)} → {Math.round(Math.min(1, pending.e.xp + courseXp(pending.e)) * 100)} % до уровня «{LEVEL_NAMES[pending.e.level + 1]}»
             </span>
