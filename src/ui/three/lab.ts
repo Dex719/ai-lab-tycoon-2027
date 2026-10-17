@@ -99,6 +99,40 @@ export function buildLab(spec: LabSpec): Content {
     return m;
   };
 
+  const ghostMat = new THREE.MeshStandardMaterial({ color: '#7fd6e0', transparent: true, opacity: 0.6, roughness: 0.6, depthWrite: false });
+  const padMat = new THREE.MeshBasicMaterial({ color: '#35aebb', transparent: true, opacity: 0.28, depthWrite: false });
+  const dashMat = new THREE.MeshBasicMaterial({ color: '#1d8592' });
+  extraMats.push(ghostMat, padMat, dashMat);
+  /** Полупрозрачная деталь «скелета» (место, где может появиться предмет). */
+  const ghostBox = (w: number, h: number, d: number, x: number, y: number, z: number): THREE.Mesh => {
+    const min = Math.min(w, h, d);
+    const m = new THREE.Mesh(geo(min >= 0.04 ? new RoundedBoxGeometry(w, h, d, 2, Math.min(0.06, min * 0.35)) : new THREE.BoxGeometry(w, h, d)), ghostMat);
+    m.position.set(x, y, z);
+    m.renderOrder = 2;
+    root.add(m);
+    return m;
+  };
+  /** Мятная площадка с белой пунктирной рамкой на полу: здесь можно что-то поставить. */
+  const slotPad = (cx: number, cz: number, w: number, d: number): void => {
+    const pad = new THREE.Mesh(geo(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2)), padMat);
+    pad.position.set(cx, 0.02, cz);
+    root.add(pad);
+    const dash = geo(new THREE.BoxGeometry(0.22, 0.012, 0.07));
+    const dashZ = geo(new THREE.BoxGeometry(0.07, 0.012, 0.22));
+    for (let t = -w / 2 + 0.15; t < w / 2 - 0.05; t += 0.36)
+      for (const zz of [cz - d / 2, cz + d / 2]) {
+        const m = new THREE.Mesh(dash, dashMat);
+        m.position.set(cx + t, 0.025, zz);
+        root.add(m);
+      }
+    for (let t = -d / 2 + 0.15; t < d / 2 - 0.05; t += 0.36)
+      for (const xx of [cx - w / 2, cx + w / 2]) {
+        const m = new THREE.Mesh(dashZ, dashMat);
+        m.position.set(xx, 0.025, cz + t);
+        root.add(m);
+      }
+  };
+
   const x0 = -W / 2;
   const x1 = W / 2;
   const z0 = -D / 2;
@@ -168,8 +202,17 @@ export function buildLab(spec: LabSpec): Content {
   extraMats.push(ledOff);
   const ledGeo = geo(new THREE.BoxGeometry(0.09, 0.06, 0.02));
   let litLeft = spec.racksLit;
+  let rackSlot: THREE.Vector3 | null = null;
   for (let i = 0; i < spec.racks; i++) {
     const x = rackX(i);
+    if (litLeft <= 0) {
+      // Место под стойку: карт на неё нет - полупрозрачный скелет на площадке.
+      slotPad(x, rackZ + 0.1, 0.9, 1.15);
+      ghostBox(RACK_W, 2.1, 0.95, x, 1.05, rackZ);
+      rackSlot ??= new THREE.Vector3(x, 2.55, rackZ + 0.2);
+      continue;
+    }
+    if (litLeft < 8) rackSlot ??= new THREE.Vector3(x, 2.55, rackZ + 0.2);
     box(RACK_W, 2.1, 0.95, '#3a4652', x, 1.05, rackZ);
     box(RACK_W + 0.02, 0.06, 0.97, '#3a3e45', x, 2.12, rackZ);
     // Планка цвета задачи над дверцей (как в «Мощностях»).
@@ -255,16 +298,20 @@ export function buildLab(spec: LabSpec): Content {
   let ghostAt: THREE.Vector3 | null = null;
   if (ghosts) {
     const { x, z } = deskPos(shown);
-    const ghost = new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.2, depthWrite: false });
-    const line = new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.6 });
-    extraMats.push(ghost, line);
-    const top = new THREE.Mesh(geo(new THREE.BoxGeometry(1.7, 0.07, 0.85)), ghost);
-    top.position.set(x, 0.76, z);
-    root.add(top);
-    const edges = new THREE.LineSegments(geo(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.7, 0.76, 0.85))), line);
-    edges.position.set(x, 0.38, z);
-    root.add(edges);
-    ghostAt = new THREE.Vector3(x, 1.0, z);
+    slotPad(x, z + 0.4, 2.0, 1.9);
+    ghostBox(1.7, 0.07, 0.85, x, 0.76, z);
+    for (const [dx, dz] of [
+      [-0.78, -0.36],
+      [0.78, -0.36],
+      [-0.78, 0.36],
+      [0.78, 0.36],
+    ])
+      ghostBox(0.06, 0.72, 0.06, x + dx, 0.37, z + dz);
+    ghostBox(0.78, 0.48, 0.05, x - 0.15, 1.16, z - 0.28);
+    ghostBox(0.08, 0.2, 0.08, x - 0.15, 0.88, z - 0.3);
+    ghostBox(0.56, 0.1, 0.56, x - 0.15, 0.5, z + 0.85);
+    ghostBox(0.56, 0.58, 0.1, x - 0.15, 0.82, z + 1.13);
+    ghostAt = new THREE.Vector3(x, 1.75, z + 0.3);
   }
 
   function desk(x: number, z: number, i: number) {
@@ -481,7 +528,7 @@ export function buildLab(spec: LabSpec): Content {
   }
   const gapX = rackX(spec.racks - 1) - 0.75 + 0.45;
   const serverSpots: Spot[] = [];
-  for (let i = 0; i < spec.racks; i++) {
+  for (let i = 0; i < Math.min(spec.racks, Math.ceil(spec.racksLit / 8)); i++) {
     const sp = at(rackX(i), rackZ + 0.95, 0, 'tap');
     if (spec.stage >= 1) sp.via = [{ x: gapX, z: TZ }, { x: gapX, z: rackZ + 0.95 }];
     serverSpots.push(sp);
@@ -517,6 +564,9 @@ export function buildLab(spec: LabSpec): Content {
   }
   anchors.showcase = new THREE.Vector3(x0 + 0.18, 2.55, shelfZ);
   if (ghostAt) anchors.seats = ghostAt;
+  anchors.rackSlot = rackSlot ?? new THREE.Vector3(rackX(Math.max(0, spec.racks - 1)) - 0.5, 2.55, rackZ + 0.2);
+  if (!spec.research) anchors.researchSlot = new THREE.Vector3(wbX, 1.9, z0 + 0.3);
+  if (!spec.training && shown > 0) anchors.trainSlot = new THREE.Vector3(deskPos(0).x - 0.15, 1.75, deskPos(0).z - 0.2);
 
   // ---------- Жизнь: огоньки, головы, экраны ----------
   let lastLit = -1;

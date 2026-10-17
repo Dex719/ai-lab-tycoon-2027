@@ -137,6 +137,17 @@ function spread(at: At): At {
   return out;
 }
 
+/** Кнопка «+» над пустым местом в комнате (свободный стол, место под стойку, пустая доска): что можно сделать. */
+function Plus(props: { at?: { x: number; y: number }; label: string; onClick: () => void; tutorial?: string }) {
+  if (!props.at) return null;
+  return (
+    <button type="button" className="lf-plus" style={{ left: props.at.x, top: props.at.y }} onClick={props.onClick} data-tutorial={props.tutorial}>
+      <i aria-hidden="true">+</i>
+      <span>{props.label}</span>
+    </button>
+  );
+}
+
 /** Подпись над местом в комнате: что там происходит и полоса готовности; щелчок открывает окно. */
 function Tag(props: { at?: { x: number; y: number }; k: string; v: string; frac?: number; color?: string; warn?: boolean; onClick: () => void; tutorial?: string }) {
   if (!props.at) return null;
@@ -243,12 +254,10 @@ export function LabFloor({ s, open }: { s: GameState; open: Open }) {
           v={f.best ? f.best.name : f.released > 0 ? `Выпущено: ${fmtNum(f.released)}` : 'Пусто'}
           onClick={() => open(f.released > 0 ? 'models' : 'newModel')}
         />
-        <Tag
-          at={at.seats}
-          k={`Свободных мест: ${fmtNum(f.freeSeats)}`}
-          v="Нанять сотрудника"
-          onClick={() => open('team')}
-        />
+        <Plus at={at.seats} label={`Нанять (${fmtNum(f.freeSeats)} ${ruPlural(f.freeSeats, 'место', 'места', 'мест')})`} onClick={() => open('team')} />
+        <Plus at={at.rackSlot} label={f.cards > 0 ? 'Больше карт' : 'Арендовать карты'} onClick={() => open('compute')} tutorial="scene-rent" />
+        <Plus at={at.researchSlot} label="Начать исследование" onClick={() => open('research')} />
+        <Plus at={at.trainSlot} label="Новая модель" onClick={() => open('newModel')} />
       </div>
       {next && <NextPlate step={next} open={open} />}
     </div>
