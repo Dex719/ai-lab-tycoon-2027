@@ -111,7 +111,8 @@ export function buildLab(spec: LabSpec): Content {
   const z1 = D / 2;
 
   // ---------- Пол и стены ----------
-  box(W + 1.2, 0.5, D + 1.2, spec.base ?? '#2b2f35', 0, -0.35, 0);
+  const M = spec.base ? 2.4 : 0.6;
+  box(W + M * 2, 0.5, D + M * 2, spec.base ?? '#2b2f35', 0, -0.35, 0);
   sharp(W, 0.2, D, room.floor, 0, -0.1, 0);
   // Плитка в шахматку: второй тон - квадратами поверх пола (одна сетка на все плитки).
   {
@@ -286,6 +287,21 @@ export function buildLab(spec: LabSpec): Content {
     box(0.08, 0.2, 0.08, '#25282d', x - 0.15, 0.88, z - 0.3);
     box(0.5, 0.03, 0.18, '#d9dbdf', x - 0.15, 0.81, z + 0.05);
     box(0.07, 0.03, 0.11, '#d9dbdf', x + 0.22, 0.81, z + 0.08).castShadow = false;
+    box(0.24, 0.01, 0.2, '#2f3d44', x + 0.22, 0.8, z + 0.06).castShadow = false;
+    if (i % 3 === 2) {
+      // Второй монитор под углом.
+      const m2 = box(0.5, 0.34, 0.04, '#25282d', x + 0.42, 1.1, z - 0.22);
+      m2.rotation.y = -0.45;
+      const s2 = box(0.44, 0.28, 0.01, screenColor, x + 0.43, 1.1, z - 0.2, root, spec.training ? 0.9 : 0.4);
+      s2.rotation.y = -0.45;
+      screens.push(s2);
+      box(0.06, 0.18, 0.06, '#25282d', x + 0.42, 0.87, z - 0.24);
+    }
+    if (i % 4 === 0) {
+      box(0.16, 0.05, 0.2, '#2b2f35', x - 0.62, 0.82, z + 0.1);
+      box(0.05, 0.04, 0.18, '#e0574f', x - 0.67, 0.86, z + 0.1);
+    }
+    if (i % 4 === 2) for (let k = 0; k < 3; k++) box(0.22, 0.012, 0.3, '#f7f4ec', x - 0.62, 0.795 + k * 0.012, z + 0.05).rotation.y = 0.15 * k;
     // Строки кода на экране, пока идёт обучение.
     if (spec.training)
       for (let k = 0; k < 4; k++) box(0.18 + ((i + k * 3) % 4) * 0.08, 0.025, 0.005, '#e8f0ff', x - 0.4 + 0.09 + ((i + k * 3) % 4) * 0.04, 1.29 - k * 0.07, z - 0.244, root, 0.9).castShadow = false;
@@ -307,7 +323,7 @@ export function buildLab(spec: LabSpec): Content {
   function person(x: number, z: number, i: number) {
     const g = new THREE.Group();
     g.position.set(x, 0, z);
-    g.rotation.y = Math.PI;
+    // Вперёд (к столу) - это -z: ноги и руки туда, спинка стула сзади (+z).
     const chair = CHAIRS[i % CHAIRS.length];
     box(0.56, 0.1, 0.56, chair, 0, 0.48, 0, g);
     box(0.56, 0.58, 0.1, chair, 0, 0.8, 0.26, g);
@@ -318,14 +334,19 @@ export function buildLab(spec: LabSpec): Content {
     torso.scale.z = 0.8;
     // Руки к клавиатуре.
     for (const sx of [-1, 1]) {
-      const arm = capsule(0.065, 0.32, SHIRTS[i % SHIRTS.length], sx * 0.21, 1.0, 0.2, g);
-      arm.rotation.x = Math.PI / 2 - 0.35;
-      ball(0.06, SKIN[(i * 3) % SKIN.length], sx * 0.18, 0.92, 0.42, g);
+      const arm = capsule(0.065, 0.32, SHIRTS[i % SHIRTS.length], sx * 0.21, 0.98, -0.2, g);
+      arm.rotation.x = Math.PI / 2 + 0.35;
+      ball(0.06, SKIN[(i * 3) % SKIN.length], sx * 0.17, 0.88, -0.4, g);
     }
+    // Голени вниз от колен к полу.
+    capsule(0.08, 0.36, '#3d4a5e', -0.1, 0.27, -0.3, g);
+    capsule(0.08, 0.36, '#3d4a5e', 0.1, 0.27, -0.3, g);
+    box(0.13, 0.07, 0.22, '#2b2f35', -0.1, 0.04, -0.36, g);
+    box(0.13, 0.07, 0.22, '#2b2f35', 0.1, 0.04, -0.36, g);
     const head = new THREE.Group();
     head.position.set(0, 1.44, 0);
     ball(0.21, SKIN[(i * 3) % SKIN.length], 0, 0, 0, head);
-    const cap = ball(0.22, HAIR[(i * 5) % HAIR.length], 0, 0.06, 0.03, head);
+    const cap = ball(0.22, HAIR[(i * 5) % HAIR.length], 0, 0.06, 0.04, head);
     cap.scale.set(1, 0.75, 1);
     g.add(head);
     heads.push({ m: head, base: head.position.y, phase: rand() * 6 });
@@ -336,14 +357,18 @@ export function buildLab(spec: LabSpec): Content {
   if (spec.research) {
     const g = new THREE.Group();
     g.position.set(wbX, 0, z0 + 0.95);
-    box(0.13, 0.75, 0.15, '#3d4a5e', -0.1, 0.38, 0, g);
-    box(0.13, 0.75, 0.15, '#3d4a5e', 0.1, 0.38, 0, g);
+    capsule(0.08, 0.6, '#3d4a5e', -0.1, 0.4, 0, g);
+    capsule(0.08, 0.6, '#3d4a5e', 0.1, 0.4, 0, g);
     const t = capsule(0.22, 0.32, '#7b5cd6', 0, 1.08, 0, g);
     t.scale.z = 0.8;
     const head = new THREE.Group();
     head.position.set(0, 1.6, 0);
     ball(0.21, SKIN[1], 0, 0, 0, head);
-    const cap = ball(0.22, HAIR[2], 0, 0.06, -0.03, head);
+    const cap = ball(0.22, HAIR[2], 0, 0.06, 0.04, head);
+    // Рука с маркером к доске.
+    const arm = capsule(0.065, 0.34, '#7b5cd6', 0.22, 1.25, -0.18, g);
+    arm.rotation.x = Math.PI / 2 + 0.6;
+    ball(0.06, SKIN[1], 0.22, 1.42, -0.36, g);
     cap.scale.set(1, 0.75, 1);
     g.add(head);
     heads.push({ m: head, base: head.position.y, phase: 1.3 });
@@ -431,9 +456,52 @@ export function buildLab(spec: LabSpec): Content {
     box(0.6, 0.45, 0.5, '#c79f6b', x1 - 1.6, 0.22, z1 - 0.6);
     box(0.5, 0.35, 0.45, '#b8905e', x1 - 1.5, 0.62, z1 - 0.6).rotation.y = 0.2;
   }
-  for (let x = x0 + 3; x < x1 - 1; x += 3.2) {
-    box(0.02, 0.8, 0.02, '#25282d', x, WALL_H - 0.4, 0);
-    ball(0.12, '#ffe6a8', x, WALL_H - 0.85, 0, root, 0.8);
+  // Постеры на задней стене между доской и окнами.
+  const posters = ['#35aebb', '#f2922c', '#7b5cd6'];
+  for (let k = 0; k < 2; k++) {
+    const px = x0 + 4.25 + k * 0.75;
+    box(0.62, 0.84, 0.04, '#2f3d44', px, 1.85, z0 + 0.03);
+    box(0.52, 0.74, 0.01, posters[(k + spec.stage) % posters.length], px, 1.85, z0 + 0.055).castShadow = false;
+    box(0.36, 0.06, 0.01, '#ffffff', px, 2.0 - k * 0.1, z0 + 0.065).castShadow = false;
+    ball(0.12, '#ffffff', px, 1.7, z0 + 0.06).scale.z = 0.1;
+  }
+  // Принтер на тумбе у серверной.
+  if (spec.racks > 0) {
+    const prx = rackX(spec.racks - 1) - 1.45;
+    box(0.7, 0.66, 0.5, '#d8dadc', prx, 0.33, z0 + 0.4);
+    box(0.6, 0.26, 0.44, '#f2f3f4', prx, 0.79, z0 + 0.4);
+    box(0.4, 0.02, 0.2, '#ffffff', prx, 0.93, z0 + 0.52).castShadow = false;
+    box(0.1, 0.04, 0.04, '#35aebb', prx + 0.2, 0.9, z0 + 0.63, root, 0.6);
+  }
+  // Ковёр под рабочими местами (офис и дальше).
+  if (spec.stage >= 1 && shown > 0) {
+    const a = deskPos(0);
+    const b = deskPos(Math.max(0, Math.min(shown, capacity) - 1));
+    const rx0 = Math.min(a.x, deskPos(Math.min(cols, shown) - 1).x) - 1.1;
+    const rx1 = Math.max(a.x, deskPos(Math.min(cols, shown) - 1).x) + 1.1;
+    sharp(rx1 - rx0, 0.015, b.z - a.z + 2.2, room.band, (rx0 + rx1) / 2, 0.008, (a.z + b.z) / 2 + 0.3).castShadow = false;
+    sharp(rx1 - rx0 - 0.24, 0.02, b.z - a.z + 1.96, shade(room.floor, 0.04), (rx0 + rx1) / 2, 0.012, (a.z + b.z) / 2 + 0.3).castShadow = false;
+  }
+  // Вешалка у двери.
+  cyl(0.15, 0.03, '#5d4836', x0 + 0.5, 0.02, z1 - 0.35);
+  cyl(0.03, 1.7, '#5d4836', x0 + 0.5, 0.85, z1 - 0.35);
+  ball(0.16, '#c0504d', x0 + 0.56, 1.55, z1 - 0.33).scale.set(0.8, 1.2, 0.6);
+
+  // ---------- Снаружи: газон, кусты вдоль стен, деревья по углам ----------
+  if (spec.base) {
+    const hedge = shade(spec.base, -0.05);
+    for (let x = x0 + 0.6; x < x1; x += 1.2) box(1.0, 0.45, 0.6, hedge, x, 0.22, z0 - WT - 0.55);
+    for (let z = z0 + 0.6; z < z1; z += 1.2) box(0.6, 0.45, 1.0, hedge, x0 - WT - 0.55, 0.22, z);
+    for (const [tx, tz] of [
+      [x0 - 1.2, z0 - 1.2],
+      [x1 + 0.9, z0 - 1.0],
+      [x0 - 1.0, z1 + 0.9],
+    ]) {
+      cyl(0.12, 0.8, '#7a5a3c', tx, 0.4, tz);
+      ball(0.7, shade(spec.base, 0.04), tx, 1.25, tz);
+      ball(0.5, shade(spec.base, 0.08), tx + 0.25, 1.65, tz + 0.1);
+    }
+    sharp(1.4, 0.02, D + 1.6, '#e9e2d2', x1 + 1.0, 0.01, 0);
   }
 
   // ---------- Свет ----------
@@ -492,7 +560,7 @@ export function buildLab(spec: LabSpec): Content {
     return { dirty, next: eventOn ? 60 : animated ? (ctx.slow ? 260 : 150) : Infinity };
   };
 
-  const box3 = new THREE.Box3(new THREE.Vector3(x0 - 0.6, -0.6, z0 - 0.3), new THREE.Vector3(x1 + 0.6, WALL_H, z1 + 0.6));
+  const box3 = new THREE.Box3(new THREE.Vector3(x0 - M, -0.6, z0 - M), new THREE.Vector3(x1 + M, WALL_H, z1 + M));
   return {
     root,
     framing: {
