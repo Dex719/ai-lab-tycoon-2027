@@ -65,7 +65,7 @@ export function Stat({ label, value, hint }: { label: ReactNode; value: ReactNod
   return (
     <div className="card" style={{ minWidth: 120 }}>
       <div className="muted small">{label}</div>
-      <div style={{ fontSize: 16, fontWeight: 600 }} className="num">
+      <div style={{ fontSize: 16, fontWeight: 'var(--fw-title)' }} className="num">
         {value}
       </div>
       {hint && <div className="muted small">{hint}</div>}

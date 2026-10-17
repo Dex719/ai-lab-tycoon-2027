@@ -88,11 +88,11 @@ function Bust({ role }: { role: StaffRole }) {
   );
 }
 
-/** Ступени уровня точками: пройденные и текущая залиты, выше потолка - пусто с пунктиром. */
+/** Ступени уровня: четыре деления; пройденные и текущее залиты, до потолка - пустые, выше потолка - пунктир. */
 function Steps({ e }: { e: { level: number; potential?: Employee['potential'] } }) {
   const cap = levelCap(e);
   return (
-    <span className="tm-steps" title={`Потолок: ${LEVEL_NAMES[cap].toLowerCase()}`}>
+    <span className="tm-steps" role="img" aria-label={`Уровень ${e.level + 1} из 4, потолок: ${LEVEL_NAMES[cap].toLowerCase()}`} title={`Уровень ${e.level + 1} из 4. Потолок: ${LEVEL_NAMES[cap].toLowerCase()}`}>
       {LEVEL_NAMES.map((n, i) => (
         <i key={n} className={i <= e.level ? 'on' : i <= cap ? 'can' : 'no'} />
       ))}
@@ -100,7 +100,7 @@ function Steps({ e }: { e: { level: number; potential?: Employee['potential'] } 
   );
 }
 
-/** Карточка человека: имя на белой плашке, фигурка, уровень и зарплата, опыт полосой, вывод и одно действие. */
+/** Карточка человека: полоса и точка цвета роли, имя, фигурка на нейтральном фоне, уровень и зарплата текстом, опыт полосой, вывод и одно действие. */
 function PersonCard(props: { s: GameState; e?: Employee; c?: Candidate; act: (p: Pending) => void }) {
   const { s, e, c, act } = props;
   const p = (e ?? c)!;
@@ -108,45 +108,59 @@ function PersonCard(props: { s: GameState; e?: Employee; c?: Candidate; act: (p:
   const working = e ? isWorking(e, s.day) : true;
   const canGrow = e ? e.level < levelCap(e) : false;
   const ready = !!e && canGrow && e.xp >= 1;
+  const xp = e ? Math.round(Math.min(1, e.xp) * 100) : 0;
   return (
     <div className={`tm-card r-${p.role}${ready ? ' ready' : ''}`} style={{ ['--rc' as string]: ROLE_INFO[p.role].color }}>
       <div className="tm-card-top">
         <span className="tm-name" title={p.name}>
           {p.name}
         </span>
+        <span className="tm-role">
+          <i className="tm-role-dot" />
+          {ROLE_INFO[p.role].name}
+        </span>
       </div>
       <div className="tm-card-art">
-        <span className="tm-lvl">{LEVEL_NAMES[p.level]}</span>
-        <span className="tm-sal">{fmtMoney(p.salary)}/мес.</span>
         <Bust role={p.role} />
       </div>
       <div className="tm-card-body">
-        <span className="tm-role">
-          {ROLE_INFO[p.role].name}
-          <Steps e={p} />
-        </span>
+        <div className="tm-line">
+          <span className="tm-lvl">
+            {LEVEL_NAMES[p.level]}
+            <Steps e={p} />
+          </span>
+          <span className="tm-sal">
+            {fmtMoney(p.salary)}<small>/мес.</small>
+          </span>
+        </div>
         {e ? (
           canGrow ? (
-            <span className="tm-meter" title={monthsToNext(e) !== null ? `≈ ${monthsToNext(e)} мес. работы или курсы до уровня «${LEVEL_NAMES[e.level + 1]}»` : undefined}>
-              <i style={{ width: `${Math.round(Math.min(1, e.xp) * 100)}%` }} />
-              <b>{ready ? 'можно повысить' : `опыт ${Math.round(Math.min(1, e.xp) * 100)} %`}</b>
-            </span>
+            <div className="tm-xp" title={monthsToNext(e) !== null ? `≈ ${monthsToNext(e)} мес. работы или курсы до уровня «${LEVEL_NAMES[e.level + 1]}»` : undefined}>
+              <span className="tm-xp-l">
+                {ready ? <b className="good">Можно повысить</b> : <span>Опыт до уровня «{LEVEL_NAMES[e.level + 1]}»</span>}
+                <b>{xp} %</b>
+              </span>
+              <span className="tm-meter">
+                <i style={{ width: `${xp}%` }} />
+              </span>
+            </div>
           ) : (
-            <span className="tm-meter full">
-              <i style={{ width: '100%' }} />
-              <b>{LEVEL_NAMES[e.level].toLowerCase()} - потолок</b>
-            </span>
+            <span className="tm-xp-l cap">{e.level < 3 ? `Выше уровня «${LEVEL_NAMES[e.level]}» не вырастет` : 'Высший уровень'}</span>
           )
         ) : (
-          <span className="tm-meter gain">
-            <b>сразу даст {pct(hireGain(s, c!))}</b>
+          <span className="tm-xp-l">
+            <span>Сразу даст</span>
+            <b className="good">{pct(hireGain(s, c!))}</b>
           </span>
         )}
-        <span className={`tm-verdict ${ready ? 'warn' : VERDICT[v].tone}`} title={verdictLine(p)}>{ready ? 'опыта хватает' : VERDICT[v].short}</span>
-        {!working && e && <span className="tm-wait">выйдет {formatDateShort(e.startDay)}</span>}
-        {p.trait && <span className="tm-trait">{TRAIT_TEXT[p.trait]}</span>}
+        {!(e && !canGrow) && (
+          <span className={`tm-verdict ${ready ? 'warn' : VERDICT[v].tone}`} title={verdictLine(p)}>
+          {ready ? 'Опыта хватает для повышения' : VERDICT[v].short[0].toUpperCase() + VERDICT[v].short.slice(1)}
+          </span>
+        )}
+        {!working && e && <span className="tm-wait">Выйдет на работу {formatDateShort(e.startDay)}</span>}
+        {p.trait && <span className="tm-trait">{TRAIT_TEXT[p.trait][0].toUpperCase() + TRAIT_TEXT[p.trait].slice(1)}</span>}
       </div>
-      {e && !canGrow && e.level < 3 && <div className="tm-req">Выше не вырастет</div>}
       <div className="tm-card-act">
         {c ? (
           <GuardButton className="btn primary" reason={hireBlock(s, c)} onClick={() => act({ kind: 'hire', c })}>

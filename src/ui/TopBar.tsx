@@ -35,7 +35,7 @@ function MoneyPopup({ s }: { s: GameState }) {
   const kinds = INCOME_KINDS.filter((k) => k !== 'subs' || subsOpen(s.day) || m.income.subs > 0);
   return (
     <div className="money-pop" role="tooltip">
-      <div className="r" style={{ color: '#f2f2f2' }}>
+      <div className="r" style={{ color: 'var(--hud-text)' }}>
         <span>С начала месяца</span>
         <span />
       </div>
@@ -52,7 +52,7 @@ function MoneyPopup({ s }: { s: GameState }) {
         </div>
       ))}
       {m.expense.capex > 0 && (
-        <div className="r" style={{ color: '#f2f2f2' }} title="Стройка дата-центров и покупка карт. В изменение за месяц не входит">
+        <div className="r" style={{ color: 'var(--hud-text)' }} title="Стройка дата-центров и покупка карт. В изменение за месяц не входит">
           <span>Разовые вложения:</span>
           <span className="v">{fmtMoney(m.expense.capex)}</span>
         </div>

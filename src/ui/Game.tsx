@@ -116,20 +116,21 @@ function useClock(): string {
   return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
-/** Цвет верхней полосы заголовка каждого окна. */
+/** Цвет верхней полосы заголовка: у всех окон один (бирюзовая грань), разноцветные окна пестрили (docs/COLORS.md). */
+const WIN_EDGE = 'var(--brand-edge)';
 const WIN_ACCENT: Record<WindowId, string> = {
-  research: 'var(--c-purple)',
-  compute: 'var(--c-blue)',
-  newModel: 'var(--c-blue)',
-  contracts: 'var(--c-orange)',
-  investors: 'var(--c-green)',
-  models: 'var(--c-teal)',
-  mail: 'var(--c-amber)',
-  analytics: 'var(--c-indigo)',
-  datacenters: 'var(--c-teal)',
-  deals: 'var(--c-amber)',
-  finale: 'var(--c-red)',
-  team: 'var(--c-teal)',
+  research: WIN_EDGE,
+  compute: WIN_EDGE,
+  newModel: WIN_EDGE,
+  contracts: WIN_EDGE,
+  investors: WIN_EDGE,
+  models: WIN_EDGE,
+  mail: WIN_EDGE,
+  analytics: WIN_EDGE,
+  datacenters: WIN_EDGE,
+  deals: WIN_EDGE,
+  finale: WIN_EDGE,
+  team: WIN_EDGE,
 };
 
 type GameDialog = null | 'save' | 'load' | 'settings' | 'achievements' | 'quit';

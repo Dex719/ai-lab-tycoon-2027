@@ -2,7 +2,7 @@
 // (labRows, recentMoves - вкладка «Лаборатории» в LabsDossier.tsx).
 
 import { FlashNum } from '../FlashNum';
-import { useMemo, type CSSProperties } from 'react';
+import { useMemo } from 'react';
 import type { WindowProps } from '.';
 import { personalityOf } from '../../data/labPersonalities';
 import { HYPE_OWNERS, SEGMENT_DEF, SUBS_REF_PRICE } from '../../sim/constants';
@@ -42,13 +42,6 @@ import './MarketWindow.css';
 const SHARE_SERIES: SeriesDef[] = [{ id: 'player', label: 'Ваша доля', color: '#2f80e4', pick: (r) => r.marketShare }];
 
 const fmtAxisShare = (v: number): string => fmtShare(v, 1);
-
-/** Цвета сегментов: обычные - бирюзовый, корпоративные - индиго, разработчики - янтарный (text - для текста на белом, tint - заливка значка). */
-export const SEGMENT_ACCENT: Record<SegmentId, { fill: string; text: string; tint: string }> = {
-  consumers: { fill: '#1fa8a0', text: '#0e655f', tint: '#d6f1ee' },
-  enterprise: { fill: '#5b5bd6', text: '#3d3dae', tint: '#e4e4fa' },
-  developers: { fill: '#d99a00', text: '#8a5a00', tint: '#fbeccb' },
-};
 
 const CHANNEL_NAME: Record<Channel, string> = { api: 'API', subs: 'Подписка' };
 
@@ -293,11 +286,9 @@ const ctxLabel = (tokens: number): string => (tokens > 0 ? contextLabel(tokens) 
 // ---------- Сегменты ----------
 
 function SegmentCard({ s, v }: { s: GameState; v: SegmentView }) {
-  const accent = SEGMENT_ACCENT[v.id];
-  const style = { '--seg': accent.fill, '--seg-text': accent.text, '--seg-tint': accent.tint } as CSSProperties;
   const top = Math.max(0.0001, ...v.rows.map((r) => r.share));
   return (
-    <div className={`seg-card ${v.id}`} style={style}>
+    <div className={`seg-card ${v.id}`}>
       <div className="seg-head">
         <h3 className="seg-name">{v.name}</h3>
         <span className="seg-chan" title={CHANNEL_TITLE[v.channel]}>
@@ -421,7 +412,7 @@ function MarketTable({ s, rows }: { s: GameState; rows: MarketRow[] | null }) {
               </th>
             )}
             {segs.map((id) => (
-              <th key={id} className="num mk-seg" style={{ color: SEGMENT_ACCENT[id].text }}>
+              <th key={id} className="num mk-seg">
                 {SEGMENT_DEF[id].name}
               </th>
             ))}

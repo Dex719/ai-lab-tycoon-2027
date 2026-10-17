@@ -1,8 +1,9 @@
 /* Выбор видеокарты: список слева, 3D-превью справа на графитовой подложке (как утверждённый эталон арта).
    Диалоги выводятся в document.body, поэтому стили не привязаны к окну. */
-.gch { display: grid; grid-template-columns: 292px minmax(0, 1fr); gap: 14px; height: 300px; font-variant-numeric: tabular-nums; }
-/* Список карт - белое поле со строками через тонкую линию, как списки окон. */
-.gch-list { align-self: start; max-height: 100%; display: flex; flex-direction: column; min-height: 0; overflow: auto; background: #fff; border: 1px solid var(--line); }
+/* .dialog в theme.css сбрасывает вес сокращением font: - здесь вес основного текста. */
+.gch { display: grid; grid-template-columns: 292px minmax(0, 1fr); gap: 14px; height: 300px; font-weight: var(--fw-text); font-variant-numeric: tabular-nums; }
+/* Список карт - белая карточка с нижней гранью, строки через тонкую линию, как списки окон. */
+.gch-list { align-self: start; max-height: 100%; display: flex; flex-direction: column; min-height: 0; overflow: auto; background: var(--surface-control); border: none; border-radius: 12px; box-shadow: inset 0 -4px 0 var(--edge); }
 .gch-pick {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'name price' 'bar bar' 'meta meta';
   gap: 4px 8px; width: 100%; flex: none; padding: 7px 10px 8px; text-align: left; color: var(--text); background: none;
@@ -10,25 +11,25 @@
 }
 .gch-pick:last-child { border-bottom: none; }
 .gch-pick:hover { background: var(--row-hover); }
-.gch-pick.is-selected { border: none; border-bottom: 1px solid var(--row-line); background: var(--row-sel); box-shadow: inset 0 0 0 1px var(--accent); }
+.gch-pick.is-selected { border: none; border-bottom: 1px solid var(--row-line); background: var(--row-sel); box-shadow: inset 0 0 0 2px var(--brand); }
 .gch-pick.is-selected:last-child { border-bottom: none; }
 .gch-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.gch-name { grid-area: name; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gch-price { grid-area: price; align-self: baseline; font-size: 13px; color: var(--text-dim); white-space: nowrap; }
-.gch-bar { grid-area: bar; display: block; height: 5px; background: #e3e5e9; border-radius: 1px; overflow: hidden; }
-.gch-bar i { display: block; height: 100%; background: #5f646c; }
-.gch-pick.is-selected .gch-bar i { background: var(--accent-dark); }
-.gch-meta { grid-area: meta; display: flex; gap: 10px; font-size: 13px; }
-.gch-tag { font-weight: 600; color: var(--good-ink); }
-.gch-note { color: var(--info-ink); }
+.gch-name { grid-area: name; font-weight: var(--fw-title); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gch-price { grid-area: price; align-self: baseline; font-size: 13px; font-weight: var(--fw-strong); color: var(--text-2); white-space: nowrap; }
+.gch-bar { grid-area: bar; display: block; height: 5px; background: var(--track); border-radius: 999px; overflow: hidden; }
+.gch-bar i { display: block; height: 100%; background: var(--brand-muted); border-radius: 999px; }
+.gch-pick.is-selected .gch-bar i { background: var(--brand); }
+.gch-meta { grid-area: meta; display: flex; gap: 10px; font-size: 13px; font-weight: var(--fw-strong); }
+.gch-tag { font-weight: var(--fw-strong); color: var(--good-ink); }
+.gch-note { color: var(--brand-ink); }
 
 .gch-stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .gch-stage > .gpu-badge { flex: 1; }
 .gch-cap { flex: none; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 8px; }
-.gch-title { font-size: 18px; font-weight: 600; white-space: nowrap; }
+.gch-title { font-size: 18px; font-weight: var(--fw-title); white-space: nowrap; }
 .gch-facts { display: grid; grid-template-columns: auto auto; gap: 0 10px; margin: 0; font-size: 13px; }
 .gch-fact { display: contents; }
-.gch-facts dt { color: var(--text-dim); }
+.gch-facts dt { font-weight: var(--fw-small); color: var(--text-2); }
 .gch-facts dd { margin: 0; color: var(--text); white-space: nowrap; }
 
 

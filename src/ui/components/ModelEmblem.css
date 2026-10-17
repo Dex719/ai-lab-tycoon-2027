@@ -1,12 +1,13 @@
-/* Эмблема модели - микросхема (ModelEmblem.tsx): плоские цвета, без теней и свечения. */
+/* Эмблема модели - микросхема (ModelEmblem.tsx): плоские цвета из палитры, без теней и свечения.
+   Золотые выводы - знак 1-го места (рисунок, как медаль), остальное - токены. */
 .emb { display: block; flex: none; }
-.emb-pins rect { fill: #9ea4ad; }
-.emb-pins.gold rect { fill: #d9a514; }
-.emb-body { fill: #2b2e33; }
-.emb-key { fill: #5f646c; }
-.emb-mono { fill: #f2f2f2; font-family: var(--font); font-weight: 700; }
-.emb-exposed { fill: #e04646; }
-.emb.training .emb-body { fill: #4a4e55; }
-.emb-bar-bg { fill: #6b7079; }
-.emb-bar { fill: #8fc1ff; }
+.emb-pins rect { fill: var(--edge); }
+.emb-pins.gold rect { fill: var(--gold-fill); }
+.emb-body { fill: var(--text); }
+.emb-key { fill: var(--text-2); }
+.emb-mono { fill: var(--hud-text); font-family: var(--font); font-weight: var(--fw-title); }
+.emb-exposed { fill: var(--bad-fill); }
+.emb.training .emb-body { fill: var(--text-2); }
+.emb-bar-bg { fill: var(--brand-muted); }
+.emb-bar { fill: var(--brand-on-hud); }
 .emb.faded { opacity: 0.55; }

@@ -1,65 +1,65 @@
 /* «Арена» в движении: соседи на верхней панели и баннер смены места. Плоско: без градиентов, свечения и «пружин». */
 
 .ar-strip { display: flex; align-items: center; gap: 10px; white-space: nowrap; cursor: default; }
-.ar-empty { color: var(--bar-dim); font-size: 13px; }
+.ar-empty { color: var(--hud-text-2); font-size: 13px; }
 .ar-place { display: flex; flex-direction: column; align-items: center; line-height: 1; }
-.ar-k { font-size: 11px; color: var(--bar-dim); }
-.ar-r { margin-top: 2px; font-size: 18px; font-weight: 700; color: var(--bar-text); font-variant-numeric: tabular-nums; }
+.ar-k { font-size: 11px; font-weight: var(--fw-small); color: var(--hud-text-2); }
+.ar-r { margin-top: 2px; font-size: 18px; font-weight: var(--fw-title); color: var(--hud-text); font-variant-numeric: tabular-nums; }
 .ar-r.first { color: var(--gold-fill); }
 .ar-ns { display: flex; flex-direction: column; gap: 1px; font-size: 13px; line-height: 1.25; min-width: 0; }
-.ar-n { display: flex; align-items: center; gap: 5px; color: #c8cbd0; }
+.ar-n { display: flex; align-items: center; gap: 5px; color: var(--hud-text-2); }
 /* Стрелка «выше» / «ниже» - значок SVG в <b>. */
 .ar-n b { display: inline-flex; width: auto; }
-.ar-n-none { color: #8b8e93; padding-left: 13px; }
+.ar-n-none { color: var(--hud-text-2); padding-left: 13px; }
 .ar-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
 .ar-name { max-width: 128px; overflow: hidden; text-overflow: ellipsis; }
-.ar-gap { color: var(--bar-dim); font-variant-numeric: tabular-nums; }
-.ar-n.close .ar-gap { color: #f2b84b; font-weight: 700; }
-.ar-close { font-size: 12px; font-weight: 600; color: #f2b84b; }
+.ar-gap { font-weight: var(--fw-small); color: var(--hud-text-2); font-variant-numeric: tabular-nums; }
+.ar-n.close .ar-gap { color: var(--warn-on-hud); font-weight: var(--fw-strong); }
+.ar-close { font-size: 12px; font-weight: var(--fw-strong); color: var(--warn-on-hud); }
 
-/* Баннер: выдержка из таблицы гонки под верхней панелью. Полоса слева - исход, как у уведомлений. */
+/* Баннер: выдержка из таблицы гонки под верхней панелью. Исход - тонкой полосой сверху и цветом места (без толстой полосы слева). */
 .ar-banner {
-  --arb: var(--c-green);
+  --arb: var(--good-fill);
   /* ниже плашки «Пауза: ...» (top 46 px), иначе она закрывает строку с местом */
   position: fixed; top: 82px; left: 50%; z-index: 880; transform: translateX(-50%);
   width: 420px; max-width: calc(100vw - 24px); padding: 9px 36px 8px 14px;
-  background: #fff; color: var(--text); border: 1px solid var(--line); border-left: 5px solid var(--arb); border-radius: 3px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  background: var(--surface-card); color: var(--text); border: none; border-radius: 12px;
+  box-shadow: inset 0 3px 0 var(--arb), 0 6px 20px rgb(0 0 0 / 0.3);
   animation: arb-in 200ms ease-out both;
 }
-.ar-banner.down { --arb: var(--c-red); }
-.ar-banner.switch { --arb: var(--c-blue); }
-.ar-banner.first { --arb: var(--gold-line); background: var(--gold-tint); border-color: #e6cf86; border-left-color: var(--arb); }
+.ar-banner.down { --arb: var(--bad-fill); }
+.ar-banner.switch { --arb: var(--brand); }
+.ar-banner.first { --arb: var(--gold-line); }
 .arb-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .arb-cup { align-self: center; flex: none; color: var(--gold-ink); }
-.arb-race { font-size: 14px; color: var(--text-dim); white-space: nowrap; }
-.arb-place { font-size: 18px; font-weight: 700; color: var(--good-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.arb-race { font-size: 14px; font-weight: var(--fw-strong); color: var(--text-2); white-space: nowrap; }
+.arb-place { font-size: 18px; font-weight: var(--fw-title); color: var(--good-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ar-banner.down .arb-place { color: var(--bad-ink); }
 .ar-banner.switch .arb-place { color: var(--text); }
 .ar-banner.first .arb-place { color: var(--gold-ink); }
-.arb-was { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+.arb-was { font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); white-space: nowrap; }
 .arb-sub { margin-top: 1px; font-size: 14px; color: var(--text-body); }
 .arb-rival {
   display: flex; align-items: center; gap: 6px; margin-top: 4px; padding: 0; border: 0; background: none;
   font: inherit; font-size: 13px; color: var(--text-body); cursor: pointer; text-align: left; font-variant-numeric: tabular-nums;
 }
-.arb-rival b { font-weight: 600; color: var(--text-title); }
+.arb-rival b { font-weight: var(--fw-strong); color: var(--text-title); }
 .arb-rival:hover span { text-decoration: underline; text-underline-offset: 2px; }
 .arb-rival:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .arb-rows { width: 100%; margin-top: 7px; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
-.arb-rows td { padding: 3px 4px; border-top: 1px solid var(--line); white-space: nowrap; }
+.arb-rows td { padding: 3px 4px; border-top: 1px solid var(--row-line); white-space: nowrap; }
 .arb-n { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .arb-n .ar-name { max-width: 170px; }
 .arb-v { text-align: right; color: var(--text-body); }
-.arb-note { width: 1%; text-align: right; font-size: 12px; font-weight: 600; }
-.arb-rows tr.me td { background: var(--row-sel); font-weight: 600; }
+.arb-note { width: 1%; text-align: right; font-size: 12px; font-weight: var(--fw-strong); }
+.arb-rows tr.me td { background: var(--row-sel); font-weight: var(--fw-strong); }
 .arb-rows tr.me .arb-v { color: var(--text); }
-.arb-you { font-size: 12px; font-weight: 600; color: var(--accent-dark); }
+.arb-you { font-size: 12px; font-weight: var(--fw-strong); color: var(--brand-ink); }
 .arb-rows tr.passed .arb-note { color: var(--good-ink); }
 .arb-rows tr.lost .arb-note { color: var(--bad-ink); }
 .arb-x {
   position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; display: grid; place-items: center;
-  background: none; border: none; color: var(--text-dim); cursor: pointer; border-radius: 2px;
+  background: none; border: none; color: var(--text-2); cursor: pointer; border-radius: 2px;
 }
 .arb-x:hover { background: var(--cream); color: var(--text); }
 .arb-x:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -73,12 +73,12 @@
 .flies { position: absolute; left: 50%; top: 100%; width: 0; height: 0; pointer-events: none; z-index: 960; }
 .fly {
   position: absolute; transform: translateX(-50%); display: flex; align-items: baseline; gap: 6px; padding: 3px 8px;
-  white-space: nowrap; background: var(--bar); border: 1px solid #3b3b3f; border-radius: 3px;
-  font: 600 14px var(--font); font-variant-numeric: tabular-nums;
+  white-space: nowrap; background: var(--hud-2); border: none; border-radius: 8px;
+  font: var(--fw-strong) 14px var(--font); font-variant-numeric: tabular-nums;
 }
-.fly small { font-size: 12px; font-weight: 400; color: var(--bar-dim); }
-.fly.plus { color: var(--good-on-dark); animation: fly-up 1800ms ease-out forwards; }
-.fly.minus { color: var(--bad-on-dark); animation: fly-down 1800ms ease-out forwards; }
+.fly small { font-size: 12px; font-weight: var(--fw-small); color: var(--hud-text-2); }
+.fly.plus { color: var(--good-on-hud); animation: fly-up 1800ms ease-out forwards; }
+.fly.minus { color: var(--bad-on-hud); animation: fly-down 1800ms ease-out forwards; }
 @keyframes fly-up {
   0% { opacity: 0; transform: translate(-50%, 10px); }
   12% { opacity: 1; transform: translate(-50%, 6px); }
@@ -96,19 +96,19 @@
 
 /* Показатели лаборатории на верхней панели. */
 .lab-stat { position: relative; display: flex; flex-direction: column; align-items: flex-start; line-height: 1; cursor: default; white-space: nowrap; }
-.ls-k { font-size: 11px; color: var(--bar-dim); }
-.ls-v { margin-top: 3px; display: flex; align-items: baseline; gap: 5px; font-size: 15px; font-weight: 600; color: var(--bar-text); font-variant-numeric: tabular-nums; }
-.ls-bar { width: 100%; min-width: 44px; height: 3px; margin-top: 3px; background: var(--teal-ink); border-radius: 2px; overflow: hidden; }
-.ls-bar i { display: block; height: 100%; background: #8fa3bf; }
-.lab-stat.up .ls-bar i { background: var(--good-on-dark); }
-.lab-stat.down .ls-bar i { background: var(--bad-on-dark); }
+.ls-k { font-size: 11px; font-weight: var(--fw-small); color: var(--hud-text-2); }
+.ls-v { margin-top: 3px; display: flex; align-items: baseline; gap: 5px; font-size: 15px; font-weight: var(--fw-title); color: var(--hud-text); font-variant-numeric: tabular-nums; }
+.ls-bar { width: 100%; min-width: 44px; height: 3px; margin-top: 3px; background: var(--track-hud); border-radius: 2px; overflow: hidden; }
+.ls-bar i { display: block; height: 100%; background: var(--brand-on-hud); }
+.lab-stat.up .ls-bar i { background: var(--good-on-hud); }
+.lab-stat.down .ls-bar i { background: var(--bad-on-hud); }
 /* Изменение от события: цветной текст рядом с числом, гаснет сам. */
-.ls-d { font-size: 13px; font-weight: 700; animation: ls-fade 2200ms ease-out forwards; }
-.lab-stat.up .ls-d { color: var(--good-on-dark); }
-.lab-stat.down .ls-d { color: var(--bad-on-dark); }
+.ls-d { font-size: 13px; font-weight: var(--fw-text); animation: ls-fade 2200ms ease-out forwards; }
+.lab-stat.up .ls-d { color: var(--good-on-hud); }
+.lab-stat.down .ls-d { color: var(--bad-on-hud); }
 @keyframes ls-fade { 0% { opacity: 0; } 10%, 80% { opacity: 1; } 100% { opacity: 0; } }
 
 /* Отсчёт до финала рядом с датой: цветной текст в рамке, без заливки (золото - только награда и 1-е место).
    Последние 30 дней - красным. */
-.tb-final { margin-left: 6px; padding: 1px 7px; border: 1px solid #6a5a2c; border-radius: 3px; font-size: 13px; font-weight: 600; color: #f2b84b; }
-.tb-final.hot { border-color: #7a3434; color: var(--bad-on-dark); }
+.tb-final { margin-left: 6px; padding: 1px 7px; border: 1px solid currentColor; border-radius: 999px; font-size: 13px; font-weight: var(--fw-strong); color: var(--warn-on-hud); }
+.tb-final.hot { color: var(--bad-on-hud); }

@@ -2,36 +2,37 @@
    Одно главное число (Эло), место рядом мельче, ниже таблица тестов. Цвет уровня - только полоса заголовка и значок. */
 
 .rc-backdrop { z-index: 1200; }
-.dialog.rc { --rc: var(--c-blue); width: min(520px, calc(100vw - 32px)); outline: none; animation: rc-in 200ms ease-out both; }
-.dialog.rc.light { --rc: var(--c-teal); }
-.dialog.rc.flagship { --rc: var(--c-purple); }
+/* font-weight: .dialog в theme.css сбрасывает вес сокращением font:. */
+.dialog.rc { --rc: var(--dir-train); width: min(520px, calc(100vw - 32px)); outline: none; font-weight: var(--fw-text); animation: rc-in 200ms ease-out both; }
+.dialog.rc.light { --rc: var(--dir-subs); }
+.dialog.rc.flagship { --rc: var(--dir-research); }
 .dialog.rc.first { --rc: var(--gold-line); }
 .dialog.rc .titlebar { box-shadow: inset 0 3px 0 var(--rc); }
 
 .rc-body { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px; }
 .rc-id { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.rc-name { margin: 0; min-width: 0; font-size: 22px; font-weight: 600; line-height: 1.2; color: var(--text-title); letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rc-meta { margin-top: -8px; font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.rc-name { margin: 0; min-width: 0; font-size: 22px; font-weight: var(--fw-title); line-height: 1.2; color: var(--text-title); letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-meta { margin-top: -8px; font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); font-variant-numeric: tabular-nums; }
 
 .rc-main { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .rc-elo, .rc-place { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .rc-place { padding-left: 18px; border-left: 1px solid var(--line-soft); justify-content: flex-end; }
-.rc-big { font-size: 36px; font-weight: 700; line-height: 1; color: var(--text-title); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.rc-mid { display: inline-flex; align-items: center; gap: 6px; font-size: 22px; font-weight: 600; line-height: 1.1; color: var(--text-title); font-variant-numeric: tabular-nums; }
+.rc-big { font-size: 36px; font-weight: var(--fw-title); line-height: 1; color: var(--text-title); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.rc-mid { display: inline-flex; align-items: center; gap: 6px; font-size: 22px; font-weight: var(--fw-title); line-height: 1.1; color: var(--text-title); font-variant-numeric: tabular-nums; }
 .rc-mid.gold { color: var(--gold-ink); }
-.rc-mid.dim { color: #8a8e95; }
-.rc-l { font-size: 13px; color: var(--text-dim); }
+.rc-mid.dim { color: var(--text-2); }
+.rc-l { font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }
 .rc-sub { font-size: 13px; color: var(--text-body); }
-.rc-sub.good { color: var(--good-ink); font-weight: 600; }
-.rc-sub.bad { color: var(--bad-ink); font-weight: 600; }
+.rc-sub.good { color: var(--good-ink); font-weight: var(--fw-strong); }
+.rc-sub.bad { color: var(--bad-ink); font-weight: var(--fw-strong); }
 
 .rc-pass { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 0; font-size: 14px; }
 .rc-rival { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
 .rc-rival .ar-dot { align-self: center; }
-.rc-rival small { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.rc-rival small { font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 
 .rc-bench th, .rc-bench td { padding: 4px 10px; }
-.rc-bench tr.top td:last-child { color: var(--gold-ink); font-weight: 700; }
+.rc-bench tr.top td:last-child { color: var(--gold-ink); font-weight: var(--fw-text); }
 
 @keyframes rc-in { from { opacity: 0; transform: translateY(8px); } }
 @media (prefers-reduced-motion: reduce) { .dialog.rc { animation: none; } }

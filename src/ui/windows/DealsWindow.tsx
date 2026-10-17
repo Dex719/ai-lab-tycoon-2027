@@ -2,7 +2,7 @@
 // облачная сделка. Раскладка - ведомость: сверху деньги и что уже действует, ниже таблица по вкладке.
 // Симуляция - sim/deals.ts, данные - data/deals.ts.
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { CLOUDS, MAX_TEAMS, OFFER_DAYS, TEAMS, TEAM_RETAIN_MONTHS, type CloudDef, type StartupDef, type TeamDef } from '../../data/deals';
 import { LABS } from '../../data/labs';
 import { availableGpus, rentCapFor } from '../../sim/compute';
@@ -58,7 +58,7 @@ function TeamRow({ s, def, onHire, onRelease }: { s: GameState; def: TeamDef; on
     <tr className={hired ? 'on' : undefined}>
       <td>
         <div className="dl-who">
-          <span className="dl-ava" style={{ background: def.color }} aria-hidden="true">
+          <span className="dl-ava" style={{ '--ava': def.color } as CSSProperties} aria-hidden="true">
             {def.initials}
           </span>
           <span>

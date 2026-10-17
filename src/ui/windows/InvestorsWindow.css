@@ -4,93 +4,93 @@
 .inv { display: flex; flex-direction: column; height: 100%; min-height: 0; container-type: inline-size; font-variant-numeric: tabular-nums; }
 
 /* ---------- Оценка и доля ---------- */
-.inv-head { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); background: #fff; border-bottom: 1px solid var(--line-soft); }
+.inv-head { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); background: var(--surface-card); border-bottom: 1px solid var(--edge); }
 .inv-fig { min-width: 0; display: flex; flex-direction: column; gap: 1px; padding: 12px 16px; }
-.inv-fig + .inv-fig { border-left: 1px solid var(--line-soft); justify-content: flex-end; }
+.inv-fig + .inv-fig { border-left: 1px solid var(--edge); justify-content: flex-end; }
 /* Одно главное число окна - оценка; доля основателя - второе, мельче. */
-.inv-fig + .inv-fig .inv-fig-v { font-size: 22px; font-weight: 600; letter-spacing: 0; }
-.inv-fig-l { font-size: 13px; color: var(--text-dim); }
-.inv-fig-v { font-size: 36px; font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; color: #1f2023; white-space: nowrap; }
-.inv-fig-s { font-size: 13px; color: var(--text-body); }
+.inv-fig + .inv-fig .inv-fig-v { font-size: 22px; font-weight: var(--fw-title); letter-spacing: 0; }
+.inv-fig-l { font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }
+.inv-fig-v { font-size: 36px; font-weight: var(--fw-title); line-height: 1.05; color: var(--text); white-space: nowrap; }
+.inv-fig-s { font-size: 13px; font-weight: var(--fw-small); color: var(--text); }
 .inv-fig.ok .inv-fig-v { color: var(--good-ink); }
-.inv-fig.warn .inv-fig-v, .inv-fig.warn .inv-fig-s { color: var(--warn); }
+.inv-fig.warn .inv-fig-v, .inv-fig.warn .inv-fig-s { color: var(--warn-ink); }
 .inv-fig.bad .inv-fig-v, .inv-fig.bad .inv-fig-s { color: var(--bad-ink); }
 
-/* Шкала контроля: заливка - доля основателя, серое - у инвесторов, отметки 25 % и 50 %. */
-.inv-own { flex: none; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); }
-.inv-ctl-bar { position: relative; height: 16px; background: #9cc7cd; }
-.inv-ctl-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--c-green); }
-.inv-ctl-bar.warn .inv-ctl-fill { background: #c99a1a; }
-.inv-ctl-bar.bad .inv-ctl-fill { background: var(--c-red); }
+/* Шкала контроля: заливка каркаса - доля основателя, дорожка - у инвесторов, отметки 25 % и 50 %.
+   Смысл (совет влияет, контроль у совета) - словом и цветом подписи зоны, не заливкой всей полосы. */
+.inv-own { flex: none; padding: 10px 16px; background: var(--surface-card); border-bottom: 1px solid var(--edge); }
+.inv-ctl-bar { position: relative; height: 14px; border-radius: 999px; background: var(--track); }
+.inv-ctl-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--brand); }
 /* Часть доли, которая уйдёт инвесторам при выбранном раунде. */
-.inv-ctl-sold { position: absolute; top: 0; bottom: 0; background: #f0b35a; box-shadow: inset 0 0 0 1px #b8761c; }
-.inv-ctl-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--teal-ink); }
-.inv-ctl-inv { position: absolute; top: 0; bottom: 0; right: 8px; display: flex; align-items: center; font-size: 12px; color: #fff; white-space: nowrap; }
+.inv-ctl-sold { position: absolute; top: 0; bottom: 0; background: var(--warn-soft); box-shadow: inset 0 0 0 2px var(--warn-fill); }
+.inv-ctl-mark { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--text); }
+.inv-ctl-inv { position: absolute; top: 0; bottom: 0; right: 8px; display: flex; align-items: center; font-size: 12px; font-weight: var(--fw-strong); color: var(--text-2); white-space: nowrap; }
 .inv-zones { display: flex; margin-top: 4px; }
-.inv-zones .z { padding: 1px 6px 0; font-size: 12px; line-height: 1.3; color: var(--text-dim); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.inv-zones .z + .z { border-left: 1px solid var(--line); }
-.inv-zones .z.on { color: #1f2023; font-weight: 600; }
+.inv-zones .z { padding: 1px 6px 0; font-size: 12px; line-height: 1.3; font-weight: var(--fw-small); color: var(--text-2); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inv-zones .z + .z { border-left: 1px solid var(--edge); }
+.inv-zones .z.on { color: var(--text); font-weight: var(--fw-strong); }
 .inv-zones .z.bad.on { color: var(--bad-ink); }
-.inv-zones .z.warn.on { color: var(--warn); }
+.inv-zones .z.warn.on { color: var(--warn-ink); }
 .inv-zones .z.ok.on { color: var(--good-ink); }
 
 /* ---------- Тело ---------- */
 .inv-body { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); }
 .inv-col { min-width: 0; padding: 12px 16px 16px; }
-.inv-val { border-right: 1px solid var(--line); }
-.inv-h { margin: 0 0 12px; font-size: 16px; font-weight: 600; color: #1f2023; }
+.inv-val { border-right: 1px solid var(--edge); }
+.inv-h { margin: 0 0 12px; font-size: 16px; font-weight: var(--fw-title); color: var(--text); }
 
-/* Столбик оценки */
+/* Столбик оценки: части - светлый тинт цвета направления с тонкой цветной полосой сверху (COLORS.md, правило 5). */
 .inv-vt { display: flex; align-items: flex-start; gap: 16px; }
-.inv-tower { position: relative; flex: none; width: 52px; background: var(--win-body); }
-.inv-seg { position: absolute; left: 0; right: 0; border-top: 1px solid #fff; }
+.inv-tower { position: relative; flex: none; width: 52px; border-radius: 6px; background: var(--surface-control); box-shadow: inset 0 0 0 1px var(--edge); }
+.inv-seg { position: absolute; left: 0; right: 0; background: color-mix(in srgb, var(--sc) 30%, var(--surface-control)); border-top: 3px solid var(--sc); }
 /* Что отнимают репутация и план совета: верх столбика поверх частей, итог - под чертой. */
-.inv-seg.minus { border-top: none; background: rgba(179, 47, 47, 0.72); }
-.inv-total-line { position: absolute; left: -6px; right: -6px; height: 2px; margin-bottom: -1px; background: var(--teal-ink); }
-.inv-seg.rev, .inv-sw.rev { background: #2e9b4f; }
-.inv-seg.tech, .inv-sw.tech { background: #2f80e4; }
-.inv-seg.floor, .inv-sw.floor { background: #9cc7cd; }
-.inv-seg.hype, .inv-sw.hype { background: #d9822b; }
-.inv-seg.rep, .inv-sw.rep { background: #7b5cd6; }
-.inv-sw.minus { background: rgba(179, 47, 47, 0.72); }
-.inv-sw.line { height: 2px !important; margin-top: 8px; background: var(--teal-ink); }
+.inv-seg.minus { border-top: none; background: var(--bad-soft); box-shadow: inset 0 0 0 2px var(--bad-fill); }
+.inv-total-line { position: absolute; left: -6px; right: -6px; height: 2px; margin-bottom: -1px; background: var(--text); }
+.inv-seg.rev, .inv-sw.rev { --sc: var(--dir-api); }
+.inv-seg.tech, .inv-sw.tech { --sc: var(--dir-train); }
+.inv-seg.floor, .inv-sw.floor { --sc: var(--brand-muted); }
+.inv-seg.hype, .inv-sw.hype { --sc: var(--dir-contracts); }
+.inv-seg.rep, .inv-sw.rep { --sc: var(--dir-research); }
+.inv-sw { background: var(--sc); }
+.inv-sw.minus { border-radius: 2px; background: var(--bad-soft); box-shadow: inset 0 0 0 2px var(--bad-fill); }
+.inv-sw.line { height: 2px !important; margin-top: 8px; border-radius: 0; background: var(--text); }
 .inv-legend { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .inv-lg { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: start; gap: 2px 9px; }
-.inv-sw { width: 12px; height: 12px; margin-top: 3px; }
+.inv-sw { width: 10px; height: 10px; margin-top: 4px; border-radius: 50%; }
 .inv-lg-t { min-width: 0; display: flex; flex-direction: column; }
-.inv-lg-l { font-size: 14px; font-weight: 600; color: #1f2023; }
-.inv-lg-s { font-size: 13px; color: var(--text-dim); }
-.inv-lg-v { font-size: 14px; font-weight: 600; color: #1f2023; white-space: nowrap; }
+.inv-lg-l { font-size: 14px; font-weight: var(--fw-strong); color: var(--text); }
+.inv-lg-s { font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }
+.inv-lg-v { font-size: 14px; font-weight: var(--fw-strong); color: var(--text); white-space: nowrap; }
 .inv-lg.neg .inv-lg-v { color: var(--bad-ink); }
-.inv-lg.total { margin-top: 2px; padding-top: 8px; border-top: 1px solid var(--line); }
+.inv-lg.total { margin-top: 2px; padding-top: 8px; border-top: 1px solid var(--edge); }
 .inv-lg.total .inv-lg-l { font-size: 14px; }
-.inv-lg.total .inv-lg-v { font-size: 16px; }
+.inv-lg.total .inv-lg-v { font-size: 16px; font-weight: var(--fw-title); }
 
 /* Раунды */
 .inv-cd { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; font-size: 14px; }
 .inv-cd-t { display: flex; align-items: center; gap: 6px; }
-.inv-cd.wait .inv-cd-t { color: var(--warn); font-weight: 600; }
-.inv-cd.ready .inv-cd-t { color: var(--good-ink); font-weight: 600; }
-.inv-cd-d { font-weight: 400; color: var(--text-dim); }
-.inv-cd-bar { display: block; height: 4px; background: var(--win-body); }
-.inv-cd-bar i { display: block; height: 100%; background: #c99a1a; }
+.inv-cd.wait .inv-cd-t { color: var(--warn-ink); font-weight: var(--fw-strong); }
+.inv-cd.ready .inv-cd-t { color: var(--good-ink); font-weight: var(--fw-strong); }
+.inv-cd-d { font-weight: var(--fw-small); color: var(--text-2); }
+.inv-cd-bar { display: block; height: 6px; border-radius: 999px; overflow: hidden; background: var(--track); }
+.inv-cd-bar i { display: block; height: 100%; background: var(--brand); }
 
-.inv-table { width: 100%; border-collapse: collapse; background: #fff; border: none; box-shadow: inset 0 -4px 0 #b9d6da; border-radius: 12px; }
-.inv-table th { padding: 6px 10px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-title); border-bottom: 1px solid var(--line); }
+.inv-table { width: 100%; border-collapse: collapse; background: var(--surface-control); border: none; box-shadow: inset 0 -4px 0 var(--edge); border-radius: 12px; }
+.inv-table th { padding: 6px 10px; text-align: left; font-size: 13px; font-weight: var(--fw-strong); color: var(--text-2); white-space: nowrap; border-bottom: 1px solid var(--edge); }
 .inv-table th.num { text-align: right; }
 .inv-table td { padding: 8px 10px; border-bottom: 1px solid var(--row-line); vertical-align: middle; }
 .inv-table tr:last-child td { border-bottom: none; }
 .inv-table tbody tr:hover td, .inv-table tbody tr:focus-within td { background: var(--row-hover); }
-.inv-t-pct { font-size: 18px; font-weight: 700; color: var(--text-title); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.inv-t-money { text-align: right; font-size: 15px; font-weight: 600; color: var(--good-ink); white-space: nowrap; }
-.inv-t-after { font-size: 14px; }
-.inv-t-after .warn { color: var(--warn); font-weight: 600; }
-.inv-t-after .bad { color: var(--bad-ink); font-weight: 600; }
-.inv-t-warn { display: block; font-size: 12px; }
-.inv-t-warn.warn { color: var(--warn); }
+.inv-t-pct { font-size: 18px; font-weight: var(--fw-title); color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.inv-t-money { text-align: right; font-size: 15px; font-weight: var(--fw-strong); color: var(--good-ink); white-space: nowrap; }
+.inv-t-after { font-size: 14px; color: var(--text); }
+.inv-t-after .warn { color: var(--warn-ink); font-weight: var(--fw-strong); }
+.inv-t-after .bad { color: var(--bad-ink); font-weight: var(--fw-strong); }
+.inv-t-warn { display: block; font-size: 12px; font-weight: var(--fw-small); }
+.inv-t-warn.warn { color: var(--warn-ink); }
 .inv-t-warn.bad { color: var(--bad-ink); }
 .inv-t-btn { width: 1%; text-align: right; }
-.inv-last { margin-top: 8px; font-size: 13px; color: var(--text-dim); }
+.inv-last { margin-top: 8px; font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }
 
 /* Подтверждение */
 .inv-confirm { font-size: 15px; row-gap: 6px; }
@@ -98,7 +98,7 @@
 /* ---------- Узкое окно ---------- */
 @container (max-width: 640px) {
   .inv-body { grid-template-columns: minmax(0, 1fr); overflow: visible; }
-  .inv-val { border-right: none; border-bottom: 1px solid var(--line); }
+  .inv-val { border-right: none; border-bottom: 1px solid var(--edge); }
   .inv-fig { padding: 10px 12px; }
   .inv-fig-v { font-size: 28px; }
   .inv-own { padding: 10px 12px; }

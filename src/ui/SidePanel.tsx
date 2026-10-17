@@ -124,9 +124,9 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
 
 // Цвета на тёмной панели: доходы - зелёный, подписки - бирюзовый, предупреждения - оранжевый.
 const SIDE_GOOD = 'var(--good-on-dark)';
-const SIDE_SUBS = '#4fd6cb';
-const SIDE_WARN = '#f2b84b';
-const SIDE_INFO = '#8ec5ff';
+const SIDE_SUBS = 'var(--hud-text)';
+const SIDE_WARN = 'var(--warn-on-hud)';
+const SIDE_INFO = 'var(--hud-text-2)';
 
 function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
   const onSale = s.models.filter((m) => m.releasedDay !== null && (m.onApi || m.onSubs));
@@ -184,7 +184,7 @@ function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) 
               </div>
             )}
             {note && (
-              <div className="r" style={{ color: note.tone === 'warn' ? SIDE_WARN : SIDE_INFO, fontWeight: 600 }}>
+              <div className="r" style={{ color: note.tone === 'warn' ? SIDE_WARN : SIDE_INFO, fontWeight: 'var(--fw-strong)' }}>
                 <span>{note.text}</span>
               </div>
             )}

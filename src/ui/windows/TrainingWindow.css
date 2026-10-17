@@ -1,10 +1,11 @@
 /* Окно «Новая модель»: полоса идущих проектов, полоса прогноза, три шага-карточки, нижняя полоса с кнопкой. */
 
 .nm {
-  --nm-language: #2f80e4;
-  --nm-code: #d9822b;
-  --nm-reasoning: #7b5cd6;
-  --nm-label: #4a4d54;
+  /* Области данных берут цвета направлений: тексты - обучение, код - контракты, рассуждения - исследования. */
+  --nm-language: var(--dir-train);
+  --nm-code: var(--dir-contracts);
+  --nm-reasoning: var(--dir-research);
+  --nm-label: var(--text-2);
   display: flex; flex-direction: column; height: 100%; min-height: 0;
   container-type: inline-size;
   font-variant-numeric: tabular-nums;
@@ -18,30 +19,30 @@
 .nm-run-name { min-width: 0; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nm-run-bar { flex: 1; min-width: 80px; }
 .nm-run-bar .progress { height: 8px; }
-.nm-run-meta { white-space: nowrap; color: var(--text-dim); }
-.nm-run-meta b { color: var(--accent-dark); }
-.nm-run .warn { color: var(--warn); font-weight: 600; }
+.nm-run-meta { white-space: nowrap; font-weight: var(--fw-small); color: var(--text-2); }
+.nm-run-meta b { font-weight: var(--fw-strong); color: var(--brand-ink); }
+.nm-run .warn { color: var(--warn-ink); font-weight: var(--fw-strong); }
 
 /* ---------- Полоса прогноза ----------
    Светлая строка итога проекта, как у окон PT: главное число (Эло) крупнее остальных, колонки делят тонкие линии.
    Без тёмной подложки, моноширинных цифр и плашек: предупреждения - цветом текста. */
-.nm-hero { flex: none; display: grid; grid-template-columns: 1.3fr 1fr 1fr; background: #fff; color: var(--text); border-bottom: 1px solid var(--line); }
+.nm-hero { flex: none; display: grid; grid-template-columns: 1.3fr 1fr 1fr; background: var(--surface-control); color: var(--text); border-bottom: 1px solid var(--line); }
 .nm-kpi { padding: 10px 18px 12px; border-right: 1px solid var(--line-soft); min-width: 0; }
 .nm-kpi:last-child { border-right: none; }
-.nm-kpi-l { font-size: 13px; color: var(--text-dim); }
-.nm-kpi-v { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin-top: 1px; font-size: 22px; font-weight: 600; line-height: 1.15; color: var(--text-title); letter-spacing: -0.01em; }
-.nm-kpi-main .nm-kpi-v { font-size: 36px; font-weight: 700; letter-spacing: -0.02em; }
-.nm-kpi-v.dim { color: #8a8e95; }
+.nm-kpi-l { font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }
+.nm-kpi-v { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin-top: 1px; font-size: 22px; font-weight: var(--fw-title); line-height: 1.15; color: var(--text-title); letter-spacing: -0.01em; }
+.nm-kpi-main .nm-kpi-v { font-size: 36px; font-weight: var(--fw-title); letter-spacing: -0.02em; }
+.nm-kpi-v.dim { color: var(--text-2); }
 .nm-kpi-v.bad { color: var(--bad-ink); }
 .nm-kpi-s { margin-top: 2px; font-size: 13px; color: var(--text-body); }
-.nm-kpi-s.warn { color: var(--warn); font-weight: 600; }
-.nm-kpi-s .gold { color: var(--gold-ink); font-weight: 700; }
+.nm-kpi-s.warn { color: var(--warn-ink); font-weight: var(--fw-strong); }
+.nm-kpi-s .gold { color: var(--gold-ink); font-weight: var(--fw-text); }
 .nm-kpi .nm-link { font-size: 13px; }
-.nm-delta { font-size: 15px; font-weight: 600; letter-spacing: 0; }
+.nm-delta { font-size: 15px; font-weight: var(--fw-strong); letter-spacing: 0; }
 .nm-delta.up { color: var(--good-ink); }
 .nm-delta.down { color: var(--bad-ink); }
-.nm-chip { display: block; margin-top: 3px; font-size: 13px; color: var(--text-dim); }
-.nm-chip.warn { color: var(--warn); font-weight: 600; }
+.nm-chip { display: block; margin-top: 3px; font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }
+.nm-chip.warn { color: var(--warn-ink); font-weight: var(--fw-strong); }
 
 /* ---------- Шаги ---------- */
 .nm-body { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; }
@@ -49,10 +50,10 @@
 .nm-steps { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 12px; align-items: start; min-width: 0; margin: 0; padding: 0; border: 0; }
 .nm-steps:disabled .nm-card { opacity: 0.55; }
 .nm-card { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 12px 14px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
-.nm-h { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: 600; color: #1f2023; }
-.nm-n { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; }
+.nm-h { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; font-weight: var(--fw-title); color: var(--text); }
+.nm-n { width: 22px; height: 22px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--brand); color: var(--on-brand); font-size: 12px; }
 .nm-lbl { font-size: 13px; color: var(--nm-label); }
-.nm-link { padding: 0; background: none; border: none; color: var(--accent); font-size: 13px; text-align: left; cursor: pointer; }
+.nm-link { padding: 0; background: none; border: none; color: var(--brand-ink); font-size: 13px; font-weight: var(--fw-strong); text-align: left; cursor: pointer; }
 .nm-link:hover { text-decoration: underline; }
 .nm-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -61,31 +62,26 @@
 .nm-tier-wrap { position: relative; display: flex; min-width: 0; }
 .nm-tier-wrap .deny-note { left: 0; right: auto; }
 .nm-tier {
-  --tier: var(--accent); --tier-text: var(--info-ink); --tier-on: var(--row-sel);
   flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 4px;
-  background: #fff; color: #4a4d54; border: 1px solid var(--line); border-radius: 4px; cursor: pointer; font-size: 12px;
+  background: var(--surface-control); color: var(--text-2); border: 1px solid var(--line); border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: var(--fw-small);
 }
-.nm-tier b { font-size: 13px; color: #1f2023; }
-.nm-tier.light { --tier: #1fa8a0; --tier-text: #0e655f; --tier-on: #dff3f1; }
-.nm-tier.flagship { --tier: #7b5cd6; --tier-text: #5a3fb8; --tier-on: #ece6fb; }
-.nm-tier.on { background: var(--tier-on); border-color: var(--tier); box-shadow: inset 0 0 0 1px var(--tier); }
-.nm-tier.on b { color: var(--tier-text); }
+.nm-tier b { font-size: 13px; font-weight: var(--fw-strong); color: var(--text); }
 .nm-tier:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.nm-tier[aria-disabled='true'] { cursor: not-allowed; background: var(--cream); color: #8a8e95; }
-.nm-tier[aria-disabled='true'] b { color: #8a8e95; }
+.nm-tier[aria-disabled='true'] { cursor: not-allowed; background: var(--cream); color: var(--text-2); }
+.nm-tier[aria-disabled='true'] b { color: var(--text-2); }
 
 /* Ползунки */
 .nm-sl { min-width: 0; }
 .nm-sl-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .nm-sl-l { font-size: 13px; color: var(--nm-label); }
-.nm-sl-v { font-size: 16px; font-weight: 700; color: #1f2023; }
-.nm-sl-ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); }
+.nm-sl-v { font-size: 16px; font-weight: var(--fw-title); color: var(--text); }
+.nm-sl-ends { display: flex; justify-content: space-between; font-size: 11px; font-weight: var(--fw-small); color: var(--text-2); }
 
 /* Данные под размер */
 .nm-data { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 10px; padding: 6px 9px; border-radius: 3px; font-size: 13px; }
-.nm-data.good { background: #e3f6e8; color: var(--good-ink); }
-.nm-data.warn { background: #fdf0de; color: var(--warn); }
-.nm-data.bad { background: #fbe5e5; color: var(--bad-ink); }
+.nm-data.good { background: var(--good-soft); color: var(--good-ink); }
+.nm-data.warn { background: var(--warn-soft); color: var(--warn-ink); }
+.nm-data.bad { background: var(--bad-soft); color: var(--bad-ink); }
 
 /* Контекст */
 .nm-ctx-wrap { display: flex; flex-direction: column; gap: 4px; }
@@ -95,56 +91,57 @@
 .nm-seg .deny-note { left: 0; right: auto; }
 .nm-seg-opt {
   flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 3px; padding: 5px 4px; white-space: nowrap;
-  margin: 0 -1px -1px 0; background: #fff; border: none; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
-  font-size: 13px; color: #1f2023; cursor: pointer;
+  margin: 0 -1px -1px 0; background: var(--surface-control); border: none; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  font-size: 13px; font-weight: var(--fw-strong); color: var(--text); cursor: pointer;
 }
-.nm-seg-opt small { color: var(--text-dim); }
-.nm-seg-opt.on { background: var(--accent); color: #fff; font-weight: 600; }
-.nm-seg-opt.on small { color: #dce9ff; }
-.nm-seg-opt.lock { background: var(--cream); color: #9a9ea6; cursor: not-allowed; }
+.nm-seg-opt small { color: var(--text-2); }
+.nm-seg-opt.on { background: var(--brand); color: var(--on-brand); font-weight: var(--fw-strong); }
+.nm-seg-opt.on small { color: var(--on-brand); }
+.nm-seg-opt.lock { background: var(--cream); color: var(--text-2); cursor: not-allowed; }
 .nm-seg-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 /* Чему учить */
-.nm-mixbar { display: flex; height: 10px; overflow: hidden; background: var(--cream); border-radius: 5px; }
+.nm-mixbar { display: flex; height: 8px; overflow: hidden; background: var(--cream); border-radius: 5px; }
 .nm-mix-row { display: flex; flex-direction: column; gap: 1px; }
 .nm-mix-top { display: flex; justify-content: space-between; align-items: baseline; }
-.nm-mix-name { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #1f2023; }
-.nm-mix-pct { font-size: 13px; font-weight: 700; }
-.nm-mix-what { font-size: 12px; color: var(--text-dim); }
+.nm-mix-name { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: var(--fw-strong); color: var(--text); }
+.nm-mix-pct { font-size: 13px; font-weight: var(--fw-text); }
+.nm-mix-what { font-size: 12px; font-weight: var(--fw-small); color: var(--text-2); }
 .nm-dot { width: 9px; height: 9px; border-radius: 50%; }
 
 /* Дообучение */
-.nm-opt { display: flex; flex-direction: column; gap: 4px; padding: 9px 10px; background: #fff; border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
-/* Включено: рамка и светлый фон цвета варианта, как выбранная строка в других окнах (без полосы слева). */
-.nm-opt.on { border-color: var(--c-green); background: var(--cream); box-shadow: inset 0 0 0 1px var(--c-green); }
+.nm-opt { display: flex; flex-direction: column; gap: 4px; padding: 9px 10px; background: var(--surface-control); border: 1px solid var(--line); border-radius: 4px; cursor: pointer; }
+/* Включено: бирюзовая рамка и светлый фон, как выбранная строка в других окнах (без полосы слева). */
+.nm-opt.on { border-color: var(--brand); background: var(--row-sel); box-shadow: inset 0 0 0 1px var(--brand); }
 .nm-opt.off { cursor: default; }
-.nm-opt.off .nm-opt-top { color: #8a8e95; }
-.nm-opt-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
-.nm-opt-d { font-size: 12px; line-height: 1.4; color: var(--text-dim); }
-.nm-opt-d .bad { color: var(--bad-ink); font-weight: 600; }
-.nm-opt.risk { cursor: default; background: var(--cream); border-color: #e6b3b3; }
-.nm-opt.risk .nm-sl-l { color: var(--bad-ink); font-weight: 600; font-size: 14px; }
-.nm-opt.risk.on { border-color: var(--c-red); box-shadow: inset 0 0 0 1px var(--c-red); }
-.nm-switch { appearance: none; width: 34px; height: 18px; flex: none; margin: 0; border-radius: 9px; background: var(--win-body); position: relative; cursor: pointer; transition: background 120ms; }
-.nm-switch::after { content: ''; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: left 120ms; }
-.nm-switch:checked { background: var(--c-green); }
+.nm-opt.off .nm-opt-top { color: var(--text-2); }
+.nm-opt-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: var(--fw-strong); font-size: 14px; }
+.nm-opt-d { font-size: 12px; line-height: 1.4; font-weight: var(--fw-small); color: var(--text-2); }
+.nm-opt-d .bad { color: var(--bad-ink); font-weight: var(--fw-strong); }
+.nm-opt.risk { cursor: default; }
+.nm-opt.risk .nm-sl-l { color: var(--bad-ink); font-weight: var(--fw-strong); font-size: 14px; }
+/* Подгонка включена: смысл - текстом на светлом красном тинте, без красной рамки. */
+.nm-opt.risk.on { background: var(--bad-soft); }
+.nm-switch { appearance: none; width: 34px; height: 18px; flex: none; margin: 0; border-radius: 9px; background: var(--edge); position: relative; cursor: pointer; transition: background 120ms; }
+.nm-switch::after { content: ''; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface-control); transition: left 120ms; }
+.nm-switch:checked { background: var(--brand); }
 .nm-switch:checked::after { left: 18px; }
 .nm-switch:disabled { opacity: 0.6; cursor: default; }
 .nm-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .nm-tags { display: flex; flex-wrap: wrap; gap: 5px; }
-.nm-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border: 1px solid #e6b3b3; border-radius: 3px; background: #fff; font-size: 12px; cursor: pointer; }
-.nm-tag.on { background: #fbe0e0; border-color: var(--c-red); font-weight: 600; }
-.nm-tag.off { color: #9a9ea6; cursor: default; }
+.nm-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border: 1px solid var(--edge); border-radius: 3px; background: var(--surface-control); font-size: 12px; cursor: pointer; }
+.nm-tag.on { background: var(--bad-soft); border-color: var(--bad-soft); color: var(--bad-ink); font-weight: var(--fw-strong); }
+.nm-tag.off { color: var(--text-2); cursor: default; }
 .nm-tag input { margin: 0; }
 
 /* ---------- Нижняя полоса ---------- */
 .nm-foot { flex: none; display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-top: 1px solid var(--line); background: var(--cream); }
 .nm-name-wrap { display: flex; flex-direction: column; gap: 2px; }
 .nm-name { width: 220px; }
-.nm-foot-info { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 13px; color: var(--text-dim); text-align: right; }
+.nm-foot-info { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); text-align: right; }
 /* .btn.nm-start: общий .btn из theme.css подключается позже и иначе возвращает высоту 32 px - вторая строка обрезалась. */
-.btn.nm-start { display: flex; flex-direction: column; align-items: center; height: auto; min-height: 32px; padding: 7px 22px; font-size: 15px; font-weight: 600; line-height: 1.25; }
-.nm-start small { font-size: 12px; font-weight: 400; opacity: 0.9; }
+.btn.nm-start { display: flex; flex-direction: column; align-items: center; height: auto; min-height: 32px; padding: 7px 22px; font-size: 15px; font-weight: var(--fw-title); line-height: 1.25; }
+.nm-start small { font-size: 12px; font-weight: var(--fw-small); }
 
 /* Узкое окно: шаги в один столбец, полоса прогноза в столбик */
 @container (max-width: 820px) {
@@ -161,23 +158,26 @@
 }
 
 /* Окно подтверждения старта обучения (выводится в document.body). */
-.nm-confirm-name { margin: 0 0 10px; font-weight: 600; }
+/* .dialog в theme.css сбрасывает вес сокращением font: - возвращаем вес основного текста. */
+.nm-confirm-name, .nm-confirm, .nm-confirm-note { font-weight: var(--fw-text); }
+.nm-confirm-name { margin: 0 0 10px; font-weight: var(--fw-title); }
 .nm-confirm { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 0; font-variant-numeric: tabular-nums; }
-.nm-confirm dt { color: var(--text-dim); }
+.nm-confirm dt { color: var(--text-2); }
 .nm-confirm dd { margin: 0; text-align: right; }
-.nm-confirm dd.cost { color: var(--bad-ink); font-weight: 600; font-size: 18px; }
-.nm-confirm-note { margin: 10px 0 0; font-size: 13px; color: var(--text-dim); }
+.nm-confirm dd.cost { color: var(--bad-ink); font-weight: var(--fw-strong); font-size: 18px; }
+.nm-confirm-note { margin: 10px 0 0; font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }
 
-/* ---------- По образцу Two Point Campus: шапка-прогноз кремовая, шаги - карточки с номером в оранжевом круге,
+/* ---------- По образцу Two Point Campus: шапка-прогноз кремовая, шаги - карточки с номером в бирюзовом круге,
    уровни модели - цветные плитки с нижней гранью ---------- */
 .nm-hero { background: var(--cream); border-bottom: none; }
-.nm-kpi-v { font-weight: 900; color: var(--teal-ink); }
-.nm-card { border: none; border-radius: 14px; background: #fff; box-shadow: inset 0 -5px 0 #b9d6da; }
-.nm-h { font-weight: 900; }
-.nm-n { width: 28px; height: 28px; background: var(--orange); font-size: 14px; font-weight: 900; box-shadow: inset 0 -3px 0 var(--orange-deep); }
-.nm-tier { border: none !important; border-radius: 12px; background: var(--win-body); box-shadow: inset 0 -4px 0 #b9d6da; }
-.nm-tier.on { background: var(--tier, var(--teal)); box-shadow: inset 0 -4px 0 rgb(0 0 0 / 0.2); color: #fff; }
-.nm-tier.on b { color: #fff; }
-.nm-seg { border: none; border-radius: 999px; background: var(--win-body); padding: 3px; gap: 3px; }
+.nm-kpi-v { font-weight: var(--fw-title); color: var(--brand-ink); }
+.nm-card { border: none; border-radius: 14px; background: var(--surface-control); box-shadow: inset 0 -5px 0 var(--edge); }
+.nm-h { font-weight: var(--fw-title); }
+.nm-n { width: 28px; height: 28px; background: var(--brand); font-size: 14px; font-weight: var(--fw-title); box-shadow: inset 0 -3px 0 var(--brand-edge); }
+/* Выбранный размер - бирюзой каркаса, как выбранный контекст рядом; не цветом уровня (фиолетовый фон запрещён). */
+.nm-tier { border: none !important; border-radius: 12px; background: var(--surface-window); box-shadow: inset 0 -4px 0 var(--edge); }
+.nm-tier.on { background: var(--brand); box-shadow: inset 0 -4px 0 var(--brand-edge); color: var(--on-brand); }
+.nm-tier.on b { color: var(--on-brand); }
+.nm-seg { border: none; border-radius: 999px; background: var(--surface-window); padding: 3px; gap: 3px; }
 .nm-seg-opt { border-radius: 999px; }
 .nm-run-bar .progress { height: 12px; border-radius: 999px; }

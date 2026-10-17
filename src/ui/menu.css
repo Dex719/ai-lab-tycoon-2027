@@ -1,83 +1,83 @@
-/* Главное меню в духе Processor Tycoon: плоский тёмный экран, слева название и пункты, «Продолжить» с карточкой
-   последней партии; справа неподвижный 3D-зал. «Новая игра» - светлое окно игры на три колонки. */
+/* Главное меню: лаборатория на траве, слева название и пункты, «Продолжить» с карточкой последней партии;
+   справа неподвижный 3D-зал. Ленты и таблетки задаёт tpc.css. «Новая игра» - светлое окно игры на три колонки. */
 
 .menu-screen.mm {
   position: fixed; inset: 0; display: grid; grid-template-columns: minmax(360px, 38%) minmax(0, 1fr); overflow: hidden;
-  color: #b5b5b5; background: #202124;
+  color: var(--text); background: var(--desk);
 }
 .mm-left { display: flex; flex-direction: column; align-items: flex-start; padding: 12vh 0 40px 7vw; min-width: 0; }
 .mm-right { position: relative; min-width: 0; }
 .mm-hall { position: absolute; inset: 4vh 3vw 4vh 0; }
 
-.mm-title { margin: 0; font-size: clamp(36px, 4vw, 56px); font-weight: 600; color: #f2f2f2; letter-spacing: -0.02em; }
-.mm-years { margin-top: 4px; font-size: clamp(15px, 1.2vw, 18px); color: #8e9196; }
+.mm-title { margin: 0; font-size: clamp(36px, 4vw, 56px); font-weight: var(--fw-title); color: var(--on-brand); letter-spacing: -0.02em; }
+.mm-years { margin-top: 4px; font-size: clamp(15px, 1.2vw, 18px); font-weight: var(--fw-strong); color: var(--brand-ink); }
 
-/* «Продолжить»: последняя партия - лаборатория, дата, деньги, место; светлая рамка вместо заливки. */
+/* «Продолжить»: последняя партия - лаборатория, дата, деньги, место; кремовая карточка. */
 .mm-cont {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: min(420px, 100%); margin-top: 8vh; padding: 12px 16px;
-  background: #2a2c30; border: 1px solid #3c3f45; border-radius: 4px; color: #e8e8e8; text-align: left; cursor: pointer;
+  background: var(--surface-card); border: 3px solid var(--surface-control); border-radius: 14px; color: var(--text); text-align: left; cursor: pointer;
 }
-.mm-cont:hover, .mm-cont:focus-visible { outline: none; border-color: var(--c-blue); background: #2e3136; }
-.mm-cont-k { font-size: 13px; color: #8ab4f8; font-weight: 600; }
-.mm-cont-n { font-size: 22px; font-weight: 600; color: #fff; }
-.mm-cont-d { font-size: 13px; color: #a9acb2; font-variant-numeric: tabular-nums; }
+.mm-cont:hover, .mm-cont:focus-visible { outline: none; border-color: var(--brand); }
+.mm-cont-k { font-size: 13px; color: var(--brand-ink); font-weight: var(--fw-title); }
+.mm-cont-n { font-size: 22px; font-weight: var(--fw-title); color: var(--text); }
+.mm-cont-d { font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); font-variant-numeric: tabular-nums; }
 
 .mm-items { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 28px; }
 .mm-cont + .mm-items { margin-top: 20px; }
 .mm-left > .mm-items:first-of-type { margin-top: 8vh; }
 .mm-item {
-  padding: 4px 0; background: none; border: none; color: #c8c8c8; font-size: 22px; cursor: pointer; transition: color 120ms ease-out;
+  padding: 4px 0; background: none; border: none; color: var(--brand-ink); font-size: 22px; font-weight: var(--fw-title); cursor: pointer; transition: color 120ms ease-out;
 }
 .mm-item:hover, .mm-item:focus-visible {
-  outline: none; color: #fff; text-decoration: underline; text-decoration-color: var(--c-blue); text-underline-offset: 6px; text-decoration-thickness: 3px;
+  outline: none; color: var(--on-brand); background: var(--brand);
 }
-.mm-error { min-height: 20px; margin-top: 8px; font-size: 13px; color: #ff8a8a; }
+.mm-error { min-height: 20px; margin-top: 8px; font-size: 13px; font-weight: var(--fw-strong); color: var(--bad-ink); }
 
 /* ---------- «Новая игра»: лаборатория - сложность - партия ---------- */
-.menu-screen.mm .modal-backdrop.ng-backdrop { background: rgba(10, 11, 13, 0.7); }
+.menu-screen.mm .modal-backdrop.ng-backdrop { background: rgb(14 40 46 / 0.55); }
 .dialog.ng { width: min(1040px, calc(100vw - 32px)); outline: none; }
 .ng-form { display: flex; flex-direction: column; min-height: 0; overflow: auto; }
 .ng-body { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; padding: 18px 20px 8px; }
 .ng-sec { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.ng-h { margin: 0 0 2px; font-size: 16px; font-weight: 600; color: var(--text-title); }
-.ng-l { font-size: 13px; color: var(--text-dim); }
+.ng-h { margin: 0 0 2px; font-size: 16px; font-weight: var(--fw-title); color: var(--text); }
+.ng-l { font-size: 13px; font-weight: var(--fw-strong); color: var(--text-2); }
 .ng-field { display: flex; flex-direction: column; gap: 4px; }
 .ng-field input { width: 100%; }
-.ng .ng-input { height: 38px; font-size: 16px; font-weight: 600; }
-.ng-count { align-self: flex-end; font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.ng .ng-input { height: 38px; font-size: 16px; font-weight: var(--fw-strong); }
+.ng-count { align-self: flex-end; font-size: 12px; font-weight: var(--fw-small); color: var(--text-2); font-variant-numeric: tabular-nums; }
 
-/* Табличка лаборатории - та же, что встанет на рабочем столе; справа этап. */
-.ng-sign { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #1c1c1e; color: #f2f2f2; border-radius: 3px; }
-.ng-sign svg { flex: none; color: #a9acb2; }
-.ng-sign b { min-width: 0; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ng-sign span { margin-left: auto; font-size: 12px; color: #a9acb2; }
+/* Табличка лаборатории - бирюзовая лента, как название лаборатории в игре; справа этап. */
+.ng-sign { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--brand); color: var(--on-brand); border-radius: 12px; box-shadow: inset 0 -4px 0 var(--brand-edge); }
+.ng-sign svg { flex: none; color: var(--on-brand); }
+.ng-sign b { min-width: 0; font-size: 18px; font-weight: var(--fw-title); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ng-sign span { margin-left: auto; font-size: 12px; font-weight: var(--fw-strong); color: var(--on-brand); }
 
-/* Сложность: три карточки строками; у выбранной синяя рамка и отмеченный кружок. */
+/* Сложность: три белые карточки строками; у выбранной бирюзовая рамка и отмеченный кружок. */
 .ng-cards { display: flex; flex-direction: column; gap: 8px; }
 .ng-card {
   display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; text-align: left; cursor: pointer;
-  background: #fff; border: 1px solid var(--line); border-radius: 4px; color: var(--text);
+  background: var(--surface-control); border: none; border-radius: 12px; box-shadow: inset 0 -4px 0 var(--edge); color: var(--text);
 }
-.ng-card:hover { border-color: #9fb8dc; }
-.ng-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.ng-card.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: #f5f9ff; }
-.ng-card-h { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; }
-.ng-radio { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #9aa0a8; background: #fff; }
-.ng-card.on .ng-radio { border: 4px solid var(--accent); }
+.ng-card:hover { background: var(--surface-control-hover); }
+.ng-card:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.ng-card.on { background: var(--row-sel); box-shadow: inset 0 -4px 0 var(--edge), 0 0 0 3px var(--brand); }
+.ng-card-h { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: var(--fw-title); }
+.ng-radio { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--text-2); background: var(--surface-control); }
+.ng-card.on .ng-radio { border: 4px solid var(--brand); }
 .ng-card-kv { display: flex; flex-direction: column; gap: 2px; padding-left: 22px; }
 .ng-card-r { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
-.ng-card-r > span { color: var(--text-dim); }
-.ng-card-r b { font-weight: 600; }
+.ng-card-r > span { color: var(--text-2); font-weight: var(--fw-small); }
+.ng-card-r b { font-weight: var(--fw-strong); }
 .ng-card-r b.good { color: var(--good-ink); }
 .ng-card-r b.bad { color: var(--bad-ink); }
 
 .ng-kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; margin: 0; font-size: 14px; }
-.ng-kv dt { color: var(--text-dim); }
+.ng-kv dt { color: var(--text-2); font-weight: var(--fw-small); }
 .ng-kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
-.ng-kv dd.good { color: var(--good-ink); font-weight: 600; }
+.ng-kv dd.good { color: var(--good-ink); font-weight: var(--fw-strong); }
 .ng-goal { display: flex; flex-direction: column; gap: 3px; padding-top: 10px; border-top: 1px solid var(--line); }
-.ng-goal b { font-size: 15px; color: var(--text-title); }
-.ng-rivals { display: flex; flex-wrap: wrap; gap: 4px 14px; font-weight: 600; }
+.ng-goal b { font-size: 15px; font-weight: var(--fw-title); color: var(--text); }
+.ng-rivals { display: flex; flex-wrap: wrap; gap: 4px 14px; font-weight: var(--fw-strong); }
 .ng-rival { display: inline-flex; align-items: center; gap: 6px; }
 .ng-rival i { width: 9px; height: 9px; border-radius: 50%; }
 .ng-tutor { margin-top: auto; padding-top: 10px; }
@@ -94,4 +94,4 @@
   .ng-foot { padding: 10px 16px 16px; }
   .ng-start { min-width: 0; flex: 1; }
 }
-.menu-screen.mm .version { z-index: 1; padding: 0 6px; background: #202124; }
+.menu-screen.mm .version { z-index: 1; padding: 0 6px; background: none; }

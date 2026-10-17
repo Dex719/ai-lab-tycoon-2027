@@ -1,42 +1,42 @@
 /* Итог партии: светлое окно игры. Главное - место на «Арене» крупно, ниже сводка списком, график и моменты.
-   Победа - золотой кубок и золотая полоса заголовка, банкротство - красная. Без градиентов и плиток. */
-.dialog.end { --end: var(--c-blue); width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 32px); outline: none; animation: rc-in 220ms ease-out both; }
-.dialog.end.win { --end: var(--gold-line); }
-.dialog.end.lost { --end: var(--c-red); }
-.dialog.end .titlebar { box-shadow: inset 0 3px 0 var(--end); }
+   Победа - зелёная полоса заголовка и зелёное место, банкротство - красная. Без градиентов и плиток. */
+.dialog.end { --end: var(--brand-edge); width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 32px); outline: none; animation: rc-in 220ms ease-out both; }
+.dialog.end.win { --end: var(--good-fill); }
+.dialog.end.lost { --end: var(--bad-fill); }
+.dialog.end .titlebar { box-shadow: inset 0 4px 0 var(--end), inset 0 -4px 0 var(--brand-edge); }
 .end-body { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px; }
 
 .end-head { display: flex; align-items: center; gap: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .end-cup { flex: none; color: var(--gold-ink); }
 .end-head-t { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.end-place { display: flex; align-items: baseline; gap: 8px; font-size: 36px; font-weight: 700; line-height: 1; color: var(--text-title); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.end-place small { font-size: 15px; font-weight: 400; letter-spacing: 0; color: var(--text-dim); }
-.dialog.end.win .end-place { color: var(--gold-ink); }
+.end-place { display: flex; align-items: baseline; gap: 8px; font-size: 36px; font-weight: var(--fw-title); line-height: 1; color: var(--text-title); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.end-place small { font-size: 15px; font-weight: var(--fw-small); letter-spacing: 0; color: var(--text-2); }
+.dialog.end.win .end-place { color: var(--good-ink); }
 .dialog.end.lost .end-place { color: var(--bad-ink); }
 .end-lead { font-size: 14px; color: var(--text-body); }
 
 .end-stats { display: grid; grid-template-columns: repeat(2, max-content minmax(0, 1fr)); gap: 4px 14px; margin: 0; font-size: 14px; }
-.end-stats dt { color: var(--text-dim); white-space: nowrap; }
-.end-stats dd { margin: 0; font-weight: 600; color: var(--text-title); font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
+.end-stats dt { color: var(--text-2); font-weight: var(--fw-small); white-space: nowrap; }
+.end-stats dd { margin: 0; font-weight: var(--fw-strong); color: var(--text-title); font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
 
-.end-chart { padding: 8px 10px 4px; background: #fff; border: 1px solid var(--line); }
+.end-chart { padding: 8px 10px 8px; background: var(--surface-control); border-radius: 12px; box-shadow: inset 0 -4px 0 var(--edge); }
 .end-chart svg { width: 100%; height: auto; display: block; }
-.end-chart .grid { stroke: #e3e5e8; stroke-width: 1; }
-.end-chart .ax { fill: var(--text-dim); font: 11px var(--font); }
-.end-chart .l-mine { fill: none; stroke: var(--accent); stroke-width: 2.5; }
-.end-chart .l-rival { fill: none; stroke: #8a8e95; stroke-width: 2; stroke-dasharray: 5 3; }
+.end-chart .grid { stroke: var(--track); stroke-width: 1; }
+.end-chart .ax { fill: var(--text-2); font: var(--fw-small) 11px var(--font); }
+.end-chart .l-mine { fill: none; stroke: var(--brand); stroke-width: 2.5; }
+.end-chart .l-rival { fill: none; stroke: var(--text-2); stroke-width: 2; stroke-dasharray: 5 3; }
 .end-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 4px; font-size: 13px; color: var(--text-body); }
 .end-legend span::before { content: ''; display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; }
-.end-legend .mine::before { background: var(--accent); }
-.end-legend .rival::before { background: #9cc7cd; }
+.end-legend .mine::before { background: var(--brand); }
+.end-legend .rival::before { background: var(--text-2); }
 
-.end-l { font-size: 13px; color: var(--text-dim); }
+.end-l { font-size: 13px; font-weight: var(--fw-strong); color: var(--text-2); }
 .end-chips { display: flex; flex-direction: column; margin-top: 2px; }
 .end-chip { padding: 4px 0 4px 16px; border-bottom: 1px solid var(--line); font-size: 14px; color: var(--text-title); position: relative; }
 .end-chip:last-child { border-bottom: none; }
-.end-chip::before { content: ''; position: absolute; left: 3px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--gold-line); }
-.end-kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 14px; color: var(--text-dim); }
-.end-kv span:nth-child(even) { text-align: right; color: var(--text-title); font-variant-numeric: tabular-nums; }
+.end-chip::before { content: ''; position: absolute; left: 3px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--brand); }
+.end-kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 14px; font-weight: var(--fw-small); color: var(--text-2); }
+.end-kv span:nth-child(even) { text-align: right; font-weight: var(--fw-strong); color: var(--text); font-variant-numeric: tabular-nums; }
 @media (max-width: 520px) { .end-stats { grid-template-columns: max-content minmax(0, 1fr); } .end-place { font-size: 32px; } }
 @media (prefers-reduced-motion: reduce) { .dialog.end { animation: none; } }
 .end-stats .nowrap { white-space: nowrap; }

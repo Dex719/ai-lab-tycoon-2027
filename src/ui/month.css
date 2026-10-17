@@ -2,28 +2,28 @@
    Изменения - цветом значения, без стрелок-символов. */
 .month-strip {
   margin-left: auto; flex: 0 0 auto; max-width: 55%; min-width: 0; height: 34px; display: flex; align-items: center; gap: 18px;
-  padding: 0 12px; overflow: hidden; cursor: pointer; background: #2a2a2d; color: var(--bar-text); border-radius: 2px;
+  padding: 0 12px; overflow: hidden; cursor: pointer; background: var(--hud-2); color: var(--hud-text); border-radius: 14px;
   animation: ms-in 3500ms ease-out forwards;
 }
 .month-strip + .task-clock { margin-left: 12px; }
-.ms-title { font-size: 14px; font-weight: 600; white-space: nowrap; }
+.ms-title { font-size: 14px; font-weight: var(--fw-title); white-space: nowrap; }
 .ms-item { display: flex; flex-direction: column; gap: 0; line-height: 1.15; white-space: nowrap; min-width: 0; }
-.ms-k { font-size: 11px; color: var(--bar-dim); overflow: hidden; text-overflow: ellipsis; }
-.ms-v { display: flex; align-items: baseline; gap: 6px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.ms-v small { font-size: 12px; font-weight: 600; }
-.ms-v.good, .ms-v small.good { color: var(--good-on-dark); }
-.ms-v.bad, .ms-v small.bad { color: var(--bad-on-dark); }
+.ms-k { font-size: 11px; font-weight: var(--fw-small); color: var(--hud-text-2); overflow: hidden; text-overflow: ellipsis; }
+.ms-v { display: flex; align-items: baseline; gap: 6px; font-size: 14px; font-weight: var(--fw-title); font-variant-numeric: tabular-nums; }
+.ms-v small { font-size: 12px; font-weight: var(--fw-strong); }
+.ms-v.good, .ms-v small.good { color: var(--good-on-hud); }
+.ms-v.bad, .ms-v small.bad { color: var(--bad-on-hud); }
 .ms-goal { min-width: 140px; max-width: 240px; }
-.ms-bar { position: relative; height: 14px; background: #3a3b40; border-radius: 2px; overflow: hidden; }
-.ms-bar i { position: absolute; inset: 0 auto 0 0; background: var(--c-amber); }
-.ms-bar em { position: relative; display: block; font: 600 11px/14px var(--font); font-style: normal; text-align: center; color: #fff; font-variant-numeric: tabular-nums; }
+.ms-bar { position: relative; height: 14px; background: var(--track-hud); border-radius: 999px; overflow: hidden; }
+.ms-bar i { position: absolute; inset: 0 auto 0 0; background: var(--brand); }
+.ms-bar em { position: relative; display: block; font: var(--fw-strong) 11px/14px var(--font); font-style: normal; text-align: center; color: var(--on-brand); font-variant-numeric: tabular-nums; }
 @keyframes ms-in {
   0% { opacity: 0; transform: translateY(6px); }
   6%, 90% { opacity: 1; transform: none; }
   100% { opacity: 0; }
 }
 @media (max-width: 900px) {
-  .month-strip { position: fixed; left: 12px; right: 12px; bottom: 120px; z-index: 870; height: auto; padding: 7px 12px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45); }
+  .month-strip { position: fixed; left: 12px; right: 12px; bottom: 120px; z-index: 870; height: auto; padding: 7px 12px; box-shadow: 0 4px 14px rgb(20 50 56 / 0.35); }
   .month-strip + .task-clock { margin-left: auto; }
   .ms-goal { display: none; }
 }

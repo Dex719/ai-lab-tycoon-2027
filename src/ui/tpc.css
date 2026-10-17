@@ -1,95 +1,156 @@
 /* Интерфейс по образцу, который выбрал владелец (Two Point Campus, кадры 83 и 84 из Game UI Database):
    бирюзовые панели с кремовыми карточками, лента заголовка окна с круглым значком, кнопки-таблетки с нижней гранью,
    тёмно-бирюзовые плашки HUD поверх 3D-сцены, полоса месяцев внизу, разделы - колонкой значков слева.
-   Система - proto/sys/tp (system.json, контраст проверен). Файл подключается последним и переопределяет тему;
-   раскладка HUD - только на компьютере (от 768 px), телефон остаётся прежним. */
+   Файл подключается последним и переопределяет тему; раскладка HUD - только на компьютере (от 768 px).
+   Система цвета и весов шрифта - docs/COLORS.md. Новые цвета сначала добавляются сюда токеном, потом в правила. */
 
 :root {
   --font: 'Nunito Variable', 'Segoe UI', Roboto, Arial, sans-serif;
-  /* Образец: бирюза ленты и кнопок, тёмная грань, светлая бирюза тела окна, крем карточек, оранжевый второй цвет. */
-  --teal: #1fa3b3;
-  --teal-deep: #137a87;
-  --teal-ink: #0f6672;
-  --hud: rgb(30 62 70 / 0.9);
-  --hud-2: rgb(19 44 51 / 0.92);
-  --cream: #f7f2e7;
-  --orange: #f2922c;
-  --orange-deep: #c46d14;
 
-  --desk: #79a957;
+  /* ---------- Веса шрифта: тоньше 600 в игре ничего нет ---------- */
+  --fw-small: 600;  /* подписи, приглушённый текст, единицы измерения, даты */
+  --fw-text: 700;   /* основной текст, значения в таблицах, поля ввода */
+  --fw-strong: 800; /* кнопки, вкладки, шапки таблиц, метки, выделенное в тексте */
+  --fw-title: 900;  /* заголовки окон и разделов, крупные числа */
+
+  /* ---------- Бирюза - каркас: ленты, кнопки, колонка разделов, шапки таблиц ---------- */
+  --brand: #16808d;        /* заливка с белым текстом (4.66:1) */
+  --brand-hover: #1a8f9d;
+  --brand-edge: #0f5f69;   /* нижняя грань кнопок и лент */
+  --brand-ink: #0f6672;    /* бирюзовый текст на светлом (5.3:1 на теле окна) */
+  --brand-muted: #5e9399;  /* лента неактивного окна, только крупный текст (3.4:1) */
+  --brand-on-hud: #2fb0bf; /* полосы прогресса на тёмной плашке */
+
+  /* ---------- Оранжевый - один акцент: «выбрано сейчас» и деньги ---------- */
+  --select: #f0963a;
+  --select-edge: #c46d14;
+  --on-select: #2a1606;    /* текст на оранжевом - тёмный (7.5:1), белый не проходит */
+
+  /* ---------- Поверхности ---------- */
+  --desk: #79a957;              /* трава вокруг лаборатории */
+  --surface-window: #d3e9ec;    /* тело окна и диалога */
+  --surface-card: #f7f2e7;      /* кремовые карточки и шапки со сводкой */
+  --surface-control: #ffffff;   /* кнопки-таблетки, строки-карточки, поля */
+  --surface-control-hover: #eef8f9;
+  --row-alt: #f2f9fa;           /* чётные строки таблиц */
+  --edge: #b9d6da;              /* нижняя грань белых контролов, рамки полей */
+  --track: #d7e7e9;             /* дорожка полос на светлом */
+  --hud: rgb(30 62 70 / 0.92);  /* плашки поверх сцены */
+  --hud-2: rgb(19 44 51 / 0.94);
+  --track-hud: #173a42;         /* дорожка полос на плашке */
+
+  /* ---------- Текст ---------- */
+  --text: #1c2b2f;
+  --text-2: #4b6065;      /* приглушённый: 5.3:1 на теле окна, 6:1 на креме */
+  --on-brand: #ffffff;
+  --hud-text: #e8f3f4;
+  --hud-text-2: #a9c5c9;  /* 6.3:1 на плашке */
+
+  /* ---------- Смысл: хорошо / плохо / предупреждение. Текст на тинте, заливка - только мелкие метки ---------- */
+  --good-ink: #1d6b36;  --good-soft: #e2f2e6;  --good-fill: #3aa564;  --good-on-hud: #8ee2a8;
+  --bad-ink: #b3262c;   --bad-soft: #fbe4e3;   --bad-fill: #c8373d;   --bad-on-hud: #ff9b94;
+  --warn-ink: #8a5300;  --warn-soft: #fbf0d4;  --warn-fill: #e0a526;  --warn-on-hud: #f2c46b;
+
+  /* ---------- Направления: только точки, тонкие полосы и подписи, не фоны (те же значения в ui/alloc.ts и sim/staffEffects.ts) ---------- */
+  --dir-train: #2f80e4;
+  --dir-research: #7b5cd6;
+  --dir-contracts: #d9822b;
+  --dir-api: #2e9b4f;
+  --dir-subs: #1fa8a0;
+
+  /* ---------- Старые имена (их используют окна) - ссылки на новые токены ---------- */
+  --teal: var(--brand);
+  --teal-deep: var(--brand-edge);
+  --teal-ink: var(--brand-ink);
+  --orange: var(--select);
+  --orange-deep: var(--select-edge);
+  --cream: var(--surface-card);
+  --win-body: var(--surface-window);
+  --panel: var(--surface-card);
   --bar: var(--hud-2);
-  --win-title: var(--teal);
-  --win-body: #d3e9ec;
-  --panel: var(--cream);
+  --side: var(--hud);
+  --win-title: var(--brand);
   --line: #a9cdd2;
   --line-soft: #c4dfe2;
-  --text: #1c2b2f;
-  --text-dim: #4b6065;
+  --text-dim: var(--text-2);
   --text-body: #26383d;
-  --text-title: #1c2b2f;
-  --accent: #137a87;
-  --accent-dark: #0f6672;
-  --info-ink: #0f6672;
+  --text-title: var(--text);
+  --accent: var(--brand);
+  --accent-dark: var(--brand-edge);
+  --info-ink: var(--brand-ink);
+  --good: var(--good-ink);
+  --bad: var(--bad-ink);
+  --warn: var(--warn-ink);
+  --good-on-dark: var(--good-on-hud);
+  --bad-on-dark: var(--bad-on-hud);
   --row-hover: #e7f5f6;
   --row-sel: #cdeef1;
   --row-line: #d2e6e8;
-  --side: var(--hud);
 }
 
-body { font-family: var(--font); font-weight: 600; }
-b, strong, h1, h2, h3, h4 { font-weight: 800; }
+body { font-family: var(--font); font-weight: var(--fw-text); }
+b, strong, th, label, legend { font-weight: var(--fw-strong); }
+h1, h2, h3, h4 { font-weight: var(--fw-title); }
+small, .muted { font-weight: var(--fw-small); }
+button, input, select, textarea { font-family: inherit; font-weight: var(--fw-strong); }
 
 /* ---------- Кнопки: таблетки с нижней гранью ---------- */
 .btn {
-  height: 34px; padding: 0 16px; border-radius: 999px; border: none; background: #fff; color: var(--teal-ink);
-  font-weight: 800; box-shadow: inset 0 -3px 0 #b9d6da;
+  height: 34px; padding: 0 16px; border-radius: 999px; border: none; background: var(--surface-control); color: var(--brand-ink);
+  font-weight: var(--fw-strong); box-shadow: inset 0 -3px 0 var(--edge);
 }
-.btn:hover:not(:disabled) { background: #eef8f9; }
-.btn:active:not(:disabled) { box-shadow: inset 0 -1px 0 #b9d6da; transform: translateY(1px); }
-.btn.primary { background: var(--teal); color: #fff; box-shadow: inset 0 -4px 0 var(--teal-deep); }
-.btn.primary:hover:not(:disabled) { background: #26b3c4; }
-.btn.primary:active:not(:disabled) { box-shadow: inset 0 -1px 0 var(--teal-deep); }
-.btn.danger { color: #c0353b; }
-.btn.danger:hover:not(:disabled) { background: #fdeceb; }
+.btn:hover:not(:disabled) { background: var(--surface-control-hover); }
+.btn:active:not(:disabled) { box-shadow: inset 0 -1px 0 var(--edge); transform: translateY(1px); }
+.btn.primary { background: var(--brand); color: var(--on-brand); box-shadow: inset 0 -4px 0 var(--brand-edge); }
+.btn.primary:hover:not(:disabled) { background: var(--brand-hover); }
+.btn.primary:active:not(:disabled) { box-shadow: inset 0 -1px 0 var(--brand-edge); }
+.btn.danger { color: var(--bad-ink); }
+.btn.danger:hover:not(:disabled) { background: var(--bad-soft); }
 .btn.small { height: 28px; padding: 0 12px; }
-.btn.big { height: 40px; padding: 0 22px; font-weight: 900; }
-.btn[aria-disabled='true']:hover, .btn[aria-disabled='true']:active { background: #fff; transform: none; }
-.btn.primary[aria-disabled='true']:hover, .btn.primary[aria-disabled='true']:active { background: var(--teal); }
-.new-badge { background: var(--orange); }
+.btn.big { height: 40px; padding: 0 22px; font-weight: var(--fw-title); }
+.btn[aria-disabled='true']:hover, .btn[aria-disabled='true']:active { background: var(--surface-control); transform: none; }
+.btn.primary[aria-disabled='true']:hover, .btn.primary[aria-disabled='true']:active { background: var(--brand); }
+.new-badge { background: var(--select); color: var(--on-select); font-weight: var(--fw-strong); }
 
-input[type='text'], input[type='number'], select { border-radius: 999px; border: 2px solid #b9d6da; padding: 0 12px; font-weight: 700; }
-input[type='text']:focus, input[type='number']:focus, select:focus { border-color: var(--teal); border-bottom-width: 2px; }
+input[type='text'], input[type='number'], select {
+  border-radius: 999px; border: 2px solid var(--edge); padding: 0 12px; color: var(--text); font-weight: var(--fw-text);
+}
+input[type='text']:focus, input[type='number']:focus, select:focus { border-color: var(--brand); border-bottom-width: 2px; }
 
-/* ---------- Вкладки: таблетки, активная оранжевая ---------- */
+/* ---------- Вкладки: невыбранная - текст на прозрачном, выбранная - оранжевая с тёмным текстом ---------- */
 .tabs { gap: 6px; padding: 10px 14px; background: transparent; border-bottom: none; }
-.tab { height: 32px; padding: 0 16px; border-radius: 999px; border: none; background: #9cc7cd; color: #fff; font-size: 14px; font-weight: 800; }
-.tab:hover { background: #8abcc3; color: #fff; }
-.tab.on { background: var(--orange); color: #fff; border-bottom: none; }
+.tab {
+  height: 32px; padding: 0 16px; border-radius: 999px; border: none; background: rgb(255 255 255 / 0.55); color: var(--brand-ink);
+  font-size: 14px; font-weight: var(--fw-strong);
+}
+.tab:hover { background: var(--surface-control); color: var(--brand-ink); }
+.tab.on { background: var(--select); color: var(--on-select); border-bottom: none; box-shadow: inset 0 -3px 0 var(--select-edge); }
 
 /* ---------- Таблицы и карточки ---------- */
 table.grid { border: none; border-radius: 10px; overflow: hidden; }
-table.grid th { background: var(--teal); color: #fff; font-weight: 800; border-bottom: none; }
-table.grid tr:nth-child(even) td { background: #f2f9fa; }
-.card { background: var(--cream); border: none; border-radius: 10px; }
-.badge { background: #d9444a; }
+table.grid th { background: var(--brand); color: var(--on-brand); font-weight: var(--fw-strong); border-bottom: none; }
+table.grid td { font-weight: var(--fw-text); }
+table.grid tr:nth-child(even) td { background: var(--row-alt); }
+.card { background: var(--surface-card); border: none; border-radius: 10px; }
+.badge { background: var(--bad-fill); color: #fff; font-weight: var(--fw-strong); }
 
 @media (min-width: 768px) {
   /* ---------- Окна: лента заголовка с круглым значком, бирюзовое тело ---------- */
   .game .window {
-    border-radius: 14px; overflow: visible; background: var(--win-body);
+    border-radius: 14px; overflow: visible; background: var(--surface-window);
     box-shadow: 0 10px 30px rgb(20 50 56 / 0.35), 0 0 0 3px rgb(255 255 255 / 0.85);
   }
   .game .window .titlebar {
     height: 46px; padding: 0 8px 0 10px; gap: 10px; border-radius: 14px 14px 0 0; border-bottom: none;
-    background: var(--teal); color: #fff; box-shadow: inset 0 -4px 0 var(--teal-deep);
-    font-size: 19px; font-weight: 900; letter-spacing: 0.03em; text-transform: uppercase;
+    background: var(--brand); color: var(--on-brand); box-shadow: inset 0 -4px 0 var(--brand-edge);
+    font-size: 19px; font-weight: var(--fw-title); letter-spacing: 0.03em; text-transform: uppercase;
   }
-  .game .window:not(.active) .titlebar { background: #5fb3be; box-shadow: inset 0 -4px 0 #3f8f99; }
-  .game .window.active .titlebar { color: #fff; }
+  .game .window:not(.active) .titlebar { background: var(--brand-muted); box-shadow: inset 0 -4px 0 #477a80; }
+  .game .window.active .titlebar { color: var(--on-brand); }
   .titlebar .wicon { width: 34px; height: 34px; flex: none; border-radius: 50%; background: #fff; display: grid; place-items: center; }
   .game .titlebar .wbtn { width: 30px; height: 30px; border-radius: 50%; background: rgb(255 255 255 / 0.2); color: #fff; }
   .game .titlebar .wbtn:hover { background: rgb(255 255 255 / 0.35); }
-  .game .titlebar .wbtn.close:hover { background: #d9444a; }
+  .game .titlebar .wbtn.close:hover { background: var(--bad-fill); }
   .game .window-body { border-radius: 0 0 14px 14px; }
 
   /* ---------- Рабочий стол: трава вокруг лаборатории ---------- */
@@ -102,17 +163,18 @@ table.grid tr:nth-child(even) td { background: #f2f9fa; }
   html .game .topbar > * { pointer-events: auto; }
   /* Лаборатория - лента слева сверху. */
   html .game .topbar-left {
-    position: absolute; top: 0; left: 0; height: 52px; padding: 0 56px 0 14px; gap: 10px; color: #dff3f5; font-size: 14px;
-    background: var(--teal); clip-path: polygon(0 0, 100% 0, calc(100% - 34px) 100%, 0 100%); box-shadow: inset 0 -5px 0 var(--teal-deep);
+    position: absolute; top: 0; left: 0; height: 52px; padding: 0 56px 0 14px; gap: 10px; color: var(--on-brand); font-size: 14px; font-weight: var(--fw-strong);
+    background: var(--brand); clip-path: polygon(0 0, 100% 0, calc(100% - 34px) 100%, 0 100%); box-shadow: inset 0 -5px 0 var(--brand-edge);
   }
-  html .game .topbar-left b { color: #fff; font-size: 20px; font-weight: 900; letter-spacing: 0.02em; }
-  .game .tb-logo { width: 34px; height: 34px; border-radius: 50%; background: #fff; color: var(--teal-deep); }
-  .game .tb-founder::before { color: #a7dfe5; }
-  .tb-stage::before { color: #a7dfe5; }
-  .tb-stage { color: #e6f7f8; }
-  .tb-stage-bar { background: var(--teal-deep); }
-  .tb-stage-bar > i { background: var(--orange); }
-  .game .pause-note { top: 60px; background: #d9444a; color: #fff; border: none; border-radius: 999px; font-weight: 800; padding: 6px 16px; }
+  html .game .topbar-left b { color: var(--on-brand); font-size: 20px; font-weight: var(--fw-title); letter-spacing: 0.02em; }
+  .game .tb-logo { width: 34px; height: 34px; border-radius: 50%; background: #fff; color: var(--brand-edge); }
+  .game .tb-founder::before { color: rgb(255 255 255 / 0.7); }
+  .tb-stage::before { color: rgb(255 255 255 / 0.7); }
+  .tb-stage { color: var(--on-brand); }
+  .tb-stage-bar { background: var(--brand-edge); }
+  .tb-stage-bar > i { background: #fff; }
+  /* Причина паузы - тёмная плашка, как HUD: это сообщение, а не ошибка. */
+  .game .pause-note { top: 60px; background: var(--hud-2); color: var(--hud-text); border: none; border-radius: 999px; font-weight: var(--fw-strong); padding: 6px 16px; }
 
   /* ---------- Панель задач: полоса месяцев внизу, разделы - колонкой значков слева ---------- */
   html .game .taskbar { height: 34px; padding: 0; gap: 0; background: var(--hud-2); box-shadow: none; }
@@ -120,58 +182,61 @@ table.grid tr:nth-child(even) td { background: #f2f9fa; }
   .game .task-start {
     position: fixed; left: 12px; bottom: 46px; width: 60px; height: 60px; border-radius: 16px; background: var(--hud); color: #fff; z-index: 905;
   }
-  .game .task-start:hover, .game .task-start.on { background: var(--teal); }
+  .game .task-start:hover, .game .task-start.on { background: var(--brand); }
   .game .start-menu { bottom: 116px; left: 12px; border-radius: 14px; background: var(--hud-2); }
   html .game .dock {
     position: fixed; left: 0; top: 50%; transform: translateY(-50%); flex: none; height: auto; flex-direction: column; justify-content: flex-start;
     gap: 6px; padding: 10px 8px; background: var(--hud); border-radius: 0 16px 16px 0; z-index: 905;
   }
   html .game .dock-btn {
-    width: 60px; height: 56px; border-radius: 12px; background: var(--teal); color: #fff; box-shadow: inset 0 -4px 0 var(--teal-deep); gap: 1px;
+    width: 60px; height: 56px; border-radius: 12px; background: var(--brand); color: var(--on-brand); box-shadow: inset 0 -4px 0 var(--brand-edge); gap: 1px;
   }
-  html .game .dock-btn span { font-size: 9px; font-weight: 800; max-width: 56px; }
-  html .game .dock-btn:hover { background: #26b3c4; }
-  html .game .dock-btn.active { background: var(--orange); box-shadow: inset 0 -4px 0 var(--orange-deep); }
+  html .game .dock-btn span { font-size: 9px; font-weight: var(--fw-strong); max-width: 56px; }
+  html .game .dock-btn:hover { background: var(--brand-hover); }
+  html .game .dock-btn.active { background: var(--select); color: var(--on-select); box-shadow: inset 0 -4px 0 var(--select-edge); }
   html .game .dock-btn.open::after { bottom: auto; top: 50%; left: auto; right: -9px; width: 5px; height: 5px; transform: translateY(-50%); background: #fff; }
-  html .game .dock-btn.active::after { width: 4px; height: 24px; right: -10px; background: var(--orange); }
-  html .game .dock-btn .count { top: -5px; right: -5px; background: #d9444a; border: 2px solid #fff; }
+  html .game .dock-btn.active::after { width: 4px; height: 24px; right: -10px; background: var(--select); }
+  html .game .dock-btn .count { top: -5px; right: -5px; background: var(--bad-fill); color: #fff; border: 2px solid #fff; font-weight: var(--fw-strong); }
   .months-bar { flex: 1; height: 100%; display: grid; grid-template-columns: 64px repeat(12, 1fr); }
-  .months-bar .mb-year { display: grid; place-items: center; background: var(--teal-deep); color: #fff; font-weight: 900; }
-  .months-bar span { position: relative; display: grid; place-items: center; border-right: 2px solid rgb(0 0 0 / 0.25); color: #9cc2c8; font-size: 13px; font-weight: 800; overflow: hidden; }
-  .months-bar span.past { background: rgb(31 163 179 / 0.32); color: #fff; }
-  .months-bar span.now { background: rgb(31 163 179 / 0.45); color: #fff; }
-  .months-bar span.now i { position: absolute; inset: 0 auto 0 0; background: var(--teal); }
+  .months-bar .mb-year { display: grid; place-items: center; background: var(--brand-edge); color: #fff; font-weight: var(--fw-title); }
+  .months-bar span {
+    position: relative; display: grid; place-items: center; border-right: 2px solid rgb(0 0 0 / 0.25); color: var(--hud-text-2);
+    font-size: 13px; font-weight: var(--fw-strong); overflow: hidden;
+  }
+  .months-bar span.past { background: rgb(22 128 141 / 0.35); color: var(--hud-text); }
+  .months-bar span.now { background: rgb(22 128 141 / 0.5); color: #fff; }
+  .months-bar span.now i { position: absolute; inset: 0 auto 0 0; background: var(--brand); }
   .months-bar em { position: relative; font-style: normal; }
   /* Итог месяца всплывает над полосой месяцев по центру. */
   .game .month-strip { position: fixed; left: 50%; bottom: 44px; transform: translateX(-50%); max-width: 70%; height: 46px; border-radius: 14px; background: var(--hud-2); z-index: 905; }
 
   /* ---------- Сводка справа: тёмно-бирюзовая плашка, бирюзовые шапки ---------- */
   .game .side { top: 12px; right: 12px; bottom: 300px; }
-  .game .side-body { border-radius: 14px; background: var(--hud); }
-  .game .side-head { border-top: none; background: var(--teal); color: #fff; font-weight: 900; padding: 8px 14px; }
+  .game .side-body { border-radius: 14px; background: var(--hud); color: var(--hud-text); }
+  .game .side-head { border-top: none; background: var(--brand); color: var(--on-brand); font-weight: var(--fw-title); padding: 8px 14px; }
   .game .side-tab { background: var(--hud); color: #fff; border-radius: 10px 0 0 10px; }
-  .game .side-tabs button { border-radius: 999px; font-weight: 800; }
-  .game .side-tabs button.on { background: var(--orange); }
+  .game .side-tabs button { border-radius: 999px; font-weight: var(--fw-strong); }
+  .game .side-tabs button.on { background: var(--select); color: var(--on-select); }
   .game .side-item { border-bottom-color: rgb(255 255 255 / 0.08); }
-  .game .side .progress { height: 10px; border-radius: 999px; background: #173a42; overflow: hidden; }
+  .game .side .progress { height: 10px; border-radius: 999px; background: var(--track-hud); overflow: hidden; }
   .game .side .progress > div { border-radius: 999px; }
 }
 
 /* ---------- Диалоги: лента заголовка и бирюзовое тело, как окна ---------- */
-.dialog { border-radius: 14px; background: var(--win-body); box-shadow: 0 14px 40px rgb(20 50 56 / 0.4), 0 0 0 3px rgb(255 255 255 / 0.85); overflow: hidden; }
+.dialog { border-radius: 14px; background: var(--surface-window); box-shadow: 0 14px 40px rgb(20 50 56 / 0.4), 0 0 0 3px rgb(255 255 255 / 0.85); overflow: hidden; }
 .dialog .titlebar {
-  height: 46px; padding: 0 10px 0 16px; background: var(--teal); color: #fff; border-bottom: none; border-radius: 0;
-  box-shadow: inset 0 -4px 0 var(--teal-deep); font-size: 18px; font-weight: 900; letter-spacing: 0.02em;
+  height: 46px; padding: 0 10px 0 16px; background: var(--brand); color: var(--on-brand); border-bottom: none; border-radius: 0;
+  box-shadow: inset 0 -4px 0 var(--brand-edge); font-size: 18px; font-weight: var(--fw-title); letter-spacing: 0.02em;
 }
 .dialog .titlebar .wbtn { width: 30px; height: 30px; border-radius: 50%; background: rgb(255 255 255 / 0.2); color: #fff; }
-.dialog .titlebar .wbtn:hover { background: #d9444a; }
-.dialog .body.white { background: var(--cream); }
+.dialog .titlebar .wbtn:hover { background: var(--bad-fill); }
+.dialog .body.white { background: var(--surface-card); }
 .modal-backdrop { background: rgb(14 40 46 / 0.45); }
 
-/* ---------- Уведомления: кремовые карточки с бирюзовой каймой ---------- */
-.toast { border-radius: 14px; background: var(--cream); border: 3px solid #fff; box-shadow: 0 6px 18px rgb(20 50 56 / 0.25); }
-.toast.important { border-color: var(--orange); }
-.toast .ta button { color: var(--teal-ink); font-weight: 800; }
+/* ---------- Уведомления: кремовые карточки с белой каймой; важное - бирюзовой ---------- */
+.toast { border-radius: 14px; background: var(--surface-card); border: 3px solid #fff; box-shadow: 0 6px 18px rgb(20 50 56 / 0.25); }
+.toast.important { border-color: var(--brand); }
+.toast .ta button { color: var(--brand-ink); font-weight: var(--fw-strong); }
 .toast-x { border-radius: 50%; }
 
 @media (min-width: 768px) {
@@ -184,50 +249,52 @@ table.grid tr:nth-child(even) td { background: #f2f9fa; }
 .mm-hall { inset: 0 0 0 -8vw; }
 .mm-left { position: relative; z-index: 1; padding: 0 0 40px 0; justify-content: flex-start; }
 .mm-title {
-  padding: 14px 70px 18px 28px; background: var(--teal); color: #fff; font-size: clamp(30px, 3vw, 44px); font-weight: 900; letter-spacing: 0.03em;
-  text-transform: uppercase; clip-path: polygon(0 0, 100% 0, calc(100% - 44px) 100%, 0 100%); box-shadow: inset 0 -6px 0 var(--teal-deep);
+  padding: 14px 70px 18px 28px; background: var(--brand); color: var(--on-brand); font-size: clamp(30px, 3vw, 44px); font-weight: var(--fw-title); letter-spacing: 0.03em;
+  text-transform: uppercase; clip-path: polygon(0 0, 100% 0, calc(100% - 44px) 100%, 0 100%); box-shadow: inset 0 -6px 0 var(--brand-edge);
 }
-.mm-years { margin: 12px 0 0 28px; padding: 4px 14px; border-radius: 999px; background: rgb(255 255 255 / 0.9); color: var(--teal-ink); font-weight: 800; }
+.mm-years { margin: 12px 0 0 28px; padding: 4px 14px; border-radius: 999px; background: rgb(255 255 255 / 0.9); color: var(--brand-ink); font-weight: var(--fw-strong); }
 .mm-cont {
-  margin: 6vh 0 0 28px; width: min(380px, calc(100% - 56px)); padding: 14px 18px; background: var(--cream); border: 3px solid #fff; border-radius: 14px;
+  margin: 6vh 0 0 28px; width: min(380px, calc(100% - 56px)); padding: 14px 18px; background: var(--surface-card); border: 3px solid #fff; border-radius: 14px;
   box-shadow: inset 0 -5px 0 #d9cfba; color: var(--text);
 }
-.mm-cont:hover, .mm-cont:focus-visible { border-color: var(--orange); background: #fffaf0; }
-.mm-cont-k { color: var(--orange-deep); font-weight: 900; }
-.mm-cont-n { color: var(--text); font-weight: 900; }
-.mm-cont-d { color: var(--text-dim); }
+.mm-cont:hover, .mm-cont:focus-visible { border-color: var(--brand); background: #fffaf0; }
+.mm-cont-k { color: var(--brand-ink); font-weight: var(--fw-title); }
+.mm-cont-n { color: var(--text); font-weight: var(--fw-title); }
+.mm-cont-d { color: var(--text-2); font-weight: var(--fw-small); }
 .mm-items {
-  margin: 16px 0 0 28px !important; width: min(380px, calc(100% - 56px)); padding: 12px; gap: 8px; background: var(--win-body); border-radius: 14px;
+  margin: 16px 0 0 28px !important; width: min(380px, calc(100% - 56px)); padding: 12px; gap: 8px; background: var(--surface-window); border-radius: 14px;
   align-items: stretch; box-shadow: 0 0 0 3px rgb(255 255 255 / 0.85);
 }
 .mm-item {
-  height: 46px; padding: 0 20px; border-radius: 999px; background: #fff; color: var(--teal-ink); font-size: 18px; font-weight: 900; text-align: left;
-  box-shadow: inset 0 -4px 0 #b9d6da;
+  height: 46px; padding: 0 20px; border-radius: 999px; background: var(--surface-control); color: var(--brand-ink); font-size: 18px; font-weight: var(--fw-title); text-align: left;
+  box-shadow: inset 0 -4px 0 var(--edge);
 }
-.mm-item:hover, .mm-item:focus-visible { text-decoration: none; background: var(--teal); color: #fff; box-shadow: inset 0 -4px 0 var(--teal-deep); }
-.mm-error { margin-left: 28px; color: #b3262c; font-weight: 800; }
-.menu-screen .version { color: #fff; font-weight: 800; }
+.mm-item:hover, .mm-item:focus-visible { text-decoration: none; background: var(--brand); color: var(--on-brand); box-shadow: inset 0 -4px 0 var(--brand-edge); }
+.mm-error { margin-left: 28px; color: var(--bad-ink); font-weight: var(--fw-strong); }
+.menu-screen .version { color: #fff; font-weight: var(--fw-strong); }
 
 body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
 
 /* ---------- Подписи над местами в сцене: белые плашки с нижней гранью, как кнопки ---------- */
-.lf-tag { border-radius: 12px; box-shadow: inset 0 -3px 0 #b9d6da, 0 3px 10px rgb(20 50 56 / 0.25); }
+.lf-tag { border-radius: 12px; box-shadow: inset 0 -3px 0 var(--edge), 0 3px 10px rgb(20 50 56 / 0.25); }
 .lf-tag::after { background: #fff; }
-.lf-tag b { color: var(--teal-ink); font-weight: 800; }
-.lf-tag span { font-weight: 900; }
-.lf-tag.warn b { color: var(--orange-deep); }
-.lf-bar { background: #d7ecef; height: 6px; }
+.lf-tag b { color: var(--brand-ink); font-weight: var(--fw-strong); }
+.lf-tag span { font-weight: var(--fw-title); }
+.lf-tag.warn b { color: var(--warn-ink); }
+.lf-bar { background: var(--track); height: 6px; }
 .lf-next { background: var(--hud); border-radius: 14px; }
 
-/* ---------- Вкладки внутри окон (свои у «Команды», «Аналитики», «Контрактов», «Дата-центров») - таблетки ---------- */
+/* ---------- Вкладки внутри окон (свои у «Команды», «Аналитики», «Контрактов», «Дата-центров») - как общие вкладки ---------- */
 .tm-tabs, .an-tabs, .ct-tabs { background: transparent !important; border-bottom: none !important; gap: 6px; padding: 10px 14px !important; }
 .tm-tabs button, .an-tabs .tab, .ct-tabs .tab, .dc-seg button {
-  height: 32px; padding: 0 16px; border-radius: 999px; border: none !important; background: #9cc7cd; color: #fff; font-weight: 800;
+  height: 32px; padding: 0 16px; border-radius: 999px; border: none !important; background: rgb(255 255 255 / 0.55); color: var(--brand-ink); font-weight: var(--fw-strong);
 }
-.tm-tabs button:hover, .an-tabs .tab:hover, .ct-tabs .tab:hover, .dc-seg button:hover { background: #8abcc3; color: #fff; }
-.tm-tabs button.on, .an-tabs .tab.on, .ct-tabs .tab.on, .dc-seg button.on { background: var(--orange); color: #fff; }
+.tm-tabs button:hover, .an-tabs .tab:hover, .ct-tabs .tab:hover, .dc-seg button:hover { background: var(--surface-control); color: var(--brand-ink); }
+.tm-tabs button.on, .an-tabs .tab.on, .ct-tabs .tab.on, .dc-seg button.on {
+  background: var(--select); color: var(--on-select); box-shadow: inset 0 -3px 0 var(--select-edge);
+}
 /* Шапки окон со сводкой (полоса цифр сверху) - кремовые карточки. */
-.tm-head, .rw-cur, .cw-top { background: var(--cream) !important; border-radius: 0; border-bottom: none !important; }
+.tm-head, .rw-cur, .cw-top { background: var(--surface-card) !important; border-radius: 0; border-bottom: none !important; }
 /* Строки списков: выбранная - мягкая бирюза, наведённая - светлее. */
 .tm-item.on, .tm-item:hover { background: var(--row-sel); }
 
@@ -237,54 +304,53 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
     position: absolute; right: 12px; bottom: 44px; display: flex; align-items: stretch; gap: 8px; padding: 8px; background: var(--hud); border-radius: 16px;
   }
   .hb-date {
-    width: 76px; flex: none; display: flex; flex-direction: column; align-items: center; overflow: hidden; border-radius: 12px; background: #fff;
-    box-shadow: inset 0 -4px 0 #b9d6da;
+    width: 76px; flex: none; display: flex; flex-direction: column; align-items: center; overflow: hidden; border-radius: 12px; background: var(--surface-control);
+    box-shadow: inset 0 -4px 0 var(--edge);
   }
-  .hb-date b { align-self: stretch; text-align: center; padding: 2px 0; background: var(--teal); color: #fff; font-size: 14px; font-weight: 900; }
-  .hb-date span { margin-top: 4px; font-size: 24px; font-weight: 900; line-height: 1; color: var(--teal-ink); }
-  .hb-date small { font-size: 13px; font-weight: 800; color: var(--text-dim); }
+  .hb-date b { align-self: stretch; text-align: center; padding: 2px 0; background: var(--brand); color: var(--on-brand); font-size: 14px; font-weight: var(--fw-title); }
+  .hb-date span { margin-top: 4px; font-size: 24px; font-weight: var(--fw-title); line-height: 1; color: var(--brand-ink); }
+  .hb-date small { font-size: 13px; font-weight: var(--fw-strong); color: var(--text-2); }
   .hb-main { display: flex; flex-direction: column; gap: 6px; min-width: 250px; }
   .hb-money { position: relative; display: flex; align-items: center; gap: 0; cursor: default; }
   .hb-coin {
     position: relative; z-index: 1; width: 42px; height: 42px; flex: none; border-radius: 50%; display: grid; place-items: center;
-    background: var(--orange); color: #fff; font-size: 24px; font-weight: 900; box-shadow: inset 0 -4px 0 var(--orange-deep), 0 0 0 3px #fff;
+    background: var(--select); color: var(--on-select); font-size: 24px; font-weight: var(--fw-title); box-shadow: inset 0 -4px 0 var(--select-edge), 0 0 0 3px #fff;
   }
   .hb-pill {
     flex: 1; height: 38px; margin-left: -16px; padding: 0 16px 0 26px; display: flex; align-items: center; justify-content: flex-end;
-    border-radius: 0 999px 999px 0; background: #fff; color: var(--text); font-size: 22px; font-weight: 900; box-shadow: inset 0 -4px 0 #b9d6da;
+    border-radius: 0 999px 999px 0; background: var(--surface-control); color: var(--text); font-size: 22px; font-weight: var(--fw-title); box-shadow: inset 0 -4px 0 var(--edge);
   }
-  .hb-pill .tb-bad { color: #c0353b; }
+  .hb-pill .tb-bad { color: var(--bad-ink); }
   .hb-row { display: flex; align-items: center; gap: 8px; }
   .hb-sub:empty { display: none; }
   html .game .topbar.tpc .speed { display: flex; gap: 3px; }
   html .game .topbar.tpc .speed button {
-    width: 34px; height: 32px; border-radius: 8px; background: #fff; color: var(--teal-deep); box-shadow: inset 0 -3px 0 #b9d6da;
+    width: 34px; height: 32px; border-radius: 8px; background: var(--surface-control); color: var(--brand-edge); box-shadow: inset 0 -3px 0 var(--edge);
   }
-  html .game .topbar.tpc .speed button:hover { background: #e7f5f6; }
-  html .game .topbar.tpc .speed button.on { background: var(--orange); color: #fff; box-shadow: inset 0 -3px 0 var(--orange-deep); }
-  html .game .topbar.tpc .speed button.on[aria-label^='Пауза'] { background: #d9444a; color: #fff; box-shadow: inset 0 -3px 0 #a3272c; }
-  .hb-rate { margin-left: auto; padding: 4px 10px; border-radius: 999px; background: #173a42; font-size: 14px; font-weight: 900; white-space: nowrap; }
-  .hb-rate.good { color: #8ee2a8; }
-  .hb-rate.bad { color: #ff9b94; }
-  .hb-sub { color: #e6f7f8; font-size: 13px; }
+  html .game .topbar.tpc .speed button:hover { background: var(--surface-control-hover); }
+  /* Включённая скорость, в том числе пауза, - оранжевая: это выбор, а не тревога. О паузе говорит плашка с причиной. */
+  html .game .topbar.tpc .speed button.on { background: var(--select); color: var(--on-select); box-shadow: inset 0 -3px 0 var(--select-edge); }
+  .hb-rate { margin-left: auto; padding: 4px 10px; border-radius: 999px; background: var(--track-hud); font-size: 14px; font-weight: var(--fw-title); white-space: nowrap; }
+  .hb-rate.good { color: var(--good-on-hud); }
+  .hb-rate.bad { color: var(--bad-on-hud); }
+  .hb-sub { color: var(--hud-text-2); font-size: 13px; font-weight: var(--fw-small); }
   .hb-sub .tb-runway { margin: 0; }
-  .topbar.tpc.paused .hud-br { box-shadow: 0 0 0 3px #d9444a; }
 
-  /* Показатели над HUD: белые таблетки с оранжевыми шкалами. */
+  /* Показатели над HUD: белые таблетки с бирюзовыми шкалами. */
   .topbar.tpc .hud-stats { position: absolute; right: 12px; bottom: 180px; display: flex; gap: 6px; align-items: stretch; }
   .topbar.tpc .lab-stat, .topbar.tpc .ar-strip {
-    display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 12px; border-radius: 12px; background: #fff; color: var(--text);
-    box-shadow: inset 0 -4px 0 #b9d6da;
+    display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 12px; border-radius: 12px; background: var(--surface-control); color: var(--text);
+    box-shadow: inset 0 -4px 0 var(--edge);
   }
-  .topbar.tpc .ls-k, .topbar.tpc .ar-k { font-size: 11px; font-weight: 800; color: var(--text-dim); }
-  .topbar.tpc .ls-v { font-size: 18px; font-weight: 900; color: var(--teal-ink); }
-  .topbar.tpc .ls-bar { display: block; height: 7px; border-radius: 999px; background: #d7ecef; overflow: hidden; }
-  .topbar.tpc .ls-bar i { display: block; height: 100%; background: var(--orange); }
+  .topbar.tpc .ls-k, .topbar.tpc .ar-k { font-size: 11px; font-weight: var(--fw-strong); color: var(--text-2); }
+  .topbar.tpc .ls-v { font-size: 18px; font-weight: var(--fw-title); color: var(--brand-ink); }
+  .topbar.tpc .ls-bar { display: block; height: 7px; border-radius: 999px; background: var(--track); overflow: hidden; }
+  .topbar.tpc .ls-bar i { display: block; height: 100%; background: var(--brand); }
   .topbar.tpc .ar-strip { flex-direction: row; align-items: center; gap: 10px; }
-  .topbar.tpc .ar-r { color: var(--teal-ink); font-weight: 900; }
-  .topbar.tpc .ar-r.first { color: var(--orange-deep); }
-  .topbar.tpc .ar-n { color: var(--text); font-weight: 700; }
-  .topbar.tpc .ar-gap { color: var(--text-dim); }
+  .topbar.tpc .ar-r { color: var(--brand-ink); font-weight: var(--fw-title); }
+  .topbar.tpc .ar-r.first { color: var(--good-ink); }
+  .topbar.tpc .ar-n { color: var(--text); font-weight: var(--fw-text); }
+  .topbar.tpc .ar-gap { color: var(--text-2); font-weight: var(--fw-small); }
 }
 
 @media (min-width: 768px) {
@@ -292,7 +358,7 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
   html .game .dock-btn { width: 52px; height: 52px; border-radius: 12px; }
   html .game .dock-btn .dock-tip {
     position: absolute; left: 62px; top: 50%; transform: translateY(-50%); max-width: none; padding: 5px 12px; border-radius: 999px;
-    background: #fff; color: var(--teal-ink); font-size: 14px; font-weight: 900; white-space: nowrap; pointer-events: none;
+    background: #fff; color: var(--brand-ink); font-size: 14px; font-weight: var(--fw-title); white-space: nowrap; pointer-events: none;
     box-shadow: 0 2px 8px rgb(20 50 56 / 0.25); opacity: 0; transition: opacity 120ms ease-out;
   }
   html .game .dock-btn:hover .dock-tip, html .game .dock-btn:focus-visible .dock-tip { opacity: 1; }
@@ -302,56 +368,71 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
 @media (min-width: 768px) {
   /* ---------- Сводка справа, как панель целей в образце ---------- */
   .game .side-body { background: var(--hud); border-radius: 16px; overflow: hidden; }
-  .game .side-head { font-size: 17px; letter-spacing: 0.02em; box-shadow: inset 0 -4px 0 var(--teal-deep); }
+  .game .side-head { font-size: 17px; letter-spacing: 0.02em; box-shadow: inset 0 -4px 0 var(--brand-edge); }
   /* Гонка - белая карточка: крупное место и разрыв. */
-  .game .side-race { margin: 10px 10px 4px; padding: 8px 12px; border: none; border-radius: 12px; background: #fff; color: var(--text); box-shadow: inset 0 -4px 0 #b9d6da; }
-  .game .side-race .sr-place { color: var(--teal-ink); font-weight: 900; }
-  .game .side-race.first .sr-place { color: var(--orange-deep); }
-  .game .side-race .sr-k, .game .side-race .sr-m { color: var(--text-dim); font-weight: 700; }
-  .game .side-race .sr-v { color: var(--text); font-weight: 900; }
-  .game .side-rival { margin: 0 10px 6px; border: none; border-radius: 999px; background: rgb(255 255 255 / 0.12); color: #cfe9ec; }
+  .game .side-race {
+    margin: 10px 10px 4px; padding: 8px 12px; border: none; border-radius: 12px; background: var(--surface-control); color: var(--text);
+    box-shadow: inset 0 -4px 0 var(--edge);
+  }
+  .game .side-race .sr-place { color: var(--brand-ink); font-weight: var(--fw-title); }
+  .game .side-race.first .sr-place { color: var(--good-ink); }
+  .game .side-race .sr-k, .game .side-race .sr-m { color: var(--text-2); font-weight: var(--fw-small); }
+  .game .side-race .sr-v { color: var(--text); font-weight: var(--fw-title); }
+  .game .side-rival { margin: 0 10px 6px; border: none; border-radius: 999px; background: rgb(255 255 255 / 0.12); color: var(--hud-text-2); }
   .game .side-rival b { color: #fff; }
-  /* Простой и другие тревоги - красная плашка с белой кнопкой. */
-  .game .side-idle { margin: 6px 10px; padding: 8px 10px 8px 14px; border: none; border-radius: 12px; background: #d9444a; color: #fff; font-size: 13px; }
-  .game .side-idle b { color: #fff; }
-  .game .side-idle .btn { background: #fff; color: #b3262c; box-shadow: inset 0 -3px 0 #f0b9bb; }
+  /* Простой и другие тревоги - белая карточка, как гонка: красное только слово-причина, без красной заливки. */
+  .game .side-idle {
+    margin: 6px 10px; padding: 8px 10px 8px 14px; border: none; border-radius: 12px; background: var(--surface-control); color: var(--text);
+    font-size: 13px; box-shadow: inset 0 -4px 0 var(--edge);
+  }
+  .game .side-idle b { color: var(--bad-ink); }
+  .game .side-idle .btn { background: var(--brand); color: var(--on-brand); box-shadow: inset 0 -3px 0 var(--brand-edge); }
   /* Шапки «Цели года» и «Задачи» - бирюзовые полосы. */
-  .game .goal-head, .game .task-head { margin-top: 8px; padding: 7px 12px; background: var(--teal); color: #fff; font-size: 15px; font-weight: 900; box-shadow: inset 0 -3px 0 var(--teal-deep); }
-  .game .goal-head .n, .game .task-head .n { color: #dff3f5; font-weight: 800; }
-  .game .goal-row, .game .task-row { padding: 8px 12px 6px; color: #b9d3d7; }
+  .game .goal-head, .game .task-head {
+    margin-top: 8px; padding: 7px 12px; background: var(--brand); color: var(--on-brand); font-size: 15px; font-weight: var(--fw-title);
+    box-shadow: inset 0 -3px 0 var(--brand-edge);
+  }
+  .game .goal-head .n, .game .task-head .n { color: var(--on-brand); font-weight: var(--fw-strong); }
+  .game .goal-row, .game .task-row { padding: 8px 12px 6px; color: var(--hud-text-2); font-weight: var(--fw-small); }
   .game .goal-row:hover, .game .task-row:hover { background: rgb(255 255 255 / 0.06); }
-  .game .goal-row .gt-name, .game .task-row .tr-title { font-weight: 800; }
-  .game .goal-row .gt-name::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 8px; background: #fff; vertical-align: 1px; }
-  .game .goal-row .gt-reward, .game .task-row .tr-reward { color: #ffc27a; font-weight: 800; }
-  .game .goal-row .gt-reward.ok { color: #8ee2a8; }
-  .game .goal-bar, .game .task-bar { height: 12px; margin-top: 6px; border-radius: 999px; background: #173a42; }
-  .game .goal-bar > div, .game .task-bar > div { background: var(--teal); border-radius: 999px; }
-  .game .goal-row.done .goal-bar > div { background: #5cc283; }
+  .game .goal-row .gt-name, .game .task-row .tr-title { color: var(--hud-text); font-weight: var(--fw-strong); }
+  .game .goal-row .gt-name::before { content: ''; display: inline-block; width: 9px; height: 9px; margin-right: 8px; background: var(--hud-text-2); vertical-align: 1px; }
+  /* Награда - обычный светлый текст; зелёная - только когда получена. */
+  .game .goal-row .gt-reward, .game .task-row .tr-reward { color: var(--hud-text); font-weight: var(--fw-strong); }
+  .game .goal-row .gt-reward.ok { color: var(--good-on-hud); }
+  .game .goal-bar, .game .task-bar { height: 12px; margin-top: 6px; border-radius: 999px; background: var(--track-hud); }
+  .game .goal-bar > div, .game .task-bar > div { background: var(--brand-on-hud); border-radius: 999px; }
+  .game .goal-row.done .goal-bar > div { background: var(--good-fill); }
   .game .side-tabs { padding: 10px 12px; }
   .game .side-tabs button { background: rgb(255 255 255 / 0.14); color: #fff; }
   .game .side-item { margin: 0 10px 6px; border: none; border-radius: 12px; background: rgb(255 255 255 / 0.07); }
-  .game .side-item.decision { background: #6b4a12; box-shadow: inset 0 0 0 2px var(--orange); }
+  .game .side-item.decision { background: rgb(255 255 255 / 0.07); box-shadow: inset 0 0 0 2px var(--warn-on-hud); }
 }
 
 @media (min-width: 768px) {
-  /* Причина паузы - красная таблетка по центру над полосой месяцев (сверху её закрывали подписи сцены). */
+  /* Причина паузы - плашка по центру над полосой месяцев (сверху её закрывали подписи сцены). */
   .game .pause-note { top: auto; bottom: 46px; left: 50%; transform: translateX(-50%); }
   .game .month-strip { bottom: 92px; }
 }
 
-.titlebar .wicon { color: var(--teal-deep); }
+.titlebar .wicon { color: var(--brand-edge); }
 
 /* ---------- Списки слева в окнах (модели, тендеры, письма): строки - отдельные белые карточки, выбранная бирюзой ---------- */
 .mw-list, .ct-list, .mail-list { background: transparent !important; box-shadow: none !important; gap: 6px; padding: 2px; }
-.mail-folder.on { background: var(--orange) !important; color: #fff !important; border-radius: 999px; }
-.mail-folder { border-radius: 999px; font-weight: 800; }
-.mw-panel h3, .mw-panel h4, .ct-doc h3, .mail-sheet h2 { font-weight: 900; }
-.mw-item, .ct-row, .mail-row { flex: none; border-radius: 12px !important; border: none !important; border-radius: 12px; background: #fff; box-shadow: inset 0 -4px 0 #b9d6da; margin: 0 !important; }
-.mw-item.is-selected, .ct-row.on, .mail-row.is-selected { background: var(--row-sel); box-shadow: inset 0 -4px 0 #9cc7cd, 0 0 0 3px var(--teal) !important; }
-.mail-row.decide:not(.is-selected) { background: #fff3dc; box-shadow: inset 0 -4px 0 #f0cf8f; }
+.mail-folder.on { background: var(--select) !important; color: var(--on-select) !important; border-radius: 999px; }
+.mail-folder { border-radius: 999px; font-weight: var(--fw-strong); }
+.mw-panel h3, .mw-panel h4, .ct-doc h3, .mail-sheet h2 { font-weight: var(--fw-title); }
+.mw-item, .ct-row, .mail-row {
+  flex: none; border-radius: 12px !important; border: none !important; background: var(--surface-control); box-shadow: inset 0 -4px 0 var(--edge); margin: 0 !important;
+}
+.mw-item.is-selected, .ct-row.on, .mail-row.is-selected { background: var(--row-sel); box-shadow: inset 0 -4px 0 var(--edge), 0 0 0 3px var(--brand) !important; }
+.mail-row.decide:not(.is-selected) { background: var(--warn-soft); box-shadow: inset 0 -4px 0 #ecd59a; }
 
 /* Плоская метка видеокарты (вместо 3D-миниатюр в окнах) */
-.gpu-badge { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 6px; border-radius: 10px; background: var(--teal-ink); color: #fff; box-shadow: inset 0 -4px 0 var(--ga); font-weight: 800; letter-spacing: .02em; }
+.gpu-badge {
+  display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 6px; border-radius: 10px; background: var(--brand-ink); color: #fff;
+  box-shadow: inset 0 -4px 0 var(--ga); font-weight: var(--fw-strong); letter-spacing: .02em;
+}
 .gpu-badge svg { flex: none; color: var(--ga); }
 .gpu-badge-s { width: 64px; height: 36px; font-size: 12px; gap: 4px; }
 .gpu-badge-s svg { width: 14px; height: 14px; }
@@ -359,3 +440,9 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
 .gpu-badge-m svg { width: 18px; height: 18px; }
 .gpu-badge-l { width: 100%; height: 100%; min-height: 150px; flex-direction: column; gap: 10px; font-size: 30px; border-radius: 16px; box-shadow: inset 0 -8px 0 var(--ga); }
 .gpu-badge-l svg { width: 56px; height: 56px; }
+
+/* theme.css задаёт диалогам font сокращением и сбрасывает вес до 400 */
+.dialog { font-weight: var(--fw-text); }
+/* Недоступная главная кнопка: не бледная бирюза с белым, а спокойная серая плашка с читаемым текстом */
+.btn.primary:disabled, .btn.primary[aria-disabled='true'] { opacity: 1; background: var(--track); color: var(--text-2); box-shadow: inset 0 -3px 0 var(--edge); }
+.btn.primary[aria-disabled='true']:hover, .btn.primary[aria-disabled='true']:active { background: var(--track); }

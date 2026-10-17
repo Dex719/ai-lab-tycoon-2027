@@ -1,10 +1,7 @@
-/* Значок уровня модели: тёмный текст на светлой заливке, контраст не ниже 5:1. */
+/* Значок уровня модели. Цвет уровня - только точкой (вариант plain); плашка нейтральная, без цветных заливок. */
 .tier-badge {
-  display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 12px; font-weight: 600; line-height: 18px;
-  white-space: nowrap; vertical-align: middle;
+  display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 12px; font-weight: var(--fw-strong); line-height: 18px;
+  white-space: nowrap; vertical-align: middle; background: var(--track); color: var(--text);
 }
-.tier-badge.light { background: #d6f1ee; color: #0e655f; }
-.tier-badge.mid { background: #e3eefc; color: var(--info-ink); }
-.tier-badge.flagship { background: #ece6fb; color: #5a3fb8; }
 .tier-plain { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .tier-plain i { flex: none; width: 8px; height: 8px; border-radius: 50%; }

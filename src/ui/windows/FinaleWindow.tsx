@@ -174,14 +174,14 @@ function Timeline({ s, threats, mine, planned, width }: { s: GameState; threats:
         сегодня
       </text>
       {threats.map((t) => {
-        const color = LAB_COLOR.get(t.lab) ?? '#999';
+        const color = LAB_COLOR.get(t.lab) ?? 'var(--text-2)';
         const above = mine ? t.elo > mine.arenaElo : true;
         const cx = X(t.day);
         const cy = Y(t.elo);
         const right = cx < CW - 170;
         return (
           <g key={t.modelId}>
-            <circle cx={cx} cy={cy} r={6} fill={t.done ? color : '#1b1e24'} stroke={color} strokeWidth={2.5} />
+            <circle cx={cx} cy={cy} r={6} style={{ fill: t.done ? color : 'var(--surface-control)', stroke: color }} strokeWidth={2.5} />
             <text x={right ? cx + 10 : cx - 10} y={cy + 4} textAnchor={right ? 'start' : 'end'} className={`fn-pt${above ? ' above' : ''}`}>
               {t.name} · {t.done ? '' : '≈'}
               {fmtInt(t.elo)}

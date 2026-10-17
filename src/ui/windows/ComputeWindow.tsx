@@ -530,7 +530,7 @@ function SplitBar({ rows, shown, onDrag, onDone }: { rows: typeof ALLOC_ROWS; sh
       {rows.map((r) => {
         const w = shown[r.key];
         const seg = (
-          <div key={r.key} className="cw-seg" style={{ left: `${left}%`, width: `${vw(w)}%`, background: r.color }}>
+          <div key={r.key} className="cw-seg" style={{ left: `${left}%`, width: `${vw(w)}%`, '--sc': r.color } as CSSProperties}>
             {w >= 9 && (
               <span>
                 {r.label} {w} %

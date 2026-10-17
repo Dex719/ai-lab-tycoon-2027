@@ -745,7 +745,7 @@ function SalesBlock({ s, m, open }: { s: GameState; m: PlayerModel; open: Window
 
 // ---------- Баллы ----------
 
-const DOMAIN_COLOR: Record<DomainId, string> = { language: '#2f80e4', code: '#d9822b', reasoning: '#7b5cd6' };
+const DOMAIN_COLOR: Record<DomainId, string> = { language: 'var(--dir-train)', code: 'var(--dir-contracts)', reasoning: 'var(--dir-research)' };
 
 function ScoresBlock({ s, m, benches }: { s: GameState; m: PlayerModel; benches: BenchmarkId[] }) {
   if (benches.length === 0) return null;

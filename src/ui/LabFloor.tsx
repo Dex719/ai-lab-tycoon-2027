@@ -236,7 +236,7 @@ export function LabFloor({ s, open }: { s: GameState; open: Open }) {
           k={f.research ? `Исследование · ${fmtShare(f.research.frac, 0)}` : 'Исследования'}
           v={f.research ? f.research.name : 'Не идут: выбрать'}
           frac={f.research ? f.research.frac : undefined}
-          color="#7b5cd6"
+          color="var(--dir-research)"
           warn={!f.research || !f.research.busy}
           onClick={() => open('research')}
         />
@@ -245,7 +245,7 @@ export function LabFloor({ s, open }: { s: GameState; open: Open }) {
           k={f.training ? `Обучение · ${fmtShare(f.training.frac, 0)}${f.training.more ? ` (+${f.training.more})` : ''}` : 'Обучение'}
           v={f.training ? (f.training.stalled ? `${f.training.name}: ждёт решения` : f.training.name) : 'Свободно: новая модель'}
           frac={f.training ? f.training.frac : undefined}
-          color="#2f80e4"
+          color="var(--dir-train)"
           warn={!!f.training?.stalled}
           onClick={() => open(f.training ? 'models' : 'newModel')}
         />

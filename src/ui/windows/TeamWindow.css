@@ -1,141 +1,69 @@
-/* Окно «Команда»: сверху - сколько людей и что даёт команда; вкладки «Сотрудники» (список и карточка) и «Найм». */
+/* Окно «Команда»: сверху - сколько людей и что даёт команда; вкладки «Сотрудники» и «Найм» с карточками людей.
+   Цвет и веса - docs/COLORS.md: карточка кремовая, роль - точка, полоса и слово, текст тёмный. */
 .tm { display: flex; flex-direction: column; height: 100%; min-height: 0; font-variant-numeric: tabular-nums; }
-.tm-head { flex: none; display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 24px; padding: 12px 18px; background: var(--win-body); border-bottom: 1px solid var(--line); }
+.tm-head { flex: none; display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 24px; padding: 12px 18px; background: var(--surface-card); }
 .tm-fig { display: flex; flex-direction: column; gap: 2px; }
-.tm-fig-l { font-size: 13px; color: var(--text-dim); }
-.tm-fig-v { font-size: 34px; font-weight: 700; line-height: 1.1; color: var(--text); }
-.tm-fig-v small { font-size: 15px; font-weight: 400; color: var(--text-dim); }
-.tm-fig-s { font-size: 13px; color: var(--text-body); }
+.tm-fig-l { font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }
+.tm-fig-v { font-size: 34px; font-weight: var(--fw-title); line-height: 1.1; color: var(--text); }
+.tm-fig-v small { font-size: 15px; font-weight: var(--fw-small); color: var(--text-2); }
+.tm-fig-s { font-size: 13px; font-weight: var(--fw-small); color: var(--text); }
 .tm-kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; margin: 6px 0 0; font-size: 13px; }
-.tm-kv dt { color: var(--text-dim); }
-.tm-kv dd { margin: 0; text-align: right; }
-.tm-kv dd.bad { color: var(--bad-ink); font-weight: 600; }
-.tm-effects { display: flex; flex-direction: column; gap: 5px; padding-left: 24px; border-left: 1px solid var(--line); }
-.tm-eff { display: grid; grid-template-columns: 10px 140px 64px 1fr; align-items: baseline; gap: 8px; font-size: 14px; }
+.tm-kv dt { color: var(--text-2); font-weight: var(--fw-small); }
+.tm-kv dd { margin: 0; text-align: right; color: var(--text); font-weight: var(--fw-strong); }
+.tm-effects { display: flex; flex-direction: column; gap: 5px; padding-left: 24px; border-left: 1px solid var(--edge); }
+.tm-eff { display: grid; grid-template-columns: 10px 140px 64px 1fr; align-items: baseline; gap: 8px; font-size: 14px; color: var(--text); }
 .tm-dot { width: 9px; height: 9px; border-radius: 50%; align-self: center; }
 .tm-eff b.good { color: var(--good-ink); }
-.tm-eff b.dim { color: var(--text-dim); font-weight: 400; }
-.tm-eff-t { color: var(--text-dim); font-size: 13px; }
+.tm-eff b.dim { color: var(--text-2); font-weight: var(--fw-small); }
+.tm-eff-t { color: var(--text-2); font-size: 13px; font-weight: var(--fw-small); }
 
-.tm-tabs { flex: none; display: flex; align-items: center; gap: 4px; padding: 6px 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
-.tm-tabs button { padding: 6px 12px; background: none; border: none; border-radius: 3px; font-size: 14px; color: var(--text); cursor: pointer; }
-.tm-tabs button:hover { background: var(--row-hover); }
-.tm-tabs button.on { background: var(--row-sel); color: var(--info-ink); font-weight: 600; }
+.tm-tabs { flex: none; display: flex; align-items: center; gap: 4px; padding: 6px 12px; }
 .tm-tabs .error { margin-left: auto; }
 
-.tm-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr); background: var(--win-body); }
-.tm-body-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--text-dim); background: var(--win-body); }
+.tm-body-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--text-2); font-weight: var(--fw-small); }
 
-/* Список: человек, уровень и роль, вывод словами справа. */
-.tm-list { min-height: 0; overflow: auto; background: #fff; border-right: 1px solid var(--line); }
-.tm-item {
-  width: 100%; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 12px;
-  text-align: left; background: none; border: none; border-bottom: 1px solid var(--row-line); color: var(--text); cursor: pointer; font: inherit;
+/* ---------- Карточки людей (по образцу Two Point Campus): крупные, скругление 12, нижняя грань.
+   Поверхность одна - --surface-card. Цвет роли - полоса сверху, точка у слова и тело фигурки. ---------- */
+.tm-cards { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); grid-auto-rows: max-content; gap: 12px; align-content: start; padding: 4px 14px 14px; }
+.tm-card {
+  flex: none; display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; background: var(--surface-card); color: var(--text);
+  border-top: 6px solid var(--rc); box-shadow: inset 0 -4px 0 var(--edge);
 }
-.tm-item:hover { background: var(--row-hover); }
-.tm-item.on { background: var(--row-sel); }
-.tm-item.wait { opacity: 0.7; }
-.tm-item-main { display: flex; flex-direction: column; min-width: 0; }
-.tm-item-main b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tm-item-main span { font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tm-item-v { font-size: 12px; white-space: nowrap; }
-
-.tm .good { color: var(--good-ink); }
-.tm-item-v.good, .tm-verdict.good { color: var(--good-ink); font-weight: 600; }
-.tm-item-v.mid, .tm-verdict.mid { color: var(--text-body); }
-.tm-item-v.warn, .tm-verdict.warn { color: var(--warn); font-weight: 600; }
-.tm-item-v.dim, .tm-verdict.dim { color: var(--text-dim); }
-
-/* Карточка сотрудника. */
-.tm-prof { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 14px; padding: 16px 20px; background: #fff; margin: 12px; border: 1px solid var(--line); border-radius: 3px; }
-.tm-prof-head { display: flex; align-items: center; gap: 14px; }
-.tm-prof-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.tm-prof-id h3 { margin: 0; font-size: 20px; font-weight: 600; color: var(--text-title); }
-.tm-prof-id span { font-size: 13px; color: var(--text-dim); }
-.tm-prof-id .tm-wait { color: var(--info-ink); }
-.tm-prof-sal { display: flex; flex-direction: column; align-items: flex-end; }
-.tm-prof-sal b { font-size: 18px; color: var(--bad-ink); }
-.tm-prof-sal span { font-size: 12px; color: var(--text-dim); }
-.tm-verdict { margin: 0; font-size: 14px; }
-
-/* Лестница уровней: четыре ступени; выше потолка - пунктир и серый текст. */
-.tm-ladder { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.tm-step { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; border: 2px solid var(--line); border-radius: 3px; background: #fff; font-size: 13px; font-weight: 600; color: var(--text); }
-.tm-step small { font-size: 11px; font-weight: 400; }
-.tm-step.done, .tm-step.now { color: #fff; }
-.tm-step.done { opacity: 0.55; }
-.tm-step.no { color: #a3a8af; border-style: dashed; border-color: var(--line); background: var(--cream); }
-
-/* Рост: опыт крупно и что даст следующий уровень. */
-.tm-grow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
-.tm-xp-big { display: flex; flex-direction: column; gap: 6px; }
-.tm-xp-top { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-dim); }
-.tm-xp-top b { font-size: 16px; color: var(--text); }
-.tm-bar { display: block; height: 5px; background: var(--cream); border-radius: 2px; overflow: hidden; }
-.tm-bar.big { height: 12px; }
-.tm-bar i { display: block; height: 100%; background: var(--c-green); }
-.tm-xp-big small { font-size: 12px; color: var(--text-dim); }
-.tm-xp-big small.warn { color: var(--warn); font-weight: 600; }
-.tm-next { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; margin: 0; font-size: 13px; align-content: start; }
-.tm-next dt { color: var(--text-dim); }
-.tm-next dd { margin: 0; text-align: right; }
-.tm-next dd.good { font-weight: 600; }
-.tm-next dd.bad { color: var(--bad-ink); }
-.tm-next small { color: var(--text-dim); }
-
-.tm-prof-act { display: flex; gap: 8px; margin-top: auto; }
-.tm-prof-act .tm-fire { margin-left: auto; }
-
-/* Найм: карточки кандидатов в две колонки. */
-.tm-hire { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-content: start; padding: 12px 16px; background: var(--win-body); }
-.tm-cand { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-radius: 3px; }
-.tm-cand .tm-prof-id h3 { font-size: 16px; }
-.tm-cand-foot { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-dim); }
-.tm-cand-foot > span { flex: 1; min-width: 0; }
-.tm-hire-note { grid-column: 1 / -1; font-size: 12px; color: var(--text-dim); }
-.tm-face { display: block; flex: none; }
-
-@container (max-width: 760px) {
-  .tm-body { grid-template-columns: 1fr; }
-  .tm-hire { grid-template-columns: 1fr; }
-  .tm-grow { grid-template-columns: 1fr; }
-}
-
-/* ---------- Карточки людей по образцу (карточки банков в Two Point Campus): шапка цвета роли с белой плашкой имени,
-   фигурка, уровень и зарплата, опыт белой полосой, вывод словами и одна кнопка действия ---------- */
-.tm-cards { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; align-content: start; padding: 4px 14px 14px; }
-.tm-card { display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; background: var(--cream); box-shadow: 0 2px 0 rgb(0 0 0 / 0.08); }
-.tm-card.ready { box-shadow: 0 0 0 3px var(--orange); }
-.tm-card-top { padding: 10px 10px 0; background: var(--rc); }
-.tm-name { display: block; height: 30px; line-height: 30px; padding: 0 12px; border-radius: 999px; background: #fff; color: var(--text); font-weight: 900; font-size: 14px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tm-card-art { position: relative; height: 104px; display: flex; align-items: flex-end; justify-content: center; background: color-mix(in srgb, var(--rc) 45%, #fff); }
+/* Можно повысить: рамка каркаса, не оранжевая (оранжевый - только «выбрано сейчас»). */
+.tm-card.ready { box-shadow: inset 0 -4px 0 var(--edge), 0 0 0 3px var(--brand); }
+.tm-card-top { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px 8px; }
+.tm-name { font-size: 16px; font-weight: var(--fw-title); line-height: 1.25; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-role { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: var(--fw-strong); color: var(--text-2); }
+.tm-role-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--rc); }
+.tm-card-art { height: 100px; margin: 0 12px; display: flex; align-items: flex-end; justify-content: center; border-radius: 10px; background: var(--surface-window); overflow: hidden; }
 .tm-bust { display: block; }
-.tm-lvl, .tm-sal { position: absolute; top: 8px; padding: 2px 10px; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 900; }
-.tm-lvl { left: 8px; color: var(--teal-ink); }
-.tm-sal { right: 8px; color: #b3262c; }
-.tm-card-body { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 10px; background: #9cc7cd; color: #fff; }
-.tm-role { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-weight: 900; font-size: 13px; }
+.tm-card-body { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px 4px; font-size: 13px; }
+.tm-line { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; }
+.tm-lvl { display: inline-flex; align-items: center; gap: 8px; font-weight: var(--fw-strong); color: var(--text); }
+.tm-sal { font-weight: var(--fw-strong); color: var(--text); white-space: nowrap; }
+.tm-sal small { font-size: 12px; font-weight: var(--fw-small); color: var(--text-2); }
+/* Деления уровня: четыре коротких полосы. Пройдено - каркас, можно дорасти - дорожка, выше потолка - пунктир. */
 .tm-steps { display: inline-flex; gap: 3px; }
-.tm-steps i { width: 10px; height: 10px; border-radius: 3px; background: rgb(255 255 255 / 0.35); }
-.tm-steps i.on { background: #fff; }
-.tm-steps i.no { background: transparent; box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.5); }
-.tm-meter { position: relative; height: 26px; border-radius: 999px; background: #fff; overflow: hidden; display: flex; align-items: center; }
-.tm-meter i { position: absolute; inset: 0 auto 0 0; background: var(--orange); }
-.tm-meter.full i { background: #c3cfd1; }
-.tm-meter b { position: relative; width: 100%; text-align: center; font-size: 13px; font-weight: 900; color: var(--text); }
-.tm-meter.gain b { color: var(--good-ink); }
-.tm-card .tm-verdict { font-size: 13px; font-weight: 900; text-align: center; }
-.tm-card .tm-verdict.good { color: #fff; }
-.tm-card .tm-verdict.mid, .tm-card .tm-verdict.dim { color: #e9f4f5; }
-.tm-card .tm-verdict.warn { color: #fff3c4; }
-.tm-wait, .tm-trait { font-size: 12px; font-weight: 800; text-align: center; color: #eef8f9; }
-.tm-req { padding: 4px; background: #d9444a; color: #fff; font-size: 12px; font-weight: 900; text-align: center; }
-.tm-card-act { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px; background: #9cc7cd; }
+.tm-steps i { width: 12px; height: 6px; border-radius: 3px; background: var(--track); box-shadow: inset 0 0 0 1px var(--edge); }
+.tm-steps i.on { background: var(--brand); box-shadow: none; }
+.tm-steps i.no { background: transparent; box-shadow: none; outline: 1px dashed var(--text-2); outline-offset: -1px; opacity: 0.6; }
+.tm-xp { display: flex; flex-direction: column; gap: 4px; }
+.tm-xp-l { display: flex; justify-content: space-between; gap: 8px; font-weight: var(--fw-small); color: var(--text-2); }
+.tm-xp-l b { font-weight: var(--fw-strong); color: var(--text); }
+.tm-xp-l b.good, .tm-xp-l .good { color: var(--good-ink); }
+.tm-xp-l.cap { color: var(--text-2); }
+.tm-meter { display: block; height: 10px; border-radius: 999px; background: var(--track); overflow: hidden; }
+.tm-meter i { display: block; height: 100%; border-radius: 999px; background: var(--brand); }
+.tm-verdict { font-weight: var(--fw-strong); color: var(--text); }
+.tm-verdict.good { color: var(--good-ink); }
+.tm-verdict.mid { color: var(--text); }
+.tm-verdict.warn { color: var(--warn-ink); }
+.tm-verdict.dim { color: var(--text-2); }
+.tm-wait, .tm-trait { font-size: 12px; font-weight: var(--fw-small); color: var(--text-2); }
+.tm-card-act { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 12px 14px; }
 .tm-card-act .btn, .tm-card-act .guard { width: 100%; }
 .tm-card-act .guard > .btn { flex: 1; }
-.tm-fire { background: none; border: none; padding: 0; color: #fff; font: 800 12px var(--font); text-decoration: underline; cursor: pointer; opacity: 0.85; }
-.tm-fire:hover { opacity: 1; }
-.tm-hire-note { grid-column: 1 / -1; font-size: 13px; color: var(--text-dim); font-weight: 700; }
-/* Карточки не сжимаются по высоте окна: ряд всегда во весь рост карточки, лишнее - прокруткой */
-.tm-cards { grid-auto-rows: max-content; }
-.tm-card { flex: none; }
+.tm-fire { background: none; border: none; padding: 0; color: var(--text-2); font: var(--fw-strong) 12px var(--font); text-decoration: underline; cursor: pointer; }
+.tm-fire:hover { color: var(--bad-ink); }
+.tm-hire-note { grid-column: 1 / -1; font-size: 13px; color: var(--text-2); font-weight: var(--fw-small); }
+

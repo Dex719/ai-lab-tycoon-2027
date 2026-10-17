@@ -1,7 +1,7 @@
 /* «Ваши моменты»: газетная полоса. Жанр газеты: шапка, рубрика, заголовок, рисунок с подписью, колонка текста.
    Плоская бумага, краска одного цвета, появляется без вращения. */
 
-.mo-backdrop { z-index: 10050; background: rgba(0, 0, 0, 0.72); }
+.mo-backdrop { z-index: 10050; background: rgb(14 40 46 / 0.7); }
 .mo-paper {
   --ink: #1e1b16;
   width: 640px; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow: auto; outline: none;
@@ -14,9 +14,9 @@
   display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 6px;
   border-bottom: 3px double var(--ink); font: 700 26px Georgia, 'Times New Roman', serif;
 }
-.mo-date { font: 14px var(--font); color: #5a5246; font-variant-numeric: tabular-nums; }
+.mo-date { font: var(--fw-small) 14px var(--font); color: #5a5246; font-variant-numeric: tabular-nums; }
 /* Рубрика: единственная подпись капсом на полосе - так устроена газета. */
-.mo-kicker { margin-top: 12px; font: 700 12px var(--font); letter-spacing: 0.12em; text-transform: uppercase; color: #a3262a; }
+.mo-kicker { margin-top: 12px; font: 700 12px var(--font); letter-spacing: 0.12em; text-transform: uppercase; color: var(--bad-ink); }
 .mo-headline { margin: 4px 0 12px; font: 700 38px/1.08 Georgia, 'Times New Roman', serif; text-wrap: balance; }
 .mo-cols { display: grid; grid-template-columns: 210px 1fr; gap: 18px; padding-top: 12px; border-top: 1px solid #b9ae98; }
 
@@ -32,7 +32,7 @@
 .mo-num { fill: var(--ink); font: 700 18px Georgia, 'Times New Roman', serif; text-anchor: middle; }
 .mo-num.inv { fill: #f4efe2; font-size: 26px; }
 .mo-num.big { font-size: 44px; }
-.mo-num.small { font-size: 13px; font-weight: 400; }
+.mo-num.small { font-size: 13px; font-weight: var(--fw-small); }
 
 .mo-sub { margin: 0 0 10px; font-size: 18px; line-height: 1.35; font-style: italic; }
 .mo-body { margin: 0; font-size: 15px; line-height: 1.5; color: #3a342b; }

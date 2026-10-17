@@ -1,22 +1,22 @@
 /* Достижения: плашки при получении (слева под верхней панелью) и список в окне.
-   Плашка - как уведомление игры: светлая, золотая полоса слева - вид «награда». Медаль плоская. */
+   Плашка - как уведомление игры: кремовая карточка с белой каймой, о награде говорит медаль и подпись. Медаль плоская. */
 .ach-toasts { position: fixed; left: 110px; top: 50px; z-index: 885; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .ach-toast {
   display: flex; align-items: center; gap: 10px; min-width: 260px; max-width: 360px; padding: 8px 14px 8px 10px;
-  background: #fff; color: var(--text-title); border: 1px solid var(--line); border-left: 5px solid var(--gold-line); border-radius: 3px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4); animation: ach-in 4500ms ease-out forwards;
+  background: var(--surface-card); color: var(--text); border: 3px solid var(--surface-control); border-radius: 14px;
+  box-shadow: 0 6px 18px rgb(20 50 56 / 0.25); animation: ach-in 4500ms ease-out forwards;
 }
 .ach-medal { flex: none; }
-.ach-ribbon { fill: #9aa0a8; }
-.ach-disc { fill: #dcdee2; stroke: #b9bdc4; stroke-width: 1.2; }
-.ach-star { fill: #b9bdc4; }
-.ach-medal.on .ach-ribbon { fill: var(--c-blue); }
+.ach-ribbon { fill: var(--text-2); }
+.ach-disc { fill: var(--track); stroke: var(--edge); stroke-width: 1.2; }
+.ach-star { fill: var(--edge); }
+.ach-medal.on .ach-ribbon { fill: var(--brand); }
 .ach-medal.on .ach-disc { fill: var(--gold-fill); stroke: var(--gold-line); }
 .ach-medal.on .ach-star { fill: var(--gold-ink); }
 .ach-tt { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
-.ach-tt small { font-size: 12px; font-weight: 600; color: var(--gold-ink); }
-.ach-tt b { font-size: 15px; font-weight: 600; }
-.ach-tt span { font-size: 13px; color: var(--text-body); }
+.ach-tt small { font-size: 12px; font-weight: var(--fw-strong); color: var(--brand-ink); }
+.ach-tt b { font-size: 15px; font-weight: var(--fw-title); }
+.ach-tt span { font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }
 @keyframes ach-in {
   0% { opacity: 0; transform: translateX(-8px); }
   5%, 90% { opacity: 1; transform: none; }
@@ -26,18 +26,18 @@
 /* Список в окне: строки, как таблица; полученные - золотая медаль и дата справа. */
 .ach-list { max-height: 60vh; overflow: auto; margin: -6px 0; padding: 0; }
 .ach-list ul { margin: 0; padding: 0; list-style: none; }
-/* Раздел: заголовок 16 px полужирным и счёт «3 из 8» серым справа. */
+/* Раздел: заголовок 16 px и счёт «3 из 8» приглушённым справа. */
 .ach-group + .ach-group { margin-top: 14px; }
 .ach-group-h {
   display: flex; justify-content: space-between; align-items: baseline; margin: 0; padding: 6px 2px;
-  font-size: 16px; font-weight: 600; color: var(--text-title); border-bottom: 1px solid var(--line);
+  font-size: 16px; font-weight: var(--fw-title); color: var(--text); border-bottom: 1px solid var(--line);
 }
-.ach-group-n { font-size: 13px; font-weight: 400; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.ach-group-n { font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); font-variant-numeric: tabular-nums; }
 .ach-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 7px 2px; border-bottom: 1px solid var(--line); }
 .ach-row:last-child { border-bottom: none; }
-.ach-row .ach-tt b { color: #4a4d54; }
-.ach-row .ach-tt span { color: var(--text-dim); }
-.ach-row.on .ach-tt b { color: var(--text-title); }
-.ach-when { font-size: 13px; color: #8a8e95; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.ach-row.on .ach-when { color: var(--text-dim); }
+.ach-row .ach-tt b { color: var(--text-2); }
+.ach-row .ach-tt span { color: var(--text-2); }
+.ach-row.on .ach-tt b { color: var(--text); }
+.ach-when { font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ach-row.on .ach-when { color: var(--text-2); font-weight: var(--fw-strong); }
 @media (prefers-reduced-motion: reduce) { .ach-toast { animation: none; } }
