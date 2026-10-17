@@ -162,6 +162,7 @@ export function Dialog(props: {
   const { ref, onKeyDown } = useModalFocus<HTMLDivElement>(props.title);
   // Закрытие крестиком, Esc или тенью: 100 мс выхода, затем настоящий onClose. Кнопки подвала закрывают сразу.
   const [leaving, setLeaving] = useState(false);
+  const downOnShade = useRef(false);
   const close = props.onClose
     ? () => {
         if (leaving) return;
@@ -171,7 +172,18 @@ export function Dialog(props: {
       }
     : undefined;
   return (
-    <div className={`modal-backdrop${leaving ? ' leaving' : ''}`} onKeyDown={(e) => e.key === 'Escape' && close?.()}>
+    <div
+      className={`modal-backdrop${leaving ? ' leaving' : ''}`}
+      onKeyDown={(e) => e.key === 'Escape' && close?.()}
+      // Щелчок по тени вокруг окна закрывает его; нажатие должно начаться на тени, чтобы выделение текста не закрывало окно
+      onPointerDown={(e) => {
+        downOnShade.current = e.target === e.currentTarget;
+      }}
+      onClick={(e) => {
+        if (downOnShade.current && e.target === e.currentTarget) close?.();
+        downOnShade.current = false;
+      }}
+    >
       <div
         ref={ref}
         tabIndex={-1}
