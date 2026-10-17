@@ -85,7 +85,7 @@ export function buildLab(spec: LabSpec): Content {
   const z1 = D / 2;
 
   // ---------- Пол и стены ----------
-  box(W + 1.2, 0.5, D + 1.2, '#2b2f35', 0, -0.35, 0);
+  box(W + 1.2, 0.5, D + 1.2, spec.base ?? '#2b2f35', 0, -0.35, 0);
   box(W, 0.2, D, room.floor, 0, -0.1, 0);
   for (let x = x0 + 2.5; x < x1; x += 2.5) box(0.02, 0.01, D, shade(room.floor, -0.06), x, 0.005, 0).castShadow = false;
   box(W + 0.2, WALL_H, 0.2, room.back, -0.1, WALL_H / 2, z0 - 0.1);
@@ -243,8 +243,23 @@ export function buildLab(spec: LabSpec): Content {
     screens.push(box(0.7, 0.4, 0.01, i % 3 === 1 && spec.training ? '#2e9b4f' : screenColor, x - 0.15, 1.16, z - 0.25, root, spec.training ? 0.9 : 0.4));
     box(0.08, 0.2, 0.08, '#25282d', x - 0.15, 0.88, z - 0.3);
     box(0.5, 0.03, 0.18, '#d9dbdf', x - 0.15, 0.81, z + 0.05);
+    box(0.07, 0.03, 0.11, '#d9dbdf', x + 0.22, 0.81, z + 0.08).castShadow = false;
+    // Строки кода на экране, пока идёт обучение.
+    if (spec.training)
+      for (let k = 0; k < 4; k++) box(0.18 + ((i + k * 3) % 4) * 0.08, 0.025, 0.005, '#e8f0ff', x - 0.4 + 0.09 + ((i + k * 3) % 4) * 0.04, 1.29 - k * 0.07, z - 0.244, root, 0.9).castShadow = false;
     if (i % 2 === 0) cyl(0.06, 0.12, SHIRTS[(i + 3) % SHIRTS.length], x + 0.6, 0.86, z + 0.1);
     else box(0.3, 0.04, 0.22, '#f2f2ee', x + 0.5, 0.81, z + 0.05).rotation.y = 0.3;
+    // Тумба под столом, корзина, лампа или цветок - чтобы столы не были одинаковыми.
+    box(0.42, 0.6, 0.7, '#8d7158', x + 0.55, 0.3, z);
+    if (i % 2 === 1) cyl(0.13, 0.3, '#5d6b7a', x + 1.05, 0.15, z + 0.2);
+    if (i % 3 === 0) {
+      cyl(0.08, 0.03, '#25282d', x + 0.65, 0.81, z - 0.25);
+      box(0.03, 0.35, 0.03, '#25282d', x + 0.65, 0.98, z - 0.25);
+      box(0.22, 0.08, 0.12, '#e8c34a', x + 0.58, 1.15, z - 0.2, root, 0.6);
+    } else if (i % 4 === 1) {
+      cyl(0.07, 0.1, '#b5654a', x + 0.68, 0.84, z - 0.25);
+      ball(0.11, '#5d9a55', x + 0.68, 0.98, z - 0.25);
+    }
   }
 
   function person(x: number, z: number, i: number) {
@@ -257,6 +272,12 @@ export function buildLab(spec: LabSpec): Content {
     box(0.36, 0.14, 0.42, '#3d4a5e', 0, 0.58, -0.12, g);
     const torso = cyl(0.21, 0.6, SHIRTS[i % SHIRTS.length], 0, 0.92, 0, g);
     torso.scale.z = 0.75;
+    // Руки к клавиатуре.
+    for (const sx of [-1, 1]) {
+      const arm = box(0.1, 0.1, 0.42, SHIRTS[i % SHIRTS.length], sx * 0.2, 1.0, 0.2, g);
+      arm.rotation.x = 0.35;
+      ball(0.055, SKIN[(i * 3) % SKIN.length], sx * 0.17, 0.92, 0.42, g);
+    }
     const head = new THREE.Group();
     head.position.set(0, 1.4, 0);
     ball(0.17, SKIN[(i * 3) % SKIN.length], 0, 0, 0, head);
@@ -311,6 +332,30 @@ export function buildLab(spec: LabSpec): Content {
     cyl(0.15, 0.4, '#9fc6e8', x0 + 0.35, 1.2, bz + 1.2);
   }
 
+  // ---------- Стены: часы, доска объявлений, кондиционер, огнетушитель, жалюзи, кабель-канал ----------
+  cyl(0.22, 0.04, '#f7f7f5', wbX + 1.75, 2.55, z0 + 0.03).rotation.x = Math.PI / 2;
+  box(0.02, 0.14, 0.01, '#25282d', wbX + 1.75, 2.59, z0 + 0.06).castShadow = false;
+  box(0.1, 0.02, 0.01, '#25282d', wbX + 1.79, 2.55, z0 + 0.06).castShadow = false;
+  box(0.05, 0.8, 1.3, '#b98e5f', x0 + 0.03, 2.0, z0 + 4.2);
+  const notes = ['#fff5b8', '#bfe3c3', '#f6c9c1', '#c9dcf6'];
+  for (let k = 0; k < 7; k++) box(0.01, 0.16, 0.16, notes[k % 4], x0 + 0.07, 1.78 + (k % 3) * 0.22, z0 + 3.7 + Math.floor(k / 3) * 0.4 + (k % 2) * 0.08).castShadow = false;
+  if (spec.racks > 0) {
+    box(1.2, 0.34, 0.26, '#eef0f2', (rackX(0) + rackX(spec.racks - 1)) / 2, 2.78, z0 + 0.14);
+    box(1.0, 0.03, 0.02, '#9aa1a9', (rackX(0) + rackX(spec.racks - 1)) / 2, 2.66, z0 + 0.28).castShadow = false;
+    const ex = rackX(spec.racks - 1) - 0.65;
+    cyl(0.09, 0.45, '#d64545', ex, 0.23, z0 + 0.25);
+    box(0.06, 0.08, 0.06, '#25282d', ex, 0.5, z0 + 0.25);
+    box(Math.max(0.5, rackX(spec.racks - 1) - (x0 + 5)), 0.03, 0.12, '#4a4f57', (x0 + 5 + rackX(spec.racks - 1)) / 2, 0.015, z0 + 0.35).castShadow = false;
+  }
+  for (let i = 0; i < room.windows; i++) {
+    const wx = x0 + 5 + (winSpan * (i + 0.5)) / room.windows;
+    for (let k = 0; k < 5; k++) box(1.75, 0.035, 0.02, '#e6e2da', wx, 2.5 - k * 0.09, z0 + 0.09).castShadow = false;
+  }
+  if (spec.stage >= 1) {
+    box(0.06, 2.1, 1.0, '#8a6a4f', x0 + 0.03, 1.05, z1 - 0.8);
+    cyl(0.03, 0.04, '#c9a227', x0 + 0.08, 1.0, z1 - 1.15).rotation.z = Math.PI / 2;
+  }
+
   // ---------- Уголок отдыха и мелочи ----------
   const lx = x0 + 1.9;
   const lz = z1 - 1.6;
@@ -319,6 +364,12 @@ export function buildLab(spec: LabSpec): Content {
   box(0.25, 0.55, 0.95, '#654e40', lx - 1.05, 0.42, lz);
   box(0.25, 0.55, 0.95, '#654e40', lx + 1.05, 0.42, lz);
   box(1.1, 0.4, 0.6, '#8a6a4f', lx + 0.1, 0.2, lz - 1.2);
+  box(0.4, 0.3, 0.12, '#c9a227', lx - 0.6, 0.55, lz + 0.18).rotation.x = -0.25;
+  box(0.4, 0.3, 0.12, '#2f80e4', lx + 0.6, 0.55, lz + 0.18).rotation.x = -0.25;
+  box(0.32, 0.02, 0.24, '#d64545', lx - 0.1, 0.41, lz - 1.15).rotation.y = 0.4;
+  cyl(0.12, 0.03, '#25282d', lx + 1.55, 0.02, lz + 0.2);
+  box(0.03, 1.5, 0.03, '#25282d', lx + 1.55, 0.77, lz + 0.2);
+  cyl(0.18, 0.22, '#f2e6c9', lx + 1.55, 1.58, lz + 0.2);
   box(3.0, 0.02, 2.2, spec.stage === 0 ? '#6b7f99' : '#7d8f84', lx, 0.01, lz - 0.6).castShadow = false;
   box(0.6, 0.9, 0.5, '#c3c6cb', x0 + 0.45, 0.45, z0 + 4.2);
   box(0.3, 0.35, 0.3, '#25282d', x0 + 0.45, 1.08, z0 + 4.2);

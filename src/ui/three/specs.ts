@@ -70,6 +70,8 @@ export interface LabSpec {
   /** Модели на полке: цвет уровня, первой - лучшая (золотая, если 1-е место). */
   models: string[];
   cups: ('first' | 'goals')[];
+  /** Цвет основания под комнатой (под тему интерфейса); по умолчанию тёмный. */
+  base?: string;
 }
 
 export type ViewSpec = GpuSpec | FarmSpec | CampusSpec | LabSpec;
