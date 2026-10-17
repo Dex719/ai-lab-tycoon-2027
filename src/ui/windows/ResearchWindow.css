@@ -208,5 +208,6 @@
 /* Изученное и так видно по бирюзовой плитке: полоса прогресса не нужна и наезжала на подпись */
 .rs-node.done .rs-bar { display: none; }
 /* У плиток с полосой текст поднимается над ней, чтобы три строки не залезали на полосу */
-.rs-node:not(.done):has(.rs-bar) { padding-bottom: 13px; }
+.rs-node { padding-top: 6px; padding-bottom: 6px; }
+.rs-node:not(.done):has(.rs-bar) { padding-bottom: 15px; }
 .rs-node .rs-name, .rs-node .rs-st, .rs-node .rs-sub { line-height: 14px; }

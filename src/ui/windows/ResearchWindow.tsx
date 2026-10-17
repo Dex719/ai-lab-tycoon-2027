@@ -55,7 +55,7 @@ type Status = 'done' | 'current' | 'available' | 'blocked';
 
 // Размеры карты, px.
 const NW = 192; // ширина узла
-const NH = 56; // высота узла
+const NH = 62; // высота узла
 const PAD_X = 12;
 const PAD_Y = 12;
 const COL_GAP = 40;
