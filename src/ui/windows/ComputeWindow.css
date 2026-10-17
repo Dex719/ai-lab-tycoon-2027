@@ -13,26 +13,23 @@
 .cw-h { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.25; color: var(--text-title); }
 .cw-hide { visibility: hidden; }
 
-/* ---------- Зал и колонка ---------- */
+/* ---------- Мощность и карты ---------- */
 .cw-top {
-  flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px;
-  padding: 12px 16px; background: var(--win-body); border-bottom: 1px solid var(--line);
+  flex: none; display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 20px;
+  padding: 14px 16px; background: var(--win-body); border-bottom: 1px solid var(--line);
 }
-.cw-hall { position: relative; margin: 0; min-width: 0; min-height: 260px; background: #d4d7db; border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
-.cw-farm-view { position: absolute; inset: 0; }
-.cw-side { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; }
-/* Подписи поверх 3D-схемы: над холстом и на плоской подложке цвета фона, чтобы стойки их не перекрывали. */
-.cw-farm-scale { position: absolute; z-index: 1; left: 6px; bottom: 6px; max-width: calc(100% - 12px); padding: 1px 4px; font-size: 12px; color: #3a3d42; background: rgba(212, 215, 219, 0.9); border-radius: 2px; pointer-events: none; }
-.cw-farm-empty { position: absolute; z-index: 1; left: 0; right: 0; bottom: 10px; text-align: center; font-size: 13px; color: #3a3d42; pointer-events: none; }
-/* Подпись после аренды: светлая, тень нейтральная (всплывающее); появляется за 200 мс, уходит быстрее. */
+.cw-side { display: flex; flex-direction: column; min-width: 0; }
+.cw-cards { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cw-cards-head { display: flex; align-items: center; gap: 12px; min-height: 26px; }
+.cw-cards .cw-rows { max-height: 260px; overflow: auto; }
+/* Подпись после аренды рядом с заголовком: появляется за 200 мс, держится и гаснет. */
 .cw-flash {
-  position: absolute; top: 10px; left: 50%; transform: translateX(-50%); padding: 4px 12px; border-radius: 3px;
-  background: #fff; color: var(--text); border: 1px solid var(--line); font-weight: 600; font-size: 14px; white-space: nowrap;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16); pointer-events: none; animation: cw-flash 2600ms ease-out forwards;
+  padding: 2px 10px; border-radius: 3px; background: #fff; color: var(--good-ink); border: 1px solid var(--line);
+  font-weight: 600; font-size: 13px; white-space: nowrap; animation: cw-flash 2600ms ease-out forwards;
 }
 @keyframes cw-flash {
-  0% { opacity: 0; transform: translate(-50%, 6px); }
-  8% { opacity: 1; transform: translate(-50%, 0); }
+  0% { opacity: 0; transform: translateY(4px); }
+  8% { opacity: 1; transform: none; }
   94% { opacity: 1; }
   100% { opacity: 0; }
 }
@@ -50,19 +47,18 @@
 
 /* Арендованные карты - белое поле со строками через тонкую линию, как списки других окон. */
 .cw-rows { display: flex; flex-direction: column; background: #fff; border: 1px solid var(--line); }
-/* В узкой колонке: картинка слева, под названием цена и кнопки. */
+/* Строка на тип карты: картинка, название и количество, цена в месяц, кнопки. */
 .cw-row {
-  display: grid; grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: 'thumb main' 'cost actions';
-  align-items: center; gap: 4px 10px; padding: 8px; border-bottom: 1px solid var(--row-line);
+  display: grid; grid-template-columns: 64px minmax(0, 1fr) auto auto; align-items: center; gap: 4px 14px;
+  padding: 8px 10px; border-bottom: 1px solid var(--row-line);
 }
 .cw-row > .cw-thumb { width: 64px !important; height: 36px !important; }
 .cw-row > .cw-thumb img { width: 64px; height: 36px; }
 .cw-row:last-child { border-bottom: none; }
-.cw-row > .cw-thumb { grid-area: thumb; }
-.cw-row-main { grid-area: main; min-width: 0; }
-.cw-row-cost { grid-area: cost; text-align: left; color: var(--bad-ink); font-weight: 600; white-space: nowrap; }
-.cw-row-cost small { margin-left: 4px; font-weight: 400; font-size: 12px; color: var(--text-dim); }
-.cw-row-actions { grid-area: actions; display: flex; gap: 6px; justify-content: flex-end; }
+.cw-row-main { min-width: 0; }
+.cw-row-cost { text-align: right; color: var(--bad-ink); font-weight: 600; white-space: nowrap; }
+.cw-row-cost small { display: block; font-weight: 400; font-size: 12px; color: var(--text-dim); }
+.cw-row-actions { display: flex; gap: 6px; justify-content: flex-end; }
 .cw-row-name { font-size: 15px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cw-row-meta b { font-weight: 600; color: var(--text); }
 .cw-row-meta { font-size: 13px; color: var(--text-dim); }
@@ -173,7 +169,8 @@
 /* Узкое окно (телефон, маленький экран): шапка и поле в одну колонку, поле прокручивается целиком. */
 @container (max-width: 760px) {
   .cw-top { grid-template-columns: 1fr; overflow: auto; }
-  .cw-hall { min-height: 180px; }
+  .cw-row { grid-template-columns: 64px minmax(0, 1fr); }
+  .cw-row-cost { text-align: left; }
   .cw-cols { grid-template-columns: 1fr 1fr !important; gap: 8px 16px; }
 }
 

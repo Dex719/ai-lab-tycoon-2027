@@ -50,7 +50,7 @@ import { FlashNum } from '../FlashNum';
 import { actions, store } from '../store';
 import { farmLayout, rentedFarm } from '../three/specs';
 import { GpuChooser, powerFact } from '../three/GpuChooser';
-import { useGpuThumb, View3D } from '../three/View3D';
+import { useGpuThumb } from '../three/View3D';
 import './ComputeWindow.css';
 
 /** Аренда списывается каждый день; в интерфейсе стоимость показана за 30 дней. */
@@ -122,39 +122,50 @@ function unitLine(s: GameState, rented: boolean): string {
   return `1 H100e ≈ ${fmtInt(n)} ${cardsWord(n)}${best ? ` ${best.name}` : ''}`;
 }
 
-/** Доли мощности для окраски стоек: по порядку строк, принятые (не черновик). */
-function farmTasks(p: Percents): { color: string; share: number }[] {
-  return ALLOC_ROWS.map((r) => ({ color: r.color, share: p[r.key] / 100 }));
-}
-
-/** Машинный зал крупно: стойки окрашены планками по задачам, подписи поверх. */
-function Hall({ s, shown, flash }: { s: GameState; shown: Percents; flash: RentFlash | null }) {
-  const farm = { ...rentedFarm(s), tasks: farmTasks(shown) };
-  const layout = farmLayout(farm.groups);
-  const racks = `${fmtInt(layout.totalRacks)} ${ruPlural(layout.totalRacks, 'стойка', 'стойки', 'стоек')}`;
+/** Арендованные карты: строка на тип - сколько, сколько это H100e, цена; свои карты - ссылкой на дата-центры. */
+function CardsPanel({ s, flash, onEdit, onGiveBack, open }: { s: GameState; flash: RentFlash | null; onEdit: (id: GpuId) => void; onGiveBack: (id: GpuId) => void; open: WindowProps['open'] }) {
+  const rentedGpus = GPUS.filter((g) => s.compute.rented[g.id] > 0);
+  const own = ownedCards(s);
   return (
-    <figure className="cw-hall">
-      <View3D spec={farm} label={`Арендованные карты в облаке: ${fmtCardsCount(layout.cards)}, ${racks}`} className="cw-farm-view" />
-      {layout.cards === 0 && <figcaption className="cw-farm-empty">Карт пока нет: нажмите «Арендовать»</figcaption>}
-      {layout.scale > 1 && <figcaption className="cw-farm-scale">На схеме одна стойка за {fmtInt(layout.scale)}</figcaption>}
-      {flash && (
-        <div key={flash.key} className="cw-flash" role="status">
-          {flash.text}
+    <section className="cw-cards">
+      <div className="cw-cards-head">
+        <h3 className="cw-h">Карты в аренде</h3>
+        {flash && (
+          <span key={flash.key} className="cw-flash" role="status">
+            {flash.text}
+          </span>
+        )}
+      </div>
+      {rentedGpus.length > 0 ? (
+        <div className="cw-rows">
+          {rentedGpus.map((g) => (
+            <RentedRow key={g.id} s={s} g={g} onEdit={() => onEdit(g.id)} onGiveBack={() => onGiveBack(g.id)} />
+          ))}
+        </div>
+      ) : (
+        <div className="cw-empty">Карт пока нет. На них обучаются модели, идут исследования и работа для клиентов: нажмите «Арендовать».</div>
+      )}
+      {own > 0 && (
+        <div className="cw-own">
+          <span>
+            Свои карты: <b>{fmtCardsCount(own)}</b>, {fmtH(ownedH100e(s))} H100e
+          </span>
+          <button type="button" className="btn small" onClick={() => open('datacenters')}>
+            Дата-центры
+          </button>
         </div>
       )}
-    </figure>
+    </section>
   );
 }
 
-/** Правая колонка: мощность крупно, аренда, кнопка и арендованные карты. */
-function Side({ s, onRent, onEdit, onGiveBack, open }: { s: GameState; onRent: () => void; onEdit: (id: GpuId) => void; onGiveBack: (id: GpuId) => void; open: WindowProps['open'] }) {
+/** Левая колонка: мощность крупно, аренда в месяц, лимит и кнопка «Арендовать». */
+function Side({ s, onRent }: { s: GameState; onRent: () => void }) {
   const layout = farmLayout(rentedFarm(s).groups);
   const total = totalH100e(s);
-  const own = ownedCards(s);
   const caps = availableGpus(s).map((g) => rentCapFor(s, g.id));
   const cap = caps.length ? Math.min(...caps) : 0;
   const racks = `${fmtInt(layout.totalRacks)} ${ruPlural(layout.totalRacks, 'стойка', 'стойки', 'стоек')}`;
-  const rentedGpus = GPUS.filter((g) => s.compute.rented[g.id] > 0);
   return (
     <aside className="cw-side">
       <div className="cw-fig-label" title="Единица мощности: в ней считаются обучение, исследования и работа для клиентов">
@@ -177,23 +188,6 @@ function Side({ s, onRent, onEdit, onGiveBack, open }: { s: GameState; onRent: (
       <button className="btn primary big cw-rent-btn" onClick={onRent} data-tutorial="rent-button">
         Арендовать
       </button>
-      {rentedGpus.length > 0 && (
-        <div className="cw-rows">
-          {rentedGpus.map((g) => (
-            <RentedRow key={g.id} s={s} g={g} onEdit={() => onEdit(g.id)} onGiveBack={() => onGiveBack(g.id)} />
-          ))}
-        </div>
-      )}
-      {own > 0 && (
-        <div className="cw-own">
-          <span>
-            Свои карты: <b>{fmtCardsCount(own)}</b>, {fmtH(ownedH100e(s))} H100e
-          </span>
-          <button type="button" className="btn small" onClick={() => open('datacenters')}>
-            Дата-центры
-          </button>
-        </div>
-      )}
     </aside>
   );
 }
@@ -747,14 +741,8 @@ export default function ComputeWindow({ s, open }: WindowProps) {
   return (
     <div className="cw">
       <div className="cw-top">
-        <Hall s={s} shown={percentsOf(s.compute.alloc)} flash={flash} />
-        <Side
-          s={s}
-          open={open}
-          onRent={() => setDialog({ id: defaultRentId(s) })}
-          onEdit={(id) => setDialog({ id })}
-          onGiveBack={(id) => setDialog({ id, count: 0 })}
-        />
+        <Side s={s} onRent={() => setDialog({ id: defaultRentId(s) })} />
+        <CardsPanel s={s} flash={flash} open={open} onEdit={(id) => setDialog({ id })} onGiveBack={(id) => setDialog({ id, count: 0 })} />
       </div>
       <SplitPanel s={s} open={open} />
       {dialog && createPortal(<RentDialog s={s} target={dialog} onClose={() => setDialog(null)} onDone={done} />, document.body)}
