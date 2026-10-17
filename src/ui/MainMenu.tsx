@@ -24,7 +24,7 @@ import { View3D } from './three/View3D';
 import { desktop } from './desktop';
 import { ScreenSettings } from './ScreenSettings';
 
-export const VERSION = 'v0.2';
+export const VERSION = 'v0.3';
 const NAME_MAX = 22;
 const FOUNDER_MAX = 24;
 
