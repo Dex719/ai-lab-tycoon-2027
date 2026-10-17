@@ -27,12 +27,16 @@ export function View3D(props: {
   className?: string;
   /** Подпись для экранного диктора. */
   label: string;
+  /** Положение точек сцены на холсте (подписи над местами лаборатории). */
+  onAnchors?: (at: Record<string, { x: number; y: number }>) => void;
 }) {
   const { spec, interactive = true, autoRotate = false } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewRef = useRef<ViewHandle | null>(null);
   const specRef = useRef(spec);
   specRef.current = spec;
+  const anchorsRef = useRef(props.onAnchors);
+  anchorsRef.current = props.onAnchors;
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const key = specKey(spec);
@@ -44,7 +48,12 @@ export function View3D(props: {
       .then((eng) => {
         const canvas = canvasRef.current;
         if (!alive || !canvas) return;
-        const v = eng.createView(canvas, { interactive, autoRotate, onFail: () => alive && setFailed(true) });
+        const v = eng.createView(canvas, {
+          interactive,
+          autoRotate,
+          onFail: () => alive && setFailed(true),
+          onAnchors: (at) => anchorsRef.current?.(at),
+        });
         viewRef.current = v;
         const size = () => {
           const r = canvas.getBoundingClientRect();

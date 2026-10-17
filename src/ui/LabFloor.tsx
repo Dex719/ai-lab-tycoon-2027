@@ -1,0 +1,256 @@
+// Лаборатория на весь рабочий стол (вместо сцены из четырёх «станций»): 3D-помещение этапа, люди, стойки, доска, полка.
+// Над местами в комнате висят подписи - что там происходит; щелчок открывает нужное окно. Слева сверху - этап лаборатории
+// и что нужно до следующего; в первый год внизу - «Следующий шаг». Сцена перестраивается только при смене того,
+// что на ней видно (spec), а не каждый игровой день.
+
+import { useCallback, useMemo, useState } from 'react';
+import { GPUS } from '../data/gpus';
+import { idleWarnings } from '../sim/idle';
+import { LAB_STAGES, labStage, metricStage, yearCups } from '../sim/labStage';
+import { rpPerDay, techCost, TECHS } from '../sim/research';
+import { staffSeats } from '../sim/staff';
+import { totalH100e } from '../sim/compute';
+import type { GameState, PlayerModel, Tier } from '../sim/types';
+import { distribute, ALLOC_ROWS } from './alloc';
+import { fmtH100e, fmtMoney, fmtNum, fmtShare, ruPlural } from './format';
+import { nextStep, type NextStep } from './nextStep';
+import { raceMetricOf, raceRows } from './race';
+import { store, useSpeed } from './store';
+import { specKey, type LabSpec } from './three/specs';
+import { View3D } from './three/View3D';
+import type { WindowAlias, WindowId } from './windows';
+import './labFloor.css';
+
+type Open = (id: WindowId | WindowAlias) => void;
+type At = Record<string, { x: number; y: number }>;
+
+/** Карт на один светящийся сервер в стойке (24 карты - полная стойка из 8 серверов). */
+const CARDS_PER_UNIT = 3;
+const MODELS_ON_SHELF = 6;
+const TIER_COLOR: Record<Tier, string> = { light: '#1fa8a0', mid: '#2f80e4', flagship: '#7b5cd6' };
+
+function cardCount(s: GameState): number {
+  let n = 0;
+  for (const g of GPUS) n += s.compute.rented[g.id] ?? 0;
+  for (const dc of s.datacenters?.list ?? []) for (const g of GPUS) n += dc.gpus[g.id] ?? 0;
+  return n;
+}
+
+interface Facts {
+  spec: LabSpec;
+  cards: number;
+  h100e: number;
+  idle: boolean;
+  research: { name: string; frac: number; busy: boolean } | null;
+  training: { name: string; frac: number; stalled: boolean; more: number } | null;
+  best: PlayerModel | null;
+  place: number | null;
+  released: number;
+  freeSeats: number;
+}
+
+function factsOf(s: GameState): Facts {
+  const stage = labStage(s);
+  const def = LAB_STAGES[stage];
+  const cur = s.research.current;
+  let research: Facts['research'] = null;
+  if (cur) {
+    const cost = techCost(s, cur);
+    const frac = cost > 0 ? Math.min(1, (s.research.points[cur] ?? 0) / cost) : 0;
+    research = { name: TECHS.find((t) => t.id === cur)?.name ?? cur, frac, busy: rpPerDay(s) > 0 };
+  }
+  const t = s.trainings[0];
+  const training = t
+    ? { name: t.plan.name, frac: t.flopTotal > 0 ? t.flopDone / t.flopTotal : 0, stalled: t.failed, more: Math.max(0, s.trainings.length - 1) }
+    : null;
+  let place: number | null = null;
+  let best: PlayerModel | null = null;
+  const metric = raceMetricOf(s);
+  if (metric) {
+    const rows = raceRows(s, metric);
+    const mine = rows.some((x) => x.owner !== 'player') ? rows.find((x) => x.owner === 'player' && x.rank !== null) : undefined;
+    if (mine) {
+      place = mine.rank;
+      best = s.models.find((m) => m.id === mine.row.ref.id) ?? null;
+    }
+  }
+  const released = s.models.filter((m) => m.releasedDay !== null);
+  const shelf = [...(best ? [best] : []), ...released.filter((m) => m !== best).sort((a, b) => b.arenaElo - a.arenaElo)].slice(0, MODELS_ON_SHELF);
+  const cards = cardCount(s);
+  const racks = def.racks;
+  const shares = ALLOC_ROWS.map((r) => s.compute.alloc[r.key]);
+  const perRack = distribute(shares, racks);
+  const rackColors: string[] = [];
+  ALLOC_ROWS.forEach((r, i) => {
+    for (let k = 0; k < perRack[i]; k++) rackColors.push(r.color);
+  });
+  const staff = s.staff?.people ?? [];
+  const working = staff.filter((e) => e.startDay <= s.day).length;
+  const teams = s.late?.teams.length ?? 0;
+  const freeSeats = Math.max(0, staffSeats(s) - staff.length);
+  const spec: LabSpec = {
+    kind: 'lab',
+    stage,
+    people: 2 + working + teams * 2,
+    freeSeats,
+    racks,
+    racksLit: Math.min(racks * 8, Math.ceil(cards / CARDS_PER_UNIT)),
+    rackColors,
+    research: !!research?.busy,
+    training: !!training && !training.stalled,
+    models: shelf.map((m, i) => (i === 0 && place === 1 ? '#e8c34a' : TIER_COLOR[m.plan.tier])),
+    cups: yearCups(s).slice(-6).map((c) => c.kind),
+  };
+  return {
+    spec,
+    cards,
+    h100e: totalH100e(s),
+    idle: idleWarnings(s).length > 0,
+    research,
+    training,
+    best,
+    place,
+    released: released.length,
+    freeSeats,
+  };
+}
+
+/** Примерный размер подписи: соседние подписи не должны налезать друг на друга. */
+const TAG_W = 220;
+const TAG_H = 64;
+
+/** Развести подписи: если две перекрываются, нижняя по экрану остаётся у места, верхняя поднимается выше. */
+function spread(at: At): At {
+  const order = Object.entries(at).sort((a, b) => b[1].y - a[1].y);
+  const placed: { x: number; y: number }[] = [];
+  const out: At = {};
+  for (const [k, p0] of order) {
+    const p = { ...p0 };
+    for (let guard = 0; guard < 6; guard++) {
+      const hit = placed.find((q) => Math.abs(q.x - p.x) < TAG_W && Math.abs(q.y - p.y) < TAG_H);
+      if (!hit) break;
+      p.y = hit.y - TAG_H;
+    }
+    placed.push(p);
+    out[k] = p;
+  }
+  return out;
+}
+
+/** Подпись над местом в комнате: что там происходит и полоса готовности; щелчок открывает окно. */
+function Tag(props: { at?: { x: number; y: number }; k: string; v: string; frac?: number; color?: string; warn?: boolean; onClick: () => void; tutorial?: string }) {
+  if (!props.at) return null;
+  return (
+    <button
+      type="button"
+      className={`lf-tag${props.warn ? ' warn' : ''}`}
+      style={{ left: props.at.x, top: props.at.y }}
+      onClick={props.onClick}
+      data-tutorial={props.tutorial}
+    >
+      <b>{props.k}</b>
+      <span>{props.v}</span>
+      {props.frac !== undefined && (
+        <i className="lf-bar">
+          <i style={{ width: `${Math.round(Math.min(1, props.frac) * 100)}%`, background: props.color }} />
+        </i>
+      )}
+    </button>
+  );
+}
+
+/** Этап лаборатории на верхней панели: название и полоска до следующего этапа (подробности - в подсказке). */
+export function StageMark({ s }: { s: GameState }) {
+  const stage = labStage(s);
+  const def = LAB_STAGES[stage];
+  const next = LAB_STAGES[stage + 1];
+  const m = metricStage(s);
+  const frac = next ? Math.max(Math.min(1, m.month / next.month), Math.min(1, m.value / next.value)) : 1;
+  const title = next
+    ? `До этапа «${next.name}»: лучший месяц выручки ${fmtMoney(m.month)} из ${fmtMoney(next.month)} или оценка компании ${fmtMoney(m.value)} из ${fmtMoney(next.value)}`
+    : 'Последний этап';
+  return (
+    <span className="tb-stage" title={title}>
+      {def.name}
+      {next && (
+        <i className="tb-stage-bar">
+          <i style={{ width: `${Math.round(frac * 100)}%` }} />
+        </i>
+      )}
+    </span>
+  );
+}
+
+function NextPlate({ step, open }: { step: NextStep; open: Open }) {
+  return (
+    <div className="lf-next" role="note" aria-label="Следующий шаг">
+      <div className="lf-next-t">
+        <span>Следующий шаг</span>
+        <b>{step.title}</b>
+        <small>{step.detail}</small>
+      </div>
+      {step.action && (
+        <button type="button" className="btn primary" onClick={() => (step.open === 'play' ? store.setSpeed(1) : open(step.open))}>
+          {step.action}
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function LabFloor({ s, open }: { s: GameState; open: Open }) {
+  const speed = useSpeed();
+  const f = factsOf(s);
+  const key = specKey(f.spec);
+  // Тот же объект описания, пока не изменилось то, что видно: View3D сравнивает по ключу.
+  const spec = useMemo(() => f.spec, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [at, setAt] = useState<At>({});
+  const onAnchors = useCallback((a: At) => setAt(spread(a)), []);
+  const next = nextStep(s, speed);
+  return (
+    <div className="lab-floor">
+      <View3D spec={spec} interactive={false} label="Лаборатория" className="lf-view" onAnchors={onAnchors} />
+      <div className="lf-tags">
+        <Tag
+          at={at.servers}
+          k={f.cards > 0 ? `Серверная · ${fmtH100e(f.h100e)} H100e` : 'Серверная'}
+          v={f.cards > 0 ? `${fmtNum(f.cards)} ${ruPlural(f.cards, 'карта', 'карты', 'карт')}${f.idle ? ', есть простой' : ''}` : 'Карт нет: арендовать'}
+          warn={f.idle || f.cards === 0}
+          onClick={() => open('compute')}
+          tutorial="scene-compute"
+        />
+        <Tag
+          at={at.research}
+          k={f.research ? `Исследование · ${fmtShare(f.research.frac, 0)}` : 'Исследования'}
+          v={f.research ? f.research.name : 'Не идут: выбрать'}
+          frac={f.research ? f.research.frac : undefined}
+          color="#7b5cd6"
+          warn={!f.research || !f.research.busy}
+          onClick={() => open('research')}
+        />
+        <Tag
+          at={at.training}
+          k={f.training ? `Обучение · ${fmtShare(f.training.frac, 0)}${f.training.more ? ` (+${f.training.more})` : ''}` : 'Обучение'}
+          v={f.training ? (f.training.stalled ? `${f.training.name}: ждёт решения` : f.training.name) : 'Свободно: новая модель'}
+          frac={f.training ? f.training.frac : undefined}
+          color="#2f80e4"
+          warn={!!f.training?.stalled}
+          onClick={() => open(f.training ? 'models' : 'newModel')}
+        />
+        <Tag
+          at={at.showcase}
+          k={f.place !== null ? `Витрина · ${f.place}-е место` : 'Витрина'}
+          v={f.best ? f.best.name : f.released > 0 ? `Выпущено: ${fmtNum(f.released)}` : 'Пусто'}
+          onClick={() => open(f.released > 0 ? 'models' : 'newModel')}
+        />
+        <Tag
+          at={at.seats}
+          k={`Свободных мест: ${fmtNum(f.freeSeats)}`}
+          v="Нанять сотрудника"
+          onClick={() => open('team')}
+        />
+      </div>
+      {next && <NextPlate step={next} open={open} />}
+    </div>
+  );
+}

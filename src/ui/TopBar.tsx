@@ -1,4 +1,5 @@
 // Верхняя панель (как в Processor Tycoon): деньги, изменение за месяц, дата, скорость; справа доля рынка и место на «Арене».
+import { StageMark } from './LabFloor';
 
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { pendingChoice } from '../sim/events';
@@ -126,6 +127,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
         </span>
         <b>{s.labName}</b>
         {s.founderName && <span className="tb-founder">{s.founderName}</span>}
+        {!phone && <StageMark s={s} />}
         {store.autosaveError && (
           <span className="tb-bad" title={store.autosaveError} style={{ display: 'flex' }}>
             <IconAlert />

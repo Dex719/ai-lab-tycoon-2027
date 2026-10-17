@@ -21,7 +21,7 @@ import { Juice } from './Juice';
 import { SceneLive } from './SceneLive';
 import { ReleaseCard } from './ReleaseCard';
 import { Moments } from './Moments';
-import { DeskScene } from './DeskScene';
+import { LabFloor } from './LabFloor';
 import './shell.css';
 import './feel.css';
 import { FeelLayer } from './FeelLayer';
@@ -41,8 +41,8 @@ interface OpenWin extends WinGeom {
   min: boolean;
 }
 
-/** Ширина колонки иконок слева и боковой панели справа: окна открываются между ними. */
-const LEFT_ICONS = 118;
+/** Отступ слева и ширина сводки справа: окна открываются между ними. Разделы - в доке на панели задач. */
+const LEFT_ICONS = 16;
 const RIGHT_ICONS = 316;
 
 interface BodyProps extends WindowProps {
@@ -268,7 +268,8 @@ export function Game({ s }: { s: GameState }) {
     <div className="game" inert={blocked}>
       <TopBar s={s} phone={phone} sheetOpen={sheet} onToggleSheet={() => setSheet((v) => !v)} />
       <div className="desk" ref={deskRef} onPointerDown={() => setStartOpen(false)}>
-        {!phone && <DeskScene s={s} open={open} />}
+        {!phone && <LabFloor s={s} open={open} />}
+        {phone && (
         <div className="icons">
         <div className="icon-col left">
           {WINDOWS.filter((d) => d.side === 'left' && (!d.openedDay || d.openedDay(s) !== null)).map((d) => (
@@ -281,6 +282,7 @@ export function Game({ s }: { s: GameState }) {
           ))}
         </div>
         </div>
+        )}
         {visible.map((w) => {
           const def = WINDOWS.find((d) => d.id === w.id)!;
           return (
@@ -357,7 +359,36 @@ export function Game({ s }: { s: GameState }) {
           </div>
         )}
         <div className="task-sep" />
-        {wins.map((w) => {
+        {!phone && (
+          <nav className="dock" aria-label="Разделы">
+            {WINDOWS.filter((d) => !d.openedDay || d.openedDay(s) !== null).map((d) => {
+              const w = wins.find((x) => x.id === d.id);
+              const active = !!w && !w.min && w.z === topZ;
+              const count = iconCount(d.id);
+              const since = d.openedDay?.(s) ?? null;
+              return (
+                <button
+                  key={d.id}
+                  className={`dock-btn${w ? ' open' : ''}${active ? ' active' : ''}${freshIcons.has(d.id) ? ' fresh' : ''}`}
+                  style={{ ['--wa' as string]: WIN_ACCENT[d.id] }}
+                  title={d.title}
+                  data-tutorial={`icon-${d.id}`}
+                  onClick={() => (active ? minAnim(d.id) : w ? focus(d.id) : open(d.id))}
+                >
+                  <d.icon size={26} />
+                  <span>{d.title}</span>
+                  {count > 0 && (
+                    <i className="count" key={count}>
+                      {count}
+                    </i>
+                  )}
+                  {since !== null && isFresh(s.day, since) && <i className="new-badge dock-new">Новое</i>}
+                </button>
+              );
+            })}
+          </nav>
+        )}
+        {phone && wins.map((w) => {
           const def = WINDOWS.find((d) => d.id === w.id)!;
           const active = !w.min && w.z === topZ;
           return (

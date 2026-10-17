@@ -1,0 +1,68 @@
+/* Лаборатория на весь рабочий стол (LabFloor.tsx): 3D-помещение под окнами, подписи над местами, этап слева сверху.
+   Справа сцену закрывает сводка, поэтому холст кончается перед ней - комната стоит по центру свободной части. */
+.lab-floor { position: absolute; inset: 0 var(--lf-right, 316px) 0 0; z-index: 0; pointer-events: none; }
+.lab-floor .lf-view { position: absolute; inset: 0; }
+.lf-tags { position: absolute; inset: 0; }
+
+/* Подпись над местом: белая карточка с хвостиком вниз, к месту в комнате. */
+.lf-tag {
+  position: absolute; transform: translate(-50%, calc(-100% - 10px)); min-width: 150px; max-width: 240px;
+  display: flex; flex-direction: column; gap: 1px; padding: 7px 11px 8px; text-align: left;
+  background: #fff; color: var(--text); border: none; border-radius: 6px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  font: inherit; cursor: pointer; pointer-events: auto;
+}
+.lf-tag::after {
+  content: ''; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px; background: inherit;
+  transform: translateX(-50%) rotate(45deg);
+}
+.lf-tag:hover { background: #f1f4f8; }
+.lf-tag:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lf-tag b { font-size: 12px; font-weight: 600; color: var(--text-dim); white-space: nowrap; }
+.lf-tag span { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lf-tag.warn b { color: var(--warn); }
+.lf-bar { display: block; height: 5px; margin-top: 5px; background: #e6e8eb; border-radius: 3px; overflow: hidden; }
+.lf-bar > i { display: block; height: 100%; background: var(--accent); }
+
+/* Этап лаборатории на верхней панели: название и полоска до следующего этапа. */
+.tb-stage { display: flex; align-items: center; gap: 8px; white-space: nowrap; color: #c3c6cb; }
+.tb-stage::before { content: '·'; color: #5d6168; }
+.tb-stage-bar { display: block; width: 56px; height: 5px; background: #3a3c41; border-radius: 3px; overflow: hidden; }
+.tb-stage-bar > i { display: block; height: 100%; background: #e8c34a; }
+
+/* «Следующий шаг» в первый год: внизу по центру, над панелью задач. */
+.lf-next {
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(640px, calc(100% - 32px));
+  display: flex; align-items: center; gap: 16px; padding: 10px 12px 10px 16px;
+  background: rgba(28, 28, 30, 0.92); border-radius: 6px; pointer-events: auto;
+}
+.lf-next-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lf-next-t span { font-size: 12px; color: #a9acb2; }
+.lf-next-t b { font-size: 15px; font-weight: 600; color: #f2f2f2; }
+.lf-next-t small { font-size: 13px; color: #c9ccd1; line-height: 1.35; }
+.lf-next .btn { flex: none; }
+
+/* ---------- Док разделов на панели задач (вместо значков на столе) и сводка поверх сцены ---------- */
+@media (min-width: 768px) {
+  .game .taskbar { height: 60px; }
+  .dock { flex: 1; min-width: 0; display: flex; justify-content: center; gap: 2px; height: 100%; align-items: center; }
+  .dock-btn {
+    position: relative; width: 82px; height: 52px; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    background: none; border: none; border-radius: 6px; color: #e6e7ea; cursor: pointer; font: inherit;
+  }
+  .dock-btn span { font-size: 11px; line-height: 1.1; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dock-btn:hover { background: rgba(255, 255, 255, 0.08); }
+  .dock-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  /* Открытое окно - точка под значком; окно впереди - полоса цвета окна. */
+  .dock-btn.open::after { content: ''; position: absolute; bottom: 1px; left: 50%; width: 5px; height: 5px; border-radius: 50%; background: #a9acb2; transform: translateX(-50%); }
+  .dock-btn.active { background: rgba(255, 255, 255, 0.1); color: #fff; }
+  .dock-btn.active::after { width: 26px; height: 3px; border-radius: 2px; background: var(--wa, var(--accent)); }
+  .dock-btn .count {
+    position: absolute; top: 2px; right: 16px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+    background: #e53935; color: #fff; font-size: 11px; font-style: normal; font-weight: 700; line-height: 18px; text-align: center;
+  }
+  .dock-btn .dock-new { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); font-style: normal; }
+
+  .game .side { top: 12px; bottom: 12px; right: 12px; }
+  .game .side-body { border-radius: 6px; overflow: hidden; background: rgba(38, 39, 43, 0.96); }
+  .game .desk { background: #3b4048; }
+}

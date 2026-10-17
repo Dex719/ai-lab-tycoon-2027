@@ -52,7 +52,27 @@ export interface CampusSpec {
   trucks: number;
 }
 
-export type ViewSpec = GpuSpec | FarmSpec | CampusSpec;
+/** Лаборатория на рабочем столе: помещение этапа, люди, стойки, доска, полка с моделями. */
+export interface LabSpec {
+  kind: 'lab';
+  stage: 0 | 1 | 2 | 3;
+  /** Людей за столами (основатели и вышедшие на работу сотрудники). */
+  people: number;
+  /** Свободных мест для найма: показывается пустой стол. */
+  freeSeats: number;
+  /** Мест под стойки и сколько серверов в них светится (по 8 на стойку). */
+  racks: number;
+  racksLit: number;
+  /** Цвет задачи по стойкам (как планки в «Мощностях»). */
+  rackColors: string[];
+  research: boolean;
+  training: boolean;
+  /** Модели на полке: цвет уровня, первой - лучшая (золотая, если 1-е место). */
+  models: string[];
+  cups: ('first' | 'goals')[];
+}
+
+export type ViewSpec = GpuSpec | FarmSpec | CampusSpec | LabSpec;
 
 /** Ключ сцены: вид перестраивается, только когда ключ изменился. */
 export function specKey(spec: ViewSpec): string {

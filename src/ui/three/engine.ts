@@ -9,6 +9,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { buildCampus } from './campus';
 import { buildFarm } from './farm';
 import { buildGpu } from './gpuModels';
+import { buildLab } from './lab';
 import { disposeGeometries } from './kit';
 import { subscribeLive } from './live';
 import { getSettings } from '../settings';
@@ -52,6 +53,8 @@ export interface Content {
    * dirty - сцена изменилась, нужен лёгкий кадр (без пересчёта теней); next - через сколько мс позвать снова (Infinity - не звать).
    */
   ambient?: (ctx: { now: number; since: number; reduced: boolean; slow: boolean }) => { dirty: boolean; next: number };
+  /** Точки сцены, над которыми интерфейс рисует подписи (см. ViewOptions.onAnchors). */
+  anchors?: Record<string, THREE.Vector3>;
   dispose(): void;
 }
 
@@ -63,6 +66,8 @@ function buildContent(spec: ViewSpec, prev: ViewSpec | null): Content {
       return buildFarm(spec, prev?.kind === 'farm' ? prev : null);
     case 'campus':
       return buildCampus(spec, prev?.kind === 'campus' ? prev : null);
+    case 'lab':
+      return buildLab(spec);
   }
 }
 
@@ -242,6 +247,8 @@ export interface ViewOptions {
   autoRotate: boolean;
   /** WebGL недоступен: вид прячется, окно работает без 3D. */
   onFail?: () => void;
+  /** Где на холсте (CSS px) точки anchors сцены: зовётся после кадра, если положение изменилось. */
+  onAnchors?: (at: Record<string, { x: number; y: number }>) => void;
 }
 
 /** WebGL не завёлся: больше не пытаемся. */
@@ -488,6 +495,24 @@ export class View {
     this.ctx.drawImage(r.domElement, 0, rh - this.hPx, this.wPx, this.hPx, 0, 0, this.wPx, this.hPx);
     stats.frames++;
     if (light) stats.lightFrames++;
+    if (!light) this.reportAnchors();
+  }
+
+  private anchorsKey = '';
+
+  private reportAnchors(): void {
+    const a = this.content?.anchors;
+    if (!a || !this.opts.onAnchors) return;
+    const out: Record<string, { x: number; y: number }> = {};
+    const v = new THREE.Vector3();
+    for (const [k, p] of Object.entries(a)) {
+      v.copy(p).project(this.camera);
+      out[k] = { x: Math.round(((v.x + 1) / 2) * this.cssW), y: Math.round(((1 - v.y) / 2) * this.cssH) };
+    }
+    const key = JSON.stringify(out);
+    if (key === this.anchorsKey) return;
+    this.anchorsKey = key;
+    this.opts.onAnchors(out);
   }
 
   private bindPointer(): void {
