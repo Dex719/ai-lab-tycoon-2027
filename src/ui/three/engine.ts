@@ -243,6 +243,8 @@ if (typeof document !== 'undefined') {
 export interface ViewOptions {
   /** Вращать мышью. */
   interactive: boolean;
+  /** Двигать вид мышью и менять масштаб колесом (лаборатория на рабочем столе); двойной щелчок - исходный вид. */
+  panZoom?: boolean;
   /** Плавно вращать, пока игрок не трогает (только превью карты). */
   autoRotate: boolean;
   /** WebGL недоступен: вид прячется, окно работает без 3D. */
@@ -253,6 +255,10 @@ export interface ViewOptions {
 
 /** WebGL не завёлся: больше не пытаемся. */
 let webglFailed = false;
+
+/** Пределы масштаба лаборатории: множитель расстояния камеры (0,45 - в 2,2 раза ближе, 1,6 - дальше). */
+const PAN_ZOOM_MIN = 0.45;
+const PAN_ZOOM_MAX = 1.6;
 
 /** Скорость плавного вращения, радиан в секунду (оборот за ~40 с). */
 const AUTO_SPEED = 0.16;
@@ -274,6 +280,10 @@ export class View {
   private yaw = 0;
   private pitch = 0;
   private distance = 10;
+  /** Сдвиг точки, на которую смотрит камера, по полу (panZoom), и множитель расстояния: меньше 1 - ближе. */
+  private panX = 0;
+  private panZ = 0;
+  private zoom = 1;
   private dragging: { x: number; y: number; id: number } | null = null;
   private lastInteract = -Infinity;
   private lastFrame = 0;
@@ -309,6 +319,7 @@ export class View {
       this.io.observe(canvas);
     }
     if (opts.interactive) this.bindPointer();
+    else if (opts.panZoom) this.bindPanZoom();
   }
 
   setSpec(spec: ViewSpec): void {
@@ -341,6 +352,11 @@ export class View {
 
   private cssW = 0;
   private cssH = 0;
+  /**
+   * Справа на холсте столько CSS px не учитывается при вписывании (переменная --frame-right у холста): холст лаборатории
+   * тянется под свёрнутую сводку, а исходный кадр остаётся там же, где был, - левее.
+   */
+  private frameRight = 0;
 
   refreshSize(): void {
     if (this.cssW > 0) this.resize(this.cssW, this.cssH, true);
@@ -349,6 +365,8 @@ export class View {
   resize(cssW: number, cssH: number, force = false): void {
     this.cssW = cssW;
     this.cssH = cssH;
+    const fr = parseFloat(getComputedStyle(this.canvas).getPropertyValue('--frame-right'));
+    this.frameRight = Number.isFinite(fr) ? Math.max(0, Math.min(cssW * 0.6, fr)) : 0;
     const dpr = viewDpr();
     const w = Math.max(1, Math.round(cssW * dpr));
     const h = Math.max(1, Math.round(cssH * dpr));
@@ -442,7 +460,7 @@ export class View {
     const f = this.content.framing;
     const vFov = THREE.MathUtils.degToRad(this.camera.fov);
     const tv = Math.tan(vFov / 2);
-    const th = tv * this.camera.aspect;
+    const th = tv * (this.cssW > 0 && this.cssH > 0 ? Math.max(0.3, (this.cssW - this.frameRight) / this.cssH) : this.camera.aspect);
     const fill = f.fill ?? 0.9;
     if ('orbit' in f.fit) {
       this.distance = orbitDistance(f.fit.orbit, this.pitch, tv, th) / fill;
@@ -479,9 +497,9 @@ export class View {
   /** light - только фоновая жизнь: тени не пересчитываются (они не двигаются). */
   private render(light = false): void {
     if (!this.content) return;
-    const f = this.content.framing;
-    this.camera.position.copy(f.target).addScaledVector(this.direction(this.yaw, this.pitch), this.distance);
-    this.camera.lookAt(f.target);
+    const target = this.target();
+    this.camera.position.copy(target).addScaledVector(this.direction(this.yaw, this.pitch), this.distance * this.zoom);
+    this.camera.lookAt(target);
     const r = getRenderer(this.wPx, this.hPx);
     this.scene.environment = envTex;
     r.shadowMap.enabled = !!this.content.shadows && shadowsAllowed();
@@ -513,6 +531,88 @@ export class View {
     if (key === this.anchorsKey) return;
     this.anchorsKey = key;
     this.opts.onAnchors(out);
+  }
+
+  private target(): THREE.Vector3 {
+    const f = this.content!.framing;
+    const t = new THREE.Vector3(f.target.x + this.panX, f.target.y, f.target.z + this.panZ);
+    if (this.frameRight > 0 && this.cssH > 0) {
+      // Центр кадра - середина учтённой части холста: точка взгляда смещается вправо на половину неучтённой полосы.
+      const k = (2 * this.distance * this.zoom * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2)) / this.cssH;
+      const fwd = this.direction(this.yaw, this.pitch).negate();
+      const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+      t.addScaledVector(right, (this.frameRight / 2) * k);
+    }
+    return t;
+  }
+
+  /** Сдвиг не дальше краёв вписанной коробки: сцену нельзя утащить за край экрана. */
+  private clampPan(): void {
+    const f = this.content?.framing;
+    if (!f || !('box' in f.fit)) return;
+    const b = f.fit.box;
+    this.panX = Math.max(b.min.x - f.target.x, Math.min(b.max.x - f.target.x, this.panX));
+    this.panZ = Math.max(b.min.z - f.target.z, Math.min(b.max.z - f.target.z, this.panZ));
+  }
+
+  /** Перетаскивание - сдвиг по полу вслед за курсором, колесо - масштаб к центру вида (PAN_ZOOM_MIN…PAN_ZOOM_MAX). */
+  private bindPanZoom(): void {
+    const c = this.canvas;
+    c.classList.add('v3d-pan');
+    const up3 = new THREE.Vector3(0, 1, 0);
+    const down = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      this.dragging = { x: e.clientX, y: e.clientY, id: e.pointerId };
+      c.setPointerCapture(e.pointerId);
+      c.classList.add('dragging');
+    };
+    const move = (e: PointerEvent) => {
+      if (!this.dragging || e.pointerId !== this.dragging.id || !this.content) return;
+      const dx = e.clientX - this.dragging.x;
+      const dy = e.clientY - this.dragging.y;
+      this.dragging.x = e.clientX;
+      this.dragging.y = e.clientY;
+      // Сколько мира в одном пикселе на расстоянии камеры; вдоль экрана вверх-вниз пол сжат на sin(наклона).
+      const k = (2 * this.distance * this.zoom * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2)) / Math.max(1, this.cssH);
+      const fwd = this.direction(this.yaw, this.pitch).negate();
+      const right = new THREE.Vector3().crossVectors(fwd, up3).normalize();
+      const ahead = new THREE.Vector3().crossVectors(up3, right).normalize();
+      const sin = Math.max(0.3, Math.sin(this.pitch));
+      this.panX += -right.x * dx * k + (ahead.x * dy * k) / sin;
+      this.panZ += -right.z * dx * k + (ahead.z * dy * k) / sin;
+      this.clampPan();
+      this.markDirty();
+    };
+    const up = (e: PointerEvent) => {
+      if (!this.dragging || e.pointerId !== this.dragging.id) return;
+      this.dragging = null;
+      c.classList.remove('dragging');
+    };
+    const wheel = (e: WheelEvent) => {
+      e.preventDefault();
+      this.zoom = Math.max(PAN_ZOOM_MIN, Math.min(PAN_ZOOM_MAX, this.zoom * Math.pow(1.0015, e.deltaY)));
+      this.markDirty();
+    };
+    const dbl = () => {
+      this.panX = 0;
+      this.panZ = 0;
+      this.zoom = 1;
+      this.markDirty();
+    };
+    c.addEventListener('pointerdown', down);
+    c.addEventListener('pointermove', move);
+    c.addEventListener('pointerup', up);
+    c.addEventListener('pointercancel', up);
+    c.addEventListener('wheel', wheel, { passive: false });
+    c.addEventListener('dblclick', dbl);
+    this.cleanup.push(() => {
+      c.removeEventListener('pointerdown', down);
+      c.removeEventListener('pointermove', move);
+      c.removeEventListener('pointerup', up);
+      c.removeEventListener('pointercancel', up);
+      c.removeEventListener('wheel', wheel);
+      c.removeEventListener('dblclick', dbl);
+    });
   }
 
   private bindPointer(): void {

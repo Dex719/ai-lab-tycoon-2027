@@ -24,13 +24,15 @@ export function View3D(props: {
   interactive?: boolean;
   /** Плавное вращение, пока не трогают (превью карты). */
   autoRotate?: boolean;
+  /** Без вращения: двигать вид мышью и менять масштаб колесом (лаборатория на рабочем столе). */
+  panZoom?: boolean;
   className?: string;
   /** Подпись для экранного диктора. */
   label: string;
   /** Положение точек сцены на холсте (подписи над местами лаборатории). */
   onAnchors?: (at: Record<string, { x: number; y: number }>) => void;
 }) {
-  const { spec, interactive = true, autoRotate = false } = props;
+  const { spec, interactive = true, autoRotate = false, panZoom = false } = props;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewRef = useRef<ViewHandle | null>(null);
   const specRef = useRef(spec);
@@ -51,6 +53,7 @@ export function View3D(props: {
         const v = eng.createView(canvas, {
           interactive,
           autoRotate,
+          panZoom,
           onFail: () => alive && setFailed(true),
           onAnchors: (at) => anchorsRef.current?.(at),
         });
@@ -72,7 +75,7 @@ export function View3D(props: {
       viewRef.current?.dispose();
       viewRef.current = null;
     };
-  }, [interactive, autoRotate]);
+  }, [interactive, autoRotate, panZoom]);
 
   useEffect(() => {
     if (ready) viewRef.current?.setSpec(specRef.current);

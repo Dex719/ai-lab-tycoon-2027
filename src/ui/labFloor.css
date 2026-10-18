@@ -1,7 +1,11 @@
 /* Лаборатория на весь рабочий стол (LabFloor.tsx): 3D-помещение под окнами, подписи над местами, этап слева сверху.
    Справа сцену закрывает сводка, поэтому холст кончается перед ней - комната стоит по центру свободной части. */
 .lab-floor { position: absolute; inset: 0 var(--lf-right, 316px) 0 0; z-index: 0; pointer-events: none; }
+/* Сводка свёрнута (планшет и экраны до 1200 px): холст до правого края - при сдвиге и приближении нет обрезанного края. */
+.game:has(.side):not(:has(.side-body)) .lab-floor { --lf-right: 0px; --frame-right: 316px; }
 .lab-floor .lf-view { position: absolute; inset: 0; }
+/* Лабораторию можно двигать мышью и приближать колесом (двойной щелчок - исходный вид): холст ловит указатель. */
+.lab-floor .lf-view canvas { pointer-events: auto; touch-action: none; }
 .lf-tags { position: absolute; inset: 0; }
 
 /* Подпись над местом: белая карточка с хвостиком вниз, к месту в комнате. */

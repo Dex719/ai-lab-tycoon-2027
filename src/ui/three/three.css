@@ -5,4 +5,6 @@
 .v3d.failed > canvas { display: none; }
 .v3d-grab { cursor: grab; }
 .v3d-grab.dragging { cursor: grabbing; }
+.v3d-pan { cursor: grab; }
+.v3d-pan.dragging { cursor: grabbing; }
 @media (prefers-reduced-motion: reduce) { .v3d > canvas { transition: none; } }

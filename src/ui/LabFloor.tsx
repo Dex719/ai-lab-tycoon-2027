@@ -136,7 +136,7 @@ const TAG_W = 190;
 const TAG_H = 64;
 
 /** Точки сцены, у которых есть подпись или кнопка. */
-const SHOWN = new Set(['servers', 'research', 'training', 'showcase', 'seats', 'sign']);
+const SHOWN = new Set(['servers', 'research', 'training', 'showcase', 'seats', 'sign', 'queue']);
 
 /** Развести подписи: если две перекрываются, нижняя по экрану остаётся у места, верхняя поднимается выше. */
 function spread(at: At): At {
@@ -272,7 +272,7 @@ export function LabFloor({ s, open }: { s: GameState; open: Open }) {
   const arrival = nextArrival(s);
   return (
     <div className="lab-floor">
-      <View3D spec={spec} interactive={false} label="Лаборатория" className="lf-view" onAnchors={onAnchors} />
+      <View3D spec={spec} interactive={false} panZoom label="Лаборатория" className="lf-view" onAnchors={onAnchors} />
       <div className="lf-tags">
         <Tag
           at={at.servers}
@@ -313,6 +313,8 @@ export function LabFloor({ s, open }: { s: GameState; open: Open }) {
           onClick={() => open(f.released > 0 ? 'models' : 'newModel')}
         />
         <LabSign at={at.sign} f={f} labName={s.labName} onClick={() => open('ratings')} />
+        {/* Люди на дорожке - клиенты: очередь растёт с долей рынка (без подписи было непонятно, кто это, отзыв 18.10). */}
+        <Tag at={at.queue} k="Клиенты в очереди" v={`Доля рынка ${fmtShare(f.share, 0)}`} onClick={() => open('market')} />
         <Plus at={at.seats} label={`Нанять (${fmtNum(f.freeSeats)} ${ruPlural(f.freeSeats, 'место', 'места', 'мест')})`} onClick={() => open('team')} />
         {/* Кнопка «+» - только если подпись рядом не предлагает то же самое: иначе пузыри дублировали друг друга и
             налезали («Свободно: новая модель» и «+ Новая модель», плейтест 17.10). */}

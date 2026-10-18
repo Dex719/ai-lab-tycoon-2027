@@ -598,10 +598,12 @@ export function buildLab(spec: LabSpec): Content {
     crowd.addSeated(lookOf(i), { x: d.x - 0.15, z: d.z + 0.85 }, d.z + 1.4);
   }
   if (spec.research) crowd.addStanding({ ...lookOf(97), coat: true }, at(wbX, z0 + 0.95, 0, 'write'));
+  let queueAt: THREE.Vector3 | null = null;
   // Клиенты в очереди на дорожке у входа: чем больше доля рынка, тем длиннее очередь. Стоят лицом к зданию.
   if (spec.base) {
     const n = Math.min(8, Math.max(0, spec.visitors ?? 0));
     for (let i = 0; i < n; i++) crowd.addStanding(lookOf(200 + i * 7), at(x1 + 1.0, z1 - 0.5 - i * 0.85, Math.PI / 2, 'look'), true);
+    if (n > 0) queueAt = new THREE.Vector3(x1 + 1.0, 1.95, z1 - 0.5 - ((n - 1) * 0.85) / 2);
   }
   root.add(crowd.root);
 
@@ -616,6 +618,7 @@ export function buildLab(spec: LabSpec): Content {
   anchors.showcase = new THREE.Vector3(x0 + 0.55, 1.6, shelfZ);
   // Табло лаборатории над задней стеной (React рисует место в гонке и долю клиентов).
   if (spec.base) anchors.sign = new THREE.Vector3(x1 - 3.2, WALL_H + 0.9, z0 - 0.2);
+  if (queueAt) anchors.queue = queueAt;
   if (ghostAt) anchors.seats = ghostAt;
   anchors.rackSlot = rackSlot ?? new THREE.Vector3(rackX(Math.max(0, spec.racks - 1)) - 0.5, 2.55, rackZ + 0.2);
   if (!spec.research) anchors.researchSlot = new THREE.Vector3(wbX, 1.9, z0 + 0.3);
