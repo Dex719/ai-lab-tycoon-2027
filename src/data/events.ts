@@ -27,15 +27,18 @@ import { spend } from '../sim/finance';
 import { BOARD_PLAN_FLAG, buyBackShares, buybackCost } from '../sim/investors';
 import { bestElo } from '../sim/leaderboard';
 import { RIVALRY_EVENTS } from '../sim/rivalry';
+import { retireLab } from '../sim/rivals';
 import { STAFF_EVENTS } from '../sim/staff';
 import { endSentence, pointsWord, timesWord } from '../sim/text';
 import { dateToDay } from '../sim/time';
 import { applyFailChoice } from '../sim/training';
 import type { GameState, GpuDef, HypeOwner, Mail, PlayerModel } from '../sim/types';
 import { GPUS } from './gpus';
+import { STARTUPS } from './deals';
 import { LABS } from './labs';
 import { EARLY_EVENTS } from './earlyEvents';
 import { HISTORY_EVENTS } from './historyEvents';
+import { COUNTRY_EVENTS, LATE_EVENTS } from './lateEvents';
 import { RANDOM_EVENTS } from './randomEvents';
 
 export interface EventChoiceDef {
@@ -151,6 +154,30 @@ function exportControls(id: string, date: string, title: string, body: string): 
 
 const CHINESE_NAMES = CHINESE_LABS.map((l) => l.name).join(', ');
 
+
+/** Уход промежуточной лаборатории: важная новость, модели переходят в rivalsRetired (sim/rivals.retireLab). */
+function labExitEvent(lab: (typeof LABS)[number]): EventDef {
+  const exit = lab.exit!;
+  // Если лаборатория - стартап из «Сделок», она уходит, как только её купили (вы или соперник), иначе - в день exit.
+  // STARTUPS читается при проверке, а не при сборке списка: модули событий и сделок импортируют друг друга по кругу.
+  const sold = (s: GameState) => {
+    const deal = STARTUPS.find((d) => d.lab === lab.id);
+    return deal ? s.late?.startups.find((d) => d.id === deal.id) : undefined;
+  };
+  return {
+    id: `lab-exit-${lab.id}`,
+    when: { check: (s) => s.day >= dateToDay(exit.date) || !!sold(s) },
+    mail: (s) =>
+      sold(s)?.status === 'bought'
+        ? {
+            kind: 'news',
+            title: `${lab.name} теперь часть вашей лаборатории`,
+            body: `Команда ${lab.name} перешла к вам, её модели сняты с продажи. Клиенты ${lab.name} ищут замену - шанс забрать их себе.`,
+          }
+        : { kind: 'news', title: exit.title, body: exit.body },
+    onFire: (s) => retireLab(s, lab.id),
+  };
+}
 
 /** Новость о новом поколении GPU: насколько дешевле стал H100e-день по сравнению с лучшим прежним вариантом. */
 function gpuEvent(gpu: GpuDef): EventDef {
@@ -574,13 +601,15 @@ export const EVENTS: EventDef[] = [
 
   // Новые поколения GPU (P100 доступна с начала игры).
   ...GPUS.filter((g) => g.id !== 'p100').map(gpuEvent),
+  // Промежуточные лаборатории уходят с рынка (LabDef.exit): модели сняты с продажи, клиенты свободны.
+  ...LABS.filter((l) => l.exit).map(labExitEvent),
 ];
 
 /**
  * Ранние заказы и гранты 2017-2019, ещё события 2017-2024 и случайные письма с выбором (отдельные файлы).
  * Их запускает sim/randomEvents.ts (в окне своей даты или по жребию), а не fireDue: EVENTS остаётся прежним набором.
  */
-export const EXTRA_EVENTS: EventDef[] = [...EARLY_EVENTS, ...HISTORY_EVENTS, ...RANDOM_EVENTS];
+export const EXTRA_EVENTS: EventDef[] = [...EARLY_EVENTS, ...HISTORY_EVENTS, ...RANDOM_EVENTS, ...LATE_EVENTS, ...COUNTRY_EVENTS];
 
 /**
  * Событие по id: сначала EVENTS, затем письма с выбором соперников (RIVALRY_EVENTS из sim/rivalry.ts).

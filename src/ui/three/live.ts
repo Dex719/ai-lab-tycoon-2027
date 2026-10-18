@@ -11,11 +11,13 @@ export interface LiveState {
   load: number;
   /** Деньги в минусе: огоньки жёлтые. */
   trouble: boolean;
+  /** Клиентов в очереди у входа (0..8): растёт с долей рынка; очередь меняется по человеку, без перестройки зала. */
+  visitors: number;
   /** Последнее событие и момент его начала (performance.now()). */
   event: { kind: SceneEventKind; at: number; seq: number } | null;
 }
 
-export const live: LiveState = { running: true, load: 0.6, trouble: false, event: null };
+export const live: LiveState = { running: true, load: 0.6, trouble: false, visitors: 0, event: null };
 
 /** Длительность события в зале, мс. */
 export const EVENT_MS = 2000;
@@ -33,7 +35,7 @@ function emit(): void {
 }
 
 /** Обновить непрерывное состояние; слушатели зовутся, только если что-то изменилось. */
-export function setLive(patch: Partial<Pick<LiveState, 'running' | 'load' | 'trouble'>>): void {
+export function setLive(patch: Partial<Pick<LiveState, 'running' | 'load' | 'trouble' | 'visitors'>>): void {
   let changed = false;
   for (const k of Object.keys(patch) as (keyof typeof patch)[]) {
     if (patch[k] !== undefined && live[k] !== patch[k]) {
@@ -56,6 +58,7 @@ export function resetLive(): void {
   live.running = true;
   live.load = 0.6;
   live.trouble = false;
+  live.visitors = 0;
   live.event = null;
   emit();
 }

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { EXTRA_EVENTS } from '../data/events';
 import { GOAL_STYLES, goalStyle, makeOffer, revenueTarget, RISK_PENALTY, STYLE_REWARD, trainingProgress } from '../data/goals';
 import { activeBonuses } from '../data/questKit';
-import { RIVAL_MODELS } from '../data/rivalModels';
+import { RIVAL_MODELS } from '../data/catalog';
 import { newGame } from './actions';
 import { botAct, botChoice } from './bots';
 import { applyChoice, modValue, pendingChoice } from './events';

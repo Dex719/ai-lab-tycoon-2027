@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LAB_PERSONALITIES, personalityOf } from '../data/labPersonalities';
-import { RIVAL_MODELS } from '../data/rivalModels';
+import { RIVAL_MODELS } from '../data/catalog';
 import { reactiveNameProblems, RIVAL_REACTIVE } from '../data/rivalReactive';
 import { addMail, applyChoice, modValue } from './events';
 import { minPrice, refPrice } from './market';
@@ -220,9 +220,9 @@ describe('характеры лабораторий', () => {
   it('списки лабораторий по ходам из таблицы ходов: ценовая война, бесплатный чат, проверка, переманивание', () => {
     const labsWith = (move: MoveId): LabId[] => LAB_PERSONALITIES.filter((p) => (p.weights[move] ?? 0) > 0).map((p) => p.lab);
     expect(labsWith('priceWar').sort()).toEqual(['alibabo', 'deepcent', 'gogle', 'zhipo']);
-    expect(labsWith('freeTier').sort()).toEqual(['gogle', 'moonshoot', 'openbrain', 'zhipo']);
+    expect(labsWith('freeTier').sort()).toEqual(['charakter', 'gogle', 'moonshoot', 'openbrain', 'zhipo']);
     expect(labsWith('audit').sort()).toEqual(['antropik', 'gogle']);
-    expect(labsWith('poach').sort()).toEqual(['antropik', 'gogle', 'openbrain']);
+    expect(labsWith('poach').sort()).toEqual(['antropik', 'gogle', 'infleksion', 'openbrain']);
     expect(labsWith('context').sort()).toEqual(['antropik', 'gogle', 'moonshoot']);
     expect(labsWith('openWeights').sort()).toEqual(['alibabo', 'deepcent', 'zhipo']);
     for (const lab of ['antropik', 'moonshoot'] as LabId[]) {
@@ -1157,7 +1157,7 @@ describe('долгий прогон 2021-2024', () => {
 });
 
 function labName(lab: LabId): string {
-  return { openbrain: 'OpenBrain', antropik: 'Antropik', gogle: 'Gogle DeepMynd', zhipo: 'Zhipo', moonshoot: 'Moonshoot', deepcent: 'DeepCent', alibabo: 'Alibabo' }[lab];
+  return { openbrain: 'OpenBrain', antropik: 'Antropik', gogle: 'Gogle DeepMynd', zhipo: 'Zhipo', moonshoot: 'Moonshoot', deepcent: 'DeepCent', alibabo: 'Alibabo', infleksion: 'Infleksion', charakter: 'Charakter.AI' }[lab];
 }
 
 describe('ответ на господство игрока (2021-2022)', () => {

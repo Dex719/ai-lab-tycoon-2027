@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BENCHMARKS } from '../data/benchmarks';
-import { RIVAL_MODELS } from '../data/rivalModels';
+import { RIVAL_MODELS } from '../data/catalog';
 import { benchScore } from './benchmarks';
 import { HYPE_ARENA_TOP_BONUS, HYPE_RANK_BONUS } from './constants';
 import {

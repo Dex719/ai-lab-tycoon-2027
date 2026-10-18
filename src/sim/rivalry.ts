@@ -85,7 +85,7 @@
 import type { EventDef } from '../data/events';
 import { LABS } from '../data/labs';
 import { personalityOf } from '../data/labPersonalities';
-import { RIVAL_MODELS } from '../data/rivalModels';
+import { RIVAL_MODELS } from '../data/catalog';
 import { RIVAL_REACTIVE } from '../data/rivalReactive';
 import type { ReactiveTemplate } from '../data/rivalReactive';
 import { ALGO_HISTORY_START, ALGO_LEVEL_DAYS, CHOICE_DAYS, FOREVER, MARKET_MAX_AGE_DAYS, OVERHEAD_MONTHLY } from './constants';

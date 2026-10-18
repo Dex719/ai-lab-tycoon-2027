@@ -74,8 +74,10 @@ export interface LabSpec {
   base?: string;
   /** Флаг страны на флагштоке у здания (только на газоне, base). */
   flag?: CountryId;
-  /** Клиентов в очереди у входа: растёт с долей рынка (0..8). */
-  visitors?: number;
+  /** Очередь клиентов у входа (сколько стоит - live.visitors, без перестройки зала). */
+  visitors?: boolean;
+  /** Здания главных соперников на газоне перед лабораторией: цвет лаборатории и этажность по доле рынка (1..4). */
+  rivals?: { lab: string; color: string; floors: number }[];
 }
 
 export type ViewSpec = GpuSpec | FarmSpec | CampusSpec | LabSpec;

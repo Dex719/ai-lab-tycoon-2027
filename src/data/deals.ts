@@ -88,6 +88,8 @@ export interface StartupDef {
   price: number; // $
   from: string; // день, когда стартап выставлен на продажу
   rival: LabId; // кто купит, если не купить
+  /** Стартап - промежуточная лаборатория-соперник (data/labs.ts): после покупки она уходит с рынка. */
+  lab?: LabId;
 }
 
 /** Сколько дней стартап ждёт покупателя, прежде чем его купит соперник. */
@@ -123,18 +125,22 @@ export const STARTUPS: readonly StartupDef[] = [
     effect: 'Бренд у обычных пользователей +0,25',
     apply: { kind: 'segBrand', seg: 'consumers', add: 0.25 },
     price: 150e6,
-    from: '2023-11-01',
+    // Срок предложения кончается 02.08.2024 - в этот день Gogle забирает основателей (как Google и Character.AI).
+    from: '2024-06-18',
     rival: 'gogle',
+    lab: 'charakter',
   },
   {
     id: 'inflexion',
-    name: 'Inflexion AI',
+    name: 'Infleksion',
     what: 'сильная исследовательская команда и свой чат',
     effect: '+1 уровень «Алгоритмических улучшений»',
     apply: { kind: 'algo', levels: 1 },
     price: 300e6,
-    from: '2024-03-01',
+    // Срок предложения кончается 19.03.2024 - в этот день команду переманивает Mikrosoft, партнёр OpenBrain.
+    from: '2024-02-03',
     rival: 'openbrain',
+    lab: 'infleksion',
   },
   {
     id: 'adapt',

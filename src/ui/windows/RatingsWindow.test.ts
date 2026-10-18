@@ -3,7 +3,7 @@
 // контекст соперника - с поправкой хода.
 
 import { describe, expect, it } from 'vitest';
-import { RIVAL_MODELS } from '../../data/rivalModels';
+import { RIVAL_MODELS } from '../../data/catalog';
 import { RIVAL_REACTIVE } from '../../data/rivalReactive';
 import { leaderboard, marketArenaRank, type BoardRow } from '../../sim/leaderboard';
 import { emptyRivalry } from '../../sim/rivalry';

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RIVAL_MODELS } from '../data/rivalModels';
+import { RIVAL_MODELS } from '../data/catalog';
 import { newGame } from '../sim/actions';
 import { runBot } from '../sim/bots';
 import { emptyDuel } from '../sim/duel';

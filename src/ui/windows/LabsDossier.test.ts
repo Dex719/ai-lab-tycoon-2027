@@ -2,7 +2,7 @@
 // сначала те, кто борется с вами чаще; лучшая модель - по Эло, без только показанных; слово угрозы по порогам.
 
 import { describe, expect, it } from 'vitest';
-import { RIVAL_MODELS } from '../../data/rivalModels';
+import { RIVAL_MODELS } from '../../data/catalog';
 import { emptyDuel } from '../../sim/duel';
 import { emptyRivalry } from '../../sim/rivalry';
 import { createInitialState } from '../../sim/state';

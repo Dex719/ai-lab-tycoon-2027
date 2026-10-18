@@ -19,6 +19,10 @@ export const REAL_NAME_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['moonshoot', 'moonshot'],
   ['DeepCent', 'DeepSeek'],
   ['Alibabo', 'Alibaba'],
+  ['Infleksion', 'Inflection'],
+  ['Charakter', 'Character.AI'],
+  ['Mikrosoft', 'Microsoft'],
+  ['Pie', 'Pi'],
 
   // Поставщик ускорителей
   ['Fermi Systems', 'NVIDIA'],

@@ -604,6 +604,8 @@ const OPTIONAL_FIELDS = new Set([
   'lostApi', 'lostSubs', 'segments', 'consumers', 'enterprise', 'developers', 'trainings', 'nextRunNum',
   'queue', 'techs', 'distill', 'moe', 'codetrain', 'instruct', 'cot', 'quant', 'multimodal', 'synthetic',
   'datacenters', 'capex', 'power', 'yearly', 'rentChangedDay',
+  // Промежуточные лаборатории появились позже: их строки в записях по лабораториям дописывает save.migrateLabs.
+  'infleksion', 'charakter',
   'quests', 'param', 'results', 'duel', 'from', 'staff', 'retainedUntil', 'potential', 'lastCourseDay', 'course', 'incoming', 'held', 'round', 'heldPrice', 'stopped',
 ]);
 /** Необязательные поля по полному пути: имя поля (modelId, price) в других местах обязательно. */

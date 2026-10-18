@@ -35,6 +35,12 @@ function loadOf(s: GameState): number {
   return Math.round(Math.max(0, Math.min(1, 1 - idle / total)) * 10) / 10;
 }
 
+/** Клиентов в очереди у входа по доле рынка: 1 % - один, 17 % - четыре, 50 % - семь, не больше восьми. */
+export function visitorsFor(s: GameState): number {
+  const share = s.market.labShares.player ?? 0;
+  return share > 0.005 ? Math.min(8, Math.max(1, Math.round(Math.sqrt(share) * 10))) : 0;
+}
+
 export function SceneLive({ s }: { s: GameState }) {
   const speed = useSpeed();
   const prev = useRef<Snap | null>(null);
@@ -55,7 +61,7 @@ export function SceneLive({ s }: { s: GameState }) {
     };
     const p = prev.current;
     prev.current = now;
-    setLive({ load: loadOf(s), trouble: now.negative });
+    setLive({ load: loadOf(s), trouble: now.negative, visitors: visitorsFor(s) });
     // Новая партия, загрузка или откат: сравнивать не с чем.
     if (!p || p.state !== s || s.day < p.day) return;
     if (now.released > p.released) fireSceneEvent('release');

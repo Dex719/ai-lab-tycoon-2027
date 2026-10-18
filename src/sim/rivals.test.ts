@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LABS } from '../data/labs';
-import { RIVAL_MODELS } from '../data/rivalModels';
+import { RIVAL_MODELS } from '../data/catalog';
 import { benchDef, benchScore, capFromScore, introduceDue } from './benchmarks';
 import { HYPE_ARENA_TOP_BONUS, HYPE_RANK_BONUS, MARKET_MAX_AGE_DAYS, MARKET_MODELS_PER_LAB } from './constants';
 import { FOREVER } from './events';
@@ -69,8 +69,8 @@ function sameNumbers(game: string, real: string): boolean {
 // ---------- Каталог ----------
 
 describe('каталог моделей соперников', () => {
-  it('в нём представлены все семь лабораторий', () => {
-    expect(LAB_IDS).toHaveLength(7);
+  it('в нём представлены все лаборатории: семь больших и две промежуточные', () => {
+    expect(LAB_IDS).toHaveLength(9);
     for (const lab of LAB_IDS) {
       expect(RIVAL_MODELS.filter((m) => m.lab === lab).length, lab).toBeGreaterThan(0);
       expect(LABS.some((l) => l.id === lab), lab).toBe(true);
@@ -375,8 +375,10 @@ describe('releaseDue', () => {
 
   it('к концу игры вышли все модели каталога по одному разу, письмо на каждую', () => {
     const s = stateAt('2024-12-31');
-    expect(s.rivalsReleased).toHaveLength(RIVAL_MODELS.length);
-    expect(new Set(s.rivalsReleased).size).toBe(RIVAL_MODELS.length);
+    // Модели ушедших с рынка промежуточных лабораторий переходят в rivalsRetired.
+    const all = [...s.rivalsReleased, ...(s.rivalsRetired ?? [])];
+    expect(all).toHaveLength(RIVAL_MODELS.length);
+    expect(new Set(all).size).toBe(RIVAL_MODELS.length);
     const mails = s.mail.filter((m) => m.kind === 'rival');
     expect(mails).toHaveLength(RIVAL_MODELS.length);
     // Письма идут в порядке выхода.

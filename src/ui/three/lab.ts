@@ -52,6 +52,8 @@ export function buildLab(spec: LabSpec): Content {
   const mats = new Map<string, THREE.MeshStandardMaterial>();
   const extraMats: THREE.Material[] = [];
   const extraTex: THREE.Texture[] = [];
+  const rivalDoors: { x: number; z: number }[] = [];
+  const rivalTops: THREE.Vector3[] = [];
   const rand = rng(97 + spec.stage * 13);
 
   const mat = (color: string, glow = 0): THREE.MeshStandardMaterial => {
@@ -525,6 +527,20 @@ export function buildLab(spec: LabSpec): Content {
       ball(0.5, shade(spec.base, 0.08), tx + 0.25, 1.65, tz + 0.1);
     }
     sharp(1.4, 0.02, D + 1.6, '#e9e2d2', x1 + 1.0, 0.01, 0);
+    // Здания главных соперников на газоне перед лабораторией: цвет лаборатории, этажей - по доле рынка. Дверь - со
+    // стороны лаборатории: туда уходят клиенты из очереди.
+    (spec.rivals ?? []).slice(0, 3).forEach((rv, i) => {
+      const bx = x1 - 1.6 - i * 3.1;
+      const bz = z1 + 1.45;
+      const h = 0.55 * rv.floors + 0.3;
+      box(1.8, h, 1.3, '#f1efe9', bx, h / 2, bz);
+      box(1.86, 0.18, 1.36, rv.color, bx, h + 0.09, bz);
+      for (let f = 0; f < rv.floors; f++) sharp(1.4, 0.18, 0.02, '#8fb3cc', bx, 0.42 + f * 0.55, bz + 0.66);
+      sharp(0.42, 0.6, 0.02, shade(rv.color, -0.2), bx, 0.3, bz - 0.66);
+      rivalDoors.push({ x: bx, z: bz - 0.8 });
+      // Подписи домов на разной высоте: при взгляде сбоку дома стоят тесно, и подписи налезали друг на друга.
+      rivalTops.push(new THREE.Vector3(bx, h + 0.25 + i * 0.6, bz));
+    });
     // Флагшток страны лаборатории на газоне справа от дорожки (ближе к камере), полотнище - к входу.
     if (spec.flag) {
       const px = x1 + 2.0;
@@ -599,11 +615,12 @@ export function buildLab(spec: LabSpec): Content {
   }
   if (spec.research) crowd.addStanding({ ...lookOf(97), coat: true }, at(wbX, z0 + 0.95, 0, 'write'));
   let queueAt: THREE.Vector3 | null = null;
-  // Клиенты в очереди на дорожке у входа: чем больше доля рынка, тем длиннее очередь. Стоят лицом к зданию.
-  if (spec.base) {
-    const n = Math.min(8, Math.max(0, spec.visitors ?? 0));
-    for (let i = 0; i < n; i++) crowd.addStanding(lookOf(200 + i * 7), at(x1 + 1.0, z1 - 0.5 - i * 0.85, Math.PI / 2, 'look'), true);
-    if (n > 0) queueAt = new THREE.Vector3(x1 + 1.0, 1.95, z1 - 0.5 - ((n - 1) * 0.85) / 2);
+  // Клиенты в очереди на дорожке у входа, лицом к зданию: сколько стоит - live.visitors (доля рынка). Растёт доля -
+  // новый клиент подходит по дорожке, падает - последний уходит к зданию соперника. Зал при этом не перестраивается.
+  if (spec.base && spec.visitors) {
+    const entry = { x: x1 + 1.0, z: z1 + 1.9 };
+    for (let i = 0; i < 8; i++) crowd.addVisitor(lookOf(200 + i * 7), at(x1 + 1.0, z1 - 0.5 - i * 0.85, Math.PI / 2, 'look'), entry, i < live.visitors);
+    queueAt = new THREE.Vector3(x1 + 1.0, 1.95, z1 - 0.5 - 1.5 * 0.85);
   }
   root.add(crowd.root);
 
@@ -619,6 +636,7 @@ export function buildLab(spec: LabSpec): Content {
   // Табло лаборатории над задней стеной (React рисует место в гонке и долю клиентов).
   if (spec.base) anchors.sign = new THREE.Vector3(x1 - 3.2, WALL_H + 0.9, z0 - 0.2);
   if (queueAt) anchors.queue = queueAt;
+  rivalTops.forEach((p, i) => (anchors[`rival${i}`] = p));
   if (ghostAt) anchors.seats = ghostAt;
   anchors.rackSlot = rackSlot ?? new THREE.Vector3(rackX(Math.max(0, spec.racks - 1)) - 0.5, 2.55, rackZ + 0.2);
   if (!spec.research) anchors.researchSlot = new THREE.Vector3(wbX, 1.9, z0 + 0.3);
@@ -652,9 +670,12 @@ export function buildLab(spec: LabSpec): Content {
     const eventOn = !ctx.reduced && !!ev && age >= 0 && age < EVENT_MS;
     const animated = !ctx.reduced && live.running;
     const dirty = paint(ctx.now, animated, eventOn);
+    crowd.setVisitors(spec.visitors ? live.visitors : -1, rivalDoors);
+    // На паузе очередь сразу нужной длины: при загрузке партии и после перестройки зала клиенты уже стоят.
+    const snapped = spec.visitors && !animated ? crowd.snapVisitors(live.visitors) : false;
     const people = crowd.update(ctx.now, animated, ev ? { kind: ev.kind, seq: ev.seq, age } : null);
     const next = people.moving ? (ctx.slow ? 66 : 33) : eventOn ? 60 : animated ? (ctx.slow ? 200 : 90) : Infinity;
-    return { dirty: dirty || people.dirty, next };
+    return { dirty: dirty || people.dirty || snapped, next };
   };
 
   const box3 = new THREE.Box3(new THREE.Vector3(x0 - M, -0.6, z0 - M), new THREE.Vector3(x1 + M, WALL_H, z1 + M));

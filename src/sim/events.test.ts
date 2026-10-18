@@ -205,6 +205,8 @@ describe('данные событий', () => {
         'gpu-h200',
         'gpu-shortage',
         'gpu-v100',
+        'lab-exit-charakter',
+        'lab-exit-infleksion',
         'q3-arc',
         'reasoning-models',
         'training-fail',

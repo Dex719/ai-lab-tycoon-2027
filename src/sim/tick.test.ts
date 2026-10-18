@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { EVENTS, EXTRA_EVENTS } from '../data/events';
-import { RIVAL_MODELS } from '../data/rivalModels';
+import { RIVAL_MODELS } from '../data/catalog';
 import { newGame } from './actions';
 import { botAct, runBot } from './bots';
 import { BANKRUPT_DAYS } from './constants';

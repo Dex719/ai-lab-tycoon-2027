@@ -10,7 +10,7 @@
 // - ответ игрока - доработка модели (UPDATE_*), новая модель или своя цена; доработка всегда сильнее запаса рывка.
 
 import { LABS } from '../data/labs';
-import { RIVAL_MODELS } from '../data/rivalModels';
+import { RIVAL_MODELS } from '../data/catalog';
 import { addMail } from './events';
 import { spend } from './finance';
 import { marketArenaRank, rivalInRace } from './leaderboard';

@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { personalityOf } from '../../data/labPersonalities';
-import { RIVAL_MODELS } from '../../data/rivalModels';
+import { RIVAL_MODELS } from '../../data/catalog';
 import { RIVAL_REACTIVE } from '../../data/rivalReactive';
 import { dayStep, marketSnapshot } from '../../sim/market';
 import { emptyRivalry, labStance, type HistoryRow } from '../../sim/rivalry';

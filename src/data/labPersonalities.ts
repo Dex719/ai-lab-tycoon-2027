@@ -112,6 +112,29 @@ export const LAB_PERSONALITIES: LabPersonality[] = [
     priceCutMult: 1,
     gates: {},
   },
+  // Промежуточные лаборатории (2022-2024): громкие, но короткие; цены не трогают, уходят с рынка в 2024 году.
+  {
+    lab: 'infleksion',
+    archetype: 'выскочка',
+    description: 'Много денег инвесторов и мало времени: громкая реклама и переманивание людей. Цены не снижает. Уходит с рынка в 2024 году.',
+    gain: 0.7,
+    weights: { hype: 3, poach: 2 },
+    never: ['audit', 'priceCut', 'priceWar', 'cheapShock', 'openWeights', 'flagship', 'freeTier', 'context'],
+    delayMult: 0.8,
+    priceCutMult: 1,
+    gates: { activeFrom: '2023-06-22' },
+  },
+  {
+    lab: 'charakter',
+    archetype: 'развлечения',
+    description: 'Чат с персонажами для обычных пользователей: бесплатный доступ и реклама. Рабочими задачами не занимается. Уходит с рынка в 2024 году.',
+    gain: 0.6,
+    weights: { freeTier: 3, hype: 2 },
+    never: ['audit', 'poach', 'priceCut', 'priceWar', 'cheapShock', 'openWeights', 'flagship', 'context'],
+    delayMult: 1,
+    priceCutMult: 1,
+    gates: { activeFrom: '2023-01-01' },
+  },
 ];
 
 const BY_LAB = new Map<LabId, LabPersonality>(LAB_PERSONALITIES.map((p) => [p.lab, p]));

@@ -6,10 +6,11 @@ import type { StaffState } from './staffEffects';
 import { DC_SITE_IDS } from '../data/datacenters';
 import { findEvent } from '../data/events';
 import { CHAT_MOMENT_DATE, CHOICE_DAYS, FAIL_CHOICE_DAYS, HYPE_OWNERS, TIER_SUBS_PRICE } from './constants';
-import { DIFFICULTY_IDS, emptyRivalry, LEVERS, MOVE_IDS } from './rivalry';
+import { DIFFICULTY_IDS, emptyMemory, emptyRivalry, LEVERS, MOVE_IDS } from './rivalry';
 import type { ActiveMove, HistoryRow, LabMemory, PendingMove, RivalOverride, RivalryState } from './rivalry';
 import { CLOUD_IDS, STARTUP_IDS, TEAM_IDS } from './lateState';
 import type { DuelLab, DuelState } from './duel';
+import type { LabId } from './types';
 import type { CloudDeal, FinalPush, FinaleState, FinalUpdate, FinalUpdateDone, LateState, StarTeam, StartupDeal } from './lateState';
 import { emptyMarket, emptyQuests, emptySegmentShares, emptyYearly } from './state';
 import { dateToDay } from './time';
@@ -542,6 +543,7 @@ const STATE: Record<keyof GameState, Check> = {
   nextModelNum: posInt,
   models: arrayOf(playerModel),
   rivalsReleased: arrayOf(str),
+  rivalsRetired: optional(arrayOf(str)),
   benchmarks: shape(Object.fromEntries(BENCHMARK_IDS.map((id) => [id, shape({ introduced: bool, saturated: bool })]))),
   tenders: arrayOf(tender),
   contracts: arrayOf(contract),
@@ -741,6 +743,34 @@ function migrateMarketV2(data: Record<string, unknown>): void {
   }
 }
 
+/**
+ * Промежуточные лаборатории (Infleksion, Charakter.AI) появились позже: в старых сохранениях нет их строк в записях
+ * по лабораториям - накал и ходы с нуля, шумиха 0, дуэль без счёта.
+ */
+const LATER_LABS: readonly LabId[] = ['infleksion', 'charakter'];
+
+function migrateLabs(data: Record<string, unknown>): void {
+  // Только новые лаборатории: пропавшая строка одной из прежних - порча сохранения, её проверка должна отклонить.
+  const fill = (rec: unknown, make: () => unknown) => {
+    if (isRec(rec)) for (const lab of LATER_LABS) if (rec[lab] === undefined) rec[lab] = make();
+  };
+  fill(data.hype, () => 0);
+  const r = data.rivalry;
+  if (isRec(r)) {
+    fill(r.heat, () => 0);
+    fill(r.cooldownUntil, () => 0);
+    fill(r.extraCount, () => 0);
+    fill(r.memory, emptyMemory);
+    fill(r.shareHigh, () => 0);
+  }
+  if (isRec(data.duel)) fill(data.duel.labs, () => ({ passedYou: 0, youPassed: 0, moves: 0, lastDay: null, letters: 0 }));
+  const market = data.market;
+  if (isRec(market)) {
+    fill(market.labShares, () => 0);
+    if (isRec(market.segments)) for (const seg of Object.values(market.segments)) if (isRec(seg)) fill(seg.labShares, () => 0);
+  }
+}
+
 export function deserialize(json: string): { ok: true; state: GameState } | { ok: false; error: string } {
   let data: unknown;
   try {
@@ -773,6 +803,7 @@ export function deserialize(json: string): { ok: true; state: GameState } | { ok
   migrateContext(data);
   migrateMarketV2(data);
   migrateChoices(data);
+  migrateLabs(data);
   const problem = WHOLE_STATE(data, '') ?? pendingChoiceProblem(data.mail as Mail[]);
   if (problem) return { ok: false, error: problemText(problem) };
   return { ok: true, state: data as unknown as GameState };

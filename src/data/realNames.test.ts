@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RIVAL_MODELS } from './rivalModels';
+import { RIVAL_MODELS } from './catalog';
 import { RIVAL_REACTIVE } from './rivalReactive';
 import { BENCHMARKS } from './benchmarks';
 import { LABS } from './labs';

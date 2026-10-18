@@ -12,9 +12,10 @@ import { rpPerDay, techCost, TECHS } from '../sim/research';
 import { staffSeats } from '../sim/staff';
 import { nextArrival, totalH100e } from '../sim/compute';
 import { formatDateShort } from '../sim/time';
-import type { GameState, PlayerModel, Tier } from '../sim/types';
+import type { GameState, LabId, PlayerModel, Tier } from '../sim/types';
 import { distribute, ALLOC_ROWS } from './alloc';
 import { fmtH100e, fmtMoney, fmtNum, fmtShare, ruPlural } from './format';
+import { openDossier } from './dossier';
 import { nextStep, type NextStep } from './nextStep';
 import { raceMetricOf, raceRows } from './race';
 import { store, useSpeed } from './store';
@@ -51,9 +52,27 @@ interface Facts {
   freeSeats: number;
   /** Гонка, в которой считается место: «на «Арене»» или «по SQuAT». */
   raceLabel: string | null;
+  /** Здания соперников перед лабораторией: лаборатория и её доля рынка. */
+  rivals: { lab: LabId; name: string; share: number }[];
   /** Общая доля рынка игрока 0..1 и больше ли она, чем у любой лаборатории-соперника. */
   share: number;
   shareLeader: boolean;
+}
+
+/** Три лаборатории-соперника с наибольшей долей рынка (хотя бы 1 %), в порядке data/labs.ts: дома не переезжают. */
+function topRivals(s: GameState) {
+  const top = LABS.filter((l) => (s.market.labShares[l.id] ?? 0) >= 0.01)
+    .sort((a, b) => (s.market.labShares[b.id] ?? 0) - (s.market.labShares[a.id] ?? 0))
+    .slice(0, 3);
+  return LABS.filter((l) => top.includes(l));
+}
+
+/** Этажей у здания соперника по доле: до 5 % - один, до 15 % - два, до 30 % - три, больше - четыре. */
+function rivalBuildings(s: GameState): NonNullable<LabSpec['rivals']> {
+  return topRivals(s).map((l) => {
+    const sh = s.market.labShares[l.id] ?? 0;
+    return { lab: l.id, color: l.color, floors: sh < 0.05 ? 1 : sh < 0.15 ? 2 : sh < 0.3 ? 3 : 4 };
+  });
 }
 
 function factsOf(s: GameState): Facts {
@@ -111,8 +130,8 @@ function factsOf(s: GameState): Facts {
     cups: yearCups(s).slice(-6).map((c) => c.kind),
     base: '#5f8f45',
     flag: s.country,
-    // Очередь клиентов у входа: шагами, чтобы сцена не перестраивалась от каждого процента доли.
-    visitors: share > 0.005 ? Math.min(8, Math.max(1, Math.round(Math.sqrt(share) * 10))) : 0,
+    visitors: true,
+    rivals: rivalBuildings(s),
   };
   return {
     spec,
@@ -128,6 +147,7 @@ function factsOf(s: GameState): Facts {
     raceLabel: metric ? (metric.kind === 'arena' ? 'на «Арене»' : `по ${metric.name}`) : null,
     share,
     shareLeader: share > 0.005 && share > rivalTop,
+    rivals: topRivals(s).map((l) => ({ lab: l.id, name: l.name, share: s.market.labShares[l.id] ?? 0 })),
   };
 }
 
@@ -267,7 +287,13 @@ export function LabFloor({ s, open }: { s: GameState; open: Open }) {
   const [at, setAt] = useState<At>({});
   // В раскладке участвуют только точки, у которых на экране есть подпись или кнопка: пустые точки-заготовки
   // (места под стойку и т. п.) иначе расталкивали настоящие подписи.
-  const onAnchors = useCallback((a: At) => setAt(spread(Object.fromEntries(Object.entries(a).filter(([k]) => SHOWN.has(k))))), []);
+  // Маленькие подписи зданий соперников не раздвигаются: они висят прямо над крышей.
+  const onAnchors = useCallback(
+    (a: At) => {
+      setAt({ ...spread(Object.fromEntries(Object.entries(a).filter(([k]) => SHOWN.has(k)))), ...Object.fromEntries(Object.entries(a).filter(([k]) => k.startsWith('rival'))) });
+    },
+    [],
+  );
   const next = nextStep(s, speed);
   const arrival = nextArrival(s);
   return (
@@ -314,7 +340,19 @@ export function LabFloor({ s, open }: { s: GameState; open: Open }) {
         />
         <LabSign at={at.sign} f={f} labName={s.labName} onClick={() => open('ratings')} />
         {/* Люди на дорожке - клиенты: очередь растёт с долей рынка (без подписи было непонятно, кто это, отзыв 18.10). */}
-        <Tag at={at.queue} k="Клиенты в очереди" v={`Доля рынка ${fmtShare(f.share, 0)}`} onClick={() => open('market')} />
+        <Tag at={f.share > 0.005 ? at.queue : undefined} k="Клиенты в очереди" v={`Доля рынка ${fmtShare(f.share, 0)}`} onClick={() => open('market')} />
+        {/* Здания соперников: кто ещё забирает клиентов и сколько. */}
+        {f.rivals.map((r, i) => (
+          <button
+            key={r.lab}
+            type="button"
+            className="lf-mini"
+            style={at[`rival${i}`] ? { left: at[`rival${i}`].x, top: at[`rival${i}`].y } : { display: 'none' }}
+            onClick={() => openDossier(r.lab, open)}
+          >
+            {r.name} · {fmtShare(r.share, 0)}
+          </button>
+        ))}
         <Plus at={at.seats} label={`Нанять (${fmtNum(f.freeSeats)} ${ruPlural(f.freeSeats, 'место', 'места', 'мест')})`} onClick={() => open('team')} />
         {/* Кнопка «+» - только если подпись рядом не предлагает то же самое: иначе пузыри дублировали друг друга и
             налезали («Свободно: новая модель» и «+ Новая модель», плейтест 17.10). */}

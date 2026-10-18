@@ -220,7 +220,12 @@ interface Agent {
   t0: number;
   /** Не ходит по делам (клиенты в очереди у входа): только своё действие и радость на выпуск модели. */
   stay?: boolean;
+  /** Клиент в очереди: место (home), откуда приходит, стоит ли сейчас в очереди, уходит ли (тогда в конце пути - исчезает). */
+  visitor?: { entry: { x: number; z: number }; present: boolean; leaving: boolean };
 }
+
+/** Между приходом или уходом двух клиентов, секунд: очередь меняется по одному человеку, а не скачком. */
+const VISITOR_STEP_S = 1.4;
 
 const SPEED = 1.25;
 let handledSeq = 0;
@@ -287,6 +292,96 @@ export class Crowd {
     this.place(a, 0);
   }
 
+  /**
+   * Клиент в очереди у входа: стоит на месте slot лицом к зданию, приходит из entry. present - стоит ли он в очереди
+   * сразу (сцена перестроилась: очередь как была, без прихода заново).
+   */
+  addVisitor(look: Look, slot: Spot, entry: { x: number; z: number }, present: boolean): void {
+    this.add(look, slot, false, true);
+    const a = this.agents[this.agents.length - 1];
+    a.visitor = { entry, present, leaving: false };
+    if (!present) this.hideAt(a, entry);
+  }
+
+  private hideAt(a: Agent, p: { x: number; z: number }): void {
+    a.x = p.x;
+    a.z = p.z;
+    a.mode = 'home';
+    a.path = [];
+    a.target = null;
+    a.rig.root.visible = false;
+  }
+
+  private visitorWant = -1;
+  private visitorExits: { x: number; z: number }[] = [];
+  private visitorNext = 0;
+
+  /** Сколько клиентов должно стоять в очереди и куда уходят ушедшие (двери зданий соперников). */
+  setVisitors(n: number, exits: { x: number; z: number }[]): void {
+    this.visitorWant = n;
+    this.visitorExits = exits;
+  }
+
+  /** Пауза или первый кадр: очередь сразу нужной длины, без прихода и ухода (true - что-то изменилось). */
+  snapVisitors(n: number): boolean {
+    let changed = false;
+    this.agents
+      .filter((a) => a.visitor)
+      .forEach((a, i) => {
+        const v = a.visitor!;
+        const want = i < n;
+        if (want === v.present && !v.leaving) return;
+        changed = true;
+        v.present = want;
+        v.leaving = false;
+        if (want) {
+          a.rig.root.visible = true;
+          a.x = a.home.x;
+          a.z = a.home.z;
+          a.mode = 'home';
+          a.path = [];
+          a.heading = a.home.face;
+          this.place(a, 0);
+        } else this.hideAt(a, v.entry);
+      });
+    return changed;
+  }
+
+  /** Шаг очереди: не чаще раза в VISITOR_STEP_S - один клиент приходит или уходит. true - кто-то пошёл. */
+  private stepVisitors(now: number): boolean {
+    const vs = this.agents.filter((a) => a.visitor);
+    if (this.visitorWant < 0 || vs.length === 0) return false;
+    const present = vs.filter((a) => a.visitor!.present && !a.visitor!.leaving);
+    // Пока очередь не та, что нужна, кадры идут: следующий клиент пойдёт, как только пройдёт пауза.
+    if (now < this.visitorNext) return present.length !== this.visitorWant;
+    if (present.length < this.visitorWant) {
+      const a = vs.find((x) => !x.visitor!.present);
+      if (!a) return false;
+      const e = a.visitor!.entry;
+      a.visitor!.present = true;
+      a.rig.root.visible = true;
+      a.x = e.x;
+      a.z = e.z;
+      a.mode = 'walk';
+      a.target = null;
+      a.path = [{ x: a.home.x, z: a.home.z }];
+      this.visitorNext = now + VISITOR_STEP_S;
+      return true;
+    }
+    if (present.length > this.visitorWant) {
+      const a = present[present.length - 1];
+      const e = a.visitor!.entry;
+      const exit = this.visitorExits.length ? this.visitorExits[Math.floor(this.rand() * this.visitorExits.length)] : e;
+      a.visitor!.leaving = true;
+      a.mode = 'walk';
+      a.target = null;
+      a.path = [{ x: e.x, z: e.z }, { x: exit.x, z: exit.z }];
+      this.visitorNext = now + VISITOR_STEP_S;
+      return true;
+    }
+    return false;
+  }
+
   /** Новый сотрудник: последний сидящий входит в дверь и идёт к своему столу. */
   arriveLast(): void {
     const a = [...this.agents].reverse().find((x) => x.seated);
@@ -350,7 +445,7 @@ export class Crowd {
       this.react(event.kind, now);
     }
 
-    let moving = false;
+    let moving = this.stepVisitors(now);
     const walkers = this.agents.filter((a) => a.mode !== 'home' && !a.stay).length;
     for (const a of this.agents) {
       if (a.mode === 'home' && !a.stay) {
@@ -380,7 +475,12 @@ export class Crowd {
           if (m >= d) a.path.shift();
         }
         a.phase += dt * 9;
-        if (!a.path.length) {
+        if (!a.path.length && a.visitor?.leaving) {
+          // Ушедший клиент скрылся в здании соперника: снова ждёт у входа на дорожку.
+          a.visitor.leaving = false;
+          a.visitor.present = false;
+          this.hideAt(a, a.visitor.entry);
+        } else if (!a.path.length) {
           if (a.target) {
             a.mode = 'act';
             a.heading = a.target.face;
@@ -412,7 +512,7 @@ export class Crowd {
     }
     if (kind === 'release') {
       for (const a of this.agents)
-        if (a.mode === 'home') {
+        if (a.mode === 'home' && (!a.visitor || a.visitor.present)) {
           a.mode = 'act';
           a.target = { ...a.home, act: 'cheer' };
           a.actUntil = now + 2.5;

@@ -1,10 +1,11 @@
 // Тесты коротких задач: появление по ситуации, не больше двух сразу и разных групп, награда и праздник при выполнении,
 // «почти» при провале, счётчик выигранных тендеров, свой поток случайных чисел, сохранения.
 
+import { NEWS_AUTO_READ_DAYS } from './milestones';
 import { describe, expect, it } from 'vitest';
 import { EXTRA_EVENTS } from '../data/events';
 import { cumRevenue } from '../data/questKit';
-import { RIVAL_MODELS } from '../data/rivalModels';
+import { RIVAL_MODELS } from '../data/catalog';
 import { findTask, TASKS } from '../data/tasks';
 import { newGame } from './actions';
 import { botAct, botChoice } from './bots';
@@ -103,7 +104,8 @@ describe('задачи в партии', () => {
     const done = s.mail.filter((m) => m.title.startsWith('Задача выполнена: '));
     expect(done.length).toBeGreaterThan(0);
     expect(done.every((m) => m.reward && m.body.startsWith('Награда: '))).toBe(true);
-    for (const m of s.mail.filter((x) => x.title.startsWith('Почти: '))) expect(m.read).toBe(false);
+    // Свежие «Почти» не прочитаны; старше NEWS_AUTO_READ_DAYS - прочитаны сами (sim/milestones.ts).
+    for (const m of s.mail.filter((x) => x.title.startsWith('Почти: '))) expect(m.read).toBe(s.day - m.day >= NEWS_AUTO_READ_DAYS);
     for (const m of s.mail.filter((x) => x.title.startsWith('Задача не выполнена: '))) expect(m.read).toBe(true);
   }, 30_000); // целая партия бота: при полном прогоне тестов параллельно 5 с по умолчанию не хватает
 

@@ -108,6 +108,8 @@ function useClock(): string {
   return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
+/** Сколько первых дней партии названия разделов видны у иконок всегда (потом - по наведению). */
+const DOCK_LABEL_DAYS = 60;
 /** Цвет верхней полосы заголовка: у всех окон один (бирюзовая грань), разноцветные окна пестрили (docs/COLORS.md). */
 const WIN_EDGE = 'var(--brand-edge)';
 const WIN_ACCENT: Record<WindowId, string> = {
@@ -369,7 +371,7 @@ export function Game({ s }: { s: GameState }) {
         )}
         <div className="task-sep" />
         {!phone && (
-          <nav className="dock" aria-label="Разделы">
+          <nav className={`dock${s.day < DOCK_LABEL_DAYS || s.tutorial.active ? ' labels' : ''}`} aria-label="Разделы">
             {WINDOWS.filter((d) => !d.openedDay || d.openedDay(s) !== null).map((d) => {
               const w = wins.find((x) => x.id === d.id);
               const active = !!w && !w.min && w.z === topZ;

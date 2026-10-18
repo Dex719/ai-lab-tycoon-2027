@@ -362,6 +362,9 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
     box-shadow: 0 2px 8px rgb(20 50 56 / 0.25); opacity: 0; transition: opacity 120ms ease-out;
   }
   html .game .dock-btn:hover .dock-tip, html .game .dock-btn:focus-visible .dock-tip { opacity: 1; }
+  /* Первые 60 дней и пока идёт обучение игре названия разделов видны всегда; у подсвеченной обучением иконки - тоже
+     (плейтест 18.10: «откройте «Мощности»», а какая из иконок - «Мощности», не видно). */
+  html .game .dock.labels .dock-tip, html .game .dock-btn.tutor-target .dock-tip { opacity: 1; }
   html .game .dock-btn .dock-new { top: auto; bottom: -6px; left: 50%; font-size: 10px; }
 }
 

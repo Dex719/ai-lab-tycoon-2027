@@ -14,8 +14,9 @@ export const DOMAINS: readonly DomainId[] = ['language', 'code', 'reasoning'];
 export type BenchmarkId = 'squad' | 'glue' | 'mmlu' | 'humaneval' | 'gsm8k' | 'gpqa' | 'swebench';
 export const BENCHMARK_IDS: readonly BenchmarkId[] = ['squad', 'glue', 'mmlu', 'humaneval', 'gsm8k', 'gpqa', 'swebench'];
 
-export type LabId = 'openbrain' | 'antropik' | 'gogle' | 'zhipo' | 'moonshoot' | 'deepcent' | 'alibabo';
-export const LAB_IDS: readonly LabId[] = ['openbrain', 'antropik', 'gogle', 'zhipo', 'moonshoot', 'deepcent', 'alibabo'];
+/** Семь больших лабораторий и две промежуточные (infleksion, charakter): выходят на рынок в 2022-2023 и уходят в 2024. */
+export type LabId = 'openbrain' | 'antropik' | 'gogle' | 'zhipo' | 'moonshoot' | 'deepcent' | 'alibabo' | 'infleksion' | 'charakter';
+export const LAB_IDS: readonly LabId[] = ['openbrain', 'antropik', 'gogle', 'zhipo', 'moonshoot', 'deepcent', 'alibabo', 'infleksion', 'charakter'];
 export type HypeOwner = LabId | 'player';
 
 export type GpuId = 'p100' | 'v100' | 'a100' | 'h100' | 'h200';
@@ -89,6 +90,8 @@ export interface LabDef {
   color: string; // цвет на графиках
   chinese: boolean; // для экспортных запретов
   defaultPricePer1M: Record<number, number>; // год → цена по умолчанию, если в каталоге пусто
+  /** Промежуточная лаборатория: в этот день уходит с рынка (команду забирает корпорация), модели снимаются с продажи. */
+  exit?: { date: string; title: string; body: string };
 }
 
 export interface RivalModelDef {
@@ -503,6 +506,8 @@ export interface GameState {
   nextModelNum: number;
   models: PlayerModel[];
   rivalsReleased: string[];
+  /** Модели ушедших с рынка лабораторий (LabDef.exit): больше не продаются и не в гонке; нет в старых сохранениях. */
+  rivalsRetired?: string[];
   benchmarks: Record<BenchmarkId, { introduced: boolean; saturated: boolean }>;
   tenders: Tender[];
   contracts: Contract[];

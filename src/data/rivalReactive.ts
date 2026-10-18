@@ -6,7 +6,7 @@
 // Уникальность названий относительно каталога проверяет rivalry.test.ts (reactiveNameProblems).
 
 import type { LabId } from '../sim/types';
-import { RIVAL_MODELS } from './rivalModels';
+import { RIVAL_MODELS } from './catalog';
 
 export interface ReactiveTemplate {
   id: string; // 'mv-<lab>-<n>'

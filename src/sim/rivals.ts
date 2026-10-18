@@ -1,7 +1,7 @@
 // Модели соперников: способности по реальным баллам, оценки пропусков, выходы по календарю (FR-12). TSK-007.
 
 import { LABS } from '../data/labs';
-import { RIVAL_MODELS } from '../data/rivalModels';
+import { RIVAL_MODELS } from '../data/catalog';
 import { benchDef, benchScore, capFromScore, introducedBenchmarks } from './benchmarks';
 import { MARKET_MAX_AGE_DAYS, MARKET_MODELS_PER_LAB, REF_PRICE, RIVAL_TIER_ELO_GAP, RIVAL_TIER_PRICE_RATIO, TIER_SUBS_PRICE } from './constants';
 import { addMail } from './events';
@@ -280,6 +280,31 @@ function releaseBody(s: GameState, def: RivalModelDef): string {
   return sentences.join(' ');
 }
 
+// ---------- Уход промежуточной лаборатории ----------
+
+/** Лаборатория ушла с рынка (LabDef.exit, событие lab-exit-<id>). */
+export function labGone(s: GameState, lab: LabId): boolean {
+  return s.firedEvents.includes(`lab-exit-${lab}`);
+}
+
+/**
+ * Лаборатория уходит с рынка: её модели переходят из rivalsReleased в rivalsRetired (не продаются, не в гонке, но
+ * остаются в истории), шумиха и накал - ноль, новых ходов и писем от неё не будет. Вызывает событие lab-exit-<id>.
+ */
+export function retireLab(s: GameState, lab: LabId): void {
+  const mine = s.rivalsReleased.filter((id) => findRivalDef(id)?.lab === lab);
+  s.rivalsReleased = s.rivalsReleased.filter((id) => !mine.includes(id));
+  s.rivalsRetired = [...(s.rivalsRetired ?? []), ...mine];
+  s.hype[lab] = 0;
+  s.rivalry.heat[lab] = 0;
+  s.rivalry.cooldownUntil[lab] = Number.MAX_SAFE_INTEGER;
+  s.rivalry.pending = s.rivalry.pending.filter((p) => p.lab !== lab);
+  if (s.duel?.main === lab) {
+    s.duel.main = null;
+    s.duel.mainSince = null;
+  }
+}
+
 /**
  * Выпустить модель соперника (каталога или шаблона): добавить id в s.rivalsReleased, прибавить шумиху
  * лаборатории (leaderboard.releaseHypeBonus), письмо kind 'rival' с названием, лабораторией и 1-2 главными
@@ -308,7 +333,8 @@ export function releaseRival(s: GameState, def: RivalModelDef): boolean {
  * в s.rivalsReleased, - выпустить (releaseRival). Шаблоны ответных моделей выпускает сам rivalry.ts.
  */
 export function releaseDue(s: GameState): void {
-  const done = new Set(s.rivalsReleased);
+  // Модели ушедших лабораторий (retireLab) не выходят снова.
+  const done = new Set([...s.rivalsReleased, ...(s.rivalsRetired ?? [])]);
   for (const def of RIVAL_MODELS) {
     if (done.has(def.id) || rivalDayIn(s, def) > s.day) continue;
     releaseRival(s, def);

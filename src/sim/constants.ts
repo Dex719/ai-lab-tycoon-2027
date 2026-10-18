@@ -376,7 +376,7 @@ export const EXPOSE_MAX = 0.35;
 export const EXPOSE_REP = -5;
 export const EXPOSE_HYPE_MULT = 0.5;
 
-export const HYPE_OWNERS: readonly HypeOwner[] = ['player', 'openbrain', 'antropik', 'gogle', 'zhipo', 'moonshoot', 'deepcent', 'alibabo'];
+export const HYPE_OWNERS: readonly HypeOwner[] = ['player', 'openbrain', 'antropik', 'gogle', 'zhipo', 'moonshoot', 'deepcent', 'alibabo', 'infleksion', 'charakter'];
 
 // Чужие данные (sim/country.ts): план stolenData.
 export const STOLEN_CAP_BONUS = 3; // очков способности во всех областях (+15 Эло)

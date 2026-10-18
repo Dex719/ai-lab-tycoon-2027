@@ -39,6 +39,14 @@
 .lf-sign b { font-size: 16px; font-weight: var(--fw-title); white-space: nowrap; }
 .lf-sign span { font-size: 13px; font-weight: var(--fw-strong); white-space: nowrap; }
 .lf-sign.first { background: var(--gold-fill); color: #3b2a00; box-shadow: inset 0 -4px 0 var(--gold-line), 0 2px 8px rgba(0, 0, 0, 0.25); }
+/* Подпись здания соперника: одна строка над крышей, без хвостика; щелчок - досье лаборатории. */
+.lf-mini {
+  position: absolute; transform: translate(-50%, calc(-100% - 4px)); padding: 3px 8px; white-space: nowrap;
+  background: rgb(255 255 255 / 0.92); color: var(--text); border: none; border-radius: 5px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  font: inherit; font-size: 12px; font-weight: var(--fw-strong); cursor: pointer; pointer-events: auto;
+}
+.lf-mini:hover { background: #fff; }
+.lf-mini:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .lf-bar { display: block; height: 5px; margin-top: 5px; background: var(--track); border-radius: 3px; overflow: hidden; }
 .lf-bar > i { display: block; height: 100%; background: var(--brand); }
 
