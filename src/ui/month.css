@@ -14,6 +14,9 @@
 .ms-v.good, .ms-v small.good { color: var(--good-on-hud); }
 .ms-v.bad, .ms-v small.bad { color: var(--bad-on-hud); }
 .ms-goal { min-width: 140px; max-width: 240px; }
+/* Побитый рекорд: золотое значение (награда), прошлый рекорд - мелко. */
+.ms-record .ms-v { color: var(--gold-fill); }
+.ms-record .ms-v small { color: var(--hud-text-2); font-weight: var(--fw-small); }
 .ms-bar { position: relative; height: 14px; background: var(--track-hud); border-radius: 999px; overflow: hidden; }
 .ms-bar i { position: absolute; inset: 0 auto 0 0; background: var(--brand); }
 .ms-bar em { position: relative; display: block; font: var(--fw-strong) 11px/14px var(--font); font-style: normal; text-align: center; color: var(--on-brand); font-variant-numeric: tabular-nums; }

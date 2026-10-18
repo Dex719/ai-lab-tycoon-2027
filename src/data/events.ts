@@ -38,7 +38,7 @@ import { STARTUPS } from './deals';
 import { LABS } from './labs';
 import { EARLY_EVENTS } from './earlyEvents';
 import { HISTORY_EVENTS } from './historyEvents';
-import { COUNTRY_EVENTS, LATE_EVENTS } from './lateEvents';
+import { COUNTRY_EVENTS, LATE_EVENTS, LEAK_EVENT } from './lateEvents';
 import { RANDOM_EVENTS } from './randomEvents';
 
 export interface EventChoiceDef {
@@ -609,7 +609,7 @@ export const EVENTS: EventDef[] = [
  * Ранние заказы и гранты 2017-2019, ещё события 2017-2024 и случайные письма с выбором (отдельные файлы).
  * Их запускает sim/randomEvents.ts (в окне своей даты или по жребию), а не fireDue: EVENTS остаётся прежним набором.
  */
-export const EXTRA_EVENTS: EventDef[] = [...EARLY_EVENTS, ...HISTORY_EVENTS, ...RANDOM_EVENTS, ...LATE_EVENTS, ...COUNTRY_EVENTS];
+export const EXTRA_EVENTS: EventDef[] = [...EARLY_EVENTS, ...HISTORY_EVENTS, ...RANDOM_EVENTS, LEAK_EVENT, ...LATE_EVENTS, ...COUNTRY_EVENTS];
 
 /**
  * Событие по id: сначала EVENTS, затем письма с выбором соперников (RIVALRY_EVENTS из sim/rivalry.ts).

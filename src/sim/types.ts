@@ -122,6 +122,18 @@ export interface RivalModelDef {
 /** Уровень модели: лёгкая (дёшево и слабо), средняя, флагман. Задаётся в плане обучения относительно переднего края года. */
 export type Tier = 'light' | 'mid' | 'flagship';
 
+/** Частота сохранения прогресса обучения (TrainingPlan.checkpoint). */
+export type CheckpointMode = 'rare' | 'normal' | 'often';
+export const CHECKPOINT_MODES: readonly CheckpointMode[] = ['rare', 'normal', 'often'];
+
+/** Рекорд лаборатории (sim/records.ts): значение, день, прошлый рекорд (null - первое значение). */
+export type RecordId = 'revenue' | 'elo' | 'contract' | 'subs' | 'share' | 'compute' | 'staff';
+export interface RecordEntry {
+  value: number;
+  day: number;
+  prev: number | null;
+}
+
 /** Страна лаборатории (выбирается в новой игре, sim/country.ts): США, Китай, Европа. */
 export type CountryId = 'us' | 'cn' | 'eu';
 export const COUNTRY_IDS: readonly CountryId[] = ['us', 'cn', 'eu'];
@@ -190,6 +202,11 @@ export interface TrainingPlan {
   tier: Tier; // уровень модели; обязан совпадать с training.tierOf(paramsB, день старта)
   /** Чужие данные без разрешения: больше данных и способностей, но могут подать иск (sim/country.ts). Нет поля - нет. */
   stolenData?: boolean;
+  /**
+   * Как часто сохранять прогресс обучения (sim/training.ts, сбои кластера): часто - медленнее, но сбой почти не откатывает;
+   * редко - быстрее, сбой откатывает больше. Нет поля (старые планы, боты баланса) - сбоев нет.
+   */
+  checkpoint?: CheckpointMode;
 }
 
 export interface TrainingRun {
@@ -475,6 +492,8 @@ export interface GameState {
   reputation: number; // 0..100
   founderShare: number; // 0..1
   lastRoundDay: number | null;
+  /** День последнего выкупа доли из окна «Инвесторы» (sim/investors.buyBackStake); нет - выкупов не было. */
+  lastBuybackDay?: number;
   /** Раунд на переговорах (investors.ts): условия зафиксированы при старте, деньги и размытие - по закрытию. В старых сохранениях нет. */
   round?: PendingRound | null;
   /** Сколько закрытых месяцев лучшая модель игрока была №1 на «Арене» среди моделей, доступных по API. */
@@ -531,6 +550,10 @@ export interface GameState {
   difficulty: Difficulty;
   /** Страна лаборатории (sim/country.ts); нет в старых сохранениях - без особенностей страны. */
   country?: CountryId;
+  /** Свой переводчик 2017-2020 (sim/translator.ts): когда запущен и сколько заработал; нет - не запущен. */
+  translator?: { launchedDay: number; earned: number };
+  /** Рекорды лаборатории (sim/records.ts); нет в старых сохранениях - копятся с ближайшего месяца. */
+  records?: Partial<Record<RecordId, RecordEntry>>;
   /** Соперники с характерами: накал, ходы, поправки к моделям, память (rivalry.ts). */
   rivalry: RivalryState;
   /** Цели года, итоги года и расписание случайных событий (sim/goals.ts, sim/randomEvents.ts). */

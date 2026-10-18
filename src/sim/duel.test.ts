@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LABS } from '../data/labs';
 import { runBot } from './bots';
-import { DUEL_LETTER_GAP, duelDay, duelOf, emptyDuel, fightScore, letterText, letterVariants, MAIN_RIVAL_MIN, type LetterKind } from './duel';
+import { DUEL_LETTER_GAP, duelDay, duelOf, emptyDuel, fightScore, LAB_HEADS, letterText, letterVariants, MAIN_RIVAL_MIN, type LetterKind } from './duel';
 import { deserialize, serialize } from './save';
 import { newGame } from './actions';
 import { LAB_IDS } from './types';
@@ -36,7 +36,7 @@ describe('личное соперничество', () => {
           const v = { their: 'GTP-4', yours: 'Атлас-2', race: '«Арене»', you: 'лаборатория «Тест»', You: 'Лаборатория «Тест»', of: 'лаборатории «Тест»' };
           const t = letterText(l.id, kind, v, n);
           expect(t.title.startsWith(`${l.name}: `)).toBe(true);
-          expect(t.body.endsWith(`\n\n${l.name}`)).toBe(true);
+          expect(t.body.endsWith(`\n\n${LAB_HEADS[l.id]}, ${l.name}`)).toBe(true);
           expect(`${t.title}${t.body}`).not.toMatch(/[—–]|undefined/);
         }
       }

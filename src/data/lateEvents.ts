@@ -3,11 +3,14 @@
 // дату и не позже чем через 60 дней, не вплотную к другим письмам с выбором; без ответа - последний вариант (отказ),
 // поэтому боты баланса играют как раньше. Суммы - в денежных единицах года (eventKit.amount).
 
-import { addModifier, FOREVER } from '../sim/events';
+import { addMail, addModifier, FOREVER } from '../sim/events';
 import { bestElo } from '../sim/leaderboard';
 import { subsOpen } from '../sim/market';
 import { techCost } from '../sim/research';
-import type { CountryId, GameState, LabId, SegmentId } from '../sim/types';
+import { rivalDayIn, rivalEloIn } from '../sim/rivalry';
+import { formatDate } from '../sim/time';
+import { RIVAL_MODELS } from './catalog';
+import type { CountryId, GameState, LabId, RivalModelDef, SegmentId } from '../sim/types';
 import type { EventChoiceDef, EventDef } from './events';
 import { addHype, addRep, amount, fixUnit, grant, pay, roll, usd, windowFrom } from './eventKit';
 import { LABS } from './labs';
@@ -227,6 +230,68 @@ export const LATE_EVENTS: EventDef[] = [
     ],
   }),
 ];
+
+// ---------- Утечка планов соперника (случайное письмо) ----------
+
+/** Ближайшая модель соперника с API, которая ещё не вышла и выйдет через 60-240 дней: о ней можно узнать заранее. */
+export function leakTarget(s: GameState): { def: RivalModelDef; day: number } | null {
+  const released = new Set([...s.rivalsReleased, ...(s.rivalsRetired ?? [])]);
+  let best: { def: RivalModelDef; day: number } | null = null;
+  for (const def of RIVAL_MODELS) {
+    if (!def.api || def.announcedOnly || released.has(def.id)) continue;
+    const day = rivalDayIn(s, def);
+    if (day < s.day + 60 || day > s.day + 240) continue;
+    if (!best || day < best.day) best = { def, day };
+  }
+  return best;
+}
+
+export const LEAK_EVENT: EventDef = {
+  id: 'rnd-rival-leak',
+  repeatable: true,
+  when: { check: () => false },
+  onFire: fixUnit,
+  // Приходит не из общего жребия случайных писем, а по своему расписанию (sim/randomEvents.leakDay): иначе одно новое
+  // письмо сдвигало весь жребий, и боты баланса играли другую партию.
+  mail: (s) => {
+    const lab = labName((leakTarget(s)?.def.lab ?? 'openbrain') as LabId);
+    return {
+      kind: 'event',
+      title: `Бывший сотрудник ${lab} предлагает внутреннюю записку`,
+      body: `В записке - когда ${lab} выпустит следующую модель и насколько она сильна. Читать чужие документы рискованно: если об этом узнают, будет иск.`,
+    };
+  },
+  choices: [
+    {
+      label: 'Прочитать записку',
+      story: 'Вы узнаете планы соперника, но тайна может всплыть',
+      hint: '',
+      hintFn: (s) => `дата и Эло следующей модели соперника; с шансом 30 % иск: -${usd(amount(s, 1))} и -10 репутации`,
+      luck: { good: 'никто не узнал о записке', bad: 'соперник узнал о записке и подал в суд' },
+      apply: (s) => {
+        const t = leakTarget(s);
+        if (t) {
+          addMail(s, {
+            kind: 'rival',
+            read: false,
+            title: `Записка: ${t.def.gameName} выйдет около ${formatDate(t.day)}`,
+            body: `${labName(t.def.lab)} готовит ${t.def.gameName}: выход около ${formatDate(t.day)}, Эло на «Арене» около ${Math.round(rivalEloIn(s, t.def) / 10) * 10}. Планы могут сдвинуться, если соперник ответит на ваши ходы.`,
+          });
+        }
+        if (roll(s, 0.3, false)) {
+          pay(s, amount(s, 1));
+          addRep(s, -10);
+        }
+      },
+    },
+    {
+      label: 'Отказаться',
+      story: 'Лаборатория не берёт чужие документы',
+      hint: 'без изменений',
+      apply: () => {},
+    },
+  ],
+};
 
 export const COUNTRY_EVENTS: EventDef[] = [
   // ---------- США ----------

@@ -127,6 +127,56 @@ export function buyBackShares(s: GameState): void {
   });
 }
 
+// ---------- Выкуп доли из окна «Инвесторы» ----------
+
+/** Шаг выкупа: 5 % компании раз в BUYBACK_GAP_DAYS дней по оценке × BOARD_BUYBACK_PREMIUM. */
+export const BUYBACK_STEP = 0.05;
+export const BUYBACK_GAP_DAYS = 90;
+
+/** Сколько компании выкупается сейчас: шаг, но не больше доли инвесторов. */
+export function buybackStep(s: GameState): number {
+  return Math.min(BUYBACK_STEP, Math.max(0, 1 - s.founderShare));
+}
+
+export function buybackStepCost(s: GameState): number {
+  return valuation(s).total * buybackStep(s) * BOARD_BUYBACK_PREMIUM;
+}
+
+/** Почему выкуп сейчас невозможен, или null. */
+export function buybackError(s: GameState): string | null {
+  if (s.outcome) return 'Партия окончена';
+  if (buybackStep(s) < 0.001) return 'Вся компания уже ваша';
+  const r = pendingRound(s);
+  if (r) return `Идут переговоры о раунде до ${formatDateShort(r.closeDay)}`;
+  if (s.lastBuybackDay !== undefined && s.day - s.lastBuybackDay < BUYBACK_GAP_DAYS) {
+    return `Следующий выкуп - ${formatDateShort(s.lastBuybackDay + BUYBACK_GAP_DAYS)}`;
+  }
+  const cost = buybackStepCost(s);
+  if (s.cash < cost) return `Не хватает денег: нужно ${fmtMoney(cost)}, на счету ${endSentence(fmtMoney(s.cash))}`;
+  return null;
+}
+
+/**
+ * Действие: выкупить buybackStep компании у инвесторов по buybackStepCost. Лишние деньги поздней игры становятся долей
+ * основателя (плейтест 18.10: к 2024 году у сильного игрока $100-400 млн лежали без дела, а доля падала до 8 %).
+ */
+export function buyBackStake(s: GameState): Result {
+  const error = buybackError(s);
+  if (error) return { ok: false, error };
+  const step = buybackStep(s);
+  const cost = buybackStepCost(s);
+  spend(s, 'capex', cost);
+  s.founderShare = Math.min(1, s.founderShare + step);
+  s.lastBuybackDay = s.day;
+  addMail(s, {
+    kind: 'finance',
+    read: true,
+    title: `Выкуплено ${Math.round(step * 100)} % компании`,
+    body: `Доля выкуплена у инвесторов за ${endSentence(fmtMoney(cost))} Доля основателя - ${fmtShare(s.founderShare)} %.`,
+  });
+  return { ok: true };
+}
+
 /** «50,4» из 0,504: доля основателя с десятыми. */
 function fmtShare(share: number): string {
   return String(Math.round(share * 1000) / 10).replace('.', ',');

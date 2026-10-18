@@ -8,6 +8,8 @@ import { buildDatacenter, buyDcGpus, sellDcGpus, writeOffDcGpus } from './datace
 import { addMail, applyChoice, deferChoice, markRead } from './events';
 import { ackYearReview } from './goals';
 import { cancelRound, raiseRound } from './investors';
+export { buyBackStake } from './investors';
+export { launchTranslator } from './translator';
 import { releaseHypeBonus, updateSaturation } from './leaderboard';
 import { minPrice, subsOpen } from './market';
 import { queueResearch, setResearch, unqueueResearch } from './research';

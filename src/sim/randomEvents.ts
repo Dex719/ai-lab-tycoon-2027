@@ -8,9 +8,11 @@
 
 import { EVENTS, EXTRA_EVENTS } from '../data/events';
 import { EARLY_EVENTS } from '../data/earlyEvents';
+import { HISTORY_DATE } from '../data/historyEvents';
+import { LATE_DATE, leakTarget } from '../data/lateEvents';
 import { openChoices, triggerEvent } from './events';
 import { nextRandom, randInt } from './rng';
-import { dateToDay } from './time';
+import { dateToDay, isMonthStart, yearOf } from './time';
 import type { GameState } from './types';
 
 /** Через сколько дней после письма может прийти следующее: от 60 до 90 (примерно раз в 2-3 месяца). */
@@ -36,7 +38,7 @@ export function mainChoiceSoon(s: GameState, days: number): boolean {
 /** День последнего письма с выбором (любого: история, соперники, случайное); -Infinity, если их не было. */
 export function lastChoiceDay(s: GameState): number {
   // Письма добавляются по порядку дней, поэтому первое с конца - самое позднее.
-  for (let i = s.mail.length - 1; i >= 0; i--) if (s.mail[i].choices) return s.mail[i].day;
+  for (let i = s.mail.length - 1; i >= 0; i--) if (s.mail[i].choices && s.mail[i].eventId !== LEAK_ID) return s.mail[i].day;
   return -Infinity;
 }
 
@@ -103,8 +105,46 @@ export function extraDateEventsDay(s: GameState): void {
  * последнее такое письмо было не меньше 10 дней назад и сюжетное письмо не на подходе, бросить жребий и отправить
  * письмо. Если жребий не из чего бросать, ждём до завтра.
  */
+/** Утечка планов соперника: не чаще раза в LEAK_GAP_DAYS, с 2019 года, в начале месяца с вероятностью 1/4 по зерну. */
+export const LEAK_ID = 'rnd-rival-leak';
+const LEAK_GAP_DAYS = 400;
+const LEAK_YEAR_MAX = 13;
+const LEAK_BUSY_YEAR = 10;
+
+/** Сколько писем по датам (история и поздняя игра) запланировано на год. */
+function datedInYear(year: number): number {
+  let n = 0;
+  for (const d of [...Object.values(HISTORY_DATE), ...Object.values(LATE_DATE)]) if (Number(d.slice(0, 4)) === year) n++;
+  return n;
+}
+
+/**
+ * Своё расписание письма об утечке (data/lateEvents.LEAK_EVENT): без общего потока жребия s.yearly.rng, приходит
+ * отложенным (игра не встаёт) и не считается «последним решением» для расписания других писем (lastChoiceDay).
+ */
+export function leakDay(s: GameState): void {
+  if (!isMonthStart(s.day) || s.day < dateToDay('2019-01-01')) return;
+  const last = s.yearly.lastFired[LEAK_ID];
+  if (last !== undefined && s.day - last < LEAK_GAP_DAYS) return;
+  if (openChoices(s).length > 0 || !leakTarget(s)) return;
+  // Год и так полон решений (не больше 16 в год вместе со всеми письмами): в годы, где писем по датам много (2023),
+  // и когда решений в году уже LEAK_YEAR_MAX, утечка ждёт следующего года.
+  const year = yearOf(s.day);
+  if (datedInYear(year) >= LEAK_BUSY_YEAR) return;
+  if (s.mail.filter((m) => m.choices && yearOf(m.day) === year).length >= LEAK_YEAR_MAX) return;
+  // Как у случайных писем: не раньше чем через 10 дней после другого решения.
+  if (s.day - lastChoiceDay(s) < RANDOM_QUIET_DAYS || mainChoiceSoon(s, DATED_SPACING_DAYS)) return;
+  // Детерминированный «жребий» от зерна и дня: основной и годовой потоки случайности не сдвигаются.
+  const h = Math.imul((s.seed ^ (s.day * 2654435761)) >>> 0, 2246822519) >>> 0;
+  if (h % 4 !== 0) return;
+  s.yearly.lastFired[LEAK_ID] = s.day;
+  triggerEvent(s, LEAK_ID);
+  deferLast(s);
+}
+
 export function randomEventDay(s: GameState): void {
   extraDateEventsDay(s);
+  leakDay(s);
   const y = s.yearly;
   if (s.day < y.nextEventDay) return;
   if (openChoices(s).length > 0) return; // не больше одного письма с выбором: ждём ответа

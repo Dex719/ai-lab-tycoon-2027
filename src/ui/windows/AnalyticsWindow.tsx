@@ -20,8 +20,10 @@ import MarketTab from './MarketWindow';
 import { LabsTab } from './LabsDossier';
 import { dossierPending, onDossier } from '../dossier';
 import { ArenaTab, BenchmarksTab } from './RatingsWindow';
+import { RECORD_IDS, RECORD_NAMES } from '../../sim/records';
+import { fmtRecord } from '../recordsFormat';
 
-type TabId = 'yours' | 'market' | 'bench' | 'arena' | 'finance' | 'labs';
+type TabId = 'yours' | 'market' | 'bench' | 'arena' | 'finance' | 'labs' | 'records';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'arena', label: 'Арена' },
@@ -30,6 +32,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: 'bench', label: 'Бенчмарки' },
   { id: 'finance', label: 'Финансы' },
   { id: 'labs', label: 'Лаборатории' },
+  { id: 'records', label: 'Рекорды' },
 ];
 
 /** Вкладки, которые сами занимают всю высоту окна: таблица внутри прокручивается отдельно. */
@@ -63,7 +66,43 @@ export default function AnalyticsWindow(props: WindowProps) {
         {tab === 'arena' && <ArenaTab {...props} />}
         {tab === 'finance' && <FinanceTab {...props} />}
         {tab === 'labs' && <LabsTab {...props} />}
+        {tab === 'records' && <RecordsTab s={props.s} />}
       </div>
+    </div>
+  );
+}
+
+// ---------- Рекорды ----------
+
+/** Рекорды лаборатории (sim/records.ts): что, сколько, когда и каким был прошлый рекорд. */
+function RecordsTab({ s }: { s: GameState }) {
+  const rows = RECORD_IDS.map((id) => ({ id, e: s.records?.[id] })).filter((r) => r.e);
+  if (rows.length === 0) return <div className="an-empty">Рекорды появятся в конце первого месяца с выручкой или выпущенной моделью.</div>;
+  return (
+    <div className="an-page">
+      <h3 className="an-h">Рекорды лаборатории</h3>
+      <table className="grid an-grid flat an-wrap">
+        <thead>
+          <tr>
+            <th>Рекорд</th>
+            <th className="num">Значение</th>
+            <th className="num">Установлен</th>
+            <th className="num">Прошлый рекорд</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ id, e }) => (
+            <tr key={id}>
+              <td>{RECORD_NAMES[id]}</td>
+              <td className="num">
+                <b>{fmtRecord(id, e!.value)}</b>
+              </td>
+              <td className="num">{formatDateShort(e!.day)}</td>
+              <td className="num">{e!.prev === null ? '-' : fmtRecord(id, e!.prev)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

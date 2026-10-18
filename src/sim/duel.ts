@@ -225,13 +225,37 @@ export function letterVariants(lab: LabId, kind: LetterKind): number {
   return LETTERS[lab][kind].length;
 }
 
-/** Текст письма лаборатории; n - номер варианта (по кругу). */
-export function letterText(lab: LabId, kind: LetterKind, v: LetterVars, n = 0): { title: string; body: string } {
+/**
+ * Главы лабораторий: вымышленные люди (не карикатуры на настоящих), подпись под личными письмами. С ними соперничество
+ * становится личным (идея «Люди и сюжет», 18.10).
+ */
+export const LAB_HEADS: Record<LabId, string> = {
+  openbrain: 'Итан Корвел, генеральный директор',
+  antropik: 'Клэр Уинстон, сооснователь',
+  gogle: 'Радж Менон, руководитель исследований',
+  zhipo: 'Чжан Вэй, генеральный директор',
+  moonshoot: 'Ли Мин, основатель',
+  deepcent: 'Ван Тао, основатель',
+  alibabo: 'Чэнь Цзин, руководитель моделей',
+  infleksion: 'Оуэн Пирс, сооснователь',
+  charakter: 'Нора Делейн, основатель',
+};
+
+/** Счёт обгонов между игроком и лабораторией для письма: строка появляется, когда обгонов хотя бы два. */
+export interface LetterScore {
+  youPassed: number;
+  passedYou: number;
+}
+
+/** Текст письма лаборатории; n - номер варианта (по кругу); score - счёт обгонов (память о прошлых встречах). */
+export function letterText(lab: LabId, kind: LetterKind, v: LetterVars, n = 0, score?: LetterScore): { title: string; body: string } {
   const list = LETTERS[lab][kind];
   const l = list[((n % list.length) + list.length) % list.length];
-  return { title: `${labName(lab)}: ${l.title}`, body: `${l.body(v)}
+  const memory =
+    score && score.youPassed + score.passedYou >= 2 ? ` Счёт обгонов между нами: вы нас - ${score.youPassed}, мы вас - ${score.passedYou}.` : '';
+  return { title: `${labName(lab)}: ${l.title}`, body: `${l.body(v)}${memory}
 
-${labName(lab)}` };
+${LAB_HEADS[lab]}, ${labName(lab)}` };
 }
 
 /** Где идёт гонка, в предложном падеже: «„Арене“» или «GLUU». */
@@ -243,7 +267,7 @@ function sendLetter(s: GameState, d: DuelState, lab: LabId, kind: LetterKind, v:
   const name = s.labName.trim();
   const you = name ? `лаборатория «${name}»` : 'ваша лаборатория';
   const of = name ? `лаборатории «${name}»` : 'вашей лаборатории';
-  const t = letterText(lab, kind, { ...v, you, You: you[0].toUpperCase() + you.slice(1), of }, n);
+  const t = letterText(lab, kind, { ...v, you, You: you[0].toUpperCase() + you.slice(1), of }, n, { youPassed: d.labs[lab].youPassed, passedYou: d.labs[lab].passedYou });
   addMail(s, { kind: 'rival', title: t.title, body: t.body, from: lab });
   d.letterDay = s.day;
   d.labs[lab].letters += 1;

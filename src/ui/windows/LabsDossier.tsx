@@ -2,6 +2,7 @@
 // эмблема, характер одной строкой, личный счёт с вами (главное число), лучшая модель и цена, отношение к вам и
 // последние ходы против вас. Внизу - последние ходы всех соперников.
 
+import { LAB_HEADS } from '../../sim/duel';
 import { useEffect, useState } from 'react';
 import type { WindowProps } from '.';
 import { duelOf, fightScore, mainRival, timesCount } from '../../sim/duel';
@@ -158,6 +159,7 @@ function Dossier({ s, lab, main }: { s: GameState; lab: LabId; main: boolean }) 
           <div className="dos-line" title={row?.character?.description}>
             {LAB_LINE[lab]}
           </div>
+          <div className="dos-head-name">Во главе: {LAB_HEADS[lab]}</div>
           {main && <div className="dos-main">Ваш главный соперник: борется с вами чаще всех</div>}
         </div>
       </div>

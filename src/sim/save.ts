@@ -10,7 +10,7 @@ import { DIFFICULTY_IDS, emptyMemory, emptyRivalry, LEVERS, MOVE_IDS } from './r
 import type { ActiveMove, HistoryRow, LabMemory, PendingMove, RivalOverride, RivalryState } from './rivalry';
 import { CLOUD_IDS, STARTUP_IDS, TEAM_IDS } from './lateState';
 import type { DuelLab, DuelState } from './duel';
-import type { LabId } from './types';
+import type { LabId, RecordEntry } from './types';
 import type { CloudDeal, FinalPush, FinaleState, FinalUpdate, FinalUpdateDone, LateState, StarTeam, StartupDeal } from './lateState';
 import { emptyMarket, emptyQuests, emptySegmentShares, emptyYearly } from './state';
 import { dateToDay } from './time';
@@ -44,7 +44,7 @@ import type {
   YearlyState,
   YearReview,
 } from './types';
-import { BENCHMARK_IDS, COUNTRY_IDS, DOMAINS, GPU_IDS, LAB_IDS, REVIEW_STATES, SEGMENT_IDS, TECH_IDS, TIER_IDS } from './types';
+import { BENCHMARK_IDS, CHECKPOINT_MODES, COUNTRY_IDS, DOMAINS, GPU_IDS, LAB_IDS, REVIEW_STATES, SEGMENT_IDS, TECH_IDS, TIER_IDS } from './types';
 
 export const SAVE_KEY = 'ailab.save.v1';
 export const AUTOSAVE_KEY = 'ailab.autosave.v1';
@@ -182,6 +182,7 @@ const trainingPlan = shapeOf<TrainingPlan>({
   context: num,
   tier: oneOf(TIER_IDS),
   stolenData: optional(bool),
+  checkpoint: optional(oneOf(CHECKPOINT_MODES)),
 });
 
 const trainingRun = shapeOf<TrainingRun>({
@@ -518,6 +519,7 @@ const STATE: Record<keyof GameState, Check> = {
   reputation: num,
   founderShare: num,
   lastRoundDay: nullable(num),
+  lastBuybackDay: optional(num),
   round: optional(nullable(shapeOf<PendingRound>({ fraction: num, valuation: num, money: num, startDay: num, closeDay: num, emergency: bool }))),
   monthsFirst: int,
   hype: record(HYPE_OWNERS, num),
@@ -563,6 +565,8 @@ const STATE: Record<keyof GameState, Check> = {
   tutorial: shapeOf<GameState['tutorial']>({ step: int, active: bool }),
   difficulty: oneOf(DIFFICULTY_IDS),
   country: optional(oneOf(COUNTRY_IDS)),
+  translator: optional(shape({ launchedDay: num, earned: num })),
+  records: optional(dict(shapeOf<RecordEntry>({ value: num, day: num, prev: nullable(num) }))),
   rivalry,
   yearly,
   late: optional(late),

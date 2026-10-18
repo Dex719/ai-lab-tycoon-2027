@@ -606,6 +606,8 @@ const OPTIONAL_FIELDS = new Set([
   'datacenters', 'capex', 'power', 'yearly', 'rentChangedDay',
   // Промежуточные лаборатории появились позже: их строки в записях по лабораториям дописывает save.migrateLabs.
   'infleksion', 'charakter',
+  // Рекорды лаборатории (sim/records.ts) появились позже.
+  'records',
   'quests', 'param', 'results', 'duel', 'from', 'staff', 'retainedUntil', 'potential', 'lastCourseDay', 'course', 'incoming', 'held', 'round', 'heldPrice', 'stopped',
 ]);
 /** Необязательные поля по полному пути: имя поля (modelId, price) в других местах обязательно. */
@@ -615,7 +617,7 @@ const optionalPath = (norm: string): boolean => OPTIONAL_PATHS.has(norm) || /^ri
 const DICTS = new Set([
   'flags', 'yearly.lastFired', 'finance.history[].prices', 'market.shares', 'models[].overfit', 'rivalry.moveCooldown', 'rivalry.overrides', 'rivalry.extra',
   'market.segments.consumers.shares', 'market.segments.enterprise.shares', 'market.segments.developers.shares',
-  'market.held', 'market.held.consumers', 'market.held.enterprise', 'market.held.developers', 'market.heldPrice',
+  'market.held', 'market.held.consumers', 'market.held.enterprise', 'market.held.developers', 'market.heldPrice', 'records',
 ]);
 
 describe('проверка покрывает каждое поле живого состояния', () => {

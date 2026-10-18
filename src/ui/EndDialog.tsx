@@ -1,7 +1,10 @@
 // Итог партии: победа, конец 2024 года или банкротство (FR-1.4, FR-1.5).
 // Главное место, график Эло против лучшего соперника по месяцам, ваши моменты и то, чего лаборатория добилась.
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { COUNTRIES } from '../sim/country';
+import { endingOf, epilogueOf, partyScore } from '../sim/ending';
+import { runId, saveRun, type BestRun } from './bestRuns';
 import { LABS } from '../data/labs';
 import { valuation } from '../sim/investors';
 import { leaderboard, rivalsSellByApi } from '../sim/leaderboard';
@@ -35,13 +38,14 @@ function revenueOf(h: MonthRecord): number {
 }
 
 /** График по месяцам: Эло лучшей модели лаборатории и лучшей модели соперников. */
-function EloChart({ history, lab }: { history: MonthRecord[]; lab: string }) {
+function EloChart({ history, lab, ghost }: { history: MonthRecord[]; lab: string; ghost?: number[] | null }) {
   const pts = history.filter((h) => h.eloMine !== undefined && h.eloRival !== undefined);
+  const g = ghost ? ghost.slice(0, pts.length) : [];
   if (pts.length < 2) return null;
   const W = 520;
   const H = 150;
   const pad = { l: 34, r: 8, t: 10, b: 18 };
-  const vals = pts.flatMap((h) => [h.eloMine as number, h.eloRival as number]).filter((v) => v > 0);
+  const vals = [...pts.flatMap((h) => [h.eloMine as number, h.eloRival as number]), ...g].filter((v) => v > 0);
   const lo = Math.floor(Math.min(...vals) / 100) * 100;
   const hi = Math.ceil(Math.max(...vals) / 100) * 100;
   const x = (i: number) => pad.l + (i / (pts.length - 1)) * (W - pad.l - pad.r);
@@ -54,6 +58,7 @@ function EloChart({ history, lab }: { history: MonthRecord[]; lab: string }) {
       <div className="end-legend">
         <span className="mine">{lab}: лучшая модель в продаже</span>
         <span className="rival">Лучшая модель соперников</span>
+        {g.length > 1 && <span className="ghost">Ваша лучшая прошлая партия</span>}
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Эло по месяцам: лаборатория и лучшая модель соперников">
         {[lo, (lo + hi) / 2, hi].map((v) => (
@@ -69,6 +74,9 @@ function EloChart({ history, lab }: { history: MonthRecord[]; lab: string }) {
             {h.year}
           </text>
         ))}
+        {g.length > 1 && (
+          <path d={g.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v || lo).toFixed(1)}`).join(' ')} className="l-ghost" />
+        )}
         <path d={line('eloRival')} className="l-rival" />
         <path d={line('eloMine')} className="l-mine" />
       </svg>
@@ -107,6 +115,25 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
     playSound(win ? 'first' : bankrupt ? 'rankDown' : 'goal');
   }, [win, bankrupt]);
 
+  // Счёт, концовка и эпилог; партия записывается в лучшие партии этого компьютера один раз при открытии итога.
+  const score = partyScore(s);
+  const ending = endingOf(s);
+  const epilogue = epilogueOf(s);
+  const id = runId(s);
+  const [runs] = useState<BestRun[]>(() =>
+    saveRun({
+      id,
+      score: score.total,
+      labName: s.labName,
+      country: s.country ?? null,
+      difficulty: s.difficulty,
+      title: ending.title,
+      at: new Date().toISOString().slice(0, 10),
+      elo: history.map((h) => h.eloMine ?? 0),
+    }),
+  );
+  const ghost = runs.find((r) => r.id !== id)?.elo ?? null;
+
   return (
     <div className="modal-backdrop">
       <div
@@ -136,6 +163,11 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
             </div>
           </div>
 
+          <div className="end-ending">
+            <b>{ending.title}</b>
+            <span>{ending.text}</span>
+          </div>
+
           <dl className="end-stats">
             <dt>Лучшее место за игру</dt>
             <dd>{bestPlace !== null ? `${bestPlace}-е` : 'без места'}</dd>
@@ -159,7 +191,58 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
             <dd>{fmtMoney(v.total * s.founderShare)}</dd>
           </dl>
 
-          <EloChart history={history} lab={s.labName} />
+          <EloChart history={history} lab={s.labName} ghost={ghost} />
+
+          <div className="end-two">
+            <div className="end-score">
+              <span className="end-l">Счёт партии</span>
+              <b className="end-score-v">{fmtNum(score.total)}</b>
+              <dl className="end-score-parts">
+                {score.parts.map((p) => (
+                  <div key={p.label}>
+                    <dt>{p.label}</dt>
+                    <dd>+{fmtNum(p.value)}</dd>
+                  </div>
+                ))}
+                {score.mult !== 1 && (
+                  <div>
+                    <dt>Сложность «{DIFFICULTY[s.difficulty].name}»</dt>
+                    <dd>×{String(score.mult).replace('.', ',')}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+            <div className="end-epilogue">
+              <span className="end-l">Что стало с людьми</span>
+              <ul>
+                {epilogue.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {runs.length > 1 && (
+            <div className="end-runs">
+              <span className="end-l">Лучшие партии на этом компьютере</span>
+              <table className="end-runs-t">
+                <tbody>
+                  {runs.slice(0, 5).map((r, i) => (
+                    <tr key={r.id} className={r.id === id ? 'cur' : undefined}>
+                      <td className="num">{i + 1}</td>
+                      <td>{r.labName}</td>
+                      <td>{r.country ? COUNTRIES[r.country].name : '-'}</td>
+                      <td>{DIFFICULTY[r.difficulty]?.name ?? ''}</td>
+                      <td>{r.title}</td>
+                      <td className="num">
+                        <b>{fmtNum(r.score)}</b>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {moments.length > 0 && (
             <div className="end-moments">

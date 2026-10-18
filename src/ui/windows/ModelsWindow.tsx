@@ -22,7 +22,8 @@ import { contextLabel } from '../../sim/research';
 import { benchRank, type RaceMetric } from '../../sim/leaderboard';
 import { ARENA_PLACE_TITLE } from '../arena';
 import { minPrice, overpriceFrom, playerSales, refPrice, subsOpen } from '../../sim/market';
-import { formatDateShort } from '../../sim/time';
+import { dateToDay, formatDateShort } from '../../sim/time';
+import { TRANSLATOR_LAST_LAUNCH, translatorBlock, translatorPerDay } from '../../sim/translator';
 import {
   arenaElo as forecastElo,
   capsFromPlan,
@@ -181,6 +182,45 @@ function placeTitle(metric: RaceMetric | null): string {
 /** Ключ проекта обучения в списке: у проекта нет id модели. */
 const RUN_PREFIX = 'run:';
 
+// ---------- Переводчик ----------
+
+/**
+ * Свой переводчик 2017-2020 (sim/translator.ts): кнопка запуска, пока его можно открыть, потом - выручка в день и
+ * сколько он заработал. После 2020 года, если не запущен, блока нет.
+ */
+function Translator({ s }: { s: GameState }) {
+  const [err, setErr] = useState<string | null>(null);
+  const block = translatorBlock(s);
+  if (!s.translator && block && s.day >= dateToDay(TRANSLATOR_LAST_LAUNCH)) return null;
+  if (s.translator) {
+    return (
+      <div className="mw-tr">
+        <span className="mw-tr-t">Переводчик</span>
+        <span className="mw-tr-s">
+          {fmtMoney(translatorPerDay(s))} в день · заработал {fmtMoney(s.translator.earned)}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="mw-tr">
+      <span className="mw-tr-t">Свой переводчик</span>
+      <span className="mw-tr-s">Сервис перевода на лучшей модели: около {fmtMoney(translatorPerDay(s))} в день, больше с сильной моделью.</span>
+      <GuardButton
+        className="btn wide"
+        reason={block}
+        onClick={() => {
+          const r = store.dispatch(actions.launchTranslator);
+          setErr(r.ok ? null : r.error);
+        }}
+      >
+        Запустить переводчик
+      </GuardButton>
+      <ErrorText error={err} />
+    </div>
+  );
+}
+
 // ---------- Коллекция ----------
 
 function ModelList(props: {
@@ -304,6 +344,7 @@ function ModelList(props: {
         {archiveShown && archived.map(renderModel)}
       </div>
       <div className="mw-side-foot">
+        <Translator s={props.s} />
         <button className="btn primary wide" onClick={() => props.open('newModel')}>
           Создать модель
         </button>

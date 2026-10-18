@@ -44,3 +44,6 @@
   .dos { grid-template-columns: 1fr; }
   .dos-body { grid-template-columns: 1fr; }
 }
+
+/* Глава лаборатории: подпись под её личными письмами. */
+.dos-head-name { font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }

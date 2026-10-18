@@ -42,9 +42,10 @@ import {
   trainingPoolPerRun,
   trainOverhead,
   ROUGH_ELO_SPREAD,
+  clusterFailChance,
 } from '../../sim/training';
-import { DOMAINS, TIER_IDS, TIER_NAMES } from '../../sim/types';
-import type { BenchmarkId, DomainId, GameState, Tier, TrainingPlan, TrainingRun } from '../../sim/types';
+import { CHECKPOINT_MODES, DOMAINS, TIER_IDS, TIER_NAMES } from '../../sim/types';
+import type { BenchmarkId, CheckpointMode, DomainId, GameState, Tier, TrainingPlan, TrainingRun } from '../../sim/types';
 import { Cards } from '../components/Cards';
 import { Alert, ConfirmDialog, DenyNote, ErrorText, GuardButton, ProgressBar, Range, useFlash } from '../components/common';
 import { TierBadge } from '../components/TierBadge';
@@ -120,6 +121,8 @@ export interface Draft {
   rlhfKnown?: boolean;
   /** Чужие данные без разрешения (sim/country.ts). Нет поля - выключено. */
   stolen?: boolean;
+  /** Как часто сохранять прогресс (сбои кластера). Нет поля - «обычно». */
+  checkpoint?: CheckpointMode;
 }
 
 /** Черновик живёт вне компонента: свёрнутое окно закрывается полностью, а настройки должны остаться. */
@@ -326,6 +329,43 @@ function ContextSeg(props: { s: GameState; value: number; onChange: (v: number) 
           );
         })}
         <DenyNote text={note} />
+      </div>
+    </div>
+  );
+}
+
+/** Подписи частоты сохранений: что теряется при сбое и сколько стоят сами сохранения. */
+const CHECKPOINT_TEXT: Record<CheckpointMode, { name: string; hint: string }> = {
+  rare: { name: 'Редко', hint: 'Обучение без надбавки, но сбой откатывает на 6 % всего объёма' },
+  normal: { name: 'Обычно', hint: 'Обучение дольше на 1,5 %, сбой откатывает на 2,5 %' },
+  often: { name: 'Часто', hint: 'Обучение дольше на 4 %, сбой откатывает меньше 1 %' },
+};
+
+/**
+ * Частота сохранения прогресса: на большом кластере карты отказывают каждую неделю-две (шанс сбоя за неделю растёт с
+ * числом карт). Редкие сохранения - быстрее, но больше откат.
+ */
+function CheckpointSeg(props: { s: GameState; value: CheckpointMode; onChange: (v: CheckpointMode) => void }) {
+  const chance = Math.round(clusterFailChance(props.s) * 100);
+  return (
+    <div className="nm-ctx-wrap">
+      <div className="nm-lbl" title="Сбой кластера откатывает обучение к последнему сохранению. Чем больше карт, тем чаще сбои.">
+        Сохранять прогресс <span className="muted">· шанс сбоя за неделю {chance} %</span>
+      </div>
+      <div className="nm-seg" role="radiogroup" aria-label="Сохранять прогресс">
+        {CHECKPOINT_MODES.map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="radio"
+            aria-checked={props.value === m}
+            className={`nm-seg-opt${props.value === m ? ' on' : ''}`}
+            title={CHECKPOINT_TEXT[m].hint}
+            onClick={() => props.onChange(m)}
+          >
+            {CHECKPOINT_TEXT[m].name}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -657,6 +697,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
     context: d.context !== null && d.context <= ctxMax ? d.context : ctxMax,
     tier,
     ...(stolen ? { stolenData: true } : {}),
+    checkpoint: d.checkpoint ?? 'normal',
   };
 
   let est: Est | null = null;
@@ -795,6 +836,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
               </button>
             </div>
             <ContextSeg s={s} value={plan.context} onChange={(context) => patch({ context })} />
+            <CheckpointSeg s={s} value={d.checkpoint ?? 'normal'} onChange={(checkpoint) => patch({ checkpoint })} />
           </section>
 
           <section className="nm-card">

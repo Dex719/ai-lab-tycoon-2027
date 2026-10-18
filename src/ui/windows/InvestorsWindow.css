@@ -91,6 +91,8 @@
 .inv-t-warn.warn { color: var(--warn-ink); }
 .inv-t-warn.bad { color: var(--bad-ink); }
 .inv-t-btn { width: 1%; text-align: right; }
+.inv-buy { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+.inv-buy .inv-note { margin: 0; }
 .inv-last { margin-top: 8px; font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }
 
 /* Подтверждение */

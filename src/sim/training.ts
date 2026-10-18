@@ -1,7 +1,7 @@
 // Проекты обучения, способности моделей игрока, Арена игрока, подгонка и разоблачение (FR-4, FR-6, FR-7). TSK-005.
 
 import { benchDef, benchScore, DOMAIN_NAMES, introducedBenchmarks } from './benchmarks';
-import { pool } from './compute';
+import { pool, totalH100e } from './compute';
 import {
   ALGO_MULT,
   ARCH_MULT,
@@ -71,7 +71,7 @@ import { chance, randRange } from './rng';
 import { daysWord, endSentence, pointsWord } from './text';
 import { byYear, dateToDay, formatDate, lerpByDate, yearOf } from './time';
 import { DOMAINS, TIER_NAMES } from './types';
-import type { BenchmarkId, DomainId, GameState, PlayerModel, Result, TechId, Tier, TrainingPlan, TrainingRun } from './types';
+import type { BenchmarkId, CheckpointMode, DomainId, GameState, PlayerModel, Result, TechId, Tier, TrainingPlan, TrainingRun } from './types';
 
 export type Arch = 'lstm' | 'transformer';
 
@@ -199,7 +199,49 @@ export function trainOverhead(day: number): number {
 
 /** 6 × N × D × (1 + RLHF_FLOP_EXTRA, если rlhf) × надбавка за контекст × накладные раннего обучения (overhead, по умолчанию 1). */
 export function planFlop(plan: TrainingPlan, overhead = 1): number {
-  return 6 * plan.paramsB * 1e9 * plan.tokensB * 1e9 * (plan.rlhf ? 1 + RLHF_FLOP_EXTRA : 1) * contextFlopMult(plan.context) * overhead;
+  const ck = plan.checkpoint ? CHECKPOINT_FLOP[plan.checkpoint] : 1;
+  return 6 * plan.paramsB * 1e9 * plan.tokensB * 1e9 * (plan.rlhf ? 1 + RLHF_FLOP_EXTRA : 1) * contextFlopMult(plan.context) * overhead * ck;
+}
+
+// ---------- Сбои кластера (идея «Железо», 18.10) ----------
+// На большом кластере карты и сеть отказывают постоянно (при обучении Llama 3 на 16 тыс. H100 - 419 сбоев за 54 дня).
+// Сбой откатывает обучение к последнему сохранению: чем реже сохранять, тем быстрее идёт обучение и тем больше откат.
+
+/** Сколько вычислений уходит на сохранения: часто +4 %, обычно +1,5 %, редко - ничего. */
+export const CHECKPOINT_FLOP: Record<CheckpointMode, number> = { rare: 1, normal: 1.015, often: 1.04 };
+/** Откат при сбое, доля всего объёма обучения. */
+export const CHECKPOINT_ROLLBACK: Record<CheckpointMode, number> = { rare: 0.06, normal: 0.025, often: 0.008 };
+
+/** Шанс сбоя за неделю: больше карт - чаще сбои (от 4 % до 30 %). */
+export function clusterFailChance(s: GameState): number {
+  return Math.min(0.3, 0.04 + totalH100e(s) / 30_000);
+}
+
+/** Детерминированный жребий сбоя по зерну, проекту и дню: основной поток случайности не сдвигается. */
+function failRoll(s: GameState, t: TrainingRun): number {
+  const n = Number(t.id.slice(1)) || 0;
+  const h = Math.imul((s.seed ^ Math.imul(n + 1, 0x9e3779b1) ^ Math.imul(s.day, 0x85ebca6b)) >>> 0, 0xc2b2ae35) >>> 0;
+  return (h % 100_000) / 100_000;
+}
+
+/** Раз в неделю проекта: сбой кластера откатывает его к последнему сохранению. Первая модель партии не срывается. */
+function clusterFailures(s: GameState, t: TrainingRun): void {
+  const mode = t.plan.checkpoint;
+  if (!mode || (s.day - t.startedDay) % 7 !== 6 || t.flopDone <= 0) return;
+  if (!s.models.some((m) => m.releasedDay !== null)) return;
+  if (failRoll(s, t) >= clusterFailChance(s)) return;
+  const lost = Math.min(t.flopDone, CHECKPOINT_ROLLBACK[mode] * t.flopTotal);
+  t.flopDone -= lost;
+  const perDay = trainingPoolPerRun(s) * TRAIN_FLOP_PER_H100E_DAY * trainSpeedMult(s);
+  const days = perDay > 0 ? Math.max(1, Math.round(lost / perDay)) : 0;
+  addMail(s, {
+    kind: 'training',
+    read: true,
+    title: `Сбой на кластере: «${t.plan.name}» откатилась${days > 0 ? ` на ${daysWord(days)}` : ''}`,
+    body:
+      `Часть карт отказала посреди обучения, «${t.plan.name}» продолжила с последнего сохранения. ` +
+      (mode === 'rare' ? 'Сохранения редкие: откат большой. Чаще сохранять можно в настройках следующей модели.' : 'Сохранения частые: потеряно немного.'),
+  });
 }
 
 /** Трансформер доступен после «Механизма внимания», раньше - LSTM. */
@@ -540,6 +582,7 @@ export function progressDay(s: GameState): void {
   for (const t of [...s.trainings]) {
     if (t.failed) continue;
     t.flopDone += perRun;
+    clusterFailures(s, t);
     if (t.failAtFraction !== null && t.flopDone >= t.failAtFraction * t.flopTotal) {
       // Срыв случается в точке отказа: дальше проект не идёт, пока игрок не выберет, что делать.
       t.flopDone = t.failAtFraction * t.flopTotal;

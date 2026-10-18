@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { goalProgress } from '../sim/goals';
+import { RECORD_IDS, RECORD_NAMES } from '../sim/records';
+import { fmtRecord } from './recordsFormat';
 import type { GameState, MonthRecord } from '../sim/types';
 import { raceName, standingOf } from './ArenaFeedback';
 import { fmtMoney, fmtShare } from './format';
@@ -21,6 +23,8 @@ interface Strip {
   rankFrom: number | null;
   rankTo: number | null;
   goal: { title: string; pct: number } | null;
+  /** Побитый в этом месяце рекорд (первый по списку): подпись и было -> стало. */
+  record: { name: string; value: string; prev: string } | null;
 }
 
 function revenueOf(h: MonthRecord | undefined): number {
@@ -56,8 +60,11 @@ export function MonthStrip({ s }: { s: GameState }) {
       const pct = Math.floor(gp.progress.fraction * 100);
       if (!goal || pct > goal.pct) goal = { title: gp.title, pct };
     }
+    // Рекорд закрыт в день итога месяца (за отрисовку могло пройти несколько дней на ×4).
+    const br = RECORD_IDS.map((id) => ({ id, e: s.records?.[id] })).find((x) => x.e && x.e.prev !== null && s.day - x.e.day <= 3);
     setStrip({
       key: months,
+      record: br && br.e ? { name: RECORD_NAMES[br.id], value: fmtRecord(br.id, br.e.value), prev: fmtRecord(br.id, br.e.prev!) } : null,
       title: `${MONTHS[cur.month - 1]} ${cur.year}`,
       revenue: rev,
       revenueDelta: prev && prevRev > 0 ? rev / prevRev - 1 : null,
@@ -113,7 +120,16 @@ export function MonthStrip({ s }: { s: GameState }) {
           </span>
         </span>
       )}
-      {strip.goal && (
+      {strip.record && (
+        <span className="ms-item ms-record">
+          <span className="ms-k">Рекорд: {strip.record.name.toLowerCase()}</span>
+          <span className="ms-v">
+            {strip.record.value}
+            <small>было {strip.record.prev}</small>
+          </span>
+        </span>
+      )}
+      {strip.goal && !strip.record && (
         <span className="ms-item ms-goal">
           <span className="ms-k">Цель: {strip.goal.title}</span>
           <span className="ms-bar">

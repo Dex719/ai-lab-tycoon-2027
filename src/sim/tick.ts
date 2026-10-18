@@ -24,6 +24,8 @@ import { rivalEloIn, rivalPriceIn, rivalryDay, rivalryMonth } from './rivalry';
 import { dayToDate, END_DAY, isMonthStart } from './time';
 import { monthlyTheftSuits } from './country';
 import { milestonesMonth } from './milestones';
+import { recordsMonth } from './records';
+import { translatorDay } from './translator';
 import { monthlyExposure, progressDay as trainingDay, reviewDay } from './training';
 import type { GameState } from './types';
 
@@ -89,6 +91,7 @@ export function advanceDay(s: GameState): void {
   trainingDay(s);
   reviewDay(s); // 5а: завершение внешних проверок сильных моделей
   contractsDay(s);
+  translatorDay(s); // свой переводчик 2017-2020: небольшая выручка каждый день
   marketDay(s);
   financeDay(s);
   tasksDay(s); // короткие задачи: проверка после денег и контрактов дня, новая задача
@@ -113,6 +116,7 @@ export function advanceDay(s: GameState): void {
     monthlyExposure(s);
     monthlyTheftSuits(s);
     milestonesMonth(s);
+    recordsMonth(s);
     noteLabStage(s);
     // Рычаг игрока, накал и планирование ходов соперников: единственное место модуля со случайностью (с 2021 года).
     rivalryMonth(s);

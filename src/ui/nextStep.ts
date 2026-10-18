@@ -9,13 +9,14 @@ import { canApply } from '../sim/contracts';
 import { BANKRUPT_DAYS } from '../sim/constants';
 import { formatDateShort, START_DAY } from '../sim/time';
 import { modelScore } from '../sim/training';
+import { translatorBlock, translatorPerDay } from '../sim/translator';
 import type { GameState, PlayerModel, Tender } from '../sim/types';
 import { contractsNeedWithApplications, researchDaysAt, trainingDaysAt } from './forecast';
 import { fmtH100e, fmtMoney } from './format';
 import type { WindowId } from './windows';
 
 export interface NextStep {
-  id: 'broke' | 'rent' | 'rent-wait' | 'contract-power' | 'release' | 'research' | 'first-model' | 'transformer' | 'tender' | 'research-wait' | 'waiting' | 'stopped' | 'time';
+  id: 'broke' | 'translator' | 'rent' | 'rent-wait' | 'contract-power' | 'release' | 'research' | 'first-model' | 'transformer' | 'tender' | 'research-wait' | 'waiting' | 'stopped' | 'time';
   title: string;
   detail: string;
   /** Глагол на кнопке; null - кнопки нет. */
@@ -152,6 +153,17 @@ function firstStep(s: GameState): NextStep | null {
       detail: '«Механизм внимания» изучен: при тех же затратах модель будет заметно сильнее прежней.',
       action: 'Начать обучение',
       open: 'newModel',
+    };
+  }
+
+  // Свой переводчик (sim/translator.ts): первая постоянная выручка 2017-2020 годов.
+  if (translatorBlock(s) === null) {
+    return {
+      id: 'translator',
+      title: 'Запустите свой переводчик',
+      detail: `Модель уже переводит лучше старых систем: около ${fmtMoney(translatorPerDay(s))} в день, с сильной моделью - больше.`,
+      action: 'Открыть «Модели»',
+      open: 'models',
     };
   }
 

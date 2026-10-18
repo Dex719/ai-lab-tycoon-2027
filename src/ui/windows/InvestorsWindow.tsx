@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import type { WindowProps } from '.';
 import { FOUNDER_BOARD_SHARE, FOUNDER_WARN_SHARE, MANIA, ROUND_COOLDOWN_DAYS, ROUND_FRACTIONS, VALUATION_FLOOR } from '../../sim/constants';
-import { canRaise, pendingRound, ROUND_CANCEL_HYPE, roundDays, valuation } from '../../sim/investors';
+import { buybackError, buybackStep, buybackStepCost, BUYBACK_GAP_DAYS, canRaise, pendingRound, ROUND_CANCEL_HYPE, roundDays, valuation } from '../../sim/investors';
 import type { Valuation } from '../../sim/investors';
 import { formatDateShort, lerpByDate } from '../../sim/time';
 import type { GameState } from '../../sim/types';
@@ -269,6 +269,25 @@ function SellConfirm(props: { s: GameState; fraction: number; v: Valuation; shar
   );
 }
 
+// ---------- Выкуп доли ----------
+
+/** Выкуп 5 % у инвесторов раз в квартал: лишние деньги поздней игры возвращают долю и контроль. */
+function Buyback({ s, share, onBuy }: { s: GameState; share: number; onBuy: () => void }) {
+  if (share >= 0.999) return null;
+  const err = buybackError(s);
+  return (
+    <div className="inv-buy">
+      <h3 className="inv-h">Выкуп доли</h3>
+      <p className="inv-note">
+        Выкупить {fmtShare(buybackStep(s), 0)} у инвесторов за {fmtMoney(buybackStepCost(s))}: по оценке с надбавкой 25 %, не чаще раза в 3 месяца.
+      </p>
+      <GuardButton className="btn" reason={err} onClick={onBuy}>
+        Выкупить {fmtShare(buybackStep(s), 0)}
+      </GuardButton>
+    </div>
+  );
+}
+
 // ---------- Окно ----------
 
 export default function InvestorsWindow({ s }: WindowProps) {
@@ -278,6 +297,7 @@ export default function InvestorsWindow({ s }: WindowProps) {
   const [selling, setSelling] = useState<number | null>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [buying, setBuying] = useState(false);
   const round = pendingRound(s);
 
   const share = s.founderShare;
@@ -362,10 +382,31 @@ export default function InvestorsWindow({ s }: WindowProps) {
             </tbody>
           </table>
           {s.lastRoundDay !== null && <div className="inv-last">Прошлый раунд: {formatDateShort(s.lastRoundDay)}</div>}
+          <Buyback s={s} share={share} onBuy={() => setBuying(true)} />
         </section>
       </div>
 
       {selling !== null && v && <SellConfirm s={s} fraction={selling} v={v} share={share} onClose={() => setSelling(null)} />}
+      {buying && (
+        <ConfirmDialog title="Выкуп доли" confirmLabel="Выкупить" onConfirm={() => {
+          const r = store.dispatch(actions.buyBackStake);
+          if (r.ok) setBuying(false);
+          return r;
+        }} onClose={() => setBuying(false)}>
+          <div className="kv inv-confirm">
+            <span>Выкупается</span>
+            <span>{fmtShare(buybackStep(s), 0)} компании</span>
+            <span>Цена</span>
+            <span className="bad">−{fmtMoney(buybackStepCost(s))}</span>
+            <span>Доля до</span>
+            <span>{fmtShare(share)}</span>
+            <span>Доля после</span>
+            <span className={toneClass(share + buybackStep(s))}>{fmtShare(share + buybackStep(s))}</span>
+            <span>Следующий выкуп</span>
+            <span>через {fmtDays(BUYBACK_GAP_DAYS)}</span>
+          </div>
+        </ConfirmDialog>
+      )}
       {cancelling && round && (
         <ConfirmDialog
           title="Прервать переговоры"
