@@ -14,9 +14,10 @@ import {
   IconResearch,
   IconTeam,
 } from '../icons';
-import { IconDeals, IconFinale } from '../icons/late';
+import { IconDeals, IconFinale, IconProducts } from '../icons/late';
 import { dealsOpenedDay } from '../../sim/deals';
 import { finaleOpenedDay } from '../../sim/finale';
+import { productsOpenedDay } from '../../sim/products';
 import AnalyticsWindow from './AnalyticsWindow';
 import ComputeWindow from './ComputeWindow';
 import ContractsWindow from './ContractsWindow';
@@ -26,6 +27,7 @@ import FinaleWindow from './FinaleWindow';
 import InvestorsWindow from './InvestorsWindow';
 import MailWindow from './MailWindow';
 import ModelsWindow from './ModelsWindow';
+import ProductsWindow from './ProductsWindow';
 import ResearchWindow from './ResearchWindow';
 import TeamWindow from './TeamWindow';
 import TrainingWindow from './TrainingWindow';
@@ -42,7 +44,8 @@ export type WindowId =
   | 'datacenters'
   | 'deals'
   | 'finale'
-  | 'team';
+  | 'team'
+  | 'products';
 
 /** Старые имена окон (до редизайна) - чтобы ссылки open('training') и т. п. продолжали работать. */
 export type WindowAlias = 'training' | 'market' | 'finance' | 'ratings';
@@ -94,6 +97,8 @@ export const WINDOWS: WindowDef[] = [
     Component: DatacentersWindow,
     openedDay: (s) => s.datacenters.unlockedDay,
   },
+  // Свои сервисы: переводчик 2017-2020 и ИИ-программист с июля 2021 года; ярлык - с первой выпущенной моделью.
+  { id: 'products', title: 'Продукты', icon: IconProducts, side: 'left', w: 860, h: 500, Component: ProductsWindow, openedDay: productsOpenedDay },
   // Поздняя игра: сделки 2023-2024 (команды, стартапы, облако) и финальный квартал 2024 года.
   { id: 'deals', title: 'Сделки', icon: IconDeals, side: 'left', w: 1000, h: 580, Component: DealsWindow, openedDay: dealsOpenedDay },
   { id: 'finale', title: 'Финал', icon: IconFinale, side: 'left', w: 1000, h: 680, Component: FinaleWindow, openedDay: finaleOpenedDay },

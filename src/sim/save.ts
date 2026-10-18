@@ -44,7 +44,7 @@ import type {
   YearlyState,
   YearReview,
 } from './types';
-import { BENCHMARK_IDS, CHECKPOINT_MODES, COUNTRY_IDS, DOMAINS, GPU_IDS, LAB_IDS, REVIEW_STATES, SEGMENT_IDS, TECH_IDS, TIER_IDS } from './types';
+import { BENCHMARK_IDS, CHALLENGE_IDS, CHECKPOINT_MODES, COUNTRY_IDS, DOMAINS, GPU_IDS, LAB_IDS, REVIEW_STATES, SEGMENT_IDS, TECH_IDS, TIER_IDS, WORLD_MOD_IDS } from './types';
 
 export const SAVE_KEY = 'ailab.save.v1';
 export const AUTOSAVE_KEY = 'ailab.autosave.v1';
@@ -222,6 +222,11 @@ const playerModel = shapeOf<PlayerModel>({
   reviewEndDay: nullable(num),
   earnedSubs: num,
   stolenCaught: optional(bool),
+  holes: optional(num),
+  redTeam: optional(shape({ mode: oneOf(['quick', 'full']), endDay: num })),
+  redTeamDone: optional(bool),
+  reviewsSent: optional(num),
+  weekRank: optional(num),
 });
 
 const tender = shapeOf<Tender>({
@@ -565,7 +570,26 @@ const STATE: Record<keyof GameState, Check> = {
   tutorial: shapeOf<GameState['tutorial']>({ step: int, active: bool }),
   difficulty: oneOf(DIFFICULTY_IDS),
   country: optional(oneOf(COUNTRY_IDS)),
+  challenges: optional(arrayOf(oneOf(CHALLENGE_IDS))),
+  worldMods: optional(arrayOf(oneOf(WORLD_MOD_IDS))),
   translator: optional(shape({ launchedDay: num, earned: num })),
+  coder: optional(
+    shape({ launchedDay: num, openDay: num, mode: oneOf(['beta', 'show', 'waitlist'] as const), seats: num, earned: num, crashed: optional(bool) }),
+  ),
+  cofounder: optional(
+    shape({ id: oneOf(['engineer', 'seller', 'scientist'] as const), disputes: num, leftDay: optional(num), tookStaff: optional(num) }),
+  ),
+  board: optional(
+    shape({
+      trust: num,
+      since: num,
+      lastRep: num,
+      reasons: arrayOf(str),
+      oustedDay: optional(num),
+      returnOffered: optional(bool),
+      returnedDay: optional(num),
+    }),
+  ),
   records: optional(dict(shapeOf<RecordEntry>({ value: num, day: num, prev: nullable(num) }))),
   rivalry,
   yearly,

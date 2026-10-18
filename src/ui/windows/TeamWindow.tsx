@@ -47,6 +47,7 @@ import { labStage, LAB_STAGES } from '../labStage';
 import { playSound } from '../sound';
 import { actions, store } from '../store';
 import { pushNotice } from '../Toasts';
+import { COFOUNDER_LIMIT, cofounderDef } from '../../sim/cofounder';
 import './TeamWindow.css';
 
 const TRAIT_TEXT = { fast: 'быстро растёт', equity: `просит долю ${String(EQUITY_SHARE * 100).replace('.', ',')} %` } as const;
@@ -266,6 +267,15 @@ export default function TeamWindow({ s }: WindowProps) {
           <dl className="tm-kv">
             <dt>Зарплаты в месяц</dt>
             <dd className={payroll > 0 ? 'bad' : undefined}>{payroll > 0 ? fmtMoney(payroll) : '-'}</dd>
+            {s.cofounder && (
+              <>
+                <dt>Сооснователь</dt>
+                <dd className={s.cofounder.leftDay !== undefined ? 'bad' : s.cofounder.disputes > 0 ? 'warn' : undefined} title={cofounderDef(s.cofounder.id).perk}>
+                  {cofounderDef(s.cofounder.id).name},{' '}
+                  {s.cofounder.leftDay !== undefined ? `ушёл ${formatDateShort(s.cofounder.leftDay)}` : `споров ${s.cofounder.disputes} из ${COFOUNDER_LIMIT}`}
+                </dd>
+              </>
+            )}
           </dl>
         </div>
         <div className="tm-effects">

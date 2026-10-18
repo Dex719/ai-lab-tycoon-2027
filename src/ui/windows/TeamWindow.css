@@ -74,3 +74,5 @@
 .tm-fire:hover { color: var(--bad-ink); }
 .tm-hire-note { grid-column: 1 / -1; font-size: 13px; color: var(--text-2); font-weight: var(--fw-small); }
 
+.tm-kv dd.warn { color: var(--warn-ink); }
+.tm-kv dd.bad { color: var(--bad-ink); }

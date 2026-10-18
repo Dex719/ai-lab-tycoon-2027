@@ -7,6 +7,7 @@ import type { WindowProps } from '.';
 import { FOUNDER_BOARD_SHARE, FOUNDER_WARN_SHARE, MANIA, ROUND_COOLDOWN_DAYS, ROUND_FRACTIONS, VALUATION_FLOOR } from '../../sim/constants';
 import { buybackError, buybackStep, buybackStepCost, BUYBACK_GAP_DAYS, canRaise, pendingRound, ROUND_CANCEL_HYPE, roundDays, valuation } from '../../sim/investors';
 import type { Valuation } from '../../sim/investors';
+import { BOARD_OUST_TRUST, BOARD_WARN_TRUST, boardOusted, OUSTER_DAYS } from '../../sim/board';
 import { formatDateShort, lerpByDate } from '../../sim/time';
 import type { GameState } from '../../sim/types';
 import { Alert, ConfirmDialog, ErrorText, GuardButton } from '../components/common';
@@ -288,6 +289,37 @@ function Buyback({ s, share, onBuy }: { s: GameState; share: number; onBuy: () =
   );
 }
 
+// ---------- Совет директоров ----------
+
+/** Доверие совета (sim/board.ts): шкала 0..100 с порогом отставки и причины изменения за прошлый месяц. */
+function Board({ s }: { s: GameState }) {
+  const b = s.board;
+  if (!b) return null;
+  const ousted = boardOusted(s);
+  const tone = b.trust <= BOARD_OUST_TRUST ? 'bad' : b.trust <= BOARD_WARN_TRUST ? 'warn' : 'ok';
+  return (
+    <div className="inv-buy inv-board">
+      <h3 className="inv-h">Совет директоров</h3>
+      <div className="inv-board-row">
+        <span className="inv-board-l">Доверие к основателю</span>
+        <span className={`inv-board-v ${tone}`}>{b.trust} из 100</span>
+      </div>
+      <span className="inv-board-bar" aria-hidden="true">
+        <i className={tone} style={{ width: `${b.trust}%` }} />
+        <b style={{ left: `${BOARD_OUST_TRUST}%` }} />
+      </span>
+      <p className="inv-note">
+        {ousted
+          ? `Основатель отстранён до ${formatDateShort(b.oustedDay! + OUSTER_DAYS)}: новое обучение, выпуск и раунды недоступны.`
+          : b.reasons.length
+            ? `За месяц: ${b.reasons.join(', ')}.`
+            : 'Растёт за место в гонке и выручку, падает за провалы, пустую кассу и скандалы.'}
+        {!ousted && b.oustedDay === undefined && ` При ${BOARD_OUST_TRUST} совет голосует об отставке.`}
+      </p>
+    </div>
+  );
+}
+
 // ---------- Окно ----------
 
 export default function InvestorsWindow({ s }: WindowProps) {
@@ -383,6 +415,7 @@ export default function InvestorsWindow({ s }: WindowProps) {
           </table>
           {s.lastRoundDay !== null && <div className="inv-last">Прошлый раунд: {formatDateShort(s.lastRoundDay)}</div>}
           <Buyback s={s} share={share} onBuy={() => setBuying(true)} />
+          <Board s={s} />
         </section>
       </div>
 

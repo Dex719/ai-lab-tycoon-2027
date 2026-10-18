@@ -36,8 +36,8 @@
 /* ---------- «Новая игра»: лаборатория - сложность - партия ---------- */
 .menu-screen.mm .modal-backdrop.ng-backdrop { background: rgb(14 40 46 / 0.55); }
 .dialog.ng { width: min(1040px, calc(100vw - 32px)); outline: none; }
-.ng-form { display: flex; flex-direction: column; min-height: 0; overflow: auto; }
-.ng-body { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; padding: 18px 20px 8px; }
+.ng-form { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.ng-body { flex: 1; min-height: 0; overflow: auto; display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; padding: 18px 20px 8px; }
 .ng-sec { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .ng-h { margin: 0 0 2px; font-size: 16px; font-weight: var(--fw-title); color: var(--text); }
 .ng-l { font-size: 13px; font-weight: var(--fw-strong); color: var(--text-2); }
@@ -96,8 +96,17 @@
 .ng-rival { display: inline-flex; align-items: center; gap: 6px; }
 .ng-rival i { width: 9px; height: 9px; border-radius: 50%; }
 .ng-tutor { margin-top: auto; padding-top: 10px; }
+/* Испытания и условия мира: строки с флажком, название и пояснение мелко; множитель счёта зелёным или красным. */
+.ng-ch { gap: 2px; }
+.ng-ch-row { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 8px; align-items: baseline; cursor: pointer; font-size: 13px; }
+.ng-ch-row input { margin: 0; align-self: center; }
+.ng-ch-row span { font-weight: var(--fw-strong); color: var(--text); }
+.ng-ch-row small { grid-column: 2; font-size: 12px; color: var(--text-2); }
+.ng-ch-mult { margin-top: 4px; font-size: 13px; font-weight: var(--fw-strong); }
+.ng-ch-mult.good { color: var(--good-ink); }
+.ng-ch-mult.bad { color: var(--bad-ink); }
 
-.ng-foot { display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding: 12px 20px 16px; border-top: 1px solid var(--line); }
+.ng-foot { flex: none; display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding: 12px 20px 16px; border-top: 1px solid var(--line); }
 .ng-start-wrap { display: inline-flex; }
 .ng-start { min-width: 220px; }
 
@@ -110,3 +119,7 @@
   .ng-start { min-width: 0; flex: 1; }
 }
 .menu-screen.mm .version { z-index: 1; padding: 0 6px; background: none; }
+/* Сооснователь: те же кнопки, что у стран, без флага; ниже - кто это и что даёт. */
+.ng-cof { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ng-cof .ng-country { justify-content: center; padding: 6px 2px; font-size: 12px; }
+.ng-cof-s { margin: 6px 0 0; font-size: 12px; line-height: 1.35; color: var(--text-2); }

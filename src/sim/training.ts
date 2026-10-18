@@ -61,6 +61,10 @@ import {
   STOLEN_CAP_BONUS,
   STOLEN_TOKENS_MULT,
 } from './constants';
+import { boardBlock } from './board';
+import { dispute, planDisputes } from './cofounder';
+import { challengeBlock } from './challenges';
+import { holesAtBirth } from './redteam';
 import { addMail, awaitingEvent, dropChoices, triggerEvent } from './events';
 import { spend } from './finance';
 import { codeLevel, rivalCodeFrontier, rivalFrontierElo } from './leaderboard';
@@ -369,6 +373,8 @@ export function trainingPoolPerRun(s: GameState, extra = 0): number {
  */
 export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
   if (s.trainings.length >= MAX_TRAININGS) return 'Одновременно идут не больше двух проектов обучения.';
+  const ousted = boardBlock(s);
+  if (ousted) return `${ousted}.`;
   const name = plan.name.trim();
   if (!name) return 'Название модели не указано.';
   if (name.length > 40) return 'Название модели - не длиннее 40 символов.';
@@ -394,6 +400,14 @@ export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
   }
   if (!Number.isFinite(plan.benchShare) || plan.benchShare < 0 || plan.benchShare > BENCH_SHARE_MAX) {
     return `Доля данных под бенчмарки - от 0 до ${Math.round(BENCH_SHARE_MAX * 100)} %.`;
+  }
+  if (plan.benchShare > 0) {
+    const ch = challengeBlock(s, 'overfit');
+    if (ch) return ch;
+  }
+  if (plan.stolenData) {
+    const ch = challengeBlock(s, 'stolen');
+    if (ch) return ch;
   }
   const targets = [...new Set(plan.benchTargets)];
   if (targets.length > MAX_BENCH_TARGETS) return `Целевых бенчмарков не больше ${MAX_BENCH_TARGETS}.`;
@@ -496,6 +510,7 @@ export function startTraining(s: GameState, plan: TrainingPlan): Result {
     failAtFraction,
     failPenalty: 0,
   });
+  dispute(s, planDisputes(copy));
   return { ok: true };
 }
 
@@ -552,6 +567,8 @@ function finishTraining(s: GameState, t: TrainingRun): void {
     reviewEndDay: null,
     earnedSubs: 0,
   };
+  // Скрытые уязвимости - у моделей из окна игры (план с частотой сохранений), не у ботов баланса.
+  if (t.plan.checkpoint) model.holes = holesAtBirth(model);
   s.models.push(model);
   s.bestFlop = Math.max(s.bestFlop, t.flopTotal);
   s.trainings = s.trainings.filter((r) => r !== t);

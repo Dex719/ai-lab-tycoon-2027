@@ -24,6 +24,7 @@ import {
   STOLEN_CAP_BONUS,
   STOLEN_TOKENS_MULT,
 } from '../../sim/constants';
+import { hasChallenge } from '../../sim/challenges';
 import { countryOf, theftChance, theftFine, theftPulls, theftRepLoss } from '../../sim/country';
 import { END_DAY, formatDate, formatDateShort, yearOf } from '../../sim/time';
 import { arenaStanding, bestElo, rivalsSellByApi } from '../../sim/leaderboard';
@@ -66,6 +67,7 @@ import { IconLock } from '../icons';
 import { actions, store } from '../store';
 import { playSound } from '../sound';
 import { pushNotice } from '../Toasts';
+import { disputeWarning, planDisputes } from '../../sim/cofounder';
 import './TrainingWindow.css';
 
 type Est = ReturnType<typeof estimate>;
@@ -655,6 +657,7 @@ function StartConfirm(props: { s: GameState; plan: TrainingPlan; est: Est; onCon
           картах.
         </Alert>
       )}
+      {disputeWarning(s, planDisputes(plan)) && <Alert tone="warn">{disputeWarning(s, planDisputes(plan))}</Alert>}
       {s.trainings.length > 0 && <p className="nm-confirm-note">Доля «Обучение» разделится поровну между проектами: идущий станет медленнее.</p>}
     </ConfirmDialog>
   );
@@ -676,7 +679,9 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
   const [sizeMin, sizeMax] = tierSpan(s.day, tier);
   const slotsFull = s.trainings.length >= MAX_TRAININGS;
   const year = yearOf(s.day);
-  const stolen = d.stolen === true;
+  // Испытание «Честная лаборатория» (sim/challenges.ts): чужие данные и подгонка закрыты.
+  const honestRun = hasChallenge(s, 'honest');
+  const stolen = d.stolen === true && !honestRun;
   const maxTokens = maxTokensB(s, stolen);
   const autoData = d.autoData !== false;
   const tokens = autoData ? autoTokens(s, paramsB, stolen) : Math.min(d.tokensB, maxTokens);
@@ -903,11 +908,11 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
             <label className={`nm-opt risk${stolen ? ' on' : ''}`}>
               <span className="nm-opt-top">
                 <span>Чужие данные</span>
-                <input type="checkbox" className="nm-switch" checked={stolen} onChange={(e) => patch({ stolen: e.target.checked })} />
+                <input type="checkbox" className="nm-switch" checked={stolen} disabled={honestRun} onChange={(e) => patch({ stolen: e.target.checked })} />
               </span>
               <span className="nm-opt-d">
                 Книги, сайты и ответы чужих моделей без разрешения: данных в {fmtNum(STOLEN_TOKENS_MULT)} раза больше, Эло выше на{' '}
-                {fmtNum(STOLEN_CAP_BONUS * ELO_PER_CAP)}. {theftLine(s)}
+                {fmtNum(STOLEN_CAP_BONUS * ELO_PER_CAP)}. {honestRun ? 'Закрыто испытанием «Честная лаборатория».' : theftLine(s)}
               </span>
             </label>
 

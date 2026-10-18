@@ -13,6 +13,8 @@ import {
   ROUND_FRACTIONS,
   VALUATION_FLOOR,
 } from './constants';
+import { boardBlock } from './board';
+import { challengeBlock, worldValuationMult } from './challenges';
 import { countryValuationMult } from './country';
 import { addMail } from './events';
 import { endSentence } from './text';
@@ -102,7 +104,7 @@ export function valuation(s: GameState): Valuation {
   const repMult = 0.6 + s.reputation / 125;
   const boardMult = s.flags[BOARD_PLAN_FLAG] ? BOARD_PLAN_VALUATION_MULT : 1;
   const emergencyMult = emergencyRound(s) ? EMERGENCY_VALUATION_MULT : 1;
-  const countryMult = countryValuationMult(s);
+  const countryMult = countryValuationMult(s) * worldValuationMult(s);
   const total = Math.max(VALUATION_FLOOR, revenuePart + techPart) * hypeMult * repMult * boardMult * emergencyMult * countryMult;
   return { total, annualRevenue, revenuePart, techPart, rankFactor, bestRank, hypeMult, repMult, boardMult, emergencyMult, countryMult };
 }
@@ -217,6 +219,8 @@ export function pendingRound(s: GameState): PendingRound | null {
 
 /** Причина, почему раунд недоступен (переговоры уже идут, кулдаун - «через N дней»), или null. */
 export function canRaise(s: GameState): string | null {
+  const ch = challengeBlock(s, 'raise') ?? boardBlock(s);
+  if (ch) return ch;
   const r = pendingRound(s);
   if (r) return `Идут переговоры до ${formatDateShort(r.closeDay)}`;
   if (s.lastRoundDay === null || emergencyRound(s)) return null;

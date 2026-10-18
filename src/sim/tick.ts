@@ -25,6 +25,10 @@ import { dayToDate, END_DAY, isMonthStart } from './time';
 import { monthlyTheftSuits } from './country';
 import { milestonesMonth } from './milestones';
 import { recordsMonth } from './records';
+import { boardDay, boardMonth } from './board';
+import { productsDay } from './products';
+import { reviewsDay } from './reviews';
+import { holesMonth, redTeamDay } from './redteam';
 import { translatorDay } from './translator';
 import { monthlyExposure, progressDay as trainingDay, reviewDay } from './training';
 import type { GameState } from './types';
@@ -90,8 +94,12 @@ export function advanceDay(s: GameState): void {
   researchDay(s);
   trainingDay(s);
   reviewDay(s); // 5а: завершение внешних проверок сильных моделей
+  redTeamDay(s); // ред-тиминг: отчёт и закрытые уязвимости
   contractsDay(s);
   translatorDay(s); // свой переводчик 2017-2020: небольшая выручка каждый день
+  productsDay(s); // ИИ-программист: места и подписка разработчиков
+  boardDay(s); // возвращение основателя через пять дней после отставки
+  reviewsDay(s); // отзывы о моделях через 7 и 30 дней после выпуска
   marketDay(s);
   financeDay(s);
   tasksDay(s); // короткие задачи: проверка после денег и контрактов дня, новая задача
@@ -117,6 +125,8 @@ export function advanceDay(s: GameState): void {
     monthlyTheftSuits(s);
     milestonesMonth(s);
     recordsMonth(s);
+    holesMonth(s);
+    boardMonth(s); // совет директоров: доверие к основателю, голосование об отставке
     noteLabStage(s);
     // Рычаг игрока, накал и планирование ходов соперников: единственное место модуля со случайностью (с 2021 года).
     rivalryMonth(s);

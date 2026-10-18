@@ -125,6 +125,7 @@ const WIN_ACCENT: Record<WindowId, string> = {
   deals: WIN_EDGE,
   finale: WIN_EDGE,
   team: WIN_EDGE,
+  products: WIN_EDGE,
 };
 
 type GameDialog = null | 'save' | 'load' | 'settings' | 'achievements' | 'quit';

@@ -3,9 +3,11 @@
 import './alive.css';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { START_CASH } from '../sim/constants';
+import { CHALLENGES, WORLD_MODS } from '../sim/challenges';
+import { COFOUNDER_IDS, cofounderDef } from '../sim/cofounder';
 import { COUNTRIES } from '../sim/country';
 import { DIFFICULTY, DIFFICULTY_IDS, type Difficulty } from '../sim/rivalry';
-import { COUNTRY_IDS, type CountryId } from '../sim/types';
+import { COUNTRY_IDS, type ChallengeId, type CofounderId, type CountryId, type WorldModId } from '../sim/types';
 import { CountryFlag } from './components/CountryFlag';
 import { formatDateShort } from '../sim/time';
 import { ConfirmDialog, DenyNote, Dialog, ErrorText, useFlash, useModalFocus } from './components/common';
@@ -135,6 +137,11 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
   const [tutorial, setTutorial] = useState(true);
   const [difficulty, setDifficulty] = useState<Difficulty>('normal');
   const [country, setCountry] = useState<CountryId>('us');
+  const [challenges, setChallenges] = useState<ChallengeId[]>([]);
+  const [worldMods, setWorldMods] = useState<WorldModId[]>([]);
+  const [cofounder, setCofounder] = useState<CofounderId | null>('engineer');
+  const toggle = <T,>(list: T[], v: T): T[] => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+  const scoreMult = 1 + [...CHALLENGES.filter((c) => challenges.includes(c.id)), ...WORLD_MODS.filter((m) => worldMods.includes(m.id))].reduce((a, x) => a + x.score, 0);
   const [note, flash] = useFlash();
   const valid = name.trim().length > 0;
   const { ref, onKeyDown } = useModalFocus<HTMLDivElement>('new-game');
@@ -147,7 +154,7 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
       flash('Введите название лаборатории.');
       return;
     }
-    store.newGame(name, { founderName: founder, tutorial, difficulty, country });
+    store.newGame(name, { founderName: founder, tutorial, difficulty, country, challenges, worldMods, cofounder: cofounder ?? undefined });
   }
 
   return (
@@ -216,6 +223,26 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
                   </li>
                 ))}
               </ul>
+              <h3 className="ng-h ng-h2">Сооснователь</h3>
+              <div className="ng-countries ng-cof" role="radiogroup" aria-label="Сооснователь">
+                {[...COFOUNDER_IDS, null].map((c) => (
+                  <button
+                    key={c ?? 'none'}
+                    type="button"
+                    role="radio"
+                    aria-checked={cofounder === c}
+                    className={`ng-country${cofounder === c ? ' on' : ''}`}
+                    onClick={() => setCofounder(c)}
+                  >
+                    <span>{c ? cofounderDef(c).role : 'Нет'}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="ng-cof-s">
+                {cofounder
+                  ? `${cofounderDef(cofounder).name}: ${cofounderDef(cofounder).perk.charAt(0).toLowerCase()}${cofounderDef(cofounder).perk.slice(1)}. Спорит из-за подгонки и чужих данных, после третьего спора уходит.`
+                  : 'Все решения - только ваши, без выгоды и без споров.'}
+              </p>
             </section>
             <section className="ng-sec">
               <h3 className="ng-h">Сложность</h3>
@@ -270,6 +297,28 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
                   ))}
                 </span>
                 <span className="ng-l">Их первые модели и другие лаборатории появятся позже.</span>
+              </div>
+              <div className="ng-goal ng-ch">
+                <span className="ng-l">
+                  Испытания и условия мира <small>(необязательно)</small>
+                </span>
+                {CHALLENGES.map((c) => (
+                  <label key={c.id} className="ng-ch-row" title={c.text}>
+                    <input type="checkbox" checked={challenges.includes(c.id)} onChange={() => setChallenges((l) => toggle(l, c.id))} />
+                    <span>{c.name}</span>
+                    <small>{c.text}</small>
+                  </label>
+                ))}
+                {WORLD_MODS.map((m) => (
+                  <label key={m.id} className="ng-ch-row" title={m.text}>
+                    <input type="checkbox" checked={worldMods.includes(m.id)} onChange={() => setWorldMods((l) => toggle(l, m.id))} />
+                    <span>{m.name}</span>
+                    <small>{m.text}</small>
+                  </label>
+                ))}
+                {(challenges.length > 0 || worldMods.length > 0) && (
+                  <span className={`ng-ch-mult ${scoreMult >= 1 ? 'good' : 'bad'}`}>Счёт партии ×{String(Math.round(Math.max(0.5, scoreMult) * 100) / 100).replace('.', ',')}</span>
+                )}
               </div>
               <label className="row ng-tutor">
                 <input type="checkbox" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />

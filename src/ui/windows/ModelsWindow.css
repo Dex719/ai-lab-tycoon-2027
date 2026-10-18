@@ -232,3 +232,10 @@
   .mw .mw-body { padding: 4px 12px 20px; }
   .mw .mw-score { grid-template-columns: 96px minmax(0, 1fr) 90px 32px; gap: 8px; }
 }
+
+/* Ред-тиминг: статус, две кнопки, пояснение мелко. */
+.mw-rt-s { margin: 0 0 8px; font-size: 13px; color: var(--text); }
+.mw-rt-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.mw-rt-note { display: block; margin-top: 6px; font-size: 12px; color: var(--text-2); }
+/* Сооснователь против выпуска без ред-тиминга: строка над кнопкой «Выпустить». */
+.mw-dispute { margin: 6px 0 0; font-size: 12px; line-height: 1.35; font-weight: var(--fw-strong); color: var(--warn-ink); }

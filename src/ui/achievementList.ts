@@ -134,6 +134,10 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   },
   { id: 'founder-control', title: 'Контроль', how: 'Дойти до конца 2024 года с долей основателя от 50 %', check: (s) => ended(s) && s.founderShare >= 0.5 },
   { id: 'bankrupt', title: 'Горький опыт', how: 'Обанкротиться', check: (s) => s.outcome === 'bankrupt' },
+  { id: 'ch-no-investors', title: 'Своими силами', how: 'Выиграть с испытанием «Без инвесторов»', check: (s) => s.outcome === 'victory' && !!s.challenges?.includes('no-investors') },
+  { id: 'ch-honest', title: 'Чистая победа', how: 'Выиграть с испытанием «Честная лаборатория»', check: (s) => s.outcome === 'victory' && !!s.challenges?.includes('honest') },
+  { id: 'ch-rent-only', title: 'Всё в облаке', how: 'Выиграть с испытанием «Только аренда»', check: (s) => s.outcome === 'victory' && !!s.challenges?.includes('rent-only') },
+  { id: 'ch-hard-world', title: 'Трудные времена', how: 'Выиграть при двух и больше трудных условиях мира', check: (s) => s.outcome === 'victory' && (s.worldMods ?? []).filter((m) => m !== 'generous-funds').length >= 2 },
   // Задачи и цели года
   { id: 'tasks-10', title: 'Десять задач', how: 'Выполнить 10 задач за партию', check: (s) => s.quests.done >= 10 },
   { id: 'tasks-30', title: 'Тридцать задач', how: 'Выполнить 30 задач за партию', check: (s) => s.quests.done >= 30 },
@@ -175,6 +179,7 @@ export const ACH_GROUPS: readonly { title: string; ids: readonly string[] }[] = 
   { title: 'Цели и задачи', ids: ['perfect-year', 'risk-goals', 'tasks-10', 'tasks-30', 'lucky-streak'] },
   { title: 'Сделки и дата-центры', ids: ['star-team', 'team-kept', 'startup', 'startups-3', 'cloud-deal', 'datacenter', 'dc-50', 'dc-full'] },
   { title: 'Финал партии', ids: ['final-update', 'push-held', 'victory', 'victory-hard', 'honest', 'founder-control', 'bankrupt'] },
+  { title: 'Испытания', ids: ['ch-no-investors', 'ch-honest', 'ch-rent-only', 'ch-hard-world'] },
 ];
 
 const KEY = 'ailab.achievements';

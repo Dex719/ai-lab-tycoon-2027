@@ -10,11 +10,16 @@ import { ackYearReview } from './goals';
 import { cancelRound, raiseRound } from './investors';
 export { buyBackStake } from './investors';
 export { launchTranslator } from './translator';
+export { startRedTeam } from './redteam';
+export { launchCoder } from './products';
+import { boardBlock } from './board';
+import { applyCofounder, dispute, releaseDisputed } from './cofounder';
 import { releaseHypeBonus, updateSaturation } from './leaderboard';
 import { minPrice, subsOpen } from './market';
 import { queueResearch, setResearch, unqueueResearch } from './research';
 import { applyDifficultyModifiers } from './rivalry';
 import type { Difficulty } from './rivalry';
+import { applyChallenges } from './challenges';
 import { applyCountryStart, COUNTRIES, countryPerks } from './country';
 import { createInitialState } from './state';
 import { dateToDay, formatDate, START_DAY } from './time';
@@ -22,13 +27,21 @@ import { cancelTraining, reviewReason, reviewTerms, startReview, startTraining }
 import { refreshCandidates } from './staff';
 // Действия окна «Команда».
 export { fireEmployee, hireCandidate, promoteEmployee, trainEmployee } from './staff';
-import type { CountryId, GameState, Result } from './types';
+import type { ChallengeId, CofounderId, CountryId, GameState, Result, WorldModId } from './types';
 
 /** Новая игра: сложность из главного меню ставит модификаторы аренды и разоблачения навсегда (только Лёгкая и Сложная). */
-export function newGame(labName: string, seed: number, difficulty: Difficulty = 'normal', country?: CountryId): GameState {
+export function newGame(
+  labName: string,
+  seed: number,
+  difficulty: Difficulty = 'normal',
+  country?: CountryId,
+  extra: { challenges?: readonly ChallengeId[]; worldMods?: readonly WorldModId[]; cofounder?: CofounderId } = {},
+): GameState {
   const s = createInitialState(labName, seed, difficulty);
   applyDifficultyModifiers(s);
   if (country) applyCountryStart(s, country);
+  applyChallenges(s, extra.challenges ?? [], extra.worldMods ?? []);
+  if (extra.cofounder) applyCofounder(s, extra.cofounder);
   for (const b of BENCHMARKS) if (dateToDay(b.introduced) < START_DAY) s.benchmarks[b.id].introduced = true;
   refreshCandidates(s); // первые кандидаты в команду - сразу, а не через месяц
   addMail(s, {
@@ -90,10 +103,14 @@ export function releaseModel(s: GameState, modelId: string, price: number, opts:
   const m = findModel(s, modelId);
   if (!m) return { ok: false, error: 'Нет такой модели' };
   if (m.releasedDay !== null) return { ok: false, error: 'Модель уже выпущена' };
+  const ousted = boardBlock(s);
+  if (ousted) return { ok: false, error: ousted };
+  if (m.redTeam) return { ok: false, error: `Идёт ред-тиминг до ${formatDate(m.redTeam.endDay)}: выпустить можно после отчёта` };
   const bad = priceError(s, price);
   if (bad !== null) return { ok: false, error: bad };
   const subs = subsPriceOrError(opts.subsPrice ?? TIER_SUBS_PRICE[m.plan.tier] ?? TIER_SUBS_PRICE.mid);
   if ('error' in subs) return { ok: false, error: subs.error };
+  if (releaseDisputed(m)) dispute(s, ['holes']);
   m.releasedDay = s.day;
   m.onApi = true;
   m.price = price;

@@ -206,7 +206,7 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
                 ))}
                 {score.mult !== 1 && (
                   <div>
-                    <dt>Сложность «{DIFFICULTY[s.difficulty].name}»</dt>
+                    <dt>Сложность «{DIFFICULTY[s.difficulty].name}»{s.challenges?.length || s.worldMods?.length ? ' и испытания' : ''}</dt>
                     <dd>×{String(score.mult).replace('.', ',')}</dd>
                   </div>
                 )}

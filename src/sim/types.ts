@@ -122,6 +122,15 @@ export interface RivalModelDef {
 /** Уровень модели: лёгкая (дёшево и слабо), средняя, флагман. Задаётся в плане обучения относительно переднего края года. */
 export type Tier = 'light' | 'mid' | 'flagship';
 
+/** Испытания и условия мира новой игры (sim/challenges.ts). */
+export type ChallengeId = 'no-investors' | 'honest' | 'rent-only';
+export const CHALLENGE_IDS: readonly ChallengeId[] = ['no-investors', 'honest', 'rent-only'];
+export type WorldModId = 'gpu-shortage' | 'ai-winter' | 'strict-regulator' | 'generous-funds';
+export const WORLD_MOD_IDS: readonly WorldModId[] = ['gpu-shortage', 'ai-winter', 'strict-regulator', 'generous-funds'];
+
+/** Ред-тиминг модели (sim/redteam.ts): быстрый или полный. */
+export type RedTeamMode = 'quick' | 'full';
+
 /** Частота сохранения прогресса обучения (TrainingPlan.checkpoint). */
 export type CheckpointMode = 'rare' | 'normal' | 'often';
 export const CHECKPOINT_MODES: readonly CheckpointMode[] = ['rare', 'normal', 'often'];
@@ -249,6 +258,14 @@ export interface PlayerModel {
   earnedSubs: number; // из earned: выручка подписок, $
   /** Иск за чужие данные уже был: больше не грозит (sim/country.ts). */
   stolenCaught?: boolean;
+  /** Скрытые уязвимости (sim/redteam.ts); нет поля - модель без них (старые планы, боты). */
+  holes?: number;
+  /** Идущий ред-тиминг и был ли он уже. */
+  redTeam?: { mode: RedTeamMode; endDay: number };
+  redTeamDone?: boolean;
+  /** Отзывы (sim/reviews.ts): сколько писем уже пришло (0..2) и место на «Арене» через неделю. */
+  reviewsSent?: number;
+  weekRank?: number;
 }
 
 // Ссылка на модель в рейтингах/рынке
@@ -336,6 +353,46 @@ export interface Modifier {
   mult?: number;
   add?: number;
   untilDay: number; // включительно; Number.MAX_SAFE_INTEGER - навсегда
+}
+
+export type CofounderId = 'engineer' | 'seller' | 'scientist';
+
+export interface CofounderState {
+  id: CofounderId;
+  /** Сколько раз лаборатория поступила вопреки сооснователю. */
+  disputes: number;
+  /** День ухода (после третьего спора). */
+  leftDay?: number;
+  /** Сколько сотрудников ушли вместе с ним. */
+  tookStaff?: number;
+}
+
+export interface BoardState {
+  /** Доверие совета к основателю, 0..100. */
+  trust: number;
+  since: number;
+  /** Репутация на конец прошлого месяца (падение на 5 и больше снижает доверие). */
+  lastRep: number;
+  /** Причины изменения доверия за последний месяц. */
+  reasons: string[];
+  /** День голосования об отставке (один раз за партию). */
+  oustedDay?: number;
+  returnOffered?: boolean;
+  returnedDay?: number;
+}
+
+/** Способ запуска ИИ-программиста (sim/products.ts). */
+export type CoderLaunch = 'beta' | 'show' | 'waitlist';
+
+export interface CoderState {
+  launchedDay: number;
+  /** День открытия для всех: у листа ожидания - через 30 дней после запуска. */
+  openDay: number;
+  mode: CoderLaunch;
+  seats: number;
+  earned: number;
+  /** Презентация, на которой не выдержали серверы. */
+  crashed?: boolean;
 }
 
 export type IncomeKind = 'api' | 'subs' | 'contracts' | 'investors';
@@ -550,8 +607,17 @@ export interface GameState {
   difficulty: Difficulty;
   /** Страна лаборатории (sim/country.ts); нет в старых сохранениях - без особенностей страны. */
   country?: CountryId;
+  /** Испытания и условия мира, выбранные в новой игре (sim/challenges.ts); нет - обычная партия. */
+  challenges?: ChallengeId[];
+  worldMods?: WorldModId[];
   /** Свой переводчик 2017-2020 (sim/translator.ts): когда запущен и сколько заработал; нет - не запущен. */
   translator?: { launchedDay: number; earned: number };
+  /** ИИ-программист с июля 2021 года (sim/products.ts); нет - не запущен. */
+  coder?: CoderState;
+  /** Совет директоров с доверием к основателю (sim/board.ts); нет - большинство у основателя или старое сохранение. */
+  board?: BoardState;
+  /** Сооснователь, выбранный в новой игре (sim/cofounder.ts); нет - без сооснователя. */
+  cofounder?: CofounderState;
   /** Рекорды лаборатории (sim/records.ts); нет в старых сохранениях - копятся с ближайшего месяца. */
   records?: Partial<Record<RecordId, RecordEntry>>;
   /** Соперники с характерами: накал, ходы, поправки к моделям, память (rivalry.ts). */

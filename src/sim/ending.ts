@@ -3,6 +3,7 @@
 
 import { STARTUPS } from '../data/deals';
 import { LABS } from '../data/labs';
+import { challengeScoreMult } from './challenges';
 import { LAB_HEADS } from './duel';
 import { valuation } from './investors';
 import { labGone } from './rivals';
@@ -17,7 +18,7 @@ export interface ScorePart {
 export interface PartyScore {
   total: number;
   parts: ScorePart[];
-  /** Множитель сложности (Лёгкая 0,8, Обычная 1, Сложная 1,3). */
+  /** Множитель сложности (Лёгкая 0,8, Обычная 1, Сложная 1,3) × испытания и условия мира. */
   mult: number;
 }
 
@@ -59,7 +60,8 @@ export function partyScore(s: GameState): PartyScore {
     { label: 'Ваша часть компании', value: s.outcome === 'bankrupt' ? 0 : Math.round(100 * Math.log10(Math.max(1, part / 1e6))) },
     { label: 'Честная игра', value: playedClean(s) && s.models.some((m) => m.releasedDay !== null) ? 100 : 0 },
   ];
-  const mult = DIFF_MULT[s.difficulty] ?? 1;
+  // Сложность и испытания с условиями мира (sim/challenges.ts): трудное повышает счёт, лёгкое снижает.
+  const mult = Math.round((DIFF_MULT[s.difficulty] ?? 1) * challengeScoreMult(s) * 100) / 100;
   const total = Math.round(parts.reduce((a, p) => a + p.value, 0) * mult);
   return { total, parts, mult };
 }

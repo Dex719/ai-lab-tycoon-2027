@@ -162,8 +162,8 @@ function firstStep(s: GameState): NextStep | null {
       id: 'translator',
       title: 'Запустите свой переводчик',
       detail: `Модель уже переводит лучше старых систем: около ${fmtMoney(translatorPerDay(s))} в день, с сильной моделью - больше.`,
-      action: 'Открыть «Модели»',
-      open: 'models',
+      action: 'Открыть «Продукты»',
+      open: 'products',
     };
   }
 

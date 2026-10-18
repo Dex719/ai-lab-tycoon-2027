@@ -24,6 +24,7 @@ import {
 } from '../data/datacenters';
 import { GPUS } from '../data/gpus';
 import { gpuDef, isGpuAvailable, rentPerGpuDay } from './compute';
+import { challengeBlock } from './challenges';
 import { addMail } from './events';
 import { lastMonthRevenue, spend } from './finance';
 import { nextRandom } from './rng';
@@ -236,6 +237,8 @@ const PLACE_PREP: Record<DcSiteId, string> = { abilene: 'Абилине', ashbur
 
 /** Причина, почему стройку начать нельзя, или null. */
 export function buildError(s: GameState, site: DcSiteId, mw: number): string | null {
+  const ch = challengeBlock(s, 'datacenter');
+  if (ch) return ch;
   if (!dcUnlocked(s)) return 'Дата-центры пока недоступны';
   if (!DC_SITE_IDS.includes(site)) return 'Неизвестная площадка';
   if (!DC_SIZES.includes(mw)) return 'Такой мощности нет в списке';

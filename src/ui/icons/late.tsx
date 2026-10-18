@@ -1,4 +1,4 @@
-// Иконки рабочего стола поздней игры: «Сделки» (2023-2024) и «Финал» (последний квартал 2024 года).
+// Иконки рабочего стола, которые открываются по ходу игры: «Продукты», «Сделки» (2023-2024) и «Финал» (последний квартал 2024 года).
 // Тот же стиль, что в desktop.tsx: плоские цветные формы, viewBox 64x64, серый вариант через toneFor.
 
 import { Flat, toneFor, type IconProps } from './base';
@@ -40,6 +40,23 @@ export function IconFinale({ size, disabled, className }: IconProps) {
         ))}
       </g>
       <path d="M13 10 Q30 6 37 11 Q45 16 58 11 V37 Q45 42 37 37 Q30 32 13 36 Z" fill="none" stroke={t('#3a3d42')} strokeWidth={1.4} />
+    </Flat>
+  );
+}
+
+/** Продукты: окно приложения с синей шапкой и знаком кода. */
+export function IconProducts({ size, disabled, className }: IconProps) {
+  const t = toneFor(disabled);
+  return (
+    <Flat size={size} className={className} locked={disabled}>
+      <rect x={6} y={10} width={52} height={44} rx={5} fill={t('#3a3d42')} />
+      <rect x={8.5} y={20} width={47} height={31.5} rx={2.5} fill={t('#f4f5f7')} />
+      <rect x={6} y={10} width={52} height={10} rx={5} fill={t('#2f80e4')} />
+      <rect x={6} y={15} width={52} height={5} fill={t('#2f80e4')} />
+      <circle cx={13} cy={15} r={2} fill={t('#f4f5f7')} />
+      <circle cx={19.5} cy={15} r={2} fill={t('#f4f5f7')} />
+      <path d="M24 29 L17 36 L24 43 M40 29 L47 36 L40 43" fill="none" stroke={t('#2f80e4')} strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M35 27 L29 45" stroke={t('#e8b93a')} strokeWidth={3.4} strokeLinecap="round" />
     </Flat>
   );
 }

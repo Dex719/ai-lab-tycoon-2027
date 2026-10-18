@@ -22,8 +22,9 @@ import { contextLabel } from '../../sim/research';
 import { benchRank, type RaceMetric } from '../../sim/leaderboard';
 import { ARENA_PLACE_TITLE } from '../arena';
 import { minPrice, overpriceFrom, playerSales, refPrice, subsOpen } from '../../sim/market';
-import { dateToDay, formatDateShort } from '../../sim/time';
-import { TRANSLATOR_LAST_LAUNCH, translatorBlock, translatorPerDay } from '../../sim/translator';
+import { formatDateShort } from '../../sim/time';
+import { REDTEAM, redTeamBlock, redTeamCost } from '../../sim/redteam';
+import { disputeWarning, releaseDisputed } from '../../sim/cofounder';
 import {
   arenaElo as forecastElo,
   capsFromPlan,
@@ -182,44 +183,50 @@ function placeTitle(metric: RaceMetric | null): string {
 /** Ключ проекта обучения в списке: у проекта нет id модели. */
 const RUN_PREFIX = 'run:';
 
-// ---------- Переводчик ----------
+// ---------- Ред-тиминг ----------
 
 /**
- * Свой переводчик 2017-2020 (sim/translator.ts): кнопка запуска, пока его можно открыть, потом - выручка в день и
- * сколько он заработал. После 2020 года, если не запущен, блока нет.
+ * Ред-тиминг (sim/redteam.ts): сколько уязвимостей примерно осталось, идёт ли проверка, две кнопки - быстрый и полный.
+ * Модели без уязвимостей в данных (обучены до этой механики) блока не показывают.
  */
-function Translator({ s }: { s: GameState }) {
+function RedTeamBlock({ s, m }: { s: GameState; m: PlayerModel }) {
   const [err, setErr] = useState<string | null>(null);
-  const block = translatorBlock(s);
-  if (!s.translator && block && s.day >= dateToDay(TRANSLATOR_LAST_LAUNCH)) return null;
-  if (s.translator) {
-    return (
-      <div className="mw-tr">
-        <span className="mw-tr-t">Переводчик</span>
-        <span className="mw-tr-s">
-          {fmtMoney(translatorPerDay(s))} в день · заработал {fmtMoney(s.translator.earned)}
-        </span>
-      </div>
-    );
-  }
+  if (m.holes === undefined) return null;
+  const status = m.redTeam
+    ? `Проверка идёт до ${formatDateShort(m.redTeam.endDay)}.`
+    : m.redTeamDone
+      ? m.holes === 0
+        ? 'Проверена: уязвимостей не осталось.'
+        : `Проверена: осталось примерно ${m.holes}.`
+      : 'Не проверялась: уязвимостей неизвестно. Каждая может всплыть инцидентом, пока модель в продаже.';
   return (
-    <div className="mw-tr">
-      <span className="mw-tr-t">Свой переводчик</span>
-      <span className="mw-tr-s">Сервис перевода на лучшей модели: около {fmtMoney(translatorPerDay(s))} в день, больше с сильной моделью.</span>
-      <GuardButton
-        className="btn wide"
-        reason={block}
-        onClick={() => {
-          const r = store.dispatch(actions.launchTranslator);
-          setErr(r.ok ? null : r.error);
-        }}
-      >
-        Запустить переводчик
-      </GuardButton>
-      <ErrorText error={err} />
-    </div>
+    <section className="mw-release">
+      <h3 className="mw-h">Ред-тиминг</h3>
+      <div className="mw-panel">
+        <p className="mw-rt-s">{status}</p>
+        <div className="mw-rt-btns">
+          {REDTEAM_MODES.map((mode) => (
+            <GuardButton
+              key={mode}
+              className="btn"
+              reason={redTeamBlock(s, m, mode)}
+              onClick={() => {
+                const r = store.dispatch(actions.startRedTeam, m.id, mode);
+                setErr(r.ok ? null : r.error);
+              }}
+            >
+              {REDTEAM[mode].name}: {REDTEAM[mode].days} дн., {fmtMoney(redTeamCost(s, mode))}
+            </GuardButton>
+          ))}
+        </div>
+        <span className="mw-rt-note">Быстрый закрывает около половины уязвимостей, полный - почти все. Пока идёт проверка, модель не выпустить.</span>
+        <ErrorText error={err} />
+      </div>
+    </section>
   );
 }
+
+const REDTEAM_MODES = ['quick', 'full'] as const;
 
 // ---------- Коллекция ----------
 
@@ -344,7 +351,6 @@ function ModelList(props: {
         {archiveShown && archived.map(renderModel)}
       </div>
       <div className="mw-side-foot">
-        <Translator s={props.s} />
         <button className="btn primary wide" onClick={() => props.open('newModel')}>
           Создать модель
         </button>
@@ -550,6 +556,7 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
           )}
         </div>
 
+        {releaseDisputed(m) && disputeWarning(s, ['holes']) && <div className="mw-dispute">{disputeWarning(s, ['holes'])}</div>}
         <div className="mw-panel-foot" ref={footRef}>
           <GuardButton
             className="btn primary big mw-release-btn"
@@ -1135,6 +1142,7 @@ function ModelCard(props: { s: GameState; m: PlayerModel; open: WindowProps['ope
       <div className="mw-body">
         {m.exposed && <Alert tone="bad">Подгонка под тесты раскрыта: показаны честные баллы.</Alert>}
         {released ? <SalesBlock s={s} m={m} open={open} /> : <ReleaseBlock s={s} m={m} />}
+        <RedTeamBlock s={s} m={m} />
         <ScoresBlock s={s} m={m} benches={introducedBenchmarks(s)} />
         <Specs
           arch={m.arch}

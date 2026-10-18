@@ -32,6 +32,12 @@ const P: Record<WindowId, ReactElement> = {
   analytics: <path d="M3 3v18h18M7 15l4-5 4 3 5-7" />,
   team: <path d="M2 21v-1a6 6 0 0 1 12 0v1M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM16 3.1a4 4 0 0 1 0 7.8M22 21v-1a6 6 0 0 0-4-5.6" />,
   datacenters: <path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M15 9h.01M9 13h.01M15 13h.01M9 17h.01M15 17h.01" />,
+  products: (
+    <>
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="M2 9h20M10 12.5 7.5 15l2.5 2.5M14 12.5l2.5 2.5-2.5 2.5" />
+    </>
+  ),
   deals: (
     <>
       <path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
