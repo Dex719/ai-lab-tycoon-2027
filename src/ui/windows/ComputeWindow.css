@@ -231,3 +231,4 @@
 }
 /* Срок прихода новых карт: строка под итогом диалога аренды, высота постоянная. */
 .cw-eta { min-height: 19px; margin-top: 10px; font-size: 13px; font-weight: var(--fw-strong); color: var(--brand-ink); }
+.cw-eta.bad { color: var(--bad-ink); }

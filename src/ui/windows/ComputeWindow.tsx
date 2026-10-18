@@ -9,6 +9,7 @@ import type { WindowProps } from '.';
 import { GPUS } from '../../data/gpus';
 import {
   availableGpus,
+  gpuAvailableDay,
   isGpuAvailable,
   ownedH100e,
   rentCapFor,
@@ -22,13 +23,14 @@ import {
   orderedCount,
   rentDeliveryDays,
 } from '../../sim/compute';
-import { RENT_OVER_CAP_MULT } from '../../sim/constants';
+import { BANKRUPT_DAYS, RENT_OVER_CAP_MULT } from '../../sim/constants';
+import { monthlyRate } from '../runway';
 import { ownedCards } from '../../sim/datacenters';
 import { idleWarnings } from '../../sim/idle';
 import { CHAT_MOMENT_DAY, inferenceNeed, marketSnapshot, subsOpen } from '../../sim/market';
 import { TECHS } from '../../sim/research';
 import { timesWord } from '../../sim/text';
-import { formatDateShort } from '../../sim/time';
+import { formatDateShort, yearOf } from '../../sim/time';
 import type { GameState, GpuDef, GpuId } from '../../sim/types';
 import {
   ALLOC_ROWS,
@@ -307,6 +309,8 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
 
   const cost = count === null ? null : monthlyCost(s, g.id, count);
   const delta = count === null ? null : { money: monthlyCost(s, g.id, count) - monthlyCost(s, g.id, rented), power: (count - rented) * g.h100e };
+  // Аренда растёт и денег с ней хватит меньше чем на два месяца: строка срока становится красным предупреждением.
+  const warn = count !== null && count > rented ? runwayWarn(s, delta?.money ?? 0) : null;
   const overCost = count === null || over === 0 ? 0 : monthlyCost(s, g.id, count) - monthlyCost(s, g.id, cap);
 
   return (
@@ -330,6 +334,7 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
           day={s.day}
           items={list.map((x) => ({
             gpu: x,
+            since: gpuAvailableDay(s, x.id),
             price: `${fmtCardMonth(rentPerGpuDay(s, x.id))} в месяц`,
             tag: x.id === cheapest ? 'Выгоднее всего' : null,
             note: s.compute.rented[x.id] > 0 ? `в аренде ${fmtInt(s.compute.rented[x.id])}` : null,
@@ -339,7 +344,7 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
           facts={[
             { label: 'Мощность', value: powerFact(g, list) },
             { label: 'Цена', value: `${fmtCardMonth(rentPerGpuDay(s, g.id))} за карту в месяц` },
-            { label: 'На рынке', value: `с ${g.availableFrom.slice(0, 4)} года` },
+            { label: 'На рынке', value: `с ${yearOf(gpuAvailableDay(s, g.id))} года` },
           ]}
         />
 
@@ -397,14 +402,15 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
             <small title="Аренда всех карт после прихода заказа">вся аренда {count === null ? '-' : fmtMoney(rentPerDay(s) * DAYS_IN_MONTH + (delta?.money ?? 0))} в месяц</small>
           </div>
         </div>
-        <div className="cw-eta" role="status">
-          {count === null || count === rented
+        <div className={`cw-eta${warn ? ' bad' : ''}`} role="status">
+          {warn ??
+            (count === null || count === rented
             ? `Новые карты приходят через ${fmtDaysWord(rentDeliveryDays(s, g.id))}: облако выделяет стойки не сразу.`
             : count > rented
               ? `Придут ${formatDateShort(eta)}, через ${fmtDaysWord(rentDeliveryDays(s, g.id))}. Аренда за них - с прихода.`
               : transit > 0
                 ? `Сначала отменяется заказ в пути (${fmtInt(Math.min(transit, rented - count))} шт., без оплаты), остальное возвращается сразу.`
-                : 'Карты возвращаются сразу, аренда за них больше не списывается.'}
+                : 'Карты возвращаются сразу, аренда за них больше не списывается.')}
         </div>
       </div>
     </Dialog>
@@ -437,6 +443,23 @@ function safeInferenceNeed(s: GameState): Record<NeedChannel, number> | null {
   } catch {
     return null;
   }
+}
+
+/** Запас денег, при котором аренду стоит показать красным: меньше двух месяцев. */
+const RUNWAY_WARN_DAYS = 60;
+
+/**
+ * Сколько продержатся деньги с новой арендой (доход - средний за 3 месяца, расходы - постоянные): плейтест 18.10 -
+ * игрок взял 2048 карт за $5,4 млн в месяц при $1,7 млн на счёте и разорился через 6 минут, окно молчало.
+ */
+export function runwayWarn(s: GameState, extra: number): string | null {
+  const rate = monthlyRate(s) - extra;
+  if (rate >= 0) return null;
+  const days = s.cash > 0 ? Math.floor(s.cash / (-rate / DAYS_IN_MONTH)) : 0;
+  if (days >= RUNWAY_WARN_DAYS) return null;
+  return days > 0
+    ? `С этой арендой денег хватит примерно на ${fmtDaysWord(days)}. Через ${BANKRUPT_DAYS} дней в минусе - банкротство.`
+    : `Денег нет: аренда уведёт счёт глубже в минус. Через ${BANKRUPT_DAYS} дней в минусе - банкротство.`;
 }
 
 /** «Нужно клиентам» под строкой API или «Подписки»: одна строка постоянной высоты, нехватка - оранжевым справа. */
@@ -501,6 +524,9 @@ function RowEffect({ s, k, share }: { s: GameState; k: 'training' | 'experiments
  * Доли «как нужно»: контрактам и клиентам - сколько им нужно сейчас (+5 %), остальное - обучению и исследованиям:
  * идущему обучению две трети, исследованию треть; если идёт только что-то одно - почти всё ему.
  */
+/** Наименьшая доля «Как нужно» для канала, где есть модель в продаже, %. */
+const SERVE_FLOOR_PCT = 5;
+
 export function autoPercents(s: GameState, cur: Percents): Percents {
   const total = totalH100e(s);
   if (!(total > 0)) return cur;
@@ -509,6 +535,10 @@ export function autoPercents(s: GameState, cur: Percents): Percents {
   let contracts = pct(contractsNeedWithApplications(s) ?? 0);
   let api = need ? pct(need.api) : cur.api;
   let subs = need ? pct(need.subs) : cur.subs;
+  // Модель в продаже не остаётся без мощности, даже если спроса пока нет (плейтест 18.10: только что выпущенная модель
+  // с нулём клиентов получала 0 %, и «Как нужно» сразу спрашивал, остановить ли продажи по API).
+  if (s.models.some((m) => m.releasedDay !== null && m.onApi)) api = Math.max(api, SERVE_FLOOR_PCT);
+  if (s.models.some((m) => m.onSubs)) subs = Math.max(subs, SERVE_FLOOR_PCT);
   // Идущие обучение и исследование «Как нужно» не обнуляет (плейтест 17.10: контракту не хватало и с 100 %, а модель
   // встала): им остаётся хотя бы нынешняя доля, но не больше 30 % и 15 %. Чего не хватит контрактам - видно в строке «Нужно».
   const research = s.research.current !== null;

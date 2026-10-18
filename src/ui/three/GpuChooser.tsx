@@ -17,6 +17,8 @@ export interface ChooserItem {
   tag?: string | null;
   /** Сколько таких карт уже есть («в аренде 96»), синим. */
   note?: ReactNode;
+  /** День выхода для этой лаборатории (в США - раньше, compute.gpuAvailableDay); нет - дата из каталога. */
+  since?: number;
 }
 
 /** Мощность карты по сравнению с самой мощной из списка: «17 % от Fermi V100», «больше всех на рынке». */
@@ -43,7 +45,7 @@ export function GpuChooser(props: {
   return (
     <div className="gch">
       <div className="gch-list" role="radiogroup" aria-label="Видеокарта">
-          {items.map(({ gpu: x, price, tag, note }) => (
+          {items.map(({ gpu: x, price, tag, note, since }) => (
             <button
               key={x.id}
               type="button"
@@ -54,7 +56,7 @@ export function GpuChooser(props: {
             >
               <span className="gch-name">
                 {x.name}
-                <NewBadge day={props.day} since={dateToDay(x.availableFrom)} />
+                <NewBadge day={props.day} since={since ?? dateToDay(x.availableFrom)} />
               </span>
               <span className="gch-price">{price}</span>
               <span className="gch-bar" title={`Мощность одной карты по сравнению с ${best?.name ?? ''}`}>

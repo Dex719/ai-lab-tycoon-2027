@@ -20,7 +20,8 @@ import {
   FAIL_ROLLBACK,
   FOUNDER_BOARD_SHARE,
 } from '../sim/constants';
-import { availableGpus, rentPerGpuDay } from '../sim/compute';
+import { availableGpus, isGpuAvailable, rentPerGpuDay } from '../sim/compute';
+import { countryExportControls, gpuEarlyDays } from '../sim/country';
 import { addModifier, FOREVER } from '../sim/events';
 import { spend } from '../sim/finance';
 import { BOARD_PLAN_FLAG, buyBackShares, buybackCost } from '../sim/investors';
@@ -143,6 +144,7 @@ function exportControls(id: string, date: string, title: string, body: string): 
         });
       }
       s.flags.exportControls = true; // флаг из design.md: интерфейс может показать пометку
+      countryExportControls(s, id.endsWith('2022') ? 1 : 2); // лаборатория игрока в Китае
     },
   };
 }
@@ -154,7 +156,8 @@ const CHINESE_NAMES = CHINESE_LABS.map((l) => l.name).join(', ');
 function gpuEvent(gpu: GpuDef): EventDef {
   return {
     id: `gpu-${gpu.id}`,
-    when: { date: gpu.availableFrom },
+    // В США карта выходит раньше (sim/country.ts): письмо - в день, когда её можно арендовать.
+    when: { check: (s) => isGpuAvailable(s, gpu.id) },
     mail: (s) => {
       const perH = (id: GpuDef['id']) => rentPerGpuDay(s, id) / GPUS.find((g) => g.id === id)!.h100e;
       const older = availableGpus(s).filter((g) => g.id !== gpu.id);
@@ -171,6 +174,7 @@ function gpuEvent(gpu: GpuDef): EventDef {
         body:
           `${gpu.name} доступна в облаке. Мощность одной карты - ${String(Math.round(gpu.h100e * 100) / 100).replace('.', ',')} H100e, ` +
           `аренда - ${money(rentPerGpuDay(s, gpu.id))} в день за карту (${money(now)} за H100e в день).${gain} ` +
+          (gpuEarlyDays(s, gpu.id) > 0 ? 'Лаборатории в США получили её раньше остальных. ' : '') +
           'Арендовать карту можно в окне «Мощности».',
       };
     },

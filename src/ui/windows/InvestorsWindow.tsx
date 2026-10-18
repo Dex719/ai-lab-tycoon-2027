@@ -112,6 +112,7 @@ export function valuationParts(s: GameState, v: Valuation): Part[] {
   const rep = base * v.hypeMult * (v.repMult - 1);
   const board = base * v.hypeMult * v.repMult * (v.boardMult - 1);
   const emergency = base * v.hypeMult * v.repMult * v.boardMult * (v.emergencyMult - 1);
+  const country = base * v.hypeMult * v.repMult * v.boardMult * v.emergencyMult * (v.countryMult - 1);
   const rank =
     v.bestRank === null
       ? 'нет моделей в продаже'
@@ -124,6 +125,7 @@ export function valuationParts(s: GameState, v: Valuation): Part[] {
     { key: 'rep', label: 'Репутация', sub: `уровень ${fmtNum(s.reputation)} из 100`, value: rep },
     { key: 'board', label: 'План совета директоров', sub: 'скидка до следующего раунда', value: board },
     { key: 'emergency', label: 'Экстренный раунд', sub: 'деньги в минусе: инвесторы дают меньше', value: emergency },
+    { key: 'country', label: 'Страна', sub: 'венчурные фонды США платят больше', value: country },
   ];
   return parts.filter((p) => Math.abs(p.value) >= 1);
 }
@@ -164,7 +166,7 @@ function ValueTower({ s, v }: { s: GameState; v: Valuation }) {
               <span className="inv-lg-l">{p.label}</span>
               <span className="inv-lg-s">{p.sub}</span>
             </span>
-            <b className="inv-lg-v num">{p.value < 0 || p.key === 'hype' || p.key === 'rep' || p.key === 'board' ? signed(p.value) : fmtMoney(p.value)}</b>
+            <b className="inv-lg-v num">{p.value < 0 || p.key === 'hype' || p.key === 'rep' || p.key === 'board' || p.key === 'country' ? signed(p.value) : fmtMoney(p.value)}</b>
           </div>
         ))}
         <div className="inv-lg total">

@@ -2,6 +2,7 @@
 
 import { BANKRUPT_DAYS, EMERGENCY_ROUND_DAYS, OVERHEAD_MONTHLY, OVERHEAD_REVENUE_SHARE } from './constants';
 import { rentPerDay } from './compute';
+import { countryCostMult } from './country';
 import { addMail } from './events';
 import { emptyLedger } from './state';
 import { dayToDate } from './time';
@@ -55,7 +56,7 @@ export function lastMonthRevenue(s: GameState): number {
 }
 
 export function overheadPerDay(s: GameState): number {
-  return (OVERHEAD_MONTHLY + OVERHEAD_REVENUE_SHARE * lastMonthRevenue(s)) / 30;
+  return ((OVERHEAD_MONTHLY + OVERHEAD_REVENUE_SHARE * lastMonthRevenue(s)) / 30) * countryCostMult(s);
 }
 
 /** Ежедневные расходы и проверка банкротства. Вызывается после рынка и контрактов. */

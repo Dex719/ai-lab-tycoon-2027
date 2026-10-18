@@ -1,5 +1,6 @@
 // Экран партии (как в Processor Tycoon): верхняя панель, рабочий стол с иконками и окнами, боковая панель, панель задач.
 
+import { ClientFeed } from './ClientFeed';
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ComponentType } from 'react';
 import { openChoices, pendingChoice, unreadCount } from '../sim/events';
 import { goalOfferOpen, unseenReview } from '../sim/goals';
@@ -424,6 +425,7 @@ export function Game({ s }: { s: GameState }) {
       <FeelLayer />
       <Juice s={s} onRelease={setReleased} />
       <SceneLive s={s} />
+      <ClientFeed s={s} />
       {released && <ReleaseCard s={s} modelId={released} onClose={closeReleased} />}
       <ChoiceModal s={s} />
       <Moments s={s} />

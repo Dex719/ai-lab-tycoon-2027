@@ -16,6 +16,13 @@
 .tm-eff b.good { color: var(--good-ink); }
 .tm-eff b.dim { color: var(--text-2); font-weight: var(--fw-small); }
 .tm-eff-t { color: var(--text-2); font-size: 13px; font-weight: var(--fw-small); }
+/* Узкое окно (1024 × 768 по умолчанию): что даёт команда - под числом людей, а не столбиком в 60 px (плейтест 18.10). */
+.tm { container-type: inline-size; }
+@container (max-width: 640px) {
+  .tm-head { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .tm-effects { padding-left: 0; border-left: none; padding-top: 10px; border-top: 1px solid var(--edge); }
+  .tm-eff { grid-template-columns: 10px 120px 56px minmax(0, 1fr); }
+}
 
 .tm-tabs { flex: none; display: flex; align-items: center; gap: 4px; padding: 6px 12px; }
 .tm-tabs .error { margin-left: auto; }

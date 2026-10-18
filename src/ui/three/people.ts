@@ -218,6 +218,8 @@ interface Agent {
   heading: number;
   phase: number;
   t0: number;
+  /** Не ходит по делам (клиенты в очереди у входа): только своё действие и радость на выпуск модели. */
+  stay?: boolean;
 }
 
 const SPEED = 1.25;
@@ -255,11 +257,11 @@ export class Crowd {
     this.add(look, { x: seat.x, z: seat.z, face: 0, act: 'look', lane }, true);
   }
 
-  addStanding(look: Look, spot: Spot): void {
-    this.add(look, spot, false);
+  addStanding(look: Look, spot: Spot, stay = false): void {
+    this.add(look, spot, false, stay);
   }
 
-  private add(look: Look, home: Spot, seated: boolean): void {
+  private add(look: Look, home: Spot, seated: boolean, stay = false): void {
     const r = rig(look, this.mk, this.reg);
     const blob = new THREE.Mesh(this.blobGeo, this.blobMat);
     blob.position.y = 0.012;
@@ -279,6 +281,7 @@ export class Crowd {
       heading: home.face,
       phase: this.rand() * 6,
       t0: this.rand() * 10,
+      stay,
     };
     this.agents.push(a);
     this.place(a, 0);
@@ -348,9 +351,9 @@ export class Crowd {
     }
 
     let moving = false;
-    const walkers = this.agents.filter((a) => a.mode !== 'home').length;
+    const walkers = this.agents.filter((a) => a.mode !== 'home' && !a.stay).length;
     for (const a of this.agents) {
-      if (a.mode === 'home') {
+      if (a.mode === 'home' && !a.stay) {
         a.nextErrand -= dt;
         if (a.nextErrand <= 0 && walkers < Math.max(1, Math.ceil(this.agents.length / 4)) && this.spots.length) {
           a.nextErrand = 15 + this.rand() * 45;

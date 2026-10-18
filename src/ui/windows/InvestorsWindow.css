@@ -51,6 +51,7 @@
 .inv-seg.floor, .inv-sw.floor { --sc: var(--brand-muted); }
 .inv-seg.hype, .inv-sw.hype { --sc: var(--dir-contracts); }
 .inv-seg.rep, .inv-sw.rep { --sc: var(--dir-research); }
+.inv-seg.country, .inv-sw.country { --sc: var(--brand); }
 .inv-sw { background: var(--sc); }
 .inv-sw.minus { border-radius: 2px; background: var(--bad-soft); box-shadow: inset 0 0 0 2px var(--bad-fill); }
 .inv-sw.line { height: 2px !important; margin-top: 8px; border-radius: 0; background: var(--text); }

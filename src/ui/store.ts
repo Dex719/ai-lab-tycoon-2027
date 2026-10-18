@@ -7,7 +7,7 @@ import { TICK_MS } from '../sim/constants';
 import type { Difficulty } from '../sim/rivalry';
 import { goalOfferOpen, goalsDay, unseenReview } from '../sim/goals';
 import { advanceDay, advanceDays, blockedByChoice } from '../sim/tick';
-import type { GameState, Result, Speed } from '../sim/types';
+import type { CountryId, GameState, Result, Speed } from '../sim/types';
 import { landAction } from './feel';
 import { readSlot, writeSlot, type SlotId } from './saves';
 import { getSettings } from './settings';
@@ -64,8 +64,8 @@ export class GameStore {
   }
 
   /** Новая партия. difficulty - сложность соперников (по умолчанию «Обычная»). */
-  newGame(labName: string, opts: { founderName?: string; tutorial?: boolean; seed?: number; difficulty?: Difficulty } = {}): void {
-    const s = actions.newGame(labName, opts.seed ?? (Date.now() ^ 0x5eed) >>> 0, opts.difficulty ?? 'normal');
+  newGame(labName: string, opts: { founderName?: string; tutorial?: boolean; seed?: number; difficulty?: Difficulty; country?: CountryId } = {}): void {
+    const s = actions.newGame(labName, opts.seed ?? (Date.now() ^ 0x5eed) >>> 0, opts.difficulty ?? 'normal', opts.country);
     s.founderName = (opts.founderName ?? '').trim();
     s.tutorial = { step: 0, active: opts.tutorial ?? false };
     goalsDay(s); // цели первого года предлагаются сразу: окно выбора открывается до первого дня

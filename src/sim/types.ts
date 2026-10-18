@@ -118,6 +118,10 @@ export interface RivalModelDef {
 
 /** Уровень модели: лёгкая (дёшево и слабо), средняя, флагман. Задаётся в плане обучения относительно переднего края года. */
 export type Tier = 'light' | 'mid' | 'flagship';
+
+/** Страна лаборатории (выбирается в новой игре, sim/country.ts): США, Китай, Европа. */
+export type CountryId = 'us' | 'cn' | 'eu';
+export const COUNTRY_IDS: readonly CountryId[] = ['us', 'cn', 'eu'];
 export const TIER_IDS: readonly Tier[] = ['light', 'mid', 'flagship'];
 export const TIER_NAMES: Record<Tier, string> = { light: 'Лёгкая', mid: 'Средняя', flagship: 'Флагман' };
 
@@ -181,6 +185,8 @@ export interface TrainingPlan {
   rlhf: boolean;
   context: number; // длина контекста, токенов (одно из CONTEXT_LEVELS)
   tier: Tier; // уровень модели; обязан совпадать с training.tierOf(paramsB, день старта)
+  /** Чужие данные без разрешения: больше данных и способностей, но могут подать иск (sim/country.ts). Нет поля - нет. */
+  stolenData?: boolean;
 }
 
 export interface TrainingRun {
@@ -221,6 +227,8 @@ export interface PlayerModel {
   review: ReviewState; // внешняя проверка сильной модели перед подпиской
   reviewEndDay: number | null; // день окончания проверки (pending)
   earnedSubs: number; // из earned: выручка подписок, $
+  /** Иск за чужие данные уже был: больше не грозит (sim/country.ts). */
+  stolenCaught?: boolean;
 }
 
 // Ссылка на модель в рейтингах/рынке
@@ -516,6 +524,8 @@ export interface GameState {
   tutorial: { step: number; active: boolean };
   /** Сложность выбирается в главном меню и не меняется за игру (rivalry.DIFFICULTY). */
   difficulty: Difficulty;
+  /** Страна лаборатории (sim/country.ts); нет в старых сохранениях - без особенностей страны. */
+  country?: CountryId;
   /** Соперники с характерами: накал, ходы, поправки к моделям, память (rivalry.ts). */
   rivalry: RivalryState;
   /** Цели года, итоги года и расписание случайных событий (sim/goals.ts, sim/randomEvents.ts). */

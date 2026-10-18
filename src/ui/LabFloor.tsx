@@ -5,6 +5,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { GPUS } from '../data/gpus';
+import { LABS } from '../data/labs';
 import { idleWarnings } from '../sim/idle';
 import { LAB_STAGES, labStage, metricStage, yearCups } from '../sim/labStage';
 import { rpPerDay, techCost, TECHS } from '../sim/research';
@@ -48,6 +49,11 @@ interface Facts {
   place: number | null;
   released: number;
   freeSeats: number;
+  /** Гонка, в которой считается место: «на «Арене»» или «по SQuAT». */
+  raceLabel: string | null;
+  /** Общая доля рынка игрока 0..1 и больше ли она, чем у любой лаборатории-соперника. */
+  share: number;
+  shareLeader: boolean;
 }
 
 function factsOf(s: GameState): Facts {
@@ -76,6 +82,8 @@ function factsOf(s: GameState): Facts {
     }
   }
   const released = s.models.filter((m) => m.releasedDay !== null);
+  const share = s.market.labShares.player ?? 0;
+  const rivalTop = Math.max(0, ...LABS.map((l) => s.market.labShares[l.id] ?? 0));
   const shelf = [...(best ? [best] : []), ...released.filter((m) => m !== best).sort((a, b) => b.arenaElo - a.arenaElo)].slice(0, MODELS_ON_SHELF);
   const cards = cardCount(s);
   const racks = def.racks;
@@ -102,6 +110,9 @@ function factsOf(s: GameState): Facts {
     models: shelf.map((m, i) => (i === 0 && place === 1 ? '#e8c34a' : TIER_COLOR[m.plan.tier])),
     cups: yearCups(s).slice(-6).map((c) => c.kind),
     base: '#5f8f45',
+    flag: s.country,
+    // Очередь клиентов у входа: шагами, чтобы сцена не перестраивалась от каждого процента доли.
+    visitors: share > 0.005 ? Math.min(8, Math.max(1, Math.round(Math.sqrt(share) * 10))) : 0,
   };
   return {
     spec,
@@ -114,6 +125,9 @@ function factsOf(s: GameState): Facts {
     place,
     released: released.length,
     freeSeats,
+    raceLabel: metric ? (metric.kind === 'arena' ? 'на «Арене»' : `по ${metric.name}`) : null,
+    share,
+    shareLeader: share > 0.005 && share > rivalTop,
   };
 }
 
@@ -122,7 +136,7 @@ const TAG_W = 190;
 const TAG_H = 64;
 
 /** Точки сцены, у которых есть подпись или кнопка. */
-const SHOWN = new Set(['servers', 'research', 'training', 'showcase', 'seats']);
+const SHOWN = new Set(['servers', 'research', 'training', 'showcase', 'seats', 'sign']);
 
 /** Развести подписи: если две перекрываются, нижняя по экрану остаётся у места, верхняя поднимается выше. */
 function spread(at: At): At {
@@ -202,6 +216,31 @@ export function StageMark({ s }: { s: GameState }) {
   );
 }
 
+/**
+ * Табло над лабораторией: место в гонке (золотое на 1-м месте) и сколько клиентов выбирают модели лаборатории.
+ * Видно, только когда есть модель в продаже. Щелчок открывает «Аналитику» с таблицей мест.
+ */
+function LabSign(props: { at?: { x: number; y: number }; f: Facts; labName: string; onClick: () => void }) {
+  const { at, f } = props;
+  if (!at || f.released === 0) return null;
+  const first = f.place === 1;
+  const title = f.place !== null && f.raceLabel ? `${f.place}-е место ${f.raceLabel}` : 'Соперников в гонке пока нет';
+  const pct = Math.round(f.share * 100);
+  const sub =
+    pct >= 1
+      ? `Выбирают ${pct} % клиентов${f.shareLeader ? ' - больше всех' : ''}`
+      : f.share > 0
+        ? 'Выбирают меньше 1 % клиентов'
+        : 'Клиентов пока нет';
+  return (
+    <button type="button" className={`lf-sign${first ? ' first' : ''}`} style={{ left: at.x, top: at.y }} onClick={props.onClick}>
+      <small>{props.labName}</small>
+      <b>{title}</b>
+      <span className={f.shareLeader ? 'lead' : undefined}>{sub}</span>
+    </button>
+  );
+}
+
 function NextPlate({ step, open }: { step: NextStep; open: Open }) {
   return (
     <div className="lf-next" role="note" aria-label="Следующий шаг">
@@ -273,6 +312,7 @@ export function LabFloor({ s, open }: { s: GameState; open: Open }) {
           v={f.best ? f.best.name : f.released > 0 ? `Выпущено: ${fmtNum(f.released)}` : 'Пусто'}
           onClick={() => open(f.released > 0 ? 'models' : 'newModel')}
         />
+        <LabSign at={at.sign} f={f} labName={s.labName} onClick={() => open('ratings')} />
         <Plus at={at.seats} label={`Нанять (${fmtNum(f.freeSeats)} ${ruPlural(f.freeSeats, 'место', 'места', 'мест')})`} onClick={() => open('team')} />
         {/* Кнопка «+» - только если подпись рядом не предлагает то же самое: иначе пузыри дублировали друг друга и
             налезали («Свободно: новая модель» и «+ Новая модель», плейтест 17.10). */}

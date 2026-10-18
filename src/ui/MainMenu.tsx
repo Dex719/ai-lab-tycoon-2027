@@ -3,7 +3,10 @@
 import './alive.css';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { START_CASH } from '../sim/constants';
+import { COUNTRIES } from '../sim/country';
 import { DIFFICULTY, DIFFICULTY_IDS, type Difficulty } from '../sim/rivalry';
+import { COUNTRY_IDS, type CountryId } from '../sim/types';
+import { CountryFlag } from './components/CountryFlag';
 import { formatDateShort } from '../sim/time';
 import { ConfirmDialog, DenyNote, Dialog, ErrorText, useFlash, useModalFocus } from './components/common';
 import { LABS } from '../data/labs';
@@ -131,6 +134,7 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
   const [founder, setFounder] = useState('');
   const [tutorial, setTutorial] = useState(true);
   const [difficulty, setDifficulty] = useState<Difficulty>('normal');
+  const [country, setCountry] = useState<CountryId>('us');
   const [note, flash] = useFlash();
   const valid = name.trim().length > 0;
   const { ref, onKeyDown } = useModalFocus<HTMLDivElement>('new-game');
@@ -143,7 +147,7 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
       flash('Введите название лаборатории.');
       return;
     }
-    store.newGame(name, { founderName: founder, tutorial, difficulty });
+    store.newGame(name, { founderName: founder, tutorial, difficulty, country });
   }
 
   return (
@@ -168,7 +172,7 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
               <div className="ng-sign" aria-hidden="true">
                 <IconLogo size={22} />
                 <b>{name.trim() || 'Лаборатория'}</b>
-                <span>Гараж</span>
+                <span>{COUNTRIES[country].city}</span>
               </div>
               <label className="ng-field">
                 <span className="ng-l">Название</span>
@@ -184,6 +188,34 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
                   {founder.length}/{FOUNDER_MAX}
                 </span>
               </label>
+              <h3 className="ng-h ng-h2">Страна</h3>
+              <div className="ng-countries" role="radiogroup" aria-label="Страна">
+                {COUNTRY_IDS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    role="radio"
+                    aria-checked={country === c}
+                    className={`ng-country${country === c ? ' on' : ''}`}
+                    onClick={() => setCountry(c)}
+                  >
+                    <CountryFlag id={c} size={20} />
+                    <span>{COUNTRIES[c].name}</span>
+                  </button>
+                ))}
+              </div>
+              <ul className="ng-perks" aria-label={`Особенности: ${COUNTRIES[country].name}`}>
+                {COUNTRIES[country].pros.map((p) => (
+                  <li key={p} className="good">
+                    + {p}
+                  </li>
+                ))}
+                {COUNTRIES[country].cons.map((p) => (
+                  <li key={p} className="bad">
+                    - {p}
+                  </li>
+                ))}
+              </ul>
             </section>
             <section className="ng-sec">
               <h3 className="ng-h">Сложность</h3>

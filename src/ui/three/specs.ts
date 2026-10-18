@@ -5,7 +5,7 @@
 import { DC_STAGES, type DcSiteId } from '../../data/datacenters';
 import { GPUS } from '../../data/gpus';
 import { dcReady, findDc, stageProgress, usedKw } from '../../sim/datacenters';
-import type { Datacenter, GameState, GpuId } from '../../sim/types';
+import type { CountryId, Datacenter, GameState, GpuId } from '../../sim/types';
 
 export const CARDS_PER_SERVER = 8;
 export const SERVERS_PER_RACK = 4;
@@ -72,6 +72,10 @@ export interface LabSpec {
   cups: ('first' | 'goals')[];
   /** Цвет основания под комнатой (под тему интерфейса); по умолчанию тёмный. */
   base?: string;
+  /** Флаг страны на флагштоке у здания (только на газоне, base). */
+  flag?: CountryId;
+  /** Клиентов в очереди у входа: растёт с долей рынка (0..8). */
+  visitors?: number;
 }
 
 export type ViewSpec = GpuSpec | FarmSpec | CampusSpec | LabSpec;

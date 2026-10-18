@@ -9,6 +9,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import type { Content } from './engine';
 import { EVENT_MS, live } from './live';
 import { rng } from './kit';
+import { flagTexture } from './flag';
 import { Crowd, type Look, type Spot } from './people';
 import type { LabSpec } from './specs';
 
@@ -50,6 +51,7 @@ export function buildLab(spec: LabSpec): Content {
   const geos = new Set<THREE.BufferGeometry>();
   const mats = new Map<string, THREE.MeshStandardMaterial>();
   const extraMats: THREE.Material[] = [];
+  const extraTex: THREE.Texture[] = [];
   const rand = rng(97 + spec.stage * 13);
 
   const mat = (color: string, glow = 0): THREE.MeshStandardMaterial => {
@@ -523,6 +525,23 @@ export function buildLab(spec: LabSpec): Content {
       ball(0.5, shade(spec.base, 0.08), tx + 0.25, 1.65, tz + 0.1);
     }
     sharp(1.4, 0.02, D + 1.6, '#e9e2d2', x1 + 1.0, 0.01, 0);
+    // Флагшток страны лаборатории на газоне справа от дорожки (ближе к камере), полотнище - к входу.
+    if (spec.flag) {
+      const px = x1 + 2.0;
+      const pz = z0 + 0.4;
+      cyl(0.2, 0.08, '#9aa3ab', px, 0.04, pz);
+      cyl(0.05, 3.5, '#c9cfd4', px, 1.75, pz);
+      ball(0.08, '#e8c34a', px, 3.55, pz);
+      const tex = flagTexture(spec.flag);
+      const cloth = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85, side: THREE.DoubleSide });
+      extraMats.push(cloth);
+      extraTex.push(tex);
+      const fm = new THREE.Mesh(geo(new THREE.PlaneGeometry(1.65, 1.1)), cloth);
+      fm.rotation.y = -Math.PI / 2;
+      fm.position.set(px, 2.9, pz + 0.85);
+      fm.castShadow = true;
+      root.add(fm);
+    }
   }
 
   // ---------- Свет ----------
@@ -579,6 +598,11 @@ export function buildLab(spec: LabSpec): Content {
     crowd.addSeated(lookOf(i), { x: d.x - 0.15, z: d.z + 0.85 }, d.z + 1.4);
   }
   if (spec.research) crowd.addStanding({ ...lookOf(97), coat: true }, at(wbX, z0 + 0.95, 0, 'write'));
+  // Клиенты в очереди на дорожке у входа: чем больше доля рынка, тем длиннее очередь. Стоят лицом к зданию.
+  if (spec.base) {
+    const n = Math.min(8, Math.max(0, spec.visitors ?? 0));
+    for (let i = 0; i < n; i++) crowd.addStanding(lookOf(200 + i * 7), at(x1 + 1.0, z1 - 0.5 - i * 0.85, Math.PI / 2, 'look'), true);
+  }
   root.add(crowd.root);
 
   // ---------- Точки подписей ----------
@@ -590,6 +614,8 @@ export function buildLab(spec: LabSpec): Content {
     anchors.training = new THREE.Vector3((deskPos(0).x + last.x) / 2, 1.75, deskPos(0).z - 0.3);
   }
   anchors.showcase = new THREE.Vector3(x0 + 0.55, 1.6, shelfZ);
+  // Табло лаборатории над задней стеной (React рисует место в гонке и долю клиентов).
+  if (spec.base) anchors.sign = new THREE.Vector3(x1 - 3.2, WALL_H + 0.9, z0 - 0.2);
   if (ghostAt) anchors.seats = ghostAt;
   anchors.rackSlot = rackSlot ?? new THREE.Vector3(rackX(Math.max(0, spec.racks - 1)) - 0.5, 2.55, rackZ + 0.2);
   if (!spec.research) anchors.researchSlot = new THREE.Vector3(wbX, 1.9, z0 + 0.3);
@@ -651,6 +677,7 @@ export function buildLab(spec: LabSpec): Content {
       for (const m of mats.values()) m.dispose();
       for (const m of ledOn.values()) m.dispose();
       for (const m of extraMats) m.dispose();
+      for (const t of extraTex) t.dispose();
       crowd.dispose();
       sun.shadow.map?.dispose();
     },

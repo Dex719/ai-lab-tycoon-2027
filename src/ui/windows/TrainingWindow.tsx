@@ -20,7 +20,11 @@ import {
   TIER_SUBS_PRICE,
   TOKENS_B_MIN,
   TRAIN_FLOP_PER_H100E_DAY,
+  ELO_PER_CAP,
+  STOLEN_CAP_BONUS,
+  STOLEN_TOKENS_MULT,
 } from '../../sim/constants';
+import { countryOf, theftChance, theftFine, theftPulls, theftRepLoss } from '../../sim/country';
 import { END_DAY, formatDate, formatDateShort, yearOf } from '../../sim/time';
 import { arenaStanding, bestElo, rivalsSellByApi } from '../../sim/leaderboard';
 import { refContext, refPrice, subsOpen } from '../../sim/market';
@@ -114,6 +118,8 @@ export interface Draft {
   autoData?: boolean;
   /** RLHF уже был исследован, когда черновик создан: выключенный тумблер - выбор игрока, а не пережиток. */
   rlhfKnown?: boolean;
+  /** Чужие данные без разрешения (sim/country.ts). Нет поля - выключено. */
+  stolen?: boolean;
 }
 
 /** Черновик живёт вне компонента: свёрнутое окно закрывается полностью, а настройки должны остаться. */
@@ -224,11 +230,21 @@ function rescaleMix(mix: Record<DomainId, number>, id: DomainId, v: number): Rec
 
 
 /** Данные под размер: столько токенов, сколько выгоднее всего по вычислениям, но не больше, чем есть в этом году. */
-export function autoTokens(s: GameState, paramsB: number): number {
-  return clamp(roundSig(paramsB * CHIN_OPT_RATIO), TOKENS_B_MIN, maxTokensB(s));
+export function autoTokens(s: GameState, paramsB: number, stolen = false): number {
+  return clamp(roundSig(paramsB * CHIN_OPT_RATIO), TOKENS_B_MIN, maxTokensB(s, stolen));
 }
 
 // ---------- Элементы ----------
+
+/** Риск чужих данных словами: шанс иска в месяц, штраф, репутация; что меняет страна. */
+function theftLine(s: GameState): string {
+  const c = countryOf(s);
+  const where = c === 'cn' ? ' В Китае такие иски редки.' : c === 'eu' ? ' В Европе суды строже.' : '';
+  return (
+    `Пока модель продаётся, каждый месяц могут подать иск: шанс ${fmtPct(theftChance(s) * 100, 0)}, штраф от ${fmtMoney(theftFine(s, { earned: 0 }))}, ` +
+    `репутация −${fmtNum(theftRepLoss(s))}${theftPulls(s) ? ', модель снимут с продажи' : ''}.${where}`
+  );
+}
 
 interface SliderProps {
   label: ReactNode;
@@ -482,7 +498,15 @@ function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
             <div className="nm-kpi-s">
               {est.roughElo === null
                 ? 'Прогноз откроется после исследования'
-                : `Грубо, по алгоритмам уровня ${s.research.algoLevel} на день старта (улучшения во время обучения модель не получит). Точный прогноз и место откроет исследование`}{' '}
+                : (
+                    <>
+                      <span className="nm-rough-long">
+                        Грубо, по алгоритмам уровня {s.research.algoLevel} на день старта (улучшения во время обучения модель не получит). Точный
+                        прогноз и место откроет исследование
+                      </span>
+                      <span className="nm-rough-short">Точный прогноз - после исследования</span>
+                    </>
+                  )}{' '}
               <button className="nm-link" onClick={() => open('research')}>
                 «Законы масштабирования»
               </button>
@@ -612,9 +636,10 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
   const [sizeMin, sizeMax] = tierSpan(s.day, tier);
   const slotsFull = s.trainings.length >= MAX_TRAININGS;
   const year = yearOf(s.day);
-  const maxTokens = maxTokensB(s);
+  const stolen = d.stolen === true;
+  const maxTokens = maxTokensB(s, stolen);
   const autoData = d.autoData !== false;
-  const tokens = autoData ? autoTokens(s, paramsB) : Math.min(d.tokensB, maxTokens);
+  const tokens = autoData ? autoTokens(s, paramsB, stolen) : Math.min(d.tokensB, maxTokens);
   const benches = introducedBenchmarks(s);
   const rlhfDone = s.research.done.includes('rlhf');
   // Названия по умолчанию идут подряд, с учётом проектов, которые ещё обучаются.
@@ -631,6 +656,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
     rlhf: d.rlhf && rlhfDone,
     context: d.context !== null && d.context <= ctxMax ? d.context : ctxMax,
     tier,
+    ...(stolen ? { stolenData: true } : {}),
   };
 
   let est: Est | null = null;
@@ -829,6 +855,17 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
                     </button>
                   </>
                 )}
+              </span>
+            </label>
+
+            <label className={`nm-opt risk${stolen ? ' on' : ''}`}>
+              <span className="nm-opt-top">
+                <span>Чужие данные</span>
+                <input type="checkbox" className="nm-switch" checked={stolen} onChange={(e) => patch({ stolen: e.target.checked })} />
+              </span>
+              <span className="nm-opt-d">
+                Книги, сайты и ответы чужих моделей без разрешения: данных в {fmtNum(STOLEN_TOKENS_MULT)} раза больше, Эло выше на{' '}
+                {fmtNum(STOLEN_CAP_BONUS * ELO_PER_CAP)}. {theftLine(s)}
               </span>
             </label>
 

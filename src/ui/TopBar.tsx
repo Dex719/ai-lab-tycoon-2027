@@ -2,7 +2,9 @@
 import { StageMark } from './LabFloor';
 
 import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { COUNTRIES } from '../sim/country';
 import { pendingChoice } from '../sim/events';
+import { CountryFlag } from './components/CountryFlag';
 import { ArenaStrip } from './ArenaFeedback';
 import { MoneyFlies, useCountUp } from './Juice';
 import { FlashNum } from './FlashNum';
@@ -154,6 +156,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
             <IconLogo size={18} />
           </span>
           <b>{s.labName}</b>
+          {s.country && <CountryFlag id={s.country} size={14} title={COUNTRIES[s.country].name} />}
           {s.founderName && <span className="tb-founder">{s.founderName}</span>}
           <StageMark s={s} />
           {store.autosaveError && (
@@ -223,6 +226,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
           <IconLogo size={18} />
         </span>
         <b>{s.labName}</b>
+        {s.country && <CountryFlag id={s.country} size={14} title={COUNTRIES[s.country].name} />}
         {s.founderName && <span className="tb-founder">{s.founderName}</span>}
         {!phone && <StageMark s={s} />}
         {store.autosaveError && (

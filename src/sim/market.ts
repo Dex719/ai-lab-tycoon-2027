@@ -233,7 +233,8 @@ export function labBrand(s: GameState, owner: HypeOwner): number {
   if (owner === 'player') {
     // Репутация 0..100; если другой модуль выйдет за границы, бренд всё равно остаётся в рамках ±PLAYER_BRAND_K.
     const rep = Math.min(100, Math.max(0, s.reputation));
-    return ((rep - 50) / 50) * PLAYER_BRAND_K;
+    // Плюс поправки страны (sim/country.ts): лаборатории в Китае зарубежные клиенты доверяют меньше.
+    return ((rep - 50) / 50) * PLAYER_BRAND_K + modValue(s, 'labBrand', 'player').add;
   }
   const base = LABS.find((l) => l.id === owner)?.brand ?? 0;
   return base + modValue(s, 'labBrand', owner).add;

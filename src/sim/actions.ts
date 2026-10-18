@@ -13,24 +13,27 @@ import { minPrice, subsOpen } from './market';
 import { queueResearch, setResearch, unqueueResearch } from './research';
 import { applyDifficultyModifiers } from './rivalry';
 import type { Difficulty } from './rivalry';
+import { applyCountryStart, COUNTRIES, countryPerks } from './country';
 import { createInitialState } from './state';
 import { dateToDay, formatDate, START_DAY } from './time';
 import { cancelTraining, reviewReason, reviewTerms, startReview, startTraining } from './training';
 import { refreshCandidates } from './staff';
 // Действия окна «Команда».
 export { fireEmployee, hireCandidate, promoteEmployee, trainEmployee } from './staff';
-import type { GameState, Result } from './types';
+import type { CountryId, GameState, Result } from './types';
 
 /** Новая игра: сложность из главного меню ставит модификаторы аренды и разоблачения навсегда (только Лёгкая и Сложная). */
-export function newGame(labName: string, seed: number, difficulty: Difficulty = 'normal'): GameState {
+export function newGame(labName: string, seed: number, difficulty: Difficulty = 'normal', country?: CountryId): GameState {
   const s = createInitialState(labName, seed, difficulty);
   applyDifficultyModifiers(s);
+  if (country) applyCountryStart(s, country);
   for (const b of BENCHMARKS) if (dateToDay(b.introduced) < START_DAY) s.benchmarks[b.id].introduced = true;
   refreshCandidates(s); // первые кандидаты в команду - сразу, а не через месяц
   addMail(s, {
     kind: 'news',
     title: `Лаборатория «${s.labName}» основана`,
     body:
+      (country ? `Штаб-квартира: ${COUNTRIES[country].city}, ${COUNTRIES[country].name}. ${countryPerks(country)} ` : '') +
       'Капитал: $3 млн. Цель: к концу 2024 года занять 1-е место на «Арене». ' +
       'Сначала арендуйте видеокарты в окне «Мощности». ' +
       'Конкуренты опубликуют механизм внимания в июне 2017 года. Лаборатория может изучить его раньше в окне «Исследования». ' +

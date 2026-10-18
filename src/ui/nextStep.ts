@@ -6,6 +6,7 @@ import { CLIENTS } from '../data/clients';
 import { benchDef } from '../sim/benchmarks';
 import { computeOrdered, nextArrival, pool, totalH100e } from '../sim/compute';
 import { canApply } from '../sim/contracts';
+import { BANKRUPT_DAYS } from '../sim/constants';
 import { formatDateShort, START_DAY } from '../sim/time';
 import { modelScore } from '../sim/training';
 import type { GameState, PlayerModel, Tender } from '../sim/types';
@@ -14,7 +15,7 @@ import { fmtH100e, fmtMoney } from './format';
 import type { WindowId } from './windows';
 
 export interface NextStep {
-  id: 'rent' | 'rent-wait' | 'contract-power' | 'release' | 'research' | 'first-model' | 'transformer' | 'tender' | 'research-wait' | 'waiting' | 'stopped' | 'time';
+  id: 'broke' | 'rent' | 'rent-wait' | 'contract-power' | 'release' | 'research' | 'first-model' | 'transformer' | 'tender' | 'research-wait' | 'waiting' | 'stopped' | 'time';
   title: string;
   detail: string;
   /** Глагол на кнопке; null - кнопки нет. */
@@ -54,12 +55,23 @@ function richestTender(s: GameState): Tender | null {
  * speed - скорость игры: пока время ни разу не шло, а ждать уже есть чего, подсказка - запустить время.
  */
 export function nextStep(s: GameState, speed = 1): NextStep | null {
+  // Деньги в минусе - в любой год: плейтест 18.10, игрок 59 дней ждал банкротства и не знал, что делать.
+  if (!s.outcome && s.cash < 0) {
+    const left = Math.max(0, BANKRUPT_DAYS - s.finance.negativeDays);
+    return {
+      id: 'broke',
+      title: `Деньги в минусе: до банкротства ${left} дн.`,
+      detail: 'Верните часть карт в «Мощностях», чтобы аренда стала меньше дохода, или продайте долю в «Инвесторах».',
+      action: 'Открыть «Мощности»',
+      open: 'compute',
+    };
+  }
   const step = firstStep(s);
   if (step && step.id === 'waiting' && speed === 0 && s.day === START_DAY) {
     return {
       id: 'time',
       title: 'Запустите время',
-      detail: 'Модель обучается, только пока идёт время: кнопка ▶ на верхней панели или пробел. Важные события сами ставят игру на паузу.',
+      detail: 'Модель обучается, только пока идёт время: кнопка ▶ рядом с датой или пробел. Важные события сами ставят игру на паузу.',
       action: 'Запустить',
       open: 'play',
     };

@@ -425,6 +425,14 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
   .game .month-strip { left: auto; right: 410px; transform: none; }
 }
 
+/* Экраны 768-1199 px: справа от «Следующего шага» не остаётся места до плитки денег, и карточка уезжала под колонку
+   разделов слева (плейтест 18.10, 1024 × 768). Здесь она стоит слева снизу сразу за колонкой, а уведомления
+   поднимаются над ней и над итогом месяца. */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .game .lf-next { left: 64px; right: auto; width: min(560px, calc(100vw - 64px - 410px)); }
+  body:has(.game .lf-next) .toasts { bottom: 220px; }
+}
+
 .titlebar .wicon { color: var(--brand-edge); }
 
 /* ---------- Списки слева в окнах (модели, тендеры, письма): строки - отдельные белые карточки, выбранная бирюзой ---------- */

@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
 import { DC_SITES, DC_SIZES, DC_STAGE_NAMES, DC_STAGES, DC_UPKEEP_PER_MW_MONTH, type DcSiteDef, type DcSiteId } from '../../data/datacenters';
 import { GPUS } from '../../data/gpus';
-import { availableGpus, gpuDef, ownedH100e, rentPerGpuDay } from '../../sim/compute';
+import { availableGpus, gpuAvailableDay, gpuDef, ownedH100e, rentPerGpuDay } from '../../sim/compute';
 import {
   buildCost,
   buildMonths,
@@ -437,6 +437,7 @@ function BuyDialog({ s, site, onClose }: { s: GameState; site: DcSiteId; onClose
           day={s.day}
           items={list.map((x) => ({
             gpu: x,
+            since: gpuAvailableDay(s, x.id),
             price: `${fmtMoney(gpuBuyPrice(s, x.id))} за карту`,
             note: (dc.gpus[x.id] ?? 0) > 0 ? `в зале ${fmtInt(dc.gpus[x.id])}` : null,
           }))}

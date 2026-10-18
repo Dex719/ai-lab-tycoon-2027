@@ -377,3 +377,12 @@ export const EXPOSE_REP = -5;
 export const EXPOSE_HYPE_MULT = 0.5;
 
 export const HYPE_OWNERS: readonly HypeOwner[] = ['player', 'openbrain', 'antropik', 'gogle', 'zhipo', 'moonshoot', 'deepcent', 'alibabo'];
+
+// Чужие данные (sim/country.ts): план stolenData.
+export const STOLEN_CAP_BONUS = 3; // очков способности во всех областях (+15 Эло)
+export const STOLEN_TOKENS_MULT = 1.5; // лимит данных года
+export const STOLEN_EXPOSE_MONTHLY = 0.05; // шанс иска в месяц для модели в продаже (США; Китай ÷3, Европа ×2)
+/** Штраф по иску без выручки модели, $ по годам: в 2017 году лаборатория маленькая, и суды берут меньше. */
+export const STOLEN_FINE_BASE: Record<number, number> = { 2017: 50_000, 2018: 80_000, 2019: 150_000, 2020: 300_000, 2021: 600_000, 2022: 1_000_000, 2023: 2_000_000, 2024: 3_000_000 };
+export const STOLEN_FINE_EARNED = 0.25; // доля выручки модели к штрафу
+export const STOLEN_REP = -8;

@@ -43,7 +43,7 @@ import type {
   YearlyState,
   YearReview,
 } from './types';
-import { BENCHMARK_IDS, DOMAINS, GPU_IDS, LAB_IDS, REVIEW_STATES, SEGMENT_IDS, TECH_IDS, TIER_IDS } from './types';
+import { BENCHMARK_IDS, COUNTRY_IDS, DOMAINS, GPU_IDS, LAB_IDS, REVIEW_STATES, SEGMENT_IDS, TECH_IDS, TIER_IDS } from './types';
 
 export const SAVE_KEY = 'ailab.save.v1';
 export const AUTOSAVE_KEY = 'ailab.autosave.v1';
@@ -180,6 +180,7 @@ const trainingPlan = shapeOf<TrainingPlan>({
   rlhf: bool,
   context: num,
   tier: oneOf(TIER_IDS),
+  stolenData: optional(bool),
 });
 
 const trainingRun = shapeOf<TrainingRun>({
@@ -218,6 +219,7 @@ const playerModel = shapeOf<PlayerModel>({
   review: oneOf(REVIEW_STATES),
   reviewEndDay: nullable(num),
   earnedSubs: num,
+  stolenCaught: optional(bool),
 });
 
 const tender = shapeOf<Tender>({
@@ -558,6 +560,7 @@ const STATE: Record<keyof GameState, Check> = {
   }),
   tutorial: shapeOf<GameState['tutorial']>({ step: int, active: bool }),
   difficulty: oneOf(DIFFICULTY_IDS),
+  country: optional(oneOf(COUNTRY_IDS)),
   rivalry,
   yearly,
   late: optional(late),

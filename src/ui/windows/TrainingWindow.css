@@ -41,6 +41,7 @@
 .nm-delta { font-size: 15px; font-weight: var(--fw-strong); letter-spacing: 0; }
 .nm-delta.up { color: var(--good-ink); }
 .nm-delta.down { color: var(--bad-ink); }
+.nm-rough-short { display: none; }
 .nm-chip { display: block; margin-top: 3px; font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }
 .nm-chip.warn { color: var(--warn-ink); font-weight: var(--fw-strong); }
 
@@ -148,6 +149,18 @@
   .nm-steps { grid-template-columns: minmax(0, 1fr); }
   .nm-hero { grid-template-columns: 1fr 1fr; }
   .nm-kpi-main { grid-column: 1 / -1; border-right: none; border-bottom: 1px solid var(--line-soft); }
+}
+/* Низкий экран (1024 × 768): прогноз в одну строку и без пояснения под Эло - иначе на сами настройки оставалось
+   77 px и переключатели приходилось искать прокруткой (плейтест 18.10). */
+@media (max-height: 820px) {
+  @container (min-width: 521px) and (max-width: 820px) {
+    .nm-hero { grid-template-columns: 1.2fr 1fr 1fr; }
+    .nm-kpi-main { grid-column: auto; border-right: 1px solid var(--line-soft); border-bottom: none; }
+  }
+  .nm-kpi { padding: 6px 14px 8px; }
+  .nm-kpi-main .nm-kpi-v { font-size: 28px; }
+  .nm-rough-long { display: none; }
+  .nm-rough-short { display: inline; }
 }
 @container (max-width: 520px) {
   .nm-hero { grid-template-columns: 1fr; }

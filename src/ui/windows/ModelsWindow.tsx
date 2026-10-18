@@ -3,7 +3,7 @@
 // Две панели продаж: «API» (цена за 1 млн токенов) и «Подписка» (цена в месяц, внешняя проверка сильных моделей).
 
 import { FlashNum } from '../FlashNum';
-import { Fragment, useId, useState, type CSSProperties } from 'react';
+import { Fragment, useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import type { WindowProps } from '.';
 import { benchDef, DOMAIN_NAMES, introducedBenchmarks } from '../../sim/benchmarks';
 import { pool, rentPerDay } from '../../sim/compute';
@@ -392,6 +392,18 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
   const [err, setErr] = useState<string | null>(null);
   const api = parsePrice(text, s.day);
   const subs = parseSubsPrice(subsText);
+  // Кнопка «Выпустить» сама прокручивается в видимую часть окна: в небольшом окне (1024×768) она оказывалась под
+  // карточкой и характеристиками, и модель месяцами лежала готовой (плейтест 18.10).
+  const footRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = footRef.current;
+    // Только ближайший прокручиваемый блок окна: scrollIntoView сдвигал бы и сам рабочий стол.
+    let box = el?.parentElement ?? null;
+    while (box && !(box.scrollHeight > box.clientHeight && /(auto|scroll)/.test(getComputedStyle(box).overflowY))) box = box.parentElement;
+    if (!el || !box) return;
+    const over = el.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom;
+    if (over > 0) box.scrollTop += over + 12;
+  }, [m.id]);
 
   // Подписка при выпуске: канал открыт с чат-момента (до него строки нет вовсе), сильной модели сначала нужна внешняя проверка.
   const opened = subsOpen(s.day);
@@ -497,7 +509,7 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
           )}
         </div>
 
-        <div className="mw-panel-foot">
+        <div className="mw-panel-foot" ref={footRef}>
           <GuardButton
             className="btn primary big mw-release-btn"
             data-tutorial="release"
@@ -907,7 +919,7 @@ function kpisOf(s: GameState, m: PlayerModel, metric: RaceMetric | null, rank: n
   ];
 }
 
-function Specs(props: { arch: 'lstm' | 'transformer'; plan: TrainingPlan; dates: [string, number][] }) {
+function Specs(props: { arch: 'lstm' | 'transformer'; plan: TrainingPlan; dates: [string, number][]; stolenCaught?: boolean }) {
   const { arch, plan } = props;
   const mix = DOMAINS.map((d) => `${DOMAIN_NAMES[d]} ${fmtShare(plan.mix[d], 0)}`).join(', ');
   return (
@@ -933,6 +945,12 @@ function Specs(props: { arch: 'lstm' | 'transformer'; plan: TrainingPlan; dates:
         </dd>
         <dt>RLHF</dt>
         <dd>{plan.rlhf ? 'Да' : 'Нет'}</dd>
+        {plan.stolenData && (
+          <>
+            <dt>Чужие данные</dt>
+            <dd className={props.stolenCaught ? 'bad' : 'warn'}>{props.stolenCaught ? 'Да, иск уже был' : 'Да, возможен иск'}</dd>
+          </>
+        )}
         {props.dates.map(([label, day]) => (
           <Fragment key={label}>
             <dt>{label}</dt>
@@ -1081,6 +1099,7 @@ function ModelCard(props: { s: GameState; m: PlayerModel; open: WindowProps['ope
           arch={m.arch}
           plan={m.plan}
           dates={m.releasedDay !== null ? [['Обучена', m.trainedDay], ['Выпущена', m.releasedDay]] : [['Обучена', m.trainedDay]]}
+          stolenCaught={m.stolenCaught}
         />
       </div>
     </div>

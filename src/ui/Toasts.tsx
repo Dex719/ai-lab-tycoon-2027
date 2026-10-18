@@ -60,7 +60,9 @@ export interface Notice {
   label: string;
   title: string;
   win?: WindowId | WindowAlias;
-  tone?: 'good' | 'bad';
+  tone?: 'reward' | 'good' | 'bad';
+  /** Эмблема лаборатории-соперника вместо значка (клиент ушёл к ней или от неё). */
+  from?: LabId;
 }
 
 let noticeListener: ((n: Notice) => void) | null = null;
@@ -129,7 +131,7 @@ export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | Window
   // Ответы на действия игрока показываем всегда, даже при выключенных уведомлениях о письмах.
   useEffect(() => {
     noticeListener = (n) => {
-      const t: ToastData = { key: ++keyRef.current, mailId: '', win: n.win, kind: n.kind, title: n.title, important: false, group: false, tone: n.tone, label: n.label };
+      const t: ToastData = { key: ++keyRef.current, mailId: '', win: n.win, kind: n.kind, title: n.title, important: false, group: false, tone: n.tone, label: n.label, from: n.from };
       setItems((cur) => [...cur, t].slice(-maxVisible()));
     };
     return () => {

@@ -58,6 +58,8 @@ import {
   TOKENS_B_MIN,
   TRAIN_FLOP_PER_H100E_DAY,
   TRAIN_OVERHEAD,
+  STOLEN_CAP_BONUS,
+  STOLEN_TOKENS_MULT,
 } from './constants';
 import { addMail, awaitingEvent, dropChoices, triggerEvent } from './events';
 import { spend } from './finance';
@@ -136,9 +138,12 @@ export function modelTechs(s: GameState): TechId[] {
   return MODEL_TECHS.filter((t) => s.research.done.includes(t));
 }
 
-/** Наибольший объём данных в этом году, млрд токенов: MAX_TOKENS_B × SYNTHETIC_TOKENS_MULT после «Синтетических данных». */
-export function maxTokensB(s: GameState): number {
-  const base = byYear(MAX_TOKENS_B, yearOf(s.day));
+/**
+ * Наибольший объём данных в этом году, млрд токенов: MAX_TOKENS_B × SYNTHETIC_TOKENS_MULT после «Синтетических данных»;
+ * с чужими данными (stolen) - ещё × STOLEN_TOKENS_MULT.
+ */
+export function maxTokensB(s: GameState, stolen = false): number {
+  const base = byYear(MAX_TOKENS_B, yearOf(s.day)) * (stolen ? STOLEN_TOKENS_MULT : 1);
   return s.research.done.includes('synthetic') ? base * SYNTHETIC_TOKENS_MULT : base;
 }
 
@@ -237,7 +242,7 @@ export function techCapBonus(plan: TrainingPlan, d: DomainId, techs: readonly Te
 }
 
 /**
- * cap_d = base + 8·(3·m_d − 1) − 15·b − failPenalty; у языка ещё +2 при RLHF; плюс прибавки технологий снимка
+ * cap_d = base + 8·(3·m_d − 1) − 15·b − failPenalty; у языка ещё +2 при RLHF; +3 с чужими данными; плюс прибавки технологий снимка
  * (techs: «Обучение на коде», «Цепочки рассуждений», «Дистилляция» у лёгких).
  */
 export function capsFromPlan(
@@ -256,6 +261,7 @@ export function capsFromPlan(
       BENCH_DATA_PENALTY * plan.benchShare -
       failPenalty +
       (d === 'language' && plan.rlhf ? RLHF_LANGUAGE_BONUS : 0) +
+      (plan.stolenData ? STOLEN_CAP_BONUS : 0) +
       techCapBonus(plan, d, techs);
   }
   return caps;
@@ -333,7 +339,7 @@ export function validatePlan(s: GameState, plan: TrainingPlan): string | null {
     return `Размер модели не соответствует уровню «${TIER_NAMES[plan.tier]}»: в этом году от ${fmtParams(lo)} до ${fmtParams(hi)} млрд параметров.`;
   }
   const year = yearOf(s.day);
-  const maxTokens = maxTokensB(s);
+  const maxTokens = maxTokensB(s, plan.stolenData === true);
   if (!Number.isFinite(plan.tokensB) || plan.tokensB < TOKENS_B_MIN) {
     return `Объём данных - не меньше ${fmtNum(TOKENS_B_MIN)} млрд токенов.`;
   }

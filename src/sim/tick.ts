@@ -22,6 +22,7 @@ import { progressDay as researchDay } from './research';
 import { marketRivals, releaseDue } from './rivals';
 import { rivalEloIn, rivalPriceIn, rivalryDay, rivalryMonth } from './rivalry';
 import { dayToDate, END_DAY, isMonthStart } from './time';
+import { monthlyTheftSuits } from './country';
 import { monthlyExposure, progressDay as trainingDay, reviewDay } from './training';
 import type { GameState } from './types';
 
@@ -109,6 +110,7 @@ export function advanceDay(s: GameState): void {
     if (playerBestArenaRank(s) === 1 && rivalsSellByApi(s)) s.monthsFirst += 1;
     for (const o of HYPE_OWNERS) s.hype[o] *= HYPE_MONTHLY_DECAY;
     monthlyExposure(s);
+    monthlyTheftSuits(s);
     noteLabStage(s);
     // Рычаг игрока, накал и планирование ходов соперников: единственное место модуля со случайностью (с 2021 года).
     rivalryMonth(s);

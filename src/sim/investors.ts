@@ -13,6 +13,7 @@ import {
   ROUND_FRACTIONS,
   VALUATION_FLOOR,
 } from './constants';
+import { countryValuationMult } from './country';
 import { addMail } from './events';
 import { endSentence } from './text';
 import { earn, revenueLast90, spend } from './finance';
@@ -33,6 +34,8 @@ export interface Valuation {
   boardMult: number;
   /** Экстренный раунд (деньги в минусе, перерыв не прошёл): EMERGENCY_VALUATION_MULT, иначе 1. */
   emergencyMult: number;
+  /** Страна (sim/country.ts): в США инвесторы оценивают дороже. */
+  countryMult: number;
 }
 
 /**
@@ -99,8 +102,9 @@ export function valuation(s: GameState): Valuation {
   const repMult = 0.6 + s.reputation / 125;
   const boardMult = s.flags[BOARD_PLAN_FLAG] ? BOARD_PLAN_VALUATION_MULT : 1;
   const emergencyMult = emergencyRound(s) ? EMERGENCY_VALUATION_MULT : 1;
-  const total = Math.max(VALUATION_FLOOR, revenuePart + techPart) * hypeMult * repMult * boardMult * emergencyMult;
-  return { total, annualRevenue, revenuePart, techPart, rankFactor, bestRank, hypeMult, repMult, boardMult, emergencyMult };
+  const countryMult = countryValuationMult(s);
+  const total = Math.max(VALUATION_FLOOR, revenuePart + techPart) * hypeMult * repMult * boardMult * emergencyMult * countryMult;
+  return { total, annualRevenue, revenuePart, techPart, rankFactor, bestRank, hypeMult, repMult, boardMult, emergencyMult, countryMult };
 }
 
 /** Цена выкупа BOARD_BUYBACK_SHARE компании: доля × оценка × надбавка инвесторам. */

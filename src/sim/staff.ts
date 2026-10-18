@@ -2,6 +2,7 @@
 // Эффекты ролей - в staffEffects.ts. Случайность - свой поток staff.rng: найм не сдвигает остальные события партии.
 
 import { LABS } from '../data/labs';
+import { countryCostMult } from './country';
 import { addMail, triggerEvent } from './events';
 import { spend } from './finance';
 import { LAB_STAGES, labStage } from './labStage';
@@ -265,7 +266,7 @@ export function refreshCandidates(s: GameState): void {
       name: freeName(st),
       role,
       level,
-      salary: levelSalary(level, s.day, trait, potential),
+      salary: levelSalary(level, s.day, trait, potential) * countryCostMult(s),
       potential,
       trait,
       wait: WAIT_DAYS[level],
@@ -327,7 +328,7 @@ export function fireEmployee(s: GameState, id: string): Result {
 
 /** Зарплата после повышения. */
 export function promotedSalary(s: GameState, e: Employee): number {
-  return Math.max(e.salary, levelSalary(e.level + 1, s.day, e.trait, e.potential ?? 'mid'));
+  return Math.max(e.salary, levelSalary(e.level + 1, s.day, e.trait, e.potential ?? 'mid') * countryCostMult(s));
 }
 
 /** Действие: повысить готового к повышению. */

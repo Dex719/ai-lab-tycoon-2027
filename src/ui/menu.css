@@ -52,6 +52,21 @@
 .ng-sign b { min-width: 0; font-size: 18px; font-weight: var(--fw-title); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ng-sign span { margin-left: auto; font-size: 12px; font-weight: var(--fw-strong); color: var(--on-brand); }
 
+/* Страна: три кнопки с флагами в ряд, под ними плюсы (зелёным) и минусы (красным) выбранной. */
+.ng-h2 { margin-top: 8px; }
+.ng-countries { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.ng-country {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; cursor: pointer;
+  background: var(--surface-control); border: none; border-radius: 10px; box-shadow: inset 0 -4px 0 var(--edge);
+  color: var(--text); font-size: 13px; font-weight: var(--fw-strong);
+}
+.ng-country:hover { background: var(--surface-control-hover); }
+.ng-country:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.ng-country.on { background: var(--row-sel); box-shadow: inset 0 -4px 0 var(--edge), 0 0 0 3px var(--brand); }
+.ng-perks { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; font-size: 13px; font-weight: var(--fw-strong); }
+.ng-perks .good { color: var(--good-ink); }
+.ng-perks .bad { color: var(--bad-ink); }
+
 /* Сложность: три белые карточки строками; у выбранной бирюзовая рамка и отмеченный кружок. */
 .ng-cards { display: flex; flex-direction: column; gap: 8px; }
 .ng-card {

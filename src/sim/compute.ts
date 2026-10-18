@@ -1,5 +1,6 @@
 // Аренда GPU, мощность и её доли (FR-2).
 
+import { gpuEarlyDays } from './country';
 import { staffEffect } from './staffEffects';
 import { GPUS } from '../data/gpus';
 import { DEFAULT_ALLOC, RENT_CAP_2017, RENT_HARD_CAP_MULT, RENT_OVER_CAP_MULT } from './constants';
@@ -15,14 +16,18 @@ export function gpuDef(id: GpuId): GpuDef {
   return def;
 }
 
-/** День наступил ≥ availableFrom. */
+/** День, с которого карту можно арендовать этой лаборатории: availableFrom, в США - раньше на gpuEarlyDays. */
+export function gpuAvailableDay(s: GameState, id: GpuId): number {
+  return dateToDay(gpuDef(id).availableFrom) - gpuEarlyDays(s, id);
+}
+
 export function isGpuAvailable(s: GameState, id: GpuId): boolean {
-  return s.day >= dateToDay(gpuDef(id).availableFrom);
+  return s.day >= gpuAvailableDay(s, id);
 }
 
 /** Доступные сейчас типы, по порядку данных. */
 export function availableGpus(s: GameState): GpuDef[] {
-  return GPUS.filter((g) => s.day >= dateToDay(g.availableFrom));
+  return GPUS.filter((g) => isGpuAvailable(s, g.id));
 }
 
 /** $ за GPU в день: rentPerGpuHour(год; если года нет - ближайший известный) × 24 × модификатор rentPrice (общий или target = id). */
