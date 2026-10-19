@@ -346,6 +346,7 @@ export function Game({ s }: { s: GameState }) {
               flush
               fullscreen={phone}
               maximized={!phone}
+              maxSize={{ w: def.w, h: def.h }}
               hidden={w.z !== topZ}
               leaving={leaving[w.id]}
               accent={WIN_ACCENT[w.id]}

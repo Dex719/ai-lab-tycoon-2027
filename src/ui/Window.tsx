@@ -105,6 +105,7 @@ interface Props {
   flush?: boolean; // тело без отступов (окно само раскладывает панели)
   fullscreen?: boolean; // телефон: окно на весь стол, без перетаскивания и изменения размера
   maximized?: boolean; // компьютер: окно на всю игровую область (место задаёт CSS .window.max), без перетаскивания
+  maxSize?: { w: number; h: number }; // развёрнутое окно не больше этого (обычный размер окна раздела)
   hidden?: boolean; // телефон: окно открыто, но показано другое
   leaving?: 'close' | 'min'; // окно уходит: 110 мс выхода перед тем, как его уберут
   onFocus: () => void;
@@ -114,7 +115,7 @@ interface Props {
   children: ReactNode;
 }
 
-export function Window({ title, geom, active, accent, icon: Icon, flush, fullscreen, maximized, hidden, leaving, onFocus, onClose, onMinimize, onMove, children }: Props) {
+export function Window({ title, geom, active, accent, icon: Icon, flush, fullscreen, maximized, maxSize, hidden, leaving, onFocus, onClose, onMinimize, onMove, children }: Props) {
   const drag = useRef<{ dx: number; dy: number } | null>(null);
 
   function startDrag(e: React.PointerEvent) {
@@ -161,6 +162,7 @@ export function Window({ title, geom, active, accent, icon: Icon, flush, fullscr
         ...(fullscreen || maximized ? {} : { left: geom.x, top: geom.y, width: geom.w, height: geom.h }),
         zIndex: geom.z,
         ...(accent ? { ['--wa' as string]: accent } : {}),
+        ...(maximized && maxSize ? { ['--win-w' as string]: `${maxSize.w}px`, ['--win-h' as string]: `${maxSize.h}px` } : {}),
       }}
       onPointerDown={onFocus}
       data-window={title}

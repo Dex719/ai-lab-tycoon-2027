@@ -530,6 +530,9 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
   /* ---------- Окна на всю игровую область (19.10): от колонки разделов до правого края, между лентой лаборатории
      и плиткой даты и денег. Пока идёт обучение игре, справа остаётся место под подсказку. ---------- */
   .game .desk .window.max { left: 80px; top: 62px; right: 12px; bottom: 116px; width: auto; height: auto; min-width: 0; min-height: 0; }
+  /* На большом экране окно не больше своего обычного размера (--win-w, --win-h из реестра окон) и стоит по центру
+     свободного места; на небольшом заполняет его целиком. */
+  .game .desk .window.max { max-width: var(--win-w, 1200px); max-height: var(--win-h, 100%); margin: auto; }
   .game .desk:has(.side.with-top) .window.max { right: 334px; }
   .game .window.max.fs-off { display: none; }
   .game .window.max .titlebar { cursor: default; }
