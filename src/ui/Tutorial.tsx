@@ -81,8 +81,12 @@ export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState;
     const update = () => {
       let next: Element | null = null;
       for (const t of stepTargets(step, latest.current)) {
-        next = document.querySelector(`[data-tutorial="${t}"]`);
-        if (next) break;
+        // Цель в окне, закрытом другим окном (или скрытом), не видна: берём следующую - обычно кнопку раздела.
+        const found = document.querySelector(`[data-tutorial="${t}"]`);
+        if (found && found.getClientRects().length > 0 && !found.closest('.fs-off')) {
+          next = found;
+          break;
+        }
       }
       if (next === el) return;
       el?.classList.remove('tutor-target');
