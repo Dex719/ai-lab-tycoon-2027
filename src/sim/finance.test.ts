@@ -1,7 +1,7 @@
 // Тесты денег: письмо «Деньги закончились» и банкротство.
 
 import { describe, expect, it } from 'vitest';
-import { BANKRUPT_DAYS, OVERHEAD_MONTHLY, OVERHEAD_REVENUE_SHARE } from './constants';
+import { BANKRUPT_DAYS, OVERHEAD_MONTHLY, OVERHEAD_REVENUE_SHARE, DAYS_PER_MONTH } from './constants';
 import { beginDay, closeMonth, dayStep, earn, lastMonthRevenue, overheadPerDay, revenueLast90, spend } from './finance';
 import { createInitialState } from './state';
 import { dateToDay } from './time';
@@ -116,7 +116,7 @@ describe('подписки и проверки в учёте', () => {
     s.finance.month.income.investors = 10_000;
     closeMonth(s);
     expect(lastMonthRevenue(s)).toBe(600);
-    expect(overheadPerDay(s)).toBeCloseTo((OVERHEAD_MONTHLY + OVERHEAD_REVENUE_SHARE * 600) / 30, 9);
+    expect(overheadPerDay(s)).toBeCloseTo((OVERHEAD_MONTHLY + OVERHEAD_REVENUE_SHARE * 600) / DAYS_PER_MONTH, 9);
   });
 
   it('spend(review) списывает деньги в статью «Проверки»', () => {

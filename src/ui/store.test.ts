@@ -260,10 +260,22 @@ describe('автопауза по галочкам настроек', () => {
     store.setSpeed(1);
     advanceDay.mockImplementationOnce((st) => {
       st.contracts.push({ ...(s.contracts[0] ?? {}), id: 'c-test' } as GameState['contracts'][number]);
-      addMail(st, { kind: 'contract', title: 'Тендер выигран: Банк «Северный»', body: '' });
+      addMail(st, { kind: 'contract', title: 'Тендер выигран: Банк «Северный»', body: '', tag: 'tender-won' });
     });
     vi.advanceTimersByTime(500);
     expect(store.pauseReason).toBe('Тендер выигран: Банк «Северный»');
+  });
+
+  it('пауза узнаёт письмо по метке, а не по тексту: другой заголовок тоже ставит паузу (QA 19.10)', () => {
+    const { store, s } = newStore();
+    setSettings({ pauseOnTender: true });
+    store.setSpeed(1);
+    advanceDay.mockImplementationOnce((st) => {
+      st.contracts.push({ ...(s.contracts[0] ?? {}), id: 'c-test2' } as GameState['contracts'][number]);
+      addMail(st, { kind: 'contract', title: 'Контракт ваш: Банк «Южный»', body: '', tag: 'tender-won' });
+    });
+    vi.advanceTimersByTime(500);
+    expect(store.pauseReason).toBe('Контракт ваш: Банк «Южный»');
   });
 
   it('победа по авто-заявке (без письма, в месячной сводке) паузу не ставит', () => {
@@ -331,6 +343,34 @@ describe('выбор целей года', () => {
     expect(goalOfferOpen(s)).toBe(true);
     expect(store.speed).toBe(0);
     expect(store.pauseReason).toBe('Цели года');
+  });
+});
+
+describe('две вкладки и автосохранение при закрытии', () => {
+  function memoryStorage() {
+    const data = new Map<string, string>();
+    return { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v), removeItem: (k: string) => void data.delete(k) };
+  }
+
+  it('старая вкладка не затирает автосохранение партии, сохранённой позже в другой вкладке (QA 19.10)', () => {
+    vi.stubGlobal('localStorage', memoryStorage());
+    vi.setSystemTime(1_000);
+    const { store: older, s: a } = newStore(); // вкладка 1, партия зерна 7
+    vi.setSystemTime(2_000);
+    const newer = new GameStore();
+    const b = newGame('Другая', 99);
+    newer.start(b); // вкладка 2
+    vi.setSystemTime(3_000);
+    expect(newer.saveToSlot('auto')).toBe(true); // вкладка 2 сохранилась
+    vi.setSystemTime(4_000);
+    expect(older.autosaveOnLeave()).toBe(false); // закрываем старую вкладку - ячейку не трогает
+    expect(JSON.parse(localStorage.getItem('ailab.slot.auto')!).meta.seed).toBe(b.seed);
+    // Своя партия или ячейка, записанная до начала этой партии, - пишется.
+    expect(newer.autosaveOnLeave()).toBe(true);
+    vi.setSystemTime(5_000);
+    older.start(a);
+    expect(older.autosaveOnLeave()).toBe(true);
+    expect(JSON.parse(localStorage.getItem('ailab.slot.auto')!).meta.seed).toBe(a.seed);
   });
 });
 

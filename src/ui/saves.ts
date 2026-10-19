@@ -18,6 +18,8 @@ export interface SlotMeta {
   /** Сложность партии; в сведениях старых ячеек её нет - читается как «Обычная». */
   difficulty: Difficulty;
   savedAt: number; // реальное время сохранения, мс
+  /** Зерно партии: чья это запись (две вкладки с разными партиями делят ячейку автосохранения). В старых ячейках нет. */
+  seed?: number;
 }
 
 export interface SlotInfo {
@@ -52,6 +54,7 @@ function metaOf(s: GameState): SlotMeta {
     outcome: s.outcome,
     difficulty: s.difficulty,
     savedAt: Date.now(),
+    seed: s.seed,
   };
 }
 
@@ -75,6 +78,7 @@ function cleanMeta(m: unknown): SlotMeta | null {
     outcome: OUTCOMES.includes(x.outcome as never) ? (x.outcome as GameState['outcome']) : null,
     difficulty: DIFFICULTY_IDS.includes(x.difficulty as Difficulty) ? (x.difficulty as Difficulty) : 'normal',
     savedAt: num(x.savedAt) ? x.savedAt : 0,
+    ...(num(x.seed) ? { seed: x.seed } : {}),
   };
 }
 
@@ -104,6 +108,11 @@ function readRaw(id: SlotId): { stored: Stored | null; broken: boolean } {
     // ниже - «повреждено»
   }
   return { stored: null, broken: true };
+}
+
+/** Сведения одной ячейки (null - пуста или повреждена). */
+export function slotMeta(id: SlotId): SlotMeta | null {
+  return readRaw(id).stored?.meta ?? null;
 }
 
 export function listSlots(): SlotInfo[] {
@@ -164,49 +173,4 @@ export function formatSavedAt(ms: number): string {
   const d = new Date(ms);
   const p = (n: number) => String(n).padStart(2, '0');
   return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
-// ---------- Код партии ----------
-
-/** Начало кода: по нему видно, что строка - партия этой игры, и какой версии формат. */
-const CODE_PREFIX = 'AILT1:';
-
-async function pipe(bytes: Uint8Array<ArrayBuffer>, stream: CompressionStream | DecompressionStream): Promise<Uint8Array<ArrayBuffer>> {
-  const out = new Response(new Blob([bytes]).stream().pipeThrough(stream));
-  return new Uint8Array(await out.arrayBuffer());
-}
-
-function toBase64(bytes: Uint8Array): string {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  return btoa(bin);
-}
-
-function fromBase64(text: string): Uint8Array<ArrayBuffer> {
-  const bin = atob(text);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-/** Партия одной строкой (сжатое сохранение): её можно скопировать и вставить в другом браузере. */
-export async function exportCode(s: GameState): Promise<string> {
-  const json = new TextEncoder().encode(serialize(s));
-  const packed = await pipe(json, new CompressionStream('gzip'));
-  return CODE_PREFIX + toBase64(packed);
-}
-
-/** Партия из кода: состояние или понятная ошибка. */
-export async function importCode(code: string): Promise<{ ok: true; state: GameState } | { ok: false; error: string }> {
-  const text = code.replace(/\s+/g, '');
-  if (!text) return { ok: false, error: 'Вставьте код партии.' };
-  if (!text.startsWith(CODE_PREFIX)) return { ok: false, error: 'Это не код партии AI Lab Tycoon.' };
-  let json: string;
-  try {
-    const raw = await pipe(fromBase64(text.slice(CODE_PREFIX.length)), new DecompressionStream('gzip'));
-    json = new TextDecoder().decode(raw);
-  } catch {
-    return { ok: false, error: 'Код повреждён: скопируйте его целиком.' };
-  }
-  return deserialize(json);
 }

@@ -34,6 +34,7 @@ import {
   SUBS_REF_PRICE,
   SUBS_USERS,
   TOKENS_PER_USER_DAY,
+  DAYS_PER_MONTH,
 } from './constants';
 import { addMail, modValue } from './events';
 import { staffEffect } from './staffEffects';
@@ -394,7 +395,7 @@ function segmentSnapshot(s: GameState, seg: SegmentId, cands: Candidate[], total
 
 /** Потенциальная выручка сегмента в день по опорной цене (вес сегмента в общих долях). */
 function segmentRevenue(seg: SegmentSnapshot, pRef: number): number {
-  return seg.channel === 'api' ? (seg.total * pRef) / 1e6 : (seg.total * SUBS_REF_PRICE) / 30;
+  return seg.channel === 'api' ? (seg.total * pRef) / 1e6 : (seg.total * SUBS_REF_PRICE) / DAYS_PER_MONTH;
 }
 
 // ---------- Инерция рынка ----------
@@ -539,7 +540,7 @@ export function playerSales(s: GameState, modelId: string): PlayerSales {
   const price = Number.isFinite(m.price) && m.price > 0 ? m.price : 0;
   const subsPrice = Number.isFinite(m.subsPrice) && m.subsPrice > 0 ? m.subsPrice : 0;
   out.apiRevenueDay = (out.apiTokens * price) / 1e6;
-  out.subsRevenueDay = (out.subsUsers * subsPrice) / 30;
+  out.subsRevenueDay = (out.subsUsers * subsPrice) / DAYS_PER_MONTH;
   return out;
 }
 
@@ -611,8 +612,8 @@ export function dayStep(s: GameState): void {
         const users = e.demand * k;
         playerSubs += users;
         const price = Number.isFinite(model.subsPrice) && model.subsPrice > 0 ? model.subsPrice : 0;
-        const earned = ((users * price) / 30) * salesMult;
-        potentialSubs += ((e.demand * price) / 30) * salesMult;
+        const earned = ((users * price) / DAYS_PER_MONTH) * salesMult;
+        potentialSubs += ((e.demand * price) / DAYS_PER_MONTH) * salesMult;
         revenueSubs += earned;
         model.earned += earned;
         model.earnedSubs += earned;

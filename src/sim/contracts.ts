@@ -430,6 +430,7 @@ function resolveApplication(s: GameState, t: Tender): void {
   addMail(s, {
     kind: 'contract',
     title: `Тендер выигран: ${client}`,
+    tag: 'tender-won',
     reward: true,
     important: noCompute,
     body:

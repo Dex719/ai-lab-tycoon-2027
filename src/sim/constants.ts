@@ -19,6 +19,11 @@ export const MAX_TRAININGS = 2;
 
 // Время (FR-1)
 export const TICK_MS: Record<1 | 2 | 4, number> = { 1: 500, 2: 250, 4: 125 };
+/**
+ * Дней в среднем месяце: месячные цены (зарплаты, накладные, подписки, обслуживание) начисляются по дням с этим делителем,
+ * и двенадцать месяцев дают ровно год. Раньше часть кода делила на 30, часть на 30,4 (QA 19.10).
+ */
+export const DAYS_PER_MONTH = 365 / 12;
 export const BANKRUPT_DAYS = 60;
 
 // Вычисления
@@ -198,7 +203,6 @@ export const HYPE_K_AFTER_ARENA = 0.7;
 export const HYPE_LOST_DEMAND_K = 0.3;
 
 // Рынок
-export const PRICE_ELASTICITY = 1.2;
 export const TOKENS_PER_USER_DAY = 10_000; // для оценки числа пользователей модели
 export const MARKET_MODELS_PER_LAB = 3;
 export const MARKET_MAX_AGE_DAYS = 365 * 3;
@@ -274,10 +278,14 @@ export const DEV_SHARE_OF_API: [string, number][] = [
  * Было 1e3 … 1,5e7 (подписки $3,6 млрд в год на конец 2024 года); × 0,75 - $2,7 млрд, как у OpenAI в 2024 году:
  * с большим рынком «разумный» бот (balance.test.ts) побеждал на всех зёрнах. Потенциал подписок / API = 1,0.
  */
-export const SUBS_USERS: [string, number][] = [
-  ['2017-01-01', 7.5e2], ['2020-06-11', 1.5e4], ['2022-11-29', 7.5e4], ['2022-11-30', 3.75e5],
-  ['2023-02-10', 1.125e6], ['2023-06-01', 2.25e6], ['2024-01-01', 5.25e6], ['2024-12-31', 1.125e7],
-];
+// Рынок v2 настраивался, когда подписка начислялась как цена / 30 в день. С DAYS_PER_MONTH (≈ 30,4) дневная выручка того же
+// числа подписчиков меньше на 1,4 %: кривая умножена на DAYS_PER_MONTH / 30, опоры рынка (подписки / API 1…1,6) прежние.
+export const SUBS_USERS: [string, number][] = (
+  [
+    ['2017-01-01', 7.5e2], ['2020-06-11', 1.5e4], ['2022-11-29', 7.5e4], ['2022-11-30', 3.75e5],
+    ['2023-02-10', 1.125e6], ['2023-06-01', 2.25e6], ['2024-01-01', 5.25e6], ['2024-12-31', 1.125e7],
+  ] as [string, number][]
+).map(([d, u]) => [d, (u * DAYS_PER_MONTH) / 30]);
 export const SUBS_REF_PRICE = 20; // $ в месяц, опорная цена подписки (ChatGTP Plus)
 export const SUBS_PRICE_MIN = 1;
 export const SUBS_PRICE_MAX = 200;

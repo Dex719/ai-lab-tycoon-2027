@@ -85,6 +85,22 @@ describe('конец партии', () => {
     expect(epilogueOf(s).every((l) => l.length > 10 && !/undefined|NaN/.test(l))).toBe(true);
   });
 
+  it('эпилог при ничьей с главным соперником не говорит «вы обходили их чаще» (QA 19.10)', () => {
+    const s = newGame('Т', 1);
+    released(s, 1300);
+    s.outcome = 'finished';
+    const lab = 'openbrain';
+    const d = { youPassed: 4, passedYou: 4, moves: 0, lastDay: null };
+    s.duel = { labs: { [lab]: d }, main: lab, mainSince: 0, race: null, ahead: [], behind: [] } as unknown as GameState['duel'];
+    const line = () => epilogueOf(s).find((l) => l.includes('главный соперник')) ?? '';
+    expect(line()).toContain('ничья, по 4 обгона с каждой стороны');
+    d.youPassed = 5;
+    expect(line()).toContain('вы обходили их чаще (5 против 4)');
+    d.youPassed = 0;
+    d.passedYou = 0;
+    expect(line()).toContain('ни разу не обогнали друг друга');
+  });
+
   it('контроль над лабораторией: 8 очков за процент доли, продажа почти всей компании стоит заметно (QA 19.10)', () => {
     const s = newGame('Т', 1);
     released(s, 1300);

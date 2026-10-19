@@ -7,9 +7,9 @@ import { TICK_MS } from '../sim/constants';
 import type { Difficulty } from '../sim/rivalry';
 import { goalOfferOpen, goalsDay, unseenReview } from '../sim/goals';
 import { advanceDay, advanceDays, blockedByChoice } from '../sim/tick';
-import type { ChallengeId, CofounderId, CountryId, GameState, Result, Speed, WorldModId } from '../sim/types';
+import type { ChallengeId, CofounderId, CountryId, GameState, Mail, MailTag, Result, Speed, WorldModId } from '../sim/types';
 import { landAction } from './feel';
-import { readSlot, writeSlot, type SlotId } from './saves';
+import { readSlot, slotMeta, writeSlot, type SlotId } from './saves';
 import { getSettings } from './settings';
 import { runwayMonths } from './runway';
 
@@ -35,6 +35,8 @@ export class GameStore {
    * тот же день и снова списывал его расходы (QA 19.10). Игрок выбирает в окне ошибки, что делать дальше.
    */
   simError: string | null = null;
+  /** Когда эта вкладка последний раз писала автосохранение (или начала партию), мс: см. autosaveOnLeave. */
+  private autoMine = 0;
   private listeners = new Set<Listener>();
   /** День последней паузы «денег хватит меньше чем на месяц». */
   private lowCashDay = -Infinity;
@@ -65,8 +67,28 @@ export class GameStore {
     this.pauseReason = null;
     this.mailFocus = null;
     this.simError = null;
+    this.autoMine = Date.now();
     this.setSpeed(0);
     this.bump();
+  }
+
+  /**
+   * Закрытие вкладки или окна посреди партии: партия уходит в автосохранение. Но если после начала этой партии ячейку
+   * записала другая партия (вторая вкладка), её не трогаем: иначе закрытая старая вкладка затирала новую, и «Продолжить»
+   * открывал не ту партию (QA 19.10). Возвращает, записано ли.
+   */
+  autosaveOnLeave(): boolean {
+    const s = this.state;
+    if (!s || s.outcome) return false;
+    const there = slotMeta('auto');
+    if (there && there.seed !== undefined && there.seed !== s.seed && there.savedAt > this.autoMine) return false;
+    return this.writeAuto(s);
+  }
+
+  private writeAuto(s: GameState): boolean {
+    const ok = writeSlot('auto', s);
+    if (ok) this.autoMine = Date.now();
+    return ok;
   }
 
   /** Новая партия. difficulty - сложность соперников (по умолчанию «Обычная»). */
@@ -91,7 +113,7 @@ export class GameStore {
    */
   saveToSlot(id: SlotId): boolean {
     if (!this.state || (id === 'auto' && this.state.outcome)) return false;
-    return writeSlot(id, this.state);
+    return id === 'auto' ? this.writeAuto(this.state) : writeSlot(id, this.state);
   }
 
   /** Загрузить ячейку; при ошибке вернуть её текст. */
@@ -245,10 +267,10 @@ export class GameStore {
     const set = getSettings();
     if (set.pauseOnReady && s.models.length > mark.models) return `Модель «${s.models[s.models.length - 1].name}» готова`;
     const research = s.research.done.length + s.research.algoLevel + s.research.contextLevel;
-    if (set.pauseOnResearch && research > mark.research) return freshTitle(s, mark, 'Исследование завершено') ?? 'Исследование завершено';
+    if (set.pauseOnResearch && research > mark.research) return freshTitle(s, mark, 'research-done') ?? 'Исследование завершено';
     // Победы по авто-заявкам приходят сводкой раз в месяц и паузу не ставят: только тендер, выигранный по своей заявке.
     if (set.pauseOnTender && s.contracts.length > mark.contracts) {
-      const won = freshTitle(s, mark, 'Тендер выигран');
+      const won = freshTitle(s, mark, 'tender-won');
       if (won) return won;
     }
     const goals = s.yearly.year * 100 + s.yearly.goals.filter((g) => g.done).length;
@@ -289,7 +311,7 @@ export class GameStore {
       s.flags.autosaveDue = false;
       // Законченную игру не сохраняем поверх последнего живого автосохранения.
       if (!s.outcome) {
-        this.autosaveError = writeSlot('auto', s) ? null : 'Автосохранение не удалось: хранилище браузера переполнено или недоступно.';
+        this.autosaveError = this.writeAuto(s) ? null : 'Автосохранение не удалось: хранилище браузера переполнено или недоступно.';
       }
     }
     if (s.outcome) {
@@ -326,17 +348,20 @@ interface AdvanceMark {
   goals: number;
 }
 
-/** Письмо «Модель «X» готова» (sim/training.ts). */
-function isReadyMail(m: { kind: string; title: string }): boolean {
-  return m.kind === 'training' && /^Модель «.*» готова$/.test(m.title);
+/**
+ * Письмо «Модель «X» готова» (sim/training.ts). По метке, а не по тексту: переформулировка заголовка раньше молча ломала
+ * паузы (QA 19.10). Письма из сохранений до появления меток узнаём по прежнему заголовку.
+ */
+function isReadyMail(m: Pick<Mail, 'kind' | 'title' | 'tag'>): boolean {
+  return m.tag === 'model-ready' || (m.tag === undefined && m.kind === 'training' && /^Модель «.*» готова$/.test(m.title));
 }
 
-/** Заголовок самого нового письма за шаг, который начинается с prefix (для подписи паузы). */
-function freshTitle(s: GameState, mark: AdvanceMark, prefix: string): string | null {
+/** Заголовок самого нового письма за шаг с меткой tag (для подписи паузы). */
+function freshTitle(s: GameState, mark: AdvanceMark, tag: MailTag): string | null {
   for (let i = s.mail.length - 1; i >= 0; i--) {
     const m = s.mail[i];
     if (Number(m.id.slice(1)) < mark.mailNum) break;
-    if (m.title.startsWith(prefix)) return m.title;
+    if (m.tag === tag) return m.title;
   }
   return null;
 }

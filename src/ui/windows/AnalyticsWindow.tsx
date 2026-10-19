@@ -182,7 +182,7 @@ function YourModelsTab({ s, open }: WindowProps) {
           {
             label: 'Выручка подписок в день',
             value: <span className={subsDay > 0 ? 'good' : undefined}>{fmtMoney(subsDay)}</span>,
-            title: 'Подписчики × цена подписки / 30',
+            title: 'Подписчики × цена подписки / дней в месяце',
           }] : []),
           {
             label: 'Выручка API в день',

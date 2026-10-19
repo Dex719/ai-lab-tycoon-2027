@@ -2,6 +2,7 @@
 // Без разовых операций (покупки, штрафы, разметчики, вложения): плейтест 16.10 - после покупки стартапа панель
 // писала «−$7,6 млн/мес., хватит на 2 месяца», после оплаты контракта - «+$900 тыс./мес.».
 
+import { DAYS_PER_MONTH } from '../sim/constants';
 import { rentPerDay } from '../sim/compute';
 import { dcCostPerDay } from '../sim/datacenters';
 import { dealsMonthly } from '../sim/deals';
@@ -13,7 +14,7 @@ const INCOME_MONTHS = 3;
 
 /** Постоянные расходы в месяц: аренда, зарплаты и офис, зарплаты команд, дата-центры (электричество и содержание). */
 export function recurringMonthly(s: GameState): number {
-  return (rentPerDay(s) + overheadPerDay(s) + dcCostPerDay(s)) * 30 + dealsMonthly(s).salary;
+  return (rentPerDay(s) + overheadPerDay(s) + dcCostPerDay(s)) * DAYS_PER_MONTH + dealsMonthly(s).salary;
 }
 
 /** Средний доход за последние закрытые месяцы (API, подписки, контракты); месяцев нет - 0. */

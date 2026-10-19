@@ -319,16 +319,3 @@ export function initMusic(): void {
   window.addEventListener('pagehide', () => stopMusic());
   document.addEventListener('freeze', () => stopMusic());
 }
-
-/** Для проверки в браузере: идёт ли музыка и что звучит. */
-export function musicDebug(): { running: boolean; unlocked: boolean; state: string; gain: number; live: number; mood: Mood } {
-  const g = existingAudio();
-  return {
-    running,
-    unlocked,
-    state: g ? (g.ctx as AudioContext).state : 'none',
-    gain: g ? g.music.gain.value : 0,
-    live: composer?.live.size ?? 0,
-    mood: currentMood(),
-  };
-}

@@ -224,7 +224,13 @@ export function ConfirmDialog(props: {
   children: ReactNode;
 }) {
   const [error, setError] = useState<string | null>(null);
+  // Повторное нажатие до того, как диалог закрылся, действие не повторяет: три щелчка подряд в одной задаче браузера
+  // запускали два обучения (QA 19.10). Замок снимается в следующей задаче - если диалог остался открытым (ошибка).
+  const busy = useRef(false);
   const confirm = () => {
+    if (busy.current) return;
+    busy.current = true;
+    window.setTimeout(() => (busy.current = false), 0);
     const r = props.onConfirm();
     setError(r && !r.ok ? r.error : null);
   };

@@ -118,9 +118,13 @@ export function epilogueOf(s: GameState): string[] {
     const d = s.duel!.labs[main];
     const head = LAB_HEADS[main].split(',')[0];
     out.push(
-      d.youPassed >= d.passedYou
+      d.youPassed > d.passedYou
         ? `${head} из ${lab}, ваш главный соперник, признаёт: в этой гонке вы обходили их чаще (${d.youPassed} против ${d.passedYou}).`
-        : `${head} из ${lab}, ваш главный соперник, обходил вас чаще (${d.passedYou} против ${d.youPassed}) и уже готовит следующую модель.`,
+        : d.youPassed === d.passedYou
+          ? d.youPassed === 0
+            ? `${head} из ${lab}, ваш главный соперник: в этой гонке вы ни разу не обогнали друг друга.`
+            : `${head} из ${lab}, ваш главный соперник: в этой гонке ничья, по ${d.youPassed} ${ruPlural(d.youPassed, 'обгону', 'обгона', 'обгонов')} с каждой стороны.`
+          : `${head} из ${lab}, ваш главный соперник, обходил вас чаще (${d.passedYou} против ${d.youPassed}) и уже готовит следующую модель.`,
     );
   }
   const gone = LABS.filter((l) => l.exit && labGone(s, l.id));

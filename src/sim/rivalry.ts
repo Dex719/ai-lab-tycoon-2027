@@ -1,86 +1,9 @@
 // Соперники с характерами: накал, ходы, слухи, письма с выбором, ответные модели (срез «Соперники с характерами»).
-// Спецификация - rival_spec.md, «Final spec». Модуль написан без правок существующих файлов: всё, что нужно
-// подключить, перечислено ниже.
+// Спецификация - rival_spec.md, «Final spec».
 //
-// ===================== ИНТЕГРАЦИЯ: что поменять в существующих файлах =====================
-//
-// 1. src/sim/types.ts
-//    - ModifierKind: добавить 'rivalPrice' (target - LabId; mult - множитель цен лаборатории, add - доля опорной
-//      цены как нижняя граница) и 'exposure' (target - id модели игрока или без target; mult к шансу разоблачения).
-//    - GameState: добавить `difficulty: Difficulty` и `rivalry: RivalryState` (типы Difficulty, MoveId, Lever,
-//      RivalOverride, LabMemory, PendingMove, ActiveMove, HistoryRow, RivalryState перенести в types.ts или
-//      импортировать из './rivalry'). После этого RivalryGame совпадает с GameState; алиас можно оставить.
-//
-// 2. src/sim/save.ts
-//    - MODIFIER_KINDS: rivalPrice: true, exposure: true.
-//    - deserialize: `if (data.difficulty === undefined) data.difficulty = 'normal';`
-//      `if (data.rivalry === undefined) data.rivalry = emptyRivalry();` (как monthsFirst). Старые сохранения
-//      загружаются как Обычная сложность, соперники «спокойны», накал 0.
-//    - STATE: difficulty: oneOf(DIFFICULTY_IDS); rivalry: shapeOf<RivalryState>({ heat: record(LAB_IDS, num),
-//      cooldownUntil: record(LAB_IDS, num), moveCooldown: dict(num), pending: arrayOf(shapeOf<PendingMove>({ id: str,
-//      lab: oneOf(LAB_IDS), move: oneOf(MOVE_IDS), fireDay: num, modelId: optional(str) })), active: arrayOf(shapeOf<
-//      ActiveMove>({ lab: oneOf(LAB_IDS), move: oneOf(MOVE_IDS), untilDay: num })), overrides: dict(shapeOf<
-//      RivalOverride>({ dayShift: optional(num), eloAdd: optional(num), context: optional(num), price: optional(num) })),
-//      extra: dict(num), extraCount: record(LAB_IDS, num), memory: record(LAB_IDS, shapeOf<LabMemory>({ lastMove:
-//      nullable(oneOf(MOVE_IDS)), firedDay: num, shareBefore: num, priceBefore: num, worked: nullable(bool),
-//      priceMatched: bool })), lever: nullable(oneOf(LEVERS)), choice: nullable(shape({ lab: oneOf(LAB_IDS), modelId:
-//      optional(str) })), history: arrayOf(shapeOf<HistoryRow>({ day: num, lab: oneOf(LAB_IDS), move: oneOf(MOVE_IDS),
-//      text: str })), shareHigh: record(LAB_IDS, num) }).
-//    - pendingChoiceProblem: искать событие через findEvent (п. 7), иначе письмо с выбором соперника отклонит сохранение.
-//
-// 3. src/sim/state.ts
-//    - createInitialState(labName, seed, difficulty: Difficulty = 'normal'): поля `difficulty` и `rivalry: emptyRivalry()`.
-//
-// 4. src/sim/actions.ts
-//    - newGame(labName, seed, difficulty: Difficulty = 'normal'): передать в createInitialState и вызвать
-//      applyDifficultyModifiers(s) (два модификатора навсегда: rentPrice и exposure, только на Лёгкой и Сложной).
-//
-// 5. src/sim/tick.ts
-//    - сразу после releaseDue(s): rivalryDay(s) - срабатывание слухов, память, истечение активных ходов.
-//    - в блоке конца месяца после monthlyExposure(s) и до pruneModifiers(s): rivalryMonth(s) - рычаг, накал,
-//      планирование. Единственное место модуля с nextRandom; до 2021 года и до первой модели игрока на API
-//      розыгрышей нет, поэтому потоки случайных чисел 2017-2020 у существующих сидов не меняются.
-//
-// 6. src/sim/rivals.ts, market.ts, leaderboard.ts (доступ к моделям соперников)
-//    - findRivalDef(id): искать и среди шаблонов - findRivalDefIn(id) из этого модуля (каталог, затем reactiveDefs();
-//      карта шаблонов строится лениво, поэтому взаимный импорт rivals.ts ↔ rivalry.ts безопасен).
-//      releaseDue шаблоны не выпускает: дополнительные модели добавляет в s.rivalsReleased сам rivalry.ts (releaseExtra),
-//      там же письмо о выходе. Если выносить тело releaseDue в releaseRival(s, def), releaseExtra может вызывать его.
-//    - вместо rivalDay(def) / def.arenaElo / def.context / rivalPrice(def, day) в leaderboard.entries(), bestElo(),
-//      rivals.marketRivals() и market.marketSnapshot() использовать rivalDayIn / rivalEloIn / rivalContextIn /
-//      rivalPriceIn (учитывают overrides, extra и модификатор rivalPrice). Чистые rivalDay/rivalPrice остаются
-//      для rivals.test.ts; expectedLeaderElo не меняется (планка победы каталожная; подпись в интерфейсе:
-//      «или выше, если соперники ускорятся»).
-//    - письмо о выходе модели с overrides[id].dayShift < 0: добавить «на N дней раньше» (releaseShiftDays).
-//
-// 7. src/data/events.ts и src/sim/events.ts
-//    - НЕ добавлять ...RIVALRY_EVENTS в массив EVENTS на верхнем уровне: модули зациклены
-//      (sim/events → data/events → sim/rivalry → sim/events), и при первом импорте rivalry.ts массив ещё не
-//      инициализирован (TDZ). Вместо этого в data/events.ts: `import { RIVALRY_EVENTS } from '../sim/rivalry'` и
-//      `export function findEvent(id: string) { return EVENTS.find((e) => e.id === id) ?? RIVALRY_EVENTS.find((e) => e.id === id); }`;
-//      в sim/events.ts triggerEvent/applyChoice и в save.ts pendingChoiceProblem использовать findEvent вместо EVENTS.find.
-//      Сами письма с выбором запускает rivalry.ts (fireChoiceEvent, без EVENTS); fireDue их не трогает (repeatable).
-//
-// 8. src/sim/training.ts
-//    - exposureChance: `return Math.min(EXPOSE_CAP_WITH_RIVALS, Math.min(EXPOSE_MAX, EXPOSE_PER_PP * gap + arena) * exposureMultIn(s, model.id));`
-//      (базовый шанс по-прежнему не выше EXPOSE_MAX, а с множителем - не выше 0,6). Модификаторы exposure ставят сложность (newGame) и
-//      выбор «Отрицать» в проверке баллов; штраф −20 репутации за позднее разоблачение после отрицания начисляет rivalryDay.
-//
-// 9. src/sim/bots.ts
-//    - runBot(kind, seed, maxDays = 4000, difficulty: Difficulty = 'normal') → newGame('Бот', seed, difficulty).
-//    - botAct: один рефлекс - botPriceReflex(s) (доля игрока за месяц упала на ≥ 25 % относительно → цена моделей
-//      на API × 0,85, не ниже 2 × minPrice). Опоры баланса остаются на Обычной; сиды после 2021 года могут
-//      потребовать перепривязки из-за новых розыгрышей.
-//
-// 10. Интерфейс
-//    - MainMenu: три радиокнопки по DIFFICULTY_IDS с DIFFICULTY[d].name и description; store.newGame(labName, { difficulty }).
-//    - MarketWindow, LabsTab / labRows: колонки «Характер» (personalityOf(lab).archetype, подсказка description),
-//      «Настрой» (labStance(s, lab).label, подсказка hint), «Последний ход» (lastMove(s, lab): formatDateShort(day) +
-//      text). Под таблицей «Последние ходы»: последние 10 строк rivalry.history (день, LABS.name, moveName(move), text).
-//    - RatingsWindow: у строк соперников с overrides[id].eloAdd показывать «≈» (eloEstimated).
-//    - Письма kind 'rival': слухи, исполнение хода, письма с выбором (important) - отдельного кода не нужно.
-//
-// ==========================================================================================
+// Письма с выбором соперников (RIVALRY_EVENTS) не входят в массив EVENTS: модули зациклены (sim/events →
+// data/events → sim/rivalry → sim/events), и при первом импорте этого модуля массив ещё не готов (TDZ). Их находит
+// findEvent (data/events.ts), запускает fireChoiceEvent отсюда.
 
 import type { EventDef } from '../data/events';
 import { LABS } from '../data/labs';

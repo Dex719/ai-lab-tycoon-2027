@@ -23,6 +23,7 @@ import {
   ELO_PER_CAP,
   STOLEN_CAP_BONUS,
   STOLEN_TOKENS_MULT,
+  DAYS_PER_MONTH,
 } from '../../sim/constants';
 import { hasChallenge } from '../../sim/challenges';
 import { countryOf, theftChance, theftFine, theftPulls, theftRepLoss } from '../../sim/country';
@@ -99,7 +100,7 @@ const DOMAIN_COLOR: Record<DomainId, string> = {
 
 const NAME_MAX = 40;
 const POS_MAX = 1000;
-const DAYS_IN_MONTH = 30.4;
+const DAYS_IN_MONTH = DAYS_PER_MONTH;
 // Доля полезных вычислений (множитель Шиншиллы): от 80 % баланс считаем хорошим, ниже 40 % - плохим.
 const EFF_GOOD = 0.8;
 const EFF_BAD = 0.4;

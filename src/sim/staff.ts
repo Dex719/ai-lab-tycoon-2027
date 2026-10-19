@@ -1,6 +1,7 @@
 // Сотрудники (окно «Команда»): кандидаты раз в месяц, найм, опыт и повышение, зарплаты, уход и переманивание.
 // Эффекты ролей - в staffEffects.ts. Случайность - свой поток staff.rng: найм не сдвигает остальные события партии.
 
+import { DAYS_PER_MONTH } from './constants';
 import { LABS } from '../data/labs';
 import { countryCostMult } from './country';
 import { addMail, triggerEvent } from './events';
@@ -348,7 +349,7 @@ export function promoteEmployee(s: GameState, id: string): Result {
 export function staffDay(s: GameState): void {
   const st = staffOf(s);
   let pay = 0;
-  for (const e of st.people) if (isWorking(e, s.day)) pay += e.salary / 30;
+  for (const e of st.people) if (isWorking(e, s.day)) pay += e.salary / DAYS_PER_MONTH;
   spend(s, 'overhead', pay);
   finishCourses(s, st);
   if (!isMonthStart(s.day)) return;

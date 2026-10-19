@@ -7,7 +7,7 @@ import { botAct, runBot } from './bots';
 import { CHOICE_DAYS, FAIL_CHOICE_DAYS, TIER_SUBS_PRICE } from './constants';
 import { applyChoice, expireChoices, FOREVER, pendingChoice } from './events';
 import { emptyRivalry } from './rivalry';
-import { deserialize, serialize } from './save';
+import { deserialize, SAVE_VERSION, serialize } from './save';
 import { createInitialState, emptyMarket } from './state';
 import { advanceDay, advanceDays } from './tick';
 import { END_DAY } from './time';
@@ -162,7 +162,10 @@ describe('несовместимые сохранения отклоняются
     expect(deserialize('null').ok).toBe(false);
     expect(deserialize('42').ok).toBe(false);
     expect(deserialize('[]').ok).toBe(false);
-    expect(deserialize('{"version":2}')).toEqual({ ok: false, error: 'Сохранение от другой версии игры' });
+    // Новее этой сборки - понятная просьба обновить игру, а не «повреждено» (QA 19.10); старее и без ступени - другая версия.
+    expect(deserialize(`{"version":${SAVE_VERSION + 1}}`)).toEqual({ ok: false, error: 'Сохранение от более новой версии игры: обновите игру' });
+    expect(deserialize('{"version":0}')).toEqual({ ok: false, error: 'Сохранение от другой версии игры' });
+    expect(deserialize('{"version":"1"}')).toEqual({ ok: false, error: 'Сохранение повреждено' });
     expect(deserialize('{}').ok).toBe(false);
   });
 

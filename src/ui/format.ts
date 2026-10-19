@@ -90,14 +90,6 @@ export function fmtSci(n: number): string {
   return `${dec(m, 1)}·10${exp}`;
 }
 
-/** Объём вычислений в днях работы одной карты H100: «0,06», «12», «580 тыс.» */
-export function fmtCardDays(days: number): string {
-  if (!Number.isFinite(days) || days <= 0) return '0';
-  if (days < 0.01) return '< 0,01';
-  if (days < 10) return dec(days, 2);
-  return fmtNum(days);
-}
-
 /** Параметры в млрд: 0.117 → «117 млн», 175 → «175 млрд», 1500 → «1,5 трлн» */
 export function fmtParams(paramsB: number): string {
   if (paramsB < 0.9995) return `${dec(paramsB * 1000, 0)} млн`;

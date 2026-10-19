@@ -17,7 +17,7 @@ import type { Difficulty } from './rivalry';
 import { deserialize, serialize } from './save';
 import { advanceDay, advanceDays, playerBestArenaRank } from './tick';
 import { dateToDay, END_DAY, formatDate } from './time';
-import { SUBS_REF_PRICE } from './constants';
+import { SUBS_REF_PRICE, DAYS_PER_MONTH } from './constants';
 import { rentNow } from './compute';
 import { estimate, tierPreset } from './training';
 import type { GameState, MonthLedger, MonthRecord, Tier, TrainingPlan } from './types';
@@ -245,7 +245,7 @@ describe('чистые опоры рынка (без ботов)', () => {
     const s = emptyLabOn('2024-12-31');
     expect(s.day).toBe(END_DAY);
     const api = (demandTokens(s) * refPrice(s.day)) / 1e6;
-    const subs = (subsUsers(s) * SUBS_REF_PRICE) / 30;
+    const subs = (subsUsers(s) * SUBS_REF_PRICE) / DAYS_PER_MONTH;
     console.log(JSON.stringify({ apiPerDay: Math.round(api), subsPerDay: Math.round(subs), ratio: Math.round((100 * subs) / api) / 100 }));
     expect(subs / api).toBeGreaterThanOrEqual(1);
     expect(subs / api).toBeLessThanOrEqual(1.6);

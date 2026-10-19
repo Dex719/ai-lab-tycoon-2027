@@ -5,6 +5,7 @@
 // зависит от уровня лучшей модели по коду против лучшего соперника. Мощности продукт не берёт (игровое упрощение,
 // «долю мощности на каждый продукт» не делаем); суммы заметные, но меньше API. Боты баланса продукты не запускают.
 
+import { DAYS_PER_MONTH } from './constants';
 import { addMail } from './events';
 import { earn, spend } from './finance';
 import { codeLevel, rivalCodeFrontier } from './leaderboard';
@@ -71,7 +72,7 @@ export function coderTarget(s: GameState): number {
 }
 
 export function coderPerDay(s: GameState): number {
-  return Math.round(((s.coder?.seats ?? 0) * CODER_PRICE) / 30);
+  return Math.round(((s.coder?.seats ?? 0) * CODER_PRICE) / DAYS_PER_MONTH);
 }
 
 /** Окно «Продукты» открывается с первой выпущенной моделью. */

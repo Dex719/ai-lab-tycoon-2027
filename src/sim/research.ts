@@ -414,6 +414,7 @@ export function progressDay(s: GameState): void {
     addMail(s, {
       kind: 'research',
       title: `Исследование завершено: ${techName(tech)}, ${contextLabel(maxContext(s))} токенов`,
+      tag: 'research-done',
       reward: true,
       body:
         `Новые модели можно обучать с контекстом до ${contextLabel(maxContext(s))} токенов. Контекст выбирается в окне «Новая модель».` +
@@ -436,6 +437,7 @@ export function progressDay(s: GameState): void {
     addMail(s, {
       kind: 'research',
       title: `Исследование завершено: ${techName(tech)}, уровень ${level}`,
+      tag: 'research-done',
       reward: true,
       body: `Эффективность обучения новых проектов выросла в ${fmtMult(ALGO_MULT ** level)} раза по сравнению с исходной.${nextLine(next)}`,
     });
@@ -447,6 +449,7 @@ export function progressDay(s: GameState): void {
   addMail(s, {
     kind: 'research',
     title: `Исследование завершено: ${techName(tech)}`,
+    tag: 'research-done',
     reward: true,
     body: EFFECT_LINE[tech] + nextLine(next),
   });

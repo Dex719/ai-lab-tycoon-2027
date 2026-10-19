@@ -336,7 +336,9 @@ describe('письма не вплотную', () => {
     const perYear = new Map<number, number>();
     for (const l of letters) perYear.set(yearOf(l.day), (perYear.get(yearOf(l.day)) ?? 0) + 1);
     for (const [y, n] of perYear) expect(n, String(y)).toBeLessThanOrEqual(16);
-    expect(letters.length).toBeLessThanOrEqual(95);
+    // За партию - в среднем не больше 12 решений в год (было «не больше 95»: слепок одного прогона, число менялось
+    // от любой правки денег, QA 19.10). Смысловые пределы - 16 в год и промежутки - выше.
+    expect(letters.length).toBeLessThanOrEqual(8 * 12);
   }, 60_000);
 
   it('все исторические письма доходят, даже если игрок решает не сразу', () => {

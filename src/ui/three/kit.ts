@@ -15,24 +15,6 @@ export function mtx(x: number, y: number, z: number, rx = 0, ry = 0, rz = 0, sx 
   );
 }
 
-/** Скруглённый прямоугольник с центром (cx, cy). */
-export function roundRect(w: number, h: number, r: number, cx = 0, cy = 0): THREE.Shape {
-  const s = new THREE.Shape();
-  const x = cx - w / 2;
-  const y = cy - h / 2;
-  const rr = Math.min(r, w / 2, h / 2);
-  s.moveTo(x + rr, y);
-  s.lineTo(x + w - rr, y);
-  s.quadraticCurveTo(x + w, y, x + w, y + rr);
-  s.lineTo(x + w, y + h - rr);
-  s.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
-  s.lineTo(x + rr, y + h);
-  s.quadraticCurveTo(x, y + h, x, y + h - rr);
-  s.lineTo(x, y + rr);
-  s.quadraticCurveTo(x, y, x + rr, y);
-  return s;
-}
-
 /** Многоугольник по точкам. */
 export function poly(pts: readonly (readonly [number, number])[]): THREE.Shape {
   const s = new THREE.Shape();
@@ -45,12 +27,6 @@ export function polyPath(pts: readonly (readonly [number, number])[]): THREE.Pat
   const p = new THREE.Path();
   pts.forEach(([x, y], i) => (i ? p.lineTo(x, y) : p.moveTo(x, y)));
   p.closePath();
-  return p;
-}
-
-export function circlePath(cx: number, cy: number, r: number): THREE.Path {
-  const p = new THREE.Path();
-  p.absarc(cx, cy, r, 0, Math.PI * 2, true);
   return p;
 }
 

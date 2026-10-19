@@ -7,7 +7,6 @@
 import {
   CLOUD_EXIT_SHARE,
   cloudDef,
-  CLOUDS,
   DEALS_FROM,
   MAX_TEAMS,
   OFFER_DAYS,
@@ -18,7 +17,7 @@ import {
   type StartupDef,
 } from '../data/deals';
 import { LABS } from '../data/labs';
-import { FOREVER } from './constants';
+import { FOREVER, DAYS_PER_MONTH } from './constants';
 import { addMail, addModifier } from './events';
 import { spend } from './finance';
 import { hasTeam, lateOf, newModelEloBonus, trainSpeedMult, type CloudId, type StartupId, type TeamId } from './lateState';
@@ -237,7 +236,7 @@ export interface CloudTerms {
 export function cloudTerms(s: GameState, id: CloudId): CloudTerms {
   const def = cloudDef(id);
   const monthly = Math.max(def.minMonthly, Math.round((def.commit * lastMonthRent(s) * (1 - def.discount)) / 1e5) * 1e5);
-  return { monthly, until: s.day + Math.round(def.months * 30.4) - 1 };
+  return { monthly, until: s.day + Math.round(def.months * DAYS_PER_MONTH) - 1 };
 }
 
 export function cloudSignError(s: GameState, id: CloudId): string | null {
@@ -284,7 +283,7 @@ function timesText(x: number): string {
 /** Сколько месяцев сделки осталось (дробно, по дням). */
 function cloudMonthsLeft(s: GameState): number {
   const c = s.late?.cloud;
-  return c ? Math.max(0, (c.until - s.day + 1) / 30.4) : 0;
+  return c ? Math.max(0, (c.until - s.day + 1) / DAYS_PER_MONTH) : 0;
 }
 
 /** Плата за расторжение: CLOUD_EXIT_SHARE оставшихся обязательных платежей. */
@@ -369,11 +368,6 @@ export function dealsMonthEnd(s: GameState): void {
       });
     }
   }
-}
-
-/** Облачные партнёры по порядку данных (для окна). */
-export function cloudList(): typeof CLOUDS {
-  return CLOUDS;
 }
 
 // ---------- Для окна «Сделки» ----------

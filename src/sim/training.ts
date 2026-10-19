@@ -584,7 +584,7 @@ function finishTraining(s: GameState, t: TrainingRun): void {
     lines.push(`Из-за срыва обучения способности модели ниже на ${fmtNum(t.failPenalty)} ${pointsWord(t.failPenalty)}.`);
   }
   lines.push('Модель добавлена в окно «Модели», продажа доступа начинается после выпуска.');
-  addMail(s, { kind: 'training', title: `Модель «${model.name}» готова`, body: lines.join(' '), important: true });
+  addMail(s, { kind: 'training', title: `Модель «${model.name}» готова`, body: lines.join(' '), important: true, tag: 'model-ready' });
 }
 
 /**

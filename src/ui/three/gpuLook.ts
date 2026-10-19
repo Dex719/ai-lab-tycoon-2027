@@ -34,8 +34,3 @@ export const GPU_LOOK: Record<GpuId, GpuLook> = {
   h100: { short: 'H100', form: 'module', cooler: 'tower', shell: '#c3c8ce', trim: '#2a2d33', accent: '#5aa8ff', bezel: '#d5dae0', size: [14.2, 10.8, 9.2] },
   h200: { short: 'H200', form: 'module', cooler: 'tower', shell: '#2a2c31', trim: '#c08a4a', accent: '#b58cff', bezel: '#34363c', size: [14.2, 10.8, 10.6] },
 };
-
-/** Цветная метка поколения (для полоски у карты в списках). */
-export function gpuAccent(id: GpuId): string {
-  return GPU_LOOK[id].accent;
-}

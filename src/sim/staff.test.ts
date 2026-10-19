@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DAYS_PER_MONTH } from './constants';
 import { newGame } from './actions';
 import { applyChoice, pendingChoice } from './events';
 import { deserialize, serialize } from './save';
@@ -99,7 +100,7 @@ describe('команда: зарплаты, увольнение, опыт', () 
     expect(s.cash).toBe(c0);
     s.day = 10;
     staffDay(s);
-    expect(c0 - s.cash).toBeCloseTo(100, 6);
+    expect(c0 - s.cash).toBeCloseTo(3_000 / DAYS_PER_MONTH, 6);
   });
 
   it('увольнение: выходное пособие - месячная зарплата', () => {

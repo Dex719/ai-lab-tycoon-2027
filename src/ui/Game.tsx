@@ -7,12 +7,13 @@ import { goalOfferOpen, unseenReview } from '../sim/goals';
 import type { GameState } from '../sim/types';
 import { ChoiceModal } from './ChoiceModal';
 import { Dialog, ErrorText, isFresh } from './components/common';
-import { listSlots, writeSlot } from './saves';
+import { listSlots } from './saves';
 import { EndDialog } from './EndDialog';
 import { YearReviewModal } from './YearReviewModal';
 import { GoalChoiceModal } from './GoalChoice';
 import { IconExit, IconFolder, IconGear, IconLogo, IconSave, IconTrophy } from './icons';
 import { dayToDate, formatDateShort } from '../sim/time';
+import { TICK_MS } from '../sim/constants';
 import { SettingsDialog, SlotsDialog } from './MainMenu';
 import { SidePanel } from './SidePanel';
 import { store, useSpeed } from './store';
@@ -141,6 +142,24 @@ export function Game({ s }: { s: GameState }) {
   // Окно уходит 110 мс (закрытие вниз и в прозрачность, сворачивание к панели задач), потом его убирают из списка.
   const [leaving, setLeaving] = useState<Partial<Record<WindowId, 'close' | 'min'>>>({});
   const leaveTimers = useRef(new Map<WindowId, number>());
+  const winsRef = useRef(wins);
+  winsRef.current = wins;
+  // Окна развёрнуты на всю область, видно только верхнее. Остальные сворачиваем: иначе закрытие верхнего показывало
+  // окно, открытое раньше, и казалось, что раздел открылся сам (QA 19.10). На телефоне окна и так по одному.
+  const hideOthers = useCallback(
+    (keep: WindowId) => {
+      if (phone) return;
+      for (const w of winsRef.current) if (w.id !== keep && !w.min) minimize(w.id);
+    },
+    [phone, minimize],
+  );
+  const focusOnly = useCallback(
+    (id: WindowId) => {
+      hideOthers(id);
+      focus(id);
+    },
+    [hideOthers, focus],
+  );
   const open = useCallback(
     (id: WindowId | WindowAlias) => {
       setSheet(false);
@@ -155,9 +174,10 @@ export function Game({ s }: { s: GameState }) {
           return rest;
         });
       }
+      hideOthers(win);
       openWin(id);
     },
-    [openWin],
+    [openWin, hideOthers],
   );
   useEffect(() => {
     if (!phone) setSheet(false);
@@ -165,7 +185,7 @@ export function Game({ s }: { s: GameState }) {
   const speed = useSpeed();
   // Скорость игры в CSS: полосы прогресса едут ровно столько, сколько длится один игровой день.
   useEffect(() => {
-    const ms = speed === 1 ? 500 : speed === 2 ? 250 : speed === 4 ? 125 : 300;
+    const ms = speed === 0 ? 300 : TICK_MS[speed]; // на паузе - мягкая анимация без игрового дня
     document.documentElement.style.setProperty('--tick', `${ms}ms`);
   }, [speed]);
   const leave = useCallback(
@@ -210,10 +230,7 @@ export function Game({ s }: { s: GameState }) {
   const clock = useClock();
   // Окно игры закрывают посреди партии (крестик exe, вкладка браузера): партия уходит в автосохранение.
   useEffect(() => {
-    const save = () => {
-      const st = store.state;
-      if (st && !st.outcome) writeSlot('auto', st);
-    };
+    const save = () => void store.autosaveOnLeave();
     window.addEventListener('pagehide', save);
     return () => window.removeEventListener('pagehide', save);
   }, []);
@@ -401,7 +418,7 @@ export function Game({ s }: { s: GameState }) {
                   style={{ ['--wa' as string]: WIN_ACCENT[d.id] }}
                   title={d.title}
                   data-tutorial={`icon-${d.id}`}
-                  onClick={() => (active ? minAnim(d.id) : w ? focus(d.id) : open(d.id))}
+                  onClick={() => (active ? minAnim(d.id) : w ? focusOnly(d.id) : open(d.id))}
                 >
                   <RailIcon id={d.id} />
                   <span className="dock-tip">{d.title}</span>

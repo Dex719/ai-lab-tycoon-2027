@@ -16,6 +16,7 @@ import {
   TIER_SUBS_PRICE,
   TOKENS_PER_USER_DAY,
   TRAIN_FLOP_PER_H100E_DAY,
+  DAYS_PER_MONTH,
 } from '../../sim/constants';
 import { awaitingEvent } from '../../sim/events';
 import { contextLabel } from '../../sim/research';
@@ -955,7 +956,7 @@ function kpisOf(s: GameState, m: PlayerModel, metric: RaceMetric | null, rank: n
       value: revenue !== undefined ? fmtMoney(revenue) : '-',
       sub: revenue !== undefined && subsShown ? `API ${fmtMoney(apiRevenue ?? 0)}, подписки ${fmtMoney(subsRevenue ?? 0)}` : undefined,
       tone: 'income',
-      title: revenue !== undefined ? `≈ ${fmtMoney(revenue * 30)} в месяц` : undefined,
+      title: revenue !== undefined ? `≈ ${fmtMoney(revenue * DAYS_PER_MONTH)} в месяц` : undefined,
     },
     {
       label: 'Заработала всего',

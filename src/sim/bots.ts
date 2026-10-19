@@ -6,7 +6,7 @@ import { activeBenchmarks } from './benchmarks';
 import { botDatacenters } from './botsDatacenters';
 import { botFinale } from './finale';
 import { availableGpus, orderedCount, pool, rentCapFor, rentMaxFor, rentPerGpuDay, setAllocation, setRent, totalH100e } from './compute';
-import { FAIL_ROLLBACK, RENT_OVER_CAP_MULT, ROUND_COOLDOWN_DAYS, TIER_API_PRICE_MULT, TRAIN_FLOP_PER_H100E_DAY } from './constants';
+import { FAIL_ROLLBACK, RENT_OVER_CAP_MULT, ROUND_COOLDOWN_DAYS, TIER_API_PRICE_MULT, TRAIN_FLOP_PER_H100E_DAY, DAYS_PER_MONTH } from './constants';
 import { applyTender, canApply, contractWorkFor } from './contracts';
 import { applyChoice, openChoices, pendingChoice } from './events';
 import { overheadPerDay } from './finance';
@@ -136,7 +136,7 @@ function runwayRentPerDay(s: GameState): number {
   // Деньги раунда на переговорах придут к закрытию: на горизонт до него их считать нельзя, после - можно.
   const roundMoney = s.round && s.round.closeDay <= s.day + horizon ? s.round.money : 0;
   const perDay = Math.min(s.cash / BOT_RUNWAY_DAYS, (s.cash + roundMoney + contractPayoutsDue(s, horizon)) / horizon);
-  const apiPerDay = (s.finance.history.at(-1)?.income.api ?? 0) / 30;
+  const apiPerDay = (s.finance.history.at(-1)?.income.api ?? 0) / DAYS_PER_MONTH;
   return perDay + apiPerDay - overheadPerDay(s);
 }
 

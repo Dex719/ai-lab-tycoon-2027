@@ -325,7 +325,12 @@ export interface Mail {
   reward?: boolean;
   /** Письмо лично от лаборатории-соперника (sim/duel.ts): в «Почте» вместо значка - её эмблема. */
   from?: LabId;
+  /** Что за событие (для паузы по галочкам «Настроек»): интерфейс узнаёт письмо по метке, а не по тексту заголовка. */
+  tag?: MailTag;
 }
+
+export type MailTag = 'model-ready' | 'tender-won' | 'research-done';
+export const MAIL_TAGS: readonly MailTag[] = ['model-ready', 'tender-won', 'research-done'];
 
 /**
  * rivalPrice: target - LabId; mult - множитель цен лаборатории, add - доля опорной цены как нижняя граница.

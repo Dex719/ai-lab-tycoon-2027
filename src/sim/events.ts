@@ -22,6 +22,8 @@ export interface NewMail {
   read?: boolean;
   /** Письмо лично от лаборатории-соперника (sim/duel.ts). */
   from?: Mail['from'];
+  /** Метка события для пауз интерфейса (Mail.tag). */
+  tag?: Mail['tag'];
 }
 
 export function addMail(s: GameState, m: NewMail): Mail {

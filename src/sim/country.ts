@@ -9,7 +9,7 @@ import { FOREVER, STOLEN_EXPOSE_MONTHLY, STOLEN_FINE_BASE, STOLEN_FINE_EARNED, S
 import { addMail, addModifier } from './events';
 import { spend } from './finance';
 import { chance } from './rng';
-import { byYear, dateToDay, yearOf } from './time';
+import { byYear, yearOf } from './time';
 import type { CountryId, GameState, GpuId, PlayerModel } from './types';
 
 export interface CountryDef {
@@ -200,9 +200,4 @@ export function monthlyTheftSuits(s: GameState): void {
         (pulled ? ' По решению суда модель снята с продажи.' : ' Модель остаётся в продаже, новых исков по ней не будет.'),
     });
   }
-}
-
-/** Дата для проверки: запрет 2022 года уже действует. */
-export function exportBanActive(s: GameState): boolean {
-  return countryOf(s) === 'cn' && s.day >= dateToDay('2022-10-07');
 }

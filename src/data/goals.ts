@@ -963,11 +963,6 @@ export const LEGACY_GOALS: GoalDef[] = [
 /** Все описания целей: новые и старые. */
 export const GOALS: GoalDef[] = [...NEW_GOALS, ...LEGACY_GOALS];
 
-/** Виды целей каждого стиля (для тестов и справки). */
-export const GOAL_KINDS: Record<GoalStyle, string[]> = Object.fromEntries(
-  GOAL_STYLES.map((st) => [st, MAKERS[st].map((m) => m.id)]),
-) as Record<GoalStyle, string[]>;
-
 export function findGoal(id: string): GoalDef | undefined {
   return GOALS.find((g) => g.id === id);
 }

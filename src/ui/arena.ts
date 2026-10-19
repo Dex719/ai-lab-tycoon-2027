@@ -2,9 +2,8 @@
 // По этому месту засчитывается победа, поэтому верхняя панель, сводка, окно «Модели», «Аналитика» и итог партии
 // берут число отсюда и нигде не считают своё.
 
-import { marketArenaRank } from '../sim/leaderboard';
 import { playerBestArenaRank } from '../sim/tick';
-import type { GameState, PlayerModel } from '../sim/types';
+import type { GameState } from '../sim/types';
 import { fmtRank } from './labels';
 
 /** Подсказка к месту на «Арене»: одна на всех. */
@@ -22,12 +21,6 @@ function safe<T>(f: () => T): T | null {
 /** Лучшее место моделей игрока среди моделей в продаже; null - у игрока нет моделей в продаже. */
 export function bestArenaPlace(s: GameState): number | null {
   return safe(() => playerBestArenaRank(s));
-}
-
-/** Место одной модели игрока среди моделей в продаже; null - модель не выпущена или снята с API. */
-export function modelArenaPlace(s: GameState, m: Pick<PlayerModel, 'id' | 'releasedDay' | 'onApi'>): number | null {
-  if (m.releasedDay === null || !m.onApi) return null;
-  return safe(() => marketArenaRank(s, { kind: 'player', id: m.id }));
 }
 
 /** «3-е место» или «-»: общий вид места. */

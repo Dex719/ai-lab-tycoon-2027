@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DAYS_PER_MONTH } from './constants';
 import { DC_GPU_KW, DC_MONTH_DAYS, DC_UPKEEP_PER_MW_MONTH, dcSite } from '../data/datacenters';
 import { newGame } from './actions';
 import { runBot } from './bots';
@@ -130,7 +131,7 @@ describe('стройка', () => {
     expect(dc.delayDays).toBe(dc.stageEndDay - start - base);
     expect(s.mail.some((m) => m.title === 'Дата-центр в Абилине готов' && m.important)).toBe(true);
     // Пустой готовый дата-центр стоит обслуживание: $40 тыс. за МВт в месяц.
-    expect(dcCostPerDay(s)).toBeCloseTo((5 * DC_UPKEEP_PER_MW_MONTH) / 30, 6);
+    expect(dcCostPerDay(s)).toBeCloseTo((5 * DC_UPKEEP_PER_MW_MONTH) / DAYS_PER_MONTH, 6);
   });
 });
 

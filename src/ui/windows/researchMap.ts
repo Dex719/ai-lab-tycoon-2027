@@ -15,6 +15,7 @@ import {
   QUANT_SERVING_COST,
   SYNTHETIC_TOKENS_MULT,
   TECH_REQUIRES,
+  DAYS_PER_MONTH,
 } from '../../sim/constants';
 import { CONTEXT_MAX_LEVEL, contextLabel, type TechBranch } from '../../sim/research';
 import { ruPlural, tokensWord } from '../../sim/text';
@@ -70,6 +71,8 @@ export function graphEdges(): [GraphTech, GraphTech][] {
 /** Подпись узла на карте, если полное название не помещается в две строки. */
 export const MAP_LABEL: Partial<Record<TechId, string>> = {
   rlhf: 'RLHF: отзывы людей',
+  // Мягкий перенос: Chrome на Windows не расставляет переносы в русском, и слово рвалось на «Мультимодальност / ь» (QA 19.10).
+  multimodal: 'Мульти­модальность',
 };
 
 /** Срок по-человечески: «45 дней», «≈ 5 месяцев», «≈ 1,5 года», «больше 10 лет». */
@@ -77,7 +80,7 @@ export function termText(days: number): string {
   if (!Number.isFinite(days)) return 'больше 10 лет';
   const d = Math.max(1, Math.round(days));
   if (d <= 60) return fmtDays(d);
-  const months = Math.round(d / 30.4);
+  const months = Math.round(d / DAYS_PER_MONTH);
   if (months < 12) return `≈ ${months} ${ruPlural(months, 'месяц', 'месяца', 'месяцев')}`;
   const years = Math.round((d / 365) * 10) / 10;
   if (years >= 10) return 'больше 10 лет';

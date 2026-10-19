@@ -44,10 +44,17 @@ import type {
   YearlyState,
   YearReview,
 } from './types';
-import { BENCHMARK_IDS, CHALLENGE_IDS, CHECKPOINT_MODES, COUNTRY_IDS, DOMAINS, GPU_IDS, LAB_IDS, REVIEW_STATES, SEGMENT_IDS, TECH_IDS, TIER_IDS, WORLD_MOD_IDS } from './types';
+import { BENCHMARK_IDS, CHALLENGE_IDS, CHECKPOINT_MODES, COUNTRY_IDS, DOMAINS, GPU_IDS, LAB_IDS, MAIL_TAGS, REVIEW_STATES, SEGMENT_IDS, TECH_IDS, TIER_IDS, WORLD_MOD_IDS } from './types';
 
-export const SAVE_KEY = 'ailab.save.v1';
-export const AUTOSAVE_KEY = 'ailab.autosave.v1';
+/**
+ * Версия схемы сохранения (GameState.version). Новое поле с разумным значением по умолчанию версию не меняет: его
+ * дополняет deserialize (ниже, «поля, добавленные после первой версии»). Переименование, перенос или смена смысла поля -
+ * новая версия: SAVE_VERSION + 1 и ступень в MIGRATIONS. Иначе старые сохранения отклонялись бы как «повреждено» (QA 19.10).
+ */
+export const SAVE_VERSION = 1;
+
+/** Ступени: MIGRATIONS[n] переводит сохранение версии n в n + 1 (номер версии поднимает deserialize). */
+const MIGRATIONS: Partial<Record<number, (data: Record<string, unknown>) => void>> = {};
 
 export function serialize(s: GameState): string {
   return JSON.stringify(s);
@@ -276,6 +283,7 @@ const mail = shapeOf<Mail>({
   outcome: optional(shapeOf<NonNullable<Mail['outcome']>>({ lucky: bool, text: str })),
   reward: optional(bool),
   from: optional(oneOf(LAB_IDS)),
+  tag: optional(oneOf(MAIL_TAGS)),
 });
 
 const modifier = shapeOf<Modifier>({
@@ -807,7 +815,15 @@ export function deserialize(json: string): { ok: true; state: GameState } | { ok
     return { ok: false, error: 'Сохранение повреждено' };
   }
   if (!isRec(data)) return { ok: false, error: 'Сохранение повреждено' };
-  if (data.version !== 1) return { ok: false, error: 'Сохранение от другой версии игры' };
+  if (typeof data.version !== 'number' || !Number.isInteger(data.version)) return { ok: false, error: 'Сохранение повреждено' };
+  if (data.version > SAVE_VERSION) return { ok: false, error: 'Сохранение от более новой версии игры: обновите игру' };
+  // Ступени схемы: каждая переводит сохранение на версию выше (переименования, перенос данных).
+  while (data.version < SAVE_VERSION) {
+    const step = MIGRATIONS[data.version];
+    if (!step) return { ok: false, error: 'Сохранение от другой версии игры' };
+    step(data);
+    data.version += 1;
+  }
   // Поля, добавленные после первой версии: старые сохранения получают значения по умолчанию.
   if (data.founderName === undefined) data.founderName = '';
   if (data.tutorial === undefined) data.tutorial = { step: 0, active: false };

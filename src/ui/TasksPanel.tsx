@@ -102,7 +102,10 @@ export function TasksPanel({ s, open }: { s: GameState; open: (id: WindowId | Wi
                   {p?.text ?? ''}
                   {p?.almost && <span className="tr-almost"> - почти</span>}
                 </span>
-                <span className={`tr-left${urgent ? ' urgent' : ''}`}>ещё {fmtDays(left)}</span>
+                {/* Срок задачи, а не обучения: «ещё 22 дня» рядом с «Обучение: 94 %» читалось как срок модели (QA 19.10). */}
+                <span className={`tr-left${urgent ? ' urgent' : ''}`} title="Сколько осталось до конца срока задачи">
+                  срок: {fmtDays(left)}
+                </span>
               </div>
               <div className="task-bar">
                 <div className="pb" style={{ ['--p' as string]: Math.min(1, Math.max(0, p?.fraction ?? 0)) }} />

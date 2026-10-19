@@ -14,6 +14,7 @@ import {
   SEGMENT_DEF,
   SUBS_REF_PRICE,
   TOKENS_PER_USER_DAY,
+  DAYS_PER_MONTH,
 } from './constants';
 import { addModifier, FOREVER } from './events';
 import {
@@ -248,10 +249,12 @@ describe('кривые спроса, цены и качества', () => {
       ['2024-01-01', 5.25e6],
       ['2024-12-31', 1.125e7],
     ];
-    for (const [date, value] of anchors) expect(subsUsers(makeState(dateToDay(date))) / value).toBeCloseTo(1, 6);
+    // Точки design × DAYS_PER_MONTH / 30: выручка подписок в день та же, что при месяце в 30 дней (constants.ts).
+    const k = DAYS_PER_MONTH / 30;
+    for (const [date, value] of anchors) expect(subsUsers(makeState(dateToDay(date))) / (value * k)).toBeCloseTo(1, 6);
     const a = dateToDay('2024-01-01');
     const b = dateToDay('2024-12-31');
-    expect(subsUsers(makeState(Math.round((a + b) / 2))) / Math.sqrt(5.25e6 * 1.125e7)).toBeCloseTo(1, 2);
+    expect(subsUsers(makeState(Math.round((a + b) / 2))) / (Math.sqrt(5.25e6 * 1.125e7) * k)).toBeCloseTo(1, 2);
   });
 
   it('subsOpen: канал подписок открыт с 30.11.2022', () => {
@@ -328,7 +331,7 @@ describe('кривые спроса, цены и качества', () => {
   it('потенциал рынка на 31.12.2024: подписки / API в пределах 1…1,6', () => {
     const s = makeState(END_DAY);
     const api = (demandTokens(s) * refPrice(s.day)) / 1e6;
-    const subs = (subsUsers(s) * SUBS_REF_PRICE) / 30;
+    const subs = (subsUsers(s) * SUBS_REF_PRICE) / DAYS_PER_MONTH;
     expect(subs / api).toBeGreaterThanOrEqual(1);
     expect(subs / api).toBeLessThanOrEqual(1.6);
     const snap = marketSnapshot(s);
@@ -1090,7 +1093,7 @@ describe('подписки в dayStep', () => {
     return s;
   }
 
-  it('доля «API» = 0: выручки API нет, подписки обслуживаются и платят users × цена / 30', () => {
+  it('доля «API» = 0: выручки API нет, подписки обслуживаются и платят users × цена / дней в месяце', () => {
     const s = withSubs();
     const need = inferenceNeed(s, marketSnapshot(s));
     s.compute.alloc = { training: 0, contracts: 0, experiments: 0, api: 0, subs: 1 };
@@ -1098,7 +1101,7 @@ describe('подписки в dayStep', () => {
     const users = entryOf(marketSnapshot(s), 'consumers', 'player:p1')!.demand;
     const cash0 = s.cash;
     dayStep(s);
-    const subsRevenue = (users * 20) / 30;
+    const subsRevenue = (users * 20) / DAYS_PER_MONTH;
     expect(subsRevenue).toBeGreaterThan(0);
     expect(s.cash - cash0).toBeCloseTo(subsRevenue, 6);
     expect(s.finance.month.income.subs).toBeCloseTo(subsRevenue, 6);
@@ -1129,11 +1132,11 @@ describe('подписки в dayStep', () => {
     expect(s.market.lostSubs).toBeCloseTo(0.5, 9);
     expect(s.market.lostApi).toBe(0);
     expect(s.market.playerSubs).toBeCloseTo(users * 0.5, 6);
-    expect(s.finance.month.income.subs).toBeCloseTo((users * 0.5 * 20) / 30, 6);
+    expect(s.finance.month.income.subs).toBeCloseTo((users * 0.5 * 20) / DAYS_PER_MONTH, 6);
     expect(s.finance.month.income.api).toBeCloseTo(api, 6);
     expect(s.market.segments.consumers.shares['player:p1']).toBeCloseTo(entryOf(snap, 'consumers', 'player:p1')!.share * 0.5, 12);
     expect(s.market.segments.developers.shares['player:p1']).toBeCloseTo(entryOf(snap, 'developers', 'player:p1')!.share, 12);
-    const full = (users * 20) / 30;
+    const full = (users * 20) / DAYS_PER_MONTH;
     expect(s.market.lostFraction).toBeCloseTo((full * 0.5) / (api + full), 9);
   });
 

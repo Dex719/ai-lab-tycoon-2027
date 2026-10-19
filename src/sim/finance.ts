@@ -1,6 +1,6 @@
 // Деньги, помесячный учёт, накладные расходы и банкротство (FR-1.5, FR-14.5).
 
-import { BANKRUPT_DAYS, EMERGENCY_ROUND_DAYS, OVERHEAD_MONTHLY, OVERHEAD_REVENUE_SHARE } from './constants';
+import { BANKRUPT_DAYS, EMERGENCY_ROUND_DAYS, OVERHEAD_MONTHLY, OVERHEAD_REVENUE_SHARE, DAYS_PER_MONTH } from './constants';
 import { rentPerDay } from './compute';
 import { countryCostMult } from './country';
 import { addMail } from './events';
@@ -56,7 +56,7 @@ export function lastMonthRevenue(s: GameState): number {
 }
 
 export function overheadPerDay(s: GameState): number {
-  return ((OVERHEAD_MONTHLY + OVERHEAD_REVENUE_SHARE * lastMonthRevenue(s)) / 30) * countryCostMult(s);
+  return ((OVERHEAD_MONTHLY + OVERHEAD_REVENUE_SHARE * lastMonthRevenue(s)) / DAYS_PER_MONTH) * countryCostMult(s);
 }
 
 /** Ежедневные расходы и проверка банкротства. Вызывается после рынка и контрактов. */

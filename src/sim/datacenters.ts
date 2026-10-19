@@ -1,6 +1,7 @@
 // Свои дата-центры (дизайн - .kiro/specs/datacenters/design.md): стройка по этапам, покупка карт, электричество.
 // Случайность (задержка этапа) - только при начале этапа, поэтому партия без дата-центров идёт как раньше.
 
+import { DAYS_PER_MONTH } from './constants';
 import {
   DC_COST_PER_MW,
   DC_DELAY_REASONS,
@@ -163,7 +164,7 @@ export function dcPowerPerDay(dc: Datacenter): number {
 
 /** Обслуживание готового дата-центра в день, $. */
 export function dcUpkeepPerDay(dc: Datacenter): number {
-  return dcReady(dc) ? (dc.mw * DC_UPKEEP_PER_MW_MONTH) / 30 : 0;
+  return dcReady(dc) ? (dc.mw * DC_UPKEEP_PER_MW_MONTH) / DAYS_PER_MONTH : 0;
 }
 
 /** Электричество и обслуживание всех дата-центров в день. */
