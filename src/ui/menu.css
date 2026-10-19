@@ -60,6 +60,8 @@
   background: var(--surface-control); border: none; border-radius: 10px; box-shadow: inset 0 -4px 0 var(--edge);
   color: var(--text); font-size: 13px; font-weight: var(--fw-strong);
 }
+/* Флаг ровно над подписью: общий отступ .flag справа (для верхней панели) здесь не нужен. */
+.ng-country .flag { margin: 0; }
 .ng-country:hover { background: var(--surface-control-hover); }
 .ng-country:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
 .ng-country.on { background: var(--row-sel); box-shadow: inset 0 -4px 0 var(--edge), inset 0 0 0 3px var(--brand); }
