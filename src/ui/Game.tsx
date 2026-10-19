@@ -274,6 +274,47 @@ export function Game({ s }: { s: GameState }) {
     setDialog(d);
   }
 
+  // Меню игры: на компьютере - последняя кнопка в колонке разделов (другим цветом), на телефоне - в панели задач.
+  const startMenu = (
+    <div className="start-wrap">
+      <button className={`task-start${startOpen ? ' on' : ''}`} title="Меню игры" aria-label="Меню игры" onClick={() => setStartOpen((v) => !v)}>
+        <IconLogo size={26} />
+      </button>
+      {startOpen && (
+        <div className="start-menu" role="menu">
+          <div className="start-head">
+            <IconLogo size={30} />
+            <span>
+              <b>{s.labName}</b>
+              <small>{formatDateShort(s.day)}</small>
+            </span>
+          </div>
+          <button role="menuitem" onClick={() => startAction('save')}>
+            <IconSave size={18} />
+            Сохранить
+          </button>
+          <button role="menuitem" onClick={() => startAction('load')}>
+            <IconFolder size={18} />
+            Загрузить
+          </button>
+          <button role="menuitem" onClick={() => startAction('settings')}>
+            <IconGear size={18} />
+            Настройки
+          </button>
+          <button role="menuitem" onClick={() => startAction('achievements')}>
+            <IconTrophy size={18} />
+            Достижения
+          </button>
+          <hr />
+          <button role="menuitem" className="start-exit" onClick={() => startAction('quit')}>
+            <IconExit size={18} />
+            Выйти в главное меню
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <>
     <div className="game" inert={blocked}>
@@ -304,7 +345,8 @@ export function Game({ s }: { s: GameState }) {
               active={w.z === topZ}
               flush
               fullscreen={phone}
-              hidden={phone && w.z !== topZ}
+              maximized={!phone}
+              hidden={w.z !== topZ}
               leaving={leaving[w.id]}
               accent={WIN_ACCENT[w.id]}
               icon={RAIL[w.id]}
@@ -335,41 +377,7 @@ export function Game({ s }: { s: GameState }) {
         />
       </div>
       <footer className="taskbar">
-        <button className={`task-start${startOpen ? ' on' : ''}`} title="Меню игры" aria-label="Меню игры" onClick={() => setStartOpen((v) => !v)}>
-          <IconLogo size={26} />
-        </button>
-        {startOpen && (
-          <div className="start-menu" role="menu">
-            <div className="start-head">
-              <IconLogo size={30} />
-              <span>
-                <b>{s.labName}</b>
-                <small>{formatDateShort(s.day)}</small>
-              </span>
-            </div>
-            <button role="menuitem" onClick={() => startAction('save')}>
-              <IconSave size={18} />
-              Сохранить
-            </button>
-            <button role="menuitem" onClick={() => startAction('load')}>
-              <IconFolder size={18} />
-              Загрузить
-            </button>
-            <button role="menuitem" onClick={() => startAction('settings')}>
-              <IconGear size={18} />
-              Настройки
-            </button>
-            <button role="menuitem" onClick={() => startAction('achievements')}>
-              <IconTrophy size={18} />
-              Достижения
-            </button>
-            <hr />
-            <button role="menuitem" className="start-exit" onClick={() => startAction('quit')}>
-              <IconExit size={18} />
-              Выйти в главное меню
-            </button>
-          </div>
-        )}
+        {phone && startMenu}
         <div className="task-sep" />
         {!phone && (
           <nav className={`dock${s.day < DOCK_LABEL_DAYS || s.tutorial.active ? ' labels' : ''}`} aria-label="Разделы">
@@ -398,6 +406,8 @@ export function Game({ s }: { s: GameState }) {
                 </button>
               );
             })}
+            <span className="dock-sep" aria-hidden="true" />
+            {startMenu}
           </nav>
         )}
         {phone && wins.map((w) => {

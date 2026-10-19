@@ -37,25 +37,22 @@ function MoneyPopup({ s }: { s: GameState }) {
   const kinds = INCOME_KINDS.filter((k) => k !== 'subs' || subsOpen(s.day) || m.income.subs > 0);
   return (
     <div className="money-pop" role="tooltip">
-      <div className="r" style={{ color: 'var(--hud-text)' }}>
-        <span>С начала месяца</span>
-        <span />
-      </div>
+      <div className="mp-h">С начала месяца</div>
       {kinds.map((k) => (
-        <div className="r" key={k} style={m.income[k] > 0 ? { color: 'var(--good-on-dark)' } : undefined}>
-          <span>{INCOME_LABELS[k]}:</span>
+        <div className={`r${m.income[k] > 0 ? ' good' : ''}`} key={k}>
+          <span>{INCOME_LABELS[k]}</span>
           <span className="v">{fmtMoney(m.income[k])}</span>
         </div>
       ))}
       {EXPENSE_KINDS.filter((k) => k !== 'capex').map((k) => (
-        <div className="r" key={k} style={m.expense[k] > 0 ? { color: 'var(--bad-on-dark)' } : undefined}>
-          <span>{EXPENSE_LABELS[k]}:</span>
+        <div className={`r${m.expense[k] > 0 ? ' bad' : ''}${k === EXPENSE_KINDS.find((x) => x !== 'capex') ? ' first-exp' : ''}`} key={k}>
+          <span>{EXPENSE_LABELS[k]}</span>
           <span className="v">{m.expense[k] > 0 ? '−' : ''}{fmtMoney(m.expense[k])}</span>
         </div>
       ))}
       {m.expense.capex > 0 && (
-        <div className="r" style={{ color: 'var(--hud-text)' }} title="Стройка дата-центров и покупка карт. В изменение за месяц не входит">
-          <span>Разовые вложения:</span>
+        <div className="r first-exp" title="Стройка дата-центров и покупка карт. В изменение за месяц не входит">
+          <span>Разовые вложения</span>
           <span className="v">{fmtMoney(m.expense.capex)}</span>
         </div>
       )}

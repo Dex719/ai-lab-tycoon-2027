@@ -525,3 +525,87 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
 .st-body input[type="range"]:focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
 /* Заполненная часть ползунка: две ровные зоны без перехода (--v задаёт VolumeRow) */
 .st-body input[type="range"] { background: linear-gradient(to right, var(--brand) 0 var(--v, 0%), var(--track) var(--v, 0%) 100%); }
+
+@media (min-width: 768px) {
+  /* ---------- Окна на всю игровую область (19.10): от колонки разделов до правого края, между лентой лаборатории
+     и плиткой даты и денег. Пока идёт обучение игре, справа остаётся место под подсказку. ---------- */
+  .game .desk .window.max { left: 80px; top: 62px; right: 12px; bottom: 116px; width: auto; height: auto; min-width: 0; min-height: 0; }
+  .game .desk:has(.side.with-top) .window.max { right: 334px; }
+  .game .window.max.fs-off { display: none; }
+  .game .window.max .titlebar { cursor: default; }
+  /* Названия разделов у кнопок не лежат поверх открытого окна (у подсвеченной обучением - остаётся). */
+  html .game:has(.window.max:not(.fs-off)) .dock.labels .dock-btn:not(.tutor-target):not(:hover) .dock-tip { opacity: 0; }
+  /* Открыто окно - сводка (без обучения) и показатели не лежат поверх него. */
+  .game:has(.window.max:not(.fs-off)) .side:not(.with-top), .game:has(.window.max:not(.fs-off)) .hud-stats { display: none; }
+
+  /* «Следующий шаг» начинается правее колонки разделов: колонка стала длиннее (внизу - меню игры). */
+  .game .lf-next { left: 84px; transform: none; width: min(640px, calc(100% - 100px)); }
+
+  /* ---------- Счётчик на кнопке раздела: ровный круг, число по центру ---------- */
+  html .game .dock-btn .count {
+    box-sizing: border-box; display: flex; align-items: center; justify-content: center; top: -7px; right: -7px;
+    min-width: 22px; height: 22px; padding: 0 5px; border-radius: 999px; border: 2px solid #fff; line-height: 1; font-size: 11px;
+  }
+
+  /* ---------- Меню игры - последняя кнопка колонки разделов, белая (не раздел, а сама игра) ---------- */
+  html .game .dock .dock-sep { display: block; height: 2px; margin: 2px 6px; border-radius: 1px; background: rgb(255 255 255 / 0.18); }
+  html .game .dock .start-wrap { position: relative; }
+  html .game .dock .task-start {
+    position: static; width: 60px; height: 56px; border-radius: 12px; display: grid; place-items: center;
+    background: var(--surface-control); color: var(--brand-ink); box-shadow: inset 0 -4px 0 var(--edge);
+  }
+  html .game .dock .task-start:hover { background: var(--surface-control-hover); }
+  html .game .dock .task-start.on { background: var(--select); color: var(--on-select); box-shadow: inset 0 -4px 0 var(--select-edge); }
+  html .game .dock .start-menu { position: absolute; left: calc(100% + 16px); bottom: 0; top: auto; z-index: 10; }
+  /* Открыто меню - подписи разделов не просвечивают сквозь него. */
+  html .game .dock:has(.task-start.on) .dock-tip { opacity: 0; }
+
+  /* ---------- Деньги за месяц: белая карточка над плиткой денег, как остальные плашки ---------- */
+  html .game .money-pop {
+    top: auto; bottom: calc(100% + 12px); left: auto; right: 0; transform: none; min-width: 280px; padding: 10px 14px 12px;
+    background: var(--surface-control); color: var(--text); border-radius: 14px; font: inherit; font-size: 14px;
+    box-shadow: inset 0 -4px 0 var(--edge), 0 6px 18px rgb(20 50 56 / 0.3);
+  }
+  html .game .money-pop .mp-h { margin-bottom: 4px; font-size: 13px; font-weight: var(--fw-title); color: var(--brand-ink); }
+  html .game .money-pop .r { line-height: 1.7; font-weight: var(--fw-strong); color: var(--text-2); }
+  html .game .money-pop .r .v { color: var(--text); }
+  html .game .money-pop .r.good .v { color: var(--good-ink); }
+  html .game .money-pop .r.bad .v { color: var(--bad-ink); }
+  html .game .money-pop .r.first-exp { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
+
+  /* ---------- Обучение игре: как окно игры - бирюзовая шапка, светлое тело, скруглённые углы ---------- */
+  .tutor {
+    border-radius: 14px; overflow: hidden; background: var(--surface-window); color: var(--text);
+    box-shadow: 0 10px 30px rgb(20 50 56 / 0.35), 0 0 0 3px rgb(255 255 255 / 0.85);
+  }
+  /* Подсказка не сжимается: место уступают цели года ниже (они прокручиваются). */
+  .game .side .tutor { flex: none; max-height: 70%; margin: 3px 3px 10px; }
+  .game .side .side-body:has(.tutor) > div.quests-zone { min-height: 0; }
+  .tutor .titlebar {
+    height: 42px; padding: 0 8px 0 14px; gap: 8px; border: none; border-radius: 0;
+    background: var(--brand); color: var(--on-brand); box-shadow: inset 0 -4px 0 var(--brand-edge);
+    font-size: 16px; font-weight: var(--fw-title); letter-spacing: 0.02em;
+  }
+  .tutor.collapsed .titlebar { border-radius: 0; }
+  .tutor .titlebar .wbtn { width: 28px; height: 28px; border-radius: 50%; background: rgb(255 255 255 / 0.2); color: #fff; }
+  .tutor .titlebar .wbtn:hover { background: rgb(255 255 255 / 0.35); }
+  .tutor .body { padding: 12px 16px 4px; }
+  .tutor .step { font-size: 12px; font-weight: var(--fw-strong); color: var(--brand-ink); text-transform: none; }
+  .tutor h3 { font-size: 17px; font-weight: var(--fw-title); color: var(--text); }
+  .tutor p { font-size: 14px; font-weight: var(--fw-text); line-height: 1.45; color: var(--text); }
+  .tutor .foot { padding: 6px 16px 14px; }
+
+  /* ---------- Что нажать по обучению: толстая золотая рамка, которая мягко «дышит» ---------- */
+  .tutor-target { box-shadow: none; outline: 3px solid #f2b600; outline-offset: 3px; animation: tutor-ring 1.4s ease-in-out infinite; }
+  html .game .dock-btn.tutor-target .dock-tip { box-shadow: 0 0 0 3px #f2b600; }
+  @keyframes tutor-ring { 50% { outline-offset: 7px; outline-color: rgb(242 182 0 / 0.55); } }
+  @media (prefers-reduced-motion: reduce) { .tutor-target { animation: none; } }
+
+  /* Диалог при открытом обучении встаёт левее подсказки, а не под неё. */
+  body.tutor-overlay .modal-backdrop { padding-right: 340px; box-sizing: border-box; }
+  body.tutor-overlay .modal-backdrop > .dialog { max-width: calc(100% - 24px); }
+}
+
+/* Обёртка меню игры на телефоне не меняет раскладку панели задач. */
+.start-wrap { display: contents; }
+@media (min-width: 768px) { html .game .dock .start-wrap { display: block; } }

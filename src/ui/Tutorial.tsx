@@ -108,6 +108,11 @@ export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState;
     }
     setRect(ref.current.getBoundingClientRect());
   }, [overlay, collapsed, index, showDone]);
+  // Диалог при открытой подсказке встаёт левее неё (tpc.css body.tutor-overlay), а не под неё.
+  useEffect(() => {
+    document.body.classList.toggle('tutor-overlay', !!rect);
+    return () => document.body.classList.remove('tutor-overlay');
+  }, [rect]);
 
   if (!active) return null;
   const last = index === TUTORIAL.length - 1;

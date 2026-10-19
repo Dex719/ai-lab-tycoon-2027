@@ -104,6 +104,7 @@ interface Props {
   icon?: ComponentType<{ size?: number }>; // значок раздела в круге слева от названия
   flush?: boolean; // тело без отступов (окно само раскладывает панели)
   fullscreen?: boolean; // телефон: окно на весь стол, без перетаскивания и изменения размера
+  maximized?: boolean; // компьютер: окно на всю игровую область (место задаёт CSS .window.max), без перетаскивания
   hidden?: boolean; // телефон: окно открыто, но показано другое
   leaving?: 'close' | 'min'; // окно уходит: 110 мс выхода перед тем, как его уберут
   onFocus: () => void;
@@ -113,11 +114,11 @@ interface Props {
   children: ReactNode;
 }
 
-export function Window({ title, geom, active, accent, icon: Icon, flush, fullscreen, hidden, leaving, onFocus, onClose, onMinimize, onMove, children }: Props) {
+export function Window({ title, geom, active, accent, icon: Icon, flush, fullscreen, maximized, hidden, leaving, onFocus, onClose, onMinimize, onMove, children }: Props) {
   const drag = useRef<{ dx: number; dy: number } | null>(null);
 
   function startDrag(e: React.PointerEvent) {
-    if (fullscreen || e.button !== 0 || (e.target as HTMLElement).closest('button')) return;
+    if (fullscreen || maximized || e.button !== 0 || (e.target as HTMLElement).closest('button')) return;
     drag.current = { dx: e.clientX - geom.x, dy: e.clientY - geom.y };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
@@ -132,7 +133,7 @@ export function Window({ title, geom, active, accent, icon: Icon, flush, fullscr
   const resize = useRef<{ sx: number; sy: number; w: number; h: number } | null>(null);
   function startResize(e: React.PointerEvent) {
     // Без stopPropagation: нажатие доходит до окна и выводит его на передний план.
-    if (fullscreen || e.button !== 0) return;
+    if (fullscreen || maximized || e.button !== 0) return;
     resize.current = { sx: e.clientX, sy: e.clientY, w: geom.w, h: geom.h };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }
@@ -155,9 +156,9 @@ export function Window({ title, geom, active, accent, icon: Icon, flush, fullscr
 
   return (
     <div
-      className={`window${active ? ' active' : ''}${fullscreen ? ' fs' : ''}${hidden ? ' fs-off' : ''}${leaving ? ` leaving ${leaving}` : ''}`}
+      className={`window${active ? ' active' : ''}${fullscreen ? ' fs' : ''}${maximized ? ' max' : ''}${hidden ? ' fs-off' : ''}${leaving ? ` leaving ${leaving}` : ''}`}
       style={{
-        ...(fullscreen ? {} : { left: geom.x, top: geom.y, width: geom.w, height: geom.h }),
+        ...(fullscreen || maximized ? {} : { left: geom.x, top: geom.y, width: geom.w, height: geom.h }),
         zIndex: geom.z,
         ...(accent ? { ['--wa' as string]: accent } : {}),
       }}
@@ -197,7 +198,7 @@ export function Window({ title, geom, active, accent, icon: Icon, flush, fullscr
         </button>
       </div>
       <div className={`window-body${flush ? ' flush' : ''}`}>{children}</div>
-      {!fullscreen && (
+      {!fullscreen && !maximized && (
         <div
           className="resize"
           onPointerDown={startResize}
