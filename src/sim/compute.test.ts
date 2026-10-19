@@ -390,8 +390,19 @@ describe('setAllocation', () => {
 });
 
 describe('setRent', () => {
-  it('ставит число GPU: карты едут, мощность появляется в день прихода', () => {
+  it('2017-2018 годы: карты работают сразу, без заказа в пути (плейтест 19.10)', () => {
     const s = createInitialState('Тест', 1);
+    expect(rentDeliveryDays(s, 'p100')).toBe(0);
+    expect(setRent(s, 'p100', 96)).toEqual({ ok: true });
+    expect(s.compute.rented.p100).toBe(96);
+    expect(s.compute.incoming ?? []).toEqual([]);
+    expect(totalH100e(s)).toBeCloseTo(96 * gpuData('p100').h100e, 9);
+    expect(rentDeliveryDays(stateAt('2018-12-31'), 'p100')).toBe(0);
+    expect(rentDeliveryDays(stateAt('2019-01-01'), 'p100')).toBe(7);
+  });
+
+  it('с 2019 года: карты едут, мощность появляется в день прихода', () => {
+    const s = stateAt('2019-03-01');
     expect(setRent(s, 'p100', 105)).toEqual({ ok: true });
     expect(s.compute.rented.p100).toBe(0);
     expect(orderedCount(s, 'p100')).toBe(105);
@@ -532,8 +543,8 @@ describe('доли мощности v2: пять ключей', () => {
 });
 
 describe('аренда с поставкой', () => {
-  it('срок поставки по годам: неделя в 2017 году, три недели в 2023-м; при дефиците - вдвое дольше', () => {
-    expect(rentDeliveryDays(stateAt('2017-03-01'), 'p100')).toBe(7);
+  it('срок поставки по годам: неделя в 2019 году, три недели в 2023-м; при дефиците - вдвое дольше', () => {
+    expect(rentDeliveryDays(stateAt('2019-03-01'), 'p100')).toBe(7);
     expect(rentDeliveryDays(stateAt('2023-03-01'), 'h100')).toBe(21);
     const s = stateAt('2021-03-01');
     const base = rentDeliveryDays(s, 'a100');
@@ -542,7 +553,7 @@ describe('аренда с поставкой', () => {
   });
 
   it('аренда платится только с прихода: пока карты едут, rentPerDay не растёт', () => {
-    const s = createInitialState('Тест', 1);
+    const s = stateAt('2019-03-01');
     setRent(s, 'p100', 100);
     expect(rentPerDay(s)).toBe(0);
     s.day += rentDeliveryDays(s, 'p100') - 1;
@@ -555,7 +566,7 @@ describe('аренда с поставкой', () => {
   });
 
   it('уменьшение сначала отменяет ещё не пришедший заказ (без денег), потом возвращает работающие карты сразу', () => {
-    const s = createInitialState('Тест', 1);
+    const s = stateAt('2019-03-01');
     rentNow(s, 'p100', 50);
     setRent(s, 'p100', 80); // 30 едут
     const cash = s.cash;
@@ -569,7 +580,7 @@ describe('аренда с поставкой', () => {
   });
 
   it('прибавка к уже работающим едет отдельно, работающие карты продолжают работать', () => {
-    const s = createInitialState('Тест', 1);
+    const s = stateAt('2019-03-01');
     rentNow(s, 'p100', 40);
     setRent(s, 'p100', 100);
     expect(s.compute.rented.p100).toBe(40);
@@ -577,7 +588,7 @@ describe('аренда с поставкой', () => {
   });
 
   it('старое сохранение без списка заказов: заказов нет, аренда работает', () => {
-    const fresh = createInitialState('Тест', 1);
+    const fresh = stateAt('2019-03-01');
     rentNow(fresh, 'p100', 10);
     setRent(fresh, 'p100', 15);
     const round = deserialize(serialize(fresh));

@@ -58,6 +58,7 @@ import { farmLayout, rentedFarm } from '../three/specs';
 import { GpuChooser, powerFact } from '../three/GpuChooser';
 import { GpuBadge } from '../GpuBadge';
 import './ComputeWindow.css';
+import { tutorialRentGoal } from '../tutorialSteps';
 
 /** Аренда списывается каждый день; в интерфейсе стоимость показана за 30 дней. */
 const DAYS_IN_MONTH = 30;
@@ -259,7 +260,10 @@ interface RentTarget {
 }
 
 function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: RentTarget; onClose: () => void; onDone: (text: string) => void }) {
-  const initial = (id: GpuId, count?: number) => String(count ?? (orderedCount(s, id) > 0 ? orderedCount(s, id) : suggestedCount(s, id)));
+  // Обучение игре просит докупить карты под тендер: нужное число уже стоит в поле.
+  const goal = tutorialRentGoal(s);
+  const initial = (id: GpuId, count?: number) =>
+    String(count ?? (goal?.id === id ? goal.count : orderedCount(s, id) > 0 ? orderedCount(s, id) : suggestedCount(s, id)));
   const [id, setId] = useState<GpuId>(target.id);
   const [text, setText] = useState(initial(target.id, target.count));
   const [error, setError] = useState<string | null>(null);
@@ -270,7 +274,8 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
   const rented = orderedCount(s, g.id);
   const working = s.compute.rented[g.id];
   const transit = incomingCount(s, g.id);
-  const eta = s.day + rentDeliveryDays(s, g.id);
+  const delivery = rentDeliveryDays(s, g.id);
+  const eta = s.day + delivery;
   const cap = rentCapFor(s, g.id);
   const max = Math.max(rentMaxFor(s, g.id), rented);
   const parsed = text.trim() === '' ? NaN : Number(text);
@@ -304,7 +309,11 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
       return;
     }
     const diff = count - rented;
-    onDone(diff > 0 ? `+${fmtCardsCount(diff)} ${g.name}, придут ${formatDateShort(eta)}` : `Возвращено ${fmtCardsCount(-diff)} ${g.name}`);
+    onDone(
+      diff > 0
+        ? `+${fmtCardsCount(diff)} ${g.name}, ${delivery > 0 ? `придут ${formatDateShort(eta)}` : 'уже работают'}`
+        : `Возвращено ${fmtCardsCount(-diff)} ${g.name}`,
+    );
   };
 
   const cost = count === null ? null : monthlyCost(s, g.id, count);
@@ -405,9 +414,13 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
         <div className={`cw-eta${warn ? ' bad' : ''}`} role="status">
           {warn ??
             (count === null || count === rented
-            ? `Новые карты приходят через ${fmtDaysWord(rentDeliveryDays(s, g.id))}: облако выделяет стойки не сразу.`
+            ? delivery > 0
+              ? `Новые карты приходят через ${fmtDaysWord(delivery)}: облако выделяет стойки не сразу.`
+              : 'Новые карты начинают работать сразу.'
             : count > rented
-              ? `Придут ${formatDateShort(eta)}, через ${fmtDaysWord(rentDeliveryDays(s, g.id))}. Аренда за них - с прихода.`
+              ? delivery > 0
+                ? `Придут ${formatDateShort(eta)}, через ${fmtDaysWord(delivery)}. Аренда за них - с прихода.`
+                : 'Карты начнут работать сразу, аренда за них - с сегодняшнего дня.'
               : transit > 0
                 ? `Сначала отменяется заказ в пути (${fmtInt(Math.min(transit, rented - count))} шт., без оплаты), остальное возвращается сразу.`
                 : 'Карты возвращаются сразу, аренда за них больше не списывается.')}

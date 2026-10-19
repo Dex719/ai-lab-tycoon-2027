@@ -54,7 +54,7 @@
 .fn-answer { display: flex; flex-direction: column; gap: 10px; }
 .fn-answer .fn-h { margin-bottom: 0; }
 .fn-pick { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: var(--fw-strong); color: var(--text-2); }
-.fn-pick select { width: 100%; }
+.fn-pick select, .fn-pick .sel { width: 100%; }
 .fn-kv { font-size: 13px; }
 .fn-kv b.good { color: var(--good-ink); }
 .fn-verdict { min-height: 20px; font-size: 13px; font-weight: var(--fw-strong); color: var(--text-2); }

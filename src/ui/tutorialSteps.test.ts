@@ -5,18 +5,17 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { newGame, releaseModel } from '../sim/actions';
-import { GPUS } from '../data/gpus';
-import { pool, setAllocation, rentNow } from '../sim/compute';
-import { applyTender, canApply } from '../sim/contracts';
+import { pool, setRent } from '../sim/compute';
+import { applyTender } from '../sim/contracts';
 import { applyChoice, pendingChoice } from '../sim/events';
 import { chooseGoals, goalOfferOpen, goalsDay } from '../sim/goals';
 import { refPrice } from '../sim/market';
 import { setResearch } from '../sim/research';
 import { advanceDay } from '../sim/tick';
-import { modelScore, startTraining, tierPreset } from '../sim/training';
+import { startTraining, tierPreset } from '../sim/training';
 import type { GameState } from '../sim/types';
 import { contractsNeedWithApplications } from './forecast';
-import { stepTargets, stepText, TUTORIAL, type TutorialCtx } from './tutorialSteps';
+import { contractPowerEnough, ORDER_STEP_TITLE, stepTargets, stepText, TUTORIAL, tutorialPower, tutorialRentGoal, tutorialTender, type TutorialCtx } from './tutorialSteps';
 import type { WindowId } from './windows';
 
 const UI_DIR = join(__dirname);
@@ -111,6 +110,7 @@ describe('обучение игре', () => {
       const ctx: TutorialCtx = { open, speed: 0 };
       const done = (i: number) => TUTORIAL[i].done?.(s, ctx) ?? false;
       const titles = TUTORIAL.map((t) => t.title);
+      expect(titles).toHaveLength(8);
       const at = (title: string) => {
         const i = titles.indexOf(title);
         expect(i, title).toBeGreaterThanOrEqual(0);
@@ -125,15 +125,12 @@ describe('обучение игре', () => {
       expect(chooseGoals(s, s.quests.offer!.goals.slice(0, 3).map((g) => g.id)).ok).toBe(true);
       expect(done(goals)).toBe(true);
 
-      const compute = at('Мощности');
-      expect(done(compute)).toBe(false);
-      open.add('compute');
-      expect(done(compute)).toBe(true);
-
-      const rent = at('Аренда видеокарт');
+      // Карты 2017 года работают сразу: мощность есть в тот же день.
+      const rent = at('Видеокарты');
       expect(done(rent)).toBe(false);
-      expect(rentNow(s, 'p100', 96).ok).toBe(true);
+      expect(setRent(s, 'p100', 96).ok).toBe(true);
       expect(done(rent)).toBe(true);
+      expect(pool(s, 'training')).toBeGreaterThan(0);
 
       const research = at('Исследование');
       expect(done(research)).toBe(false);
@@ -148,14 +145,10 @@ describe('обучение игре', () => {
       expect(done(first)).toBe(true);
 
       const time = at('Время');
+      expect(stepText(TUTORIAL[time], s)).toMatch(/будет готова \d\d\.\d\d\.2017/);
       expect(done(time)).toBe(false);
-      ctx.speed = 1;
+      ctx.speed = 4;
       expect(done(time)).toBe(true);
-
-      const tenders = at('Тендеры');
-      expect(done(tenders)).toBe(false);
-      open.add('contracts');
-      expect(done(tenders)).toBe(true);
 
       // Модель готова за полтора месяца: задолго до «Механизма внимания».
       const release = at('Выпуск модели');
@@ -168,30 +161,43 @@ describe('обучение игре', () => {
       expect(releaseModel(s, s.models[0].id, refPrice(s.day)).ok).toBe(true);
       expect(done(release)).toBe(true);
 
-      // Тендер 2017 года по силам первой модели: заявка находится не позже чем через месяц.
-      const apply = at('Заявка на тендер');
-      expect(done(apply)).toBe(false);
-      const m = s.models[0];
-      let tender = s.tenders.find((t) => canApply(s, t, m) === null && modelScore(m, t.benchmark, true) >= t.requirement);
-      for (let i = 0; i < 40 && !tender; i++) {
+      // Первый заказ: посильный тендер находится не позже чем через месяц, подсвечена его строка.
+      const order = at(ORDER_STEP_TITLE);
+      expect(done(order)).toBe(false);
+      let fit = tutorialTender(s).fit;
+      for (let i = 0; i < 40 && !fit && tutorialTender(s).minNeed === null; i++) {
         day(s);
-        tender = s.tenders.find((t) => canApply(s, t, m) === null && modelScore(m, t.benchmark, true) >= t.requirement);
+        fit = tutorialTender(s).fit;
       }
-      expect(tender, 'подходящий тендер').toBeDefined();
-      expect(applyTender(s, tender!.id, m.id).ok).toBe(true);
-      expect(done(apply)).toBe(true);
+      // Подходящий тендер есть, но 96 картам он не по силам: шаг просит арендовать ещё, сколько назвал, - и тендер посилен.
+      const short = tutorialTender(s);
+      if (!short.fit) {
+        expect(short.minNeed, 'подходящий тендер').not.toBeNull();
+        expect(stepTargets(TUTORIAL[order], s)[0]).toBe('rent-confirm');
+        // Окно аренды подставляет число карт из tutorialRentGoal: игрок жмёт «Арендовать» с ним.
+        s.tutorial.step = order;
+        const goal = tutorialRentGoal(s)!;
+        expect(goal.count).toBeGreaterThan(s.compute.rented.p100);
+        expect(stepText(TUTORIAL[order], s)).toContain(`ещё ${goal.count - s.compute.rented.p100} `);
+        expect(setRent(s, goal.id, goal.count).ok).toBe(true);
+        fit = tutorialTender(s).fit;
+      }
+      expect(fit, 'посильный тендер').not.toBeNull();
+      expect(stepTargets(TUTORIAL[order], s)[0]).toBe('tender-fit');
+      expect(stepText(TUTORIAL[order], s)).toContain(fit!.client);
+      expect(applyTender(s, fit!.id, s.models[0].id).ok).toBe(true);
+      expect(done(order)).toBe(true);
 
-      // Долям по умолчанию (20 % на контракты) мало: шаг ждёт, пока игрок добавит мощность.
-      const power = at('Мощность для контракта');
-      const need = contractsNeedWithApplications(s)!;
-      expect(need).toBeGreaterThan(0);
-      expect(done(power)).toBe(need <= pool(s, 'contracts') * 1.02);
-      const p100 = GPUS.find((g) => g.id === 'p100')!.h100e;
-      expect(rentNow(s, 'p100', Math.max(96, Math.ceil(need / 0.6 / p100) + 1)).ok).toBe(true);
-      expect(setAllocation(s, { training: 0.1, contracts: 0.6, experiments: 0.3, api: 0, subs: 0 }).ok).toBe(true);
-      expect(done(power)).toBe(true);
+      // Мощность под заявку выделяет игра (Tutorial.tsx - tutorialPower): двигать доли игроку не нужно, и обучению
+      // остаётся не меньше 10 % - следующая модель после обучения игре не стоит.
+      expect(contractPowerEnough(s)).toBe(false);
+      tutorialPower(s);
+      expect(contractPowerEnough(s), `нужно ${contractsNeedWithApplications(s)}, есть ${pool(s, 'contracts')}`).toBe(true);
+      expect(s.compute.alloc.training).toBeGreaterThanOrEqual(0.1 - 1e-9);
 
+      // Последний шаг - итог с кнопкой «Завершить».
       expect(TUTORIAL.at(-1)!.done).toBeUndefined();
+      expect(stepTargets(TUTORIAL.at(-1)!, s)).toEqual([]);
     });
   }
 
@@ -200,20 +206,12 @@ describe('обучение игре', () => {
     const release = TUTORIAL.find((t) => t.title === 'Выпуск модели')!;
     expect(stepTargets(release, s)).toContain('train-start');
   });
-});
 
-describe('шаг «Мощность для контракта»', () => {
-  it('без заявок и контрактов закрыт (тендер проигран), с заявкой - пока доле не хватает', () => {
+  it('шаг «Первый заказ»: если посильного тендера нет из-за карт - просит арендовать ещё, без тендеров - ждать', () => {
     const s = newGame('Тест', 9);
-    const step = TUTORIAL.find((t) => t.title === 'Мощность для контракта')!;
-    const ctx: TutorialCtx = { open: new Set(), speed: 1 };
-    rentNow(s, 'p100', 96);
-    expect(step.done!(s, ctx)).toBe(true);
-    for (let i = 0; i < 40 && s.tenders.length === 0; i++) day(s);
-    const t = s.tenders[0];
-    t.application = { modelId: 'm1', appliedDay: s.day, resolveDay: s.day + 5, chance: 0.7, work: 500 };
-    expect(step.done!(s, ctx)).toBe(false);
-    t.application = null;
-    expect(step.done!(s, ctx)).toBe(true);
+    const order = TUTORIAL.find((t) => t.title === ORDER_STEP_TITLE)!;
+    s.tenders = [];
+    expect(stepTargets(order, s)).toEqual(['speed-play', 'icon-contracts']);
+    expect(stepText(order, s)).toMatch(/появится/);
   });
 });

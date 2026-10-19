@@ -130,10 +130,12 @@ export function setAllocation(s: GameState, a: Allocation): Result {
 }
 
 /**
- * Срок поставки арендованных карт, дней: облако выделяет стойки не сразу. По годам - от недели в 2017-2019 годах
- * до трёх недель в 2023 году (очереди на H100); во время дефицита (модификатор rentCap < 1) - вдвое дольше.
+ * Срок поставки арендованных карт, дней: облако выделяет стойки не сразу. В 2017-2018 годах карты работают сразу:
+ * очередей нет, а недельное ожидание в начале партии только путало новичка - обучение просило выделить мощность,
+ * которой ещё нет (плейтест 19.10). Дальше - от недели в 2019 году до трёх недель в 2023 году (очереди на H100);
+ * во время дефицита (модификатор rentCap < 1) - вдвое дольше.
  */
-export const RENT_DELIVERY_DAYS: Record<number, number> = { 2017: 7, 2018: 7, 2019: 7, 2020: 10, 2021: 10, 2022: 14, 2023: 21, 2024: 14 };
+export const RENT_DELIVERY_DAYS: Record<number, number> = { 2017: 0, 2018: 0, 2019: 7, 2020: 10, 2021: 10, 2022: 14, 2023: 21, 2024: 14 };
 export const RENT_SHORTAGE_DELIVERY_MULT = 2;
 
 export function rentDeliveryDays(s: GameState, id: GpuId): number {
@@ -178,7 +180,10 @@ export function setRent(s: GameState, id: GpuId, count: number): Result {
     if (count > max) {
       return { ok: false, error: `Потолок аренды ${def.name} в этом году - ${max} шт.` };
     }
-    rentIncoming(s).push({ gpu: id, count: count - current, arriveDay: s.day + rentDeliveryDays(s, id) });
+    const days = rentDeliveryDays(s, id);
+    // Без срока поставки карты встают в стойки сразу, а не на следующем ходу: «в пути» на 0 дней только путает.
+    if (days <= 0) s.compute.rented[id] += count - current;
+    else rentIncoming(s).push({ gpu: id, count: count - current, arriveDay: s.day + days });
   } else if (count < current) {
     let cut = current - count;
     const list = rentIncoming(s);

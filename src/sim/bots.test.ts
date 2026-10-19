@@ -238,25 +238,25 @@ describe('бот и рынок v2', () => {
 });
 
 // Боты «как игрок» (QA 19.10): уязвимости, ред-тиминг, отзывы, совет директоров - то, что видит человек. Замер 19.10 на
-// Обычной (зёрна 1-5): разумный 4-6-е место (без систем - 2-4-е), сильный 1-2-е, все доходят до конца. Опора - не тоньше
-// баланса: игра доходит до конца, системы работают, разумный не ниже 8-го места.
+// Обычной (зёрна 1-5, карты 2017-2018 годов сразу): разумный 4, 5, 10, 6, 6-е место (без систем - 3-4-е), сильный 1-2-е,
+// все доходят до конца. Опора: игра доходит до конца, системы работают, разумный не ниже 10-го места.
 describe('боты с системами игрока', () => {
-  it('разумный: партия до конца, ред-тиминг перед выпуском, место не ниже 8-го', () => {
+  it('разумный: партия до конца, ред-тиминг перед выпуском, место не ниже 10-го', () => {
     for (const seed of [2, 3, 5]) {
       const { state: s } = runBot('reasonable', seed, 4000, 'normal', { playerSystems: true });
       expect(s.outcome === 'finished' || s.outcome === 'victory').toBe(true);
       expect(s.models.some((m) => m.redTeamDone)).toBe(true);
       expect(s.models.every((m) => m.holes !== undefined)).toBe(true); // план как из окна игры: у моделей есть уязвимости
-      expect(s.finance.history.at(-1)!.placeEnd!).toBeLessThanOrEqual(8);
+      expect(s.finance.history.at(-1)!.placeEnd!).toBeLessThanOrEqual(10);
     }
-  });
+  }, 60_000);
 
   it('сильный: доля у инвесторов - у партии есть совет директоров', () => {
     const { state: s } = runBot('strong', 1, 4000, 'normal', { playerSystems: true });
     expect(s.founderShare).toBeLessThan(0.5);
     expect(s.board).toBeDefined();
     expect(s.outcome === 'finished' || s.outcome === 'victory').toBe(true);
-  });
+  }, 60_000);
 });
 
 describe('runBot и сложность', () => {

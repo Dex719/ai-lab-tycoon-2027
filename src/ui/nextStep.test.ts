@@ -39,15 +39,10 @@ function midPlan(s: GameState) {
 }
 
 describe('следующий шаг', () => {
-  it('карты заказаны, но ещё едут: не «Арендуйте», а «Карты в пути» с датой и переходом к исследованиям', () => {
+  it('2017 год: карты работают сразу - после аренды следующий шаг уже исследование, без «Карты в пути»', () => {
     const s = newGame('Тест', 11);
     setRent(s, 'p100', 96);
-    const step = nextStep(s);
-    expect(step?.id).toBe('rent-wait');
-    expect(step?.open).toBe('research');
-    expect(step?.detail).toMatch(/придут \d\d\.\d\d\.2017/);
-    setResearch(s, 'attention');
-    expect(nextStep(s)?.id).not.toBe('rent');
+        expect(nextStep(s)?.id).not.toBe('rent');
   });
 
   it('ведёт по первым месяцам: карты, исследование, модель на LSTM, выпуск, тендер', () => {

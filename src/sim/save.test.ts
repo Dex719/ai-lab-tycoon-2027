@@ -614,7 +614,7 @@ const OPTIONAL_FIELDS = new Set([
   'quests', 'param', 'results', 'duel', 'from', 'staff', 'retainedUntil', 'potential', 'lastCourseDay', 'course', 'incoming', 'held', 'round', 'heldPrice', 'stopped',
 ]);
 /** Необязательные поля по полному пути: имя поля (modelId, price) в других местах обязательно. */
-const OPTIONAL_PATHS = new Set(['mail[].outcome', 'mail[].choices[].story', 'tenders[].application.work', 'contracts[].tender.application.work', 'contracts[].warned', 'rivalry.pending[].modelId', 'rivalry.choice.modelId']);
+const OPTIONAL_PATHS = new Set(['mail[].outcome', 'mail[].tag', 'mail[].choices[].story', 'tenders[].application.work', 'contracts[].tender.application.work', 'contracts[].warned', 'rivalry.pending[].modelId', 'rivalry.choice.modelId']);
 /** Поправки к модели соперника (rivalry.overrides.<id>.*) все необязательные. */
 const optionalPath = (norm: string): boolean => OPTIONAL_PATHS.has(norm) || /^rivalry\.overrides\.[^.]+\.[^.]+$/.test(norm);
 const DICTS = new Set([

@@ -535,17 +535,22 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
 @media (min-width: 768px) {
   /* ---------- Окна на всю игровую область (19.10): от колонки разделов до правого края, между лентой лаборатории
      и плиткой даты и денег. Пока идёт обучение игре, справа остаётся место под подсказку. ---------- */
-  .game .desk .window.max { left: 80px; top: 62px; right: 12px; bottom: 116px; width: auto; height: auto; min-width: 0; min-height: 0; }
-  /* На большом экране окно не больше своего обычного размера (--win-w, --win-h из реестра окон) и стоит по центру
-     свободного места; на небольшом заполняет его целиком. */
-  .game .desk .window.max { max-width: var(--win-w, 1200px); max-height: var(--win-h, 100%); margin: auto; }
-  .game .desk:has(.side.with-top) .window.max { right: 334px; }
+  /* Окно доходит до полосы месяцев внизу (плейтест 19.10: «окна до конца снизу»), поэтому справа оно кончается перед
+     плиткой даты и денег (~400 px), а не над ней. Справа сверху остаётся место под подсказку обучения. */
+  .game .desk .window.max { left: 80px; top: 62px; right: 410px; bottom: 8px; width: auto; height: auto; min-width: 0; min-height: 0; }
+  /* На большом экране окно не шире своего обычного размера (--win-w из реестра окон) и стоит по центру свободного
+     места; по высоте - всегда до низа. */
+  .game .desk .window.max { max-width: var(--win-w, 1200px); max-height: none; margin: 0 auto; }
   .game .window.max.fs-off { display: none; }
   .game .window.max .titlebar { cursor: default; }
-  /* Названия разделов у кнопок не лежат поверх открытого окна (у подсвеченной обучением - остаётся). */
-  html .game:has(.window.max:not(.fs-off)) .dock.labels .dock-btn:not(.tutor-target):not(:hover) .dock-tip { opacity: 0; }
-  /* Открыто окно - сводка (без обучения) и показатели не лежат поверх него. */
-  .game:has(.window.max:not(.fs-off)) .side:not(.with-top), .game:has(.window.max:not(.fs-off)) .hud-stats { display: none; }
+  /* Названия разделов у кнопок не лежат поверх открытого окна, и у подсвеченной обучением тоже: её отмечает кольцо. */
+  html .game:has(.window.max:not(.fs-off)) .dock.labels .dock-btn:not(:hover) .dock-tip { opacity: 0; }
+  /* Открыто окно - сводка (без обучения), показатели, «Следующий шаг» и итог месяца не лежат поверх него. */
+  .game:has(.window.max:not(.fs-off)) .side:not(.with-top),
+  .game:has(.window.max:not(.fs-off)) .hud-stats,
+  .game:has(.window.max:not(.fs-off)) .lf-next,
+  .game:has(.window.max:not(.fs-off)) .lf-tags,
+  .game:has(.window.max:not(.fs-off)) .month-strip { display: none; }
 
   /* «Следующий шаг» начинается правее колонки разделов: колонка стала длиннее (внизу - меню игры). Справа - не дальше
      плитки даты и денег (~400 px): на 1024 × 768 её кнопку закрывала плитка (QA 19.10); узкая карточка переносит кнопку. */

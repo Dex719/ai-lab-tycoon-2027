@@ -395,7 +395,8 @@ export function SidePanel({
       <Goal s={s} open={open} />
       <MainRival s={s} open={open} />
       <Alerts items={sideAlerts(s)} open={open} />
-      <Idle items={idleWarnings(s)} open={open} />
+      {/* Пока идёт обучение игре, «Простой» с «Изменить доли» не уводит новичка от шага: мощность выделяет обучение. */}
+      <Idle items={s.tutorial.active ? [] : idleWarnings(s)} open={open} />
       <GoalsPanel s={s} open={open} />
       <div className="side-tabs">
         <button className={tab === 'projects' ? 'on' : undefined} onClick={() => setTab('projects')}>

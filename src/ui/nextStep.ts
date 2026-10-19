@@ -4,7 +4,7 @@
 
 import { CLIENTS } from '../data/clients';
 import { benchDef } from '../sim/benchmarks';
-import { computeOrdered, nextArrival, pool, totalH100e } from '../sim/compute';
+import { computeOrdered, pool } from '../sim/compute';
 import { canApply } from '../sim/contracts';
 import { BANKRUPT_DAYS } from '../sim/constants';
 import { formatDateShort, START_DAY } from '../sim/time';
@@ -16,7 +16,7 @@ import { fmtH100e, fmtMoney } from './format';
 import type { WindowId } from './windows';
 
 export interface NextStep {
-  id: 'broke' | 'translator' | 'rent' | 'rent-wait' | 'contract-power' | 'release' | 'research' | 'first-model' | 'transformer' | 'tender' | 'research-wait' | 'waiting' | 'stopped' | 'time';
+  id: 'broke' | 'translator' | 'rent' | 'contract-power' | 'release' | 'research' | 'first-model' | 'transformer' | 'tender' | 'research-wait' | 'waiting' | 'stopped' | 'time';
   title: string;
   detail: string;
   /** Глагол на кнопке; null - кнопки нет. */
@@ -86,16 +86,7 @@ function firstStep(s: GameState): NextStep | null {
   if (!computeOrdered(s)) {
     return { id: 'rent', title: 'Арендуйте видеокарты', detail: 'На них обучаются модели и выполняются контракты.', action: 'Арендовать', open: 'compute' };
   }
-  const arrival = totalH100e(s) <= 0 ? nextArrival(s) : null;
-  if (arrival && s.research.current === null && s.research.done.length === 0) {
-    return {
-      id: 'rent-wait',
-      title: 'Карты в пути',
-      detail: `Видеокарты придут ${formatDateShort(arrival.day)}. Пока выберите исследование: команда работает и без карт.`,
-      action: 'Исследования',
-      open: 'research',
-    };
-  }
+  // «Карты в пути» здесь не бывает: в первый год (NEXT_STEP_DAYS) карты работают сразу (compute.RENT_DELIVERY_DAYS).
 
   // Заявки считаются вместе с контрактами: мощность лучше добавить до победы, иначе первые дни контракта пропадут.
   const need = contractsNeedWithApplications(s);

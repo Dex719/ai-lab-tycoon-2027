@@ -20,6 +20,8 @@ import { IconAlert, IconCheck, IconChevronLeft } from '../icons';
 import { ClientEmblem } from '../icons/clients';
 import { actions, store } from '../store';
 import './ContractsWindow.css';
+import { Select } from '../components/Select';
+import { tutorialTender } from '../tutorialSteps';
 
 type View = 'tenders' | 'contracts';
 type TypeFilter = 'all' | Tender['type'];
@@ -173,11 +175,11 @@ function tenderFit(s: GameState, t: Tender, released: PlayerModel[]): { text: st
   return { text: `шанс ${fmtShare(c, 0)}`, tone: chanceTone(c) };
 }
 
-function TenderItem({ s, t, released, on, onPick }: { s: GameState; t: Tender; released: PlayerModel[]; on: boolean; onPick: () => void }) {
+function TenderItem({ s, t, released, on, tutor, onPick }: { s: GameState; t: Tender; released: PlayerModel[]; on: boolean; tutor?: boolean; onPick: () => void }) {
   const fit = tenderFit(s, t, released);
   const left = Math.max(0, t.expiresDay - s.day);
   return (
-    <button className={`ct-row${on ? ' on' : ''}`} onClick={onPick}>
+    <button className={`ct-row${on ? ' on' : ''}`} data-tutorial={tutor ? 'tender-fit' : undefined} onClick={onPick}>
       <ClientEmblem clientId={t.clientId} size={30} />
       <span className="ct-row-t">
         <span className="ct-row-top">
@@ -400,13 +402,12 @@ function TenderCard(props: {
     const notes = [model.id === best.chanceId ? 'выше шанс' : null, model.id === best.lightId ? 'меньше мощности' : null].filter(Boolean);
     picker = (
       <>
-        <select value={model.id} onChange={(e) => onPick(e.target.value)} aria-label="Модель для заявки">
-          {suitable.map((m) => (
-            <option key={m.id} value={m.id}>
-              {optionLabel(s, t, m)}
-            </option>
-          ))}
-        </select>
+        <Select
+          aria-label="Модель для заявки"
+          value={model.id}
+          options={suitable.map((m) => ({ value: m.id, label: optionLabel(s, t, m) }))}
+          onChange={onPick}
+        />
         <div className="ct-pick-note">{notes.length > 0 ? `Среди подходящих: ${notes.join(', ')}` : ' '}</div>
       </>
     );
@@ -492,11 +493,15 @@ function TenderCard(props: {
           {ordered > have + 1e-9 ? `, с заказанными картами ${perDay(ordered)}` : ''}. Арендуйте ещё ≈{fmtInt(Math.ceil(deficit / perCard))} карт или не подавайте заявку.
         </Alert>
       )}
-      {poolShort && (
-        <Alert tone="warn" action={{ label: 'Мощности', onClick: () => open('compute') }}>
-          Доле «Контракты» не хватит: нужно {perDay(totalNeed)}, выделено {perDay(contractsPool)}. Мощности хватает, после победы поднимите долю.
-        </Alert>
-      )}
+      {poolShort &&
+        // Во время обучения игре долю под заявку поднимает сама игра (Tutorial.tsx): просить об этом игрока не нужно.
+        (s.tutorial.active ? (
+          <Alert tone="info">Мощности хватает: после заявки игра сама выделит её контрактам.</Alert>
+        ) : (
+          <Alert tone="warn" action={{ label: 'Мощности', onClick: () => open('compute') }}>
+            Доле «Контракты» не хватит: нужно {perDay(totalNeed)}, выделено {perDay(contractsPool)}. Мощности хватает, после победы поднимите долю.
+          </Alert>
+        ))}
 
       <div className="ct-foot">
         {app ? (
@@ -733,6 +738,8 @@ export default function ContractsWindow({ s, open }: WindowProps) {
     );
   }
 
+  const tutorFit = s.tutorial.active ? (tutorialTender(s).fit?.id ?? null) : null;
+
   return (
     <div className={`ct${detail ? ' show-detail' : ''}`}>
       <div className="ct-tabs" role="tablist">
@@ -757,11 +764,16 @@ export default function ContractsWindow({ s, open }: WindowProps) {
           {showTenders && (
             <label className="ct-filter">
               <span>Тип:</span>
-              <select value={filter} onChange={(e) => setFilter(e.target.value as TypeFilter)}>
-                <option value="all">Все</option>
-                <option value="finetune">Дообучение</option>
-                <option value="rlhf">RLHF</option>
-              </select>
+              <Select<TypeFilter>
+                aria-label="Тип тендеров"
+                value={filter}
+                options={[
+                  { value: 'all', label: 'Все' },
+                  { value: 'finetune', label: 'Дообучение' },
+                  { value: 'rlhf', label: 'RLHF' },
+                ]}
+                onChange={setFilter}
+              />
             </label>
           )}
 
@@ -774,6 +786,8 @@ export default function ContractsWindow({ s, open }: WindowProps) {
                     t={t}
                     released={released}
                     on={tender?.id === t.id}
+                    // Обучение игре подсвечивает посильный тендер, пока его не выбрали; выбрали - подсветка уходит на «Подать заявку».
+                    tutor={tutorFit === t.id && tender?.id !== t.id}
                     onPick={() => {
                       setTenderSel(t.id);
                       setDetail(true);

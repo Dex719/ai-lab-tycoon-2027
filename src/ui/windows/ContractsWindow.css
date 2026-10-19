@@ -18,7 +18,7 @@
   background: var(--win-body); border-right: 1px solid var(--line);
 }
 .ct-filter { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; color: var(--text); font-weight: var(--fw-strong); }
-.ct-filter select { min-width: 0; }
+.ct-filter select, .ct-filter .sel { min-width: 0; }
 .ct-auto {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 2px 0;
   border-top: 1px solid var(--line); color: var(--text); font-weight: var(--fw-strong); cursor: pointer;

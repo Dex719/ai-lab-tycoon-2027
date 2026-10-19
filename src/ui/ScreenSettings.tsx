@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { desktop, desktopMac, resolutionsFor, type DesktopConfig, type DisplayInfo } from './desktop';
 import { getSettings, setSettings, type Settings } from './settings';
+import { Select } from './components/Select';
 
 const SCALES = [0, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
 const FPS_STEPS = [30, 60, 120, 144];
@@ -49,57 +50,59 @@ export function ScreenSettings() {
     <>
       {desktop && cfg && (
         <>
-          <label className="row settings-line">
+          <div className="row settings-line">
             <span className="settings-label">Режим</span>
-            <select value={cfg.mode} onChange={(e) => void patch({ mode: e.target.value as DesktopConfig['mode'] })}>
-              <option value="fullscreen">Полный экран</option>
-              <option value="window">В окне</option>
-            </select>
-          </label>
-          <label className="row settings-line">
+            <Select
+              aria-label="Режим"
+              value={cfg.mode}
+              options={[
+                { value: 'fullscreen', label: 'Полный экран' },
+                { value: 'window', label: 'В окне' },
+              ]}
+              onChange={(mode) => void patch({ mode: mode as DesktopConfig['mode'] })}
+            />
+          </div>
+          <div className="row settings-line">
             <span className="settings-label">Разрешение</span>
-            <select
+            <Select
+              aria-label="Разрешение"
               value={sizeKey}
-              onChange={(e) => {
-                const [w, h] = e.target.value.split('x').map(Number);
+              options={[
+                ...(!sizes.some(([w, h]) => `${w}x${h}` === sizeKey) ? [{ value: sizeKey, label: `${cfg.width} × ${cfg.height}` }] : []),
+                ...sizes.map(([w, h]) => ({
+                  value: `${w}x${h}`,
+                  label: `${w} × ${h}${display && w === display.width && h === display.height ? ' - как у монитора' : ''}`,
+                })),
+              ]}
+              onChange={(v) => {
+                const [w, h] = v.split('x').map(Number);
                 void patch({ width: w, height: h });
               }}
-            >
-              {!sizes.some(([w, h]) => `${w}x${h}` === sizeKey) && (
-                <option value={sizeKey}>
-                  {cfg.width} × {cfg.height}
-                </option>
-              )}
-              {sizes.map(([w, h]) => (
-                <option key={`${w}x${h}`} value={`${w}x${h}`}>
-                  {w} × {h}
-                  {display && w === display.width && h === display.height ? ' - как у монитора' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
+            />
+          </div>
           {displays.length > 1 && (
-            <label className="row settings-line">
+            <div className="row settings-line">
               <span className="settings-label">Монитор</span>
-              <select value={display?.id ?? ''} onChange={(e) => void patch({ displayId: Number(e.target.value) })}>
-                {displays.map((d, i) => (
-                  <option key={d.id} value={d.id}>
-                    {i + 1}: {d.label || 'Монитор'}, {d.width} × {d.height}, {d.hz} Гц{d.primary ? ', основной' : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <Select
+                aria-label="Монитор"
+                value={display?.id ?? -1}
+                options={displays.map((d, i) => ({
+                  value: d.id,
+                  label: `${i + 1}: ${d.label || 'Монитор'}, ${d.width} × ${d.height}, ${d.hz} Гц${d.primary ? ', основной' : ''}`,
+                }))}
+                onChange={(id) => void patch({ displayId: id })}
+              />
+            </div>
           )}
-          <label className="row settings-line">
+          <div className="row settings-line">
             <span className="settings-label">Масштаб</span>
-            <select value={cfg.scale} onChange={(e) => void patch({ scale: Number(e.target.value) })}>
-              {SCALES.map((s) => (
-                <option key={s} value={s}>
-                  {s === 0 ? 'Авто' : `${Math.round(s * 100)} %`}
-                </option>
-              ))}
-            </select>
-          </label>
+            <Select
+              aria-label="Масштаб"
+              value={cfg.scale}
+              options={SCALES.map((sc) => ({ value: sc, label: sc === 0 ? 'Авто' : `${Math.round(sc * 100)} %` }))}
+              onChange={(scale) => void patch({ scale })}
+            />
+          </div>
         </>
       )}
       {!desktop && (
@@ -115,33 +118,30 @@ export function ScreenSettings() {
           <span>Полный экран</span>
         </label>
       )}
-      <label className="row settings-line">
+      <div className="row settings-line">
         <span className="settings-label">Частота кадров</span>
-        <select value={settings.fps} onChange={(e) => set(setSettings({ fps: Number(e.target.value) }))}>
-          <option value={0}>Как у монитора{hz}</option>
-          {FPS_STEPS.filter((f) => !display?.hz || f < display.hz).map((f) => (
-            <option key={f} value={f}>
-              {f} кадров/с
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="row settings-line">
+        <Select
+          aria-label="Частота кадров"
+          value={settings.fps}
+          options={[
+            { value: 0, label: `Как у монитора${hz}` },
+            ...FPS_STEPS.filter((f) => !display?.hz || f < display.hz).map((f) => ({ value: f, label: `${f} кадров/с` })),
+          ]}
+          onChange={(fps) => set(setSettings({ fps }))}
+        />
+      </div>
+      <div className="row settings-line">
         <span className="settings-label">Качество 3D</span>
-        <select
+        <Select
+          aria-label="Качество 3D"
           value={settings.quality3d}
-          onChange={(e) => {
-            set(setSettings({ quality3d: e.target.value as Settings['quality3d'] }));
+          options={QUALITY.map((q) => ({ value: q.id, label: q.name }))}
+          onChange={(quality3d) => {
+            set(setSettings({ quality3d }));
             void import('./three/engine').then((m) => m.applyQuality());
           }}
-        >
-          {QUALITY.map((q) => (
-            <option key={q.id} value={q.id}>
-              {q.name}
-            </option>
-          ))}
-        </select>
-      </label>
+        />
+      </div>
       {desktop && <div className="small muted">{desktopMac ? 'Ctrl+Cmd+F' : 'F11 или Alt+Enter'} - полный экран.</div>}
     </>
   );

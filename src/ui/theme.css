@@ -540,7 +540,7 @@ table.grid td.num, table.grid th.num { text-align: right; }
 .settings-h { margin-top: 4px; font-size: 14px; font-weight: 600; color: var(--text-title); }
 .settings-line { gap: 10px; }
 .settings-label { width: 108px; flex: none; }
-.settings-line select { flex: 1; min-width: 0; }
+.settings-line select, .settings-line .sel { flex: 1; min-width: 0; }
 /* Настройки по разделам: слева список, справа раздел; высота постоянная - окно не прыгает при смене раздела. */
 .st { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 20px; height: min(380px, 60vh); }
 .st-nav { display: flex; flex-direction: column; gap: 2px; padding-right: 12px; border-right: 1px solid var(--line); }

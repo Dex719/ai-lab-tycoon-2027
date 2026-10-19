@@ -20,6 +20,7 @@ import { fmtDays, fmtInt, fmtMoney } from '../format';
 import { store } from '../store';
 import type { WindowProps } from './index';
 import './FinaleWindow.css';
+import { Select } from '../components/Select';
 
 const LAB_COLOR = new Map<HypeOwner, string>(LABS.map((l) => [l.id, l.color]));
 const LAB_NAME = new Map<HypeOwner, string>(LABS.map((l) => [l.id, l.name]));
@@ -335,13 +336,15 @@ export default function FinaleWindow({ s }: WindowProps) {
             <>
               <label className="fn-pick">
                 <span>Модель</span>
-                <select value={chosen.id} onChange={(e) => setPick(e.target.value)}>
-                  {models.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name} - {fmtInt(m.arenaElo)} Эло{m.releasedDay === null ? ' (не выпущена)' : m.onApi ? '' : ' (не в продаже)'}
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  aria-label="Модель"
+                  value={chosen.id}
+                  options={models.map((m) => ({
+                    value: m.id,
+                    label: `${m.name} - ${fmtInt(m.arenaElo)} Эло${m.releasedDay === null ? ' (не выпущена)' : m.onApi ? '' : ' (не в продаже)'}`,
+                  }))}
+                  onChange={setPick}
+                />
               </label>
               <div className="kv fn-kv">
                 <span>Эло</span>

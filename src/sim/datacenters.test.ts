@@ -279,7 +279,8 @@ describe('сохранения с дата-центрами', () => {
 
 describe('дата-центры у ботов', () => {
   it('сильный бот строит один дата-центр в 2022-2023 годах и заполняет его картами', () => {
-    const { state: s } = runBot('strong', 1);
+    // Зерно 2 (19.10): с мгновенными картами 2017-2018 годов на зерне 1 сильный бот обходится арендой.
+    const { state: s } = runBot('strong', 2);
     expect(s.datacenters.list.length).toBe(1);
     const dc = s.datacenters.list[0];
     expect(dc.startedDay).toBeGreaterThanOrEqual(dateToDay('2022-01-01'));

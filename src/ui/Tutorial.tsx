@@ -8,7 +8,7 @@ import type { GameState, Speed } from '../sim/types';
 import { IconCheck } from './icons';
 import { playSound } from './sound';
 import { store } from './store';
-import { stepTargets, stepText as textOf, TUTORIAL } from './tutorialSteps';
+import { contractPowerEnough, ORDER_STEP_TITLE, stepTargets, stepText as textOf, TUTORIAL, tutorialPower } from './tutorialSteps';
 import type { WindowId } from './windows';
 
 /** Сколько показывать «Готово» перед следующим шагом. */
@@ -73,10 +73,20 @@ export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState;
   }, [doneIndex, index]);
   const showDone = doneIndex === index;
 
+  // С шага «Первый заказ» мощность под заявку и контракт выделяет сама игра (tutorialPower): двигать доли новичку не нужно
+  // (плейтест 19.10 - шаг «Мощность для контракта» никто не мог пройти). Раз в игровой день, пока доли не хватает.
+  const orderStep = TUTORIAL.findIndex((t) => t.title === ORDER_STEP_TITLE);
+  const autoPower = active && index >= orderStep && !contractPowerEnough(s);
+  useEffect(() => {
+    if (!autoPower) return;
+    store.note(tutorialPower);
+  }, [autoPower, s.day]);
+
   // Подсветка первой найденной цели. Цель может появиться без перерисовки игры (диалог внутри окна),
   // поэтому поиск повторяется по таймеру.
   useEffect(() => {
-    if (!active || !docked) return;
+    // Пока шаг показывает «Готово», ничего не подсвечиваем: цели шага уже считаются по новому состоянию и прыгали.
+    if (!active || !docked || showDone) return;
     let el: Element | null = null;
     const update = () => {
       let next: Element | null = null;
@@ -99,7 +109,7 @@ export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState;
       clearInterval(timer);
       el?.classList.remove('tutor-target');
     };
-  }, [active, step, docked]);
+  }, [active, step, docked, showDone]);
 
   // Поверх затемнения: копия панели в body на месте закреплённой (основная панель внутри игры, которую диалог закрывает).
   const overlay = useOverlayOpen(active && docked);
