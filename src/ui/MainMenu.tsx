@@ -226,25 +226,23 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
                 ))}
               </ul>
               <h3 className="ng-h ng-h2">Сооснователь</h3>
-              <div className="ng-countries ng-cof" role="radiogroup" aria-label="Сооснователь">
+              <div className="ng-cof" role="radiogroup" aria-label="Сооснователь">
                 {[...COFOUNDER_IDS, null].map((c) => (
                   <button
                     key={c ?? 'none'}
                     type="button"
                     role="radio"
                     aria-checked={cofounder === c}
-                    className={`ng-country${cofounder === c ? ' on' : ''}`}
+                    className={`ng-cof-row${cofounder === c ? ' on' : ''}`}
+                    title={c ? `${cofounderDef(c).name}: ${cofounderDef(c).perk.charAt(0).toLowerCase()}${cofounderDef(c).perk.slice(1)}` : undefined}
                     onClick={() => setCofounder(c)}
                   >
-                    <span>{c ? cofounderDef(c).role : 'Нет'}</span>
+                    <span className="ng-radio" aria-hidden="true" />
+                    <b>{c ? cofounderDef(c).role : 'Без сооснователя'}</b>
+                    {c && <span className="good">{cofounderDef(c).short}</span>}
                   </button>
                 ))}
               </div>
-              <p className="ng-cof-s">
-                {cofounder
-                  ? `${cofounderDef(cofounder).name}: ${cofounderDef(cofounder).perk.charAt(0).toLowerCase()}${cofounderDef(cofounder).perk.slice(1)}.`
-                  : 'Все решения ваши.'}
-              </p>
             </section>
             <section className="ng-sec">
               <h3 className="ng-h">Сложность</h3>

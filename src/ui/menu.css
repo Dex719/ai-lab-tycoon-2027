@@ -140,7 +140,16 @@
   .ng-start { min-width: 0; flex: 1; }
 }
 .menu-screen.mm .version { z-index: 1; padding: 0 6px; background: none; }
-/* Сооснователь: те же кнопки, что у стран, без флага; ниже - кто это и что даёт. */
-.ng-cof { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.ng-cof .ng-country { flex-direction: row; justify-content: center; padding: 7px 8px 9px; }
-.ng-cof-s { margin: 6px 0 0; font-size: 12px; line-height: 1.35; color: var(--text-2); }
+/* Сооснователь: строки как карточки «Сложности» - кружок, роль, выгода справа зелёным. */
+.ng-cof { display: flex; flex-direction: column; gap: 8px; }
+.ng-cof-row {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px 11px; cursor: pointer; text-align: left;
+  background: var(--surface-control); border: none; border-radius: 10px; box-shadow: inset 0 -4px 0 var(--edge);
+  color: var(--text); font: inherit; font-size: 13px;
+}
+.ng-cof-row:hover { background: var(--surface-control-hover); }
+.ng-cof-row:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.ng-cof-row.on { background: var(--row-sel); box-shadow: inset 0 -4px 0 var(--edge), 0 0 0 3px var(--brand); }
+.ng-cof-row.on .ng-radio { border: 4px solid var(--brand); }
+.ng-cof-row b { font-size: 14px; font-weight: var(--fw-title); }
+.ng-cof-row .good { margin-left: auto; font-weight: var(--fw-strong); color: var(--good-ink); white-space: nowrap; }

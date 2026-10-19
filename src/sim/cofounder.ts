@@ -13,14 +13,16 @@ export interface CofounderDef {
   role: string;
   name: string;
   perk: string;
+  /** Выгода коротко, для строки выбора в новой игре. */
+  short: string;
   /** О чём сооснователь говорит в споре (одна фраза, своим голосом). */
   voice: string;
 }
 
 export const COFOUNDERS: readonly CofounderDef[] = [
-  { id: 'engineer', role: 'Инженер', name: 'Артём Лавров', perk: 'Аренда карт дешевле на 8 %', voice: 'Я строил этот кластер не для того, чтобы мы обманывали' },
-  { id: 'seller', role: 'Продавец', name: 'Мира Холт', perk: 'Спрос на API и подписки выше на 6 %', voice: 'Клиенты покупают у нас, потому что верят нам' },
-  { id: 'scientist', role: 'Учёный', name: 'Ева Штерн', perk: 'Исследования дешевле на 12 %', voice: 'Если результаты подогнаны, это уже не наука' },
+  { id: 'engineer', role: 'Инженер', name: 'Артём Лавров', perk: 'Аренда карт дешевле на 8 %', short: 'аренда карт −8 %', voice: 'Я строил этот кластер не для того, чтобы мы обманывали' },
+  { id: 'seller', role: 'Продавец', name: 'Мира Холт', perk: 'Спрос на API и подписки выше на 6 %', short: 'спрос +6 %', voice: 'Клиенты покупают у нас, потому что верят нам' },
+  { id: 'scientist', role: 'Учёный', name: 'Ева Штерн', perk: 'Исследования дешевле на 12 %', short: 'исследования −12 %', voice: 'Если результаты подогнаны, это уже не наука' },
 ];
 export const COFOUNDER_IDS: readonly CofounderId[] = ['engineer', 'seller', 'scientist'];
 
