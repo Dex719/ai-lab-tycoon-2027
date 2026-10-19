@@ -237,6 +237,28 @@ describe('бот и рынок v2', () => {
   });
 });
 
+// Боты «как игрок» (QA 19.10): уязвимости, ред-тиминг, отзывы, совет директоров - то, что видит человек. Замер 19.10 на
+// Обычной (зёрна 1-5): разумный 4-6-е место (без систем - 2-4-е), сильный 1-2-е, все доходят до конца. Опора - не тоньше
+// баланса: игра доходит до конца, системы работают, разумный не ниже 8-го места.
+describe('боты с системами игрока', () => {
+  it('разумный: партия до конца, ред-тиминг перед выпуском, место не ниже 8-го', () => {
+    for (const seed of [2, 3, 5]) {
+      const { state: s } = runBot('reasonable', seed, 4000, 'normal', { playerSystems: true });
+      expect(s.outcome === 'finished' || s.outcome === 'victory').toBe(true);
+      expect(s.models.some((m) => m.redTeamDone)).toBe(true);
+      expect(s.models.every((m) => m.holes !== undefined)).toBe(true); // план как из окна игры: у моделей есть уязвимости
+      expect(s.finance.history.at(-1)!.placeEnd!).toBeLessThanOrEqual(8);
+    }
+  });
+
+  it('сильный: доля у инвесторов - у партии есть совет директоров', () => {
+    const { state: s } = runBot('strong', 1, 4000, 'normal', { playerSystems: true });
+    expect(s.founderShare).toBeLessThan(0.5);
+    expect(s.board).toBeDefined();
+    expect(s.outcome === 'finished' || s.outcome === 'victory').toBe(true);
+  });
+});
+
 describe('runBot и сложность', () => {
   it('по умолчанию Обычная; сложность передаётся в newGame вместе с её модификаторами', () => {
     expect(runBot('idle', 1, 3).state.difficulty).toBe('normal');

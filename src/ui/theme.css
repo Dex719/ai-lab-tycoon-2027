@@ -374,7 +374,7 @@ table.grid td.num, table.grid th.num { text-align: right; }
 .dialog .titlebar { cursor: default; }
 .dialog .body { padding: 16px 20px; overflow: auto; }
 .dialog .body.white { background: #fff; }
-.dialog .foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px 16px; }
+.dialog .foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 12px 20px 16px; }
 /* Варианты в письме с выбором: карточки-кнопки, последствия цветом, справа видимое «Выбрать». */
 .choice-list { display: flex; flex-direction: column; gap: 8px; }
 .choice {

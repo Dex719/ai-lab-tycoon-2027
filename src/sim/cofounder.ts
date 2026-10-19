@@ -69,8 +69,13 @@ export function planDisputes(plan: Pick<TrainingPlan, 'benchShare' | 'stolenData
   return out;
 }
 
-/** Спорен ли выпуск: у модели 4 и больше уязвимостей и ред-тиминга не было. */
-export function releaseDisputed(m: Pick<PlayerModel, 'holes' | 'redTeamDone'>): boolean {
+/**
+ * Спорен ли выпуск: у модели 4 и больше уязвимостей и ред-тиминга не было. Первый выпуск партии не спорен: обучение игре
+ * ведёт к нему без ред-тиминга, а у «Средней» модели 2017 года всегда 4 уязвимости (QA 19.10: спор 1 из 3 за то, что игрок
+ * шёл по подсказкам). Так же первая модель не срывается в обучении (training.ts).
+ */
+export function releaseDisputed(s: GameState, m: Pick<PlayerModel, 'holes' | 'redTeamDone'>): boolean {
+  if (!s.models.some((x) => x.releasedDay !== null)) return false;
   return (m.holes ?? 0) >= 4 && !m.redTeamDone;
 }
 

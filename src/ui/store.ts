@@ -30,6 +30,11 @@ export class GameStore {
   pauseReason: string | null = null;
   /** Письмо, которое «Почта» должна открыть (после нажатия «Открыть» в уведомлении); окно забирает его и сбрасывает. */
   mailFocus: string | null = null;
+  /**
+   * Исключение в симуляции (шаг дня или действие игрока) или null. Пока оно есть, время стоит: иначе каждый тик повторял бы
+   * тот же день и снова списывал его расходы (QA 19.10). Игрок выбирает в окне ошибки, что делать дальше.
+   */
+  simError: string | null = null;
   private listeners = new Set<Listener>();
   /** День последней паузы «денег хватит меньше чем на месяц». */
   private lowCashDay = -Infinity;
@@ -59,6 +64,7 @@ export class GameStore {
     this.autosaveError = null;
     this.pauseReason = null;
     this.mailFocus = null;
+    this.simError = null;
     this.setSpeed(0);
     this.bump();
   }
@@ -79,9 +85,13 @@ export class GameStore {
     this.start(s);
   }
 
-  /** Сохранить партию в ячейку. */
+  /**
+   * Сохранить партию в ячейку. Законченную партию в автосохранение не пишем: «Продолжить» её пропускает, и живая
+   * партия пропала бы (QA 19.10: «Посмотреть игру» → «Сохранить и выйти» затирал автосохранение).
+   */
   saveToSlot(id: SlotId): boolean {
-    return !!this.state && writeSlot(id, this.state);
+    if (!this.state || (id === 'auto' && this.state.outcome)) return false;
+    return writeSlot(id, this.state);
   }
 
   /** Загрузить ячейку; при ошибке вернуть её текст. */
@@ -95,6 +105,7 @@ export class GameStore {
   quit(): void {
     this.autosaveError = null;
     this.pauseReason = null;
+    this.simError = null;
     this.setSpeed(0);
     this.state = null;
     this.bump();
@@ -109,7 +120,13 @@ export class GameStore {
     if (this.state.outcome && !AFTER_END_ACTIONS.has(fn as unknown as AnyAction)) {
       return { ok: false, error: 'Партия окончена: можно только смотреть.' };
     }
-    const r = fn(this.state, ...args) ?? { ok: true };
+    let r: Result;
+    try {
+      r = fn(this.state, ...args) ?? { ok: true };
+    } catch (e) {
+      this.fail(e);
+      return { ok: false, error: 'Внутренняя ошибка игры: действие не выполнено.' };
+    }
     if (r.ok) {
       landAction();
       // Игрок ответил на событие (выбор в письме, действие в окне): плашка «Пауза: …» больше не нужна, сама пауза остаётся
@@ -130,7 +147,7 @@ export class GameStore {
   /** Скорость с клавиатуры (1, 2, 3): те же запреты, что у паузы и кнопок скорости. */
   requestSpeed(speed: Speed): void {
     const s = this.state;
-    if (!s || s.outcome || blockedByChoice(s) || unseenReview(s) || goalOfferOpen(s)) return;
+    if (!s || s.outcome || this.simError || blockedByChoice(s) || unseenReview(s) || goalOfferOpen(s)) return;
     this.setSpeed(speed);
   }
 
@@ -149,7 +166,7 @@ export class GameStore {
   /** Пауза/продолжение. В законченной игре и пока в почте ждёт выбор, часы не трогаем. */
   togglePause(): void {
     const s = this.state;
-    if (!s || s.outcome || blockedByChoice(s) || unseenReview(s) || goalOfferOpen(s)) return;
+    if (!s || s.outcome || this.simError || blockedByChoice(s) || unseenReview(s) || goalOfferOpen(s)) return;
     this.setSpeed(this.speed === 0 ? this.lastSpeed : 0);
   }
 
@@ -167,18 +184,46 @@ export class GameStore {
       this.setSpeed(0);
       return;
     }
+    if (this.simError) {
+      this.setSpeed(0);
+      return;
+    }
     // Ждём выбора в почте, закрытия итогов года или выбора целей года; скорость сохраняется.
     if (blockedByChoice(s) || unseenReview(s) || goalOfferOpen(s)) return;
     const mark = this.markAdvance(s);
-    advanceDay(s);
+    try {
+      advanceDay(s);
+    } catch (e) {
+      this.fail(e);
+      return;
+    }
     this.afterAdvance(mark);
+  }
+
+  /** Исключение в симуляции: время стоит, текст ошибки - в окне игры и в консоли (для отчёта об ошибке). */
+  private fail(e: unknown): void {
+    console.error('[ai-lab] ошибка симуляции', e);
+    this.simError = e instanceof Error ? e.message || e.name : String(e);
+    this.setSpeed(0);
+  }
+
+  /** Игрок решил продолжить после ошибки симуляции. */
+  dismissSimError(): void {
+    this.simError = null;
+    this.bump();
   }
 
   /** Перемотка на n дней (отладка и проверка агентом). */
   advance(n: number): number {
-    if (!this.state) return 0;
+    if (!this.state || this.simError) return 0;
     const mark = this.markAdvance(this.state);
-    const done = advanceDays(this.state, n);
+    let done = 0;
+    try {
+      done = advanceDays(this.state, n);
+    } catch (e) {
+      this.fail(e);
+      return 0;
+    }
     this.afterAdvance(mark);
     return done;
   }

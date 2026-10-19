@@ -355,7 +355,10 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
 
 @media (min-width: 768px) {
   /* ---------- Колонка разделов: квадратные бирюзовые кнопки с белыми значками; название - подсказкой справа ---------- */
-  html .game .dock-btn { width: 52px; height: 52px; border-radius: 12px; }
+  /* Кнопка не больше 52 px и такая, чтобы вся колонка (--dock-n кнопок с меню игры, шаг кнопка + 6 px) помещалась между
+     лентой сверху и полосой месяцев снизу: к 2024 году разделов 14, и на 768 px колонка уходила за край (QA 19.10). */
+  html .game .dock { --dock-sz: min(52px, calc((100vh - 150px) / var(--dock-n, 10) - 6px)); }
+  html .game .dock-btn { width: var(--dock-sz); height: var(--dock-sz); border-radius: 12px; }
   html .game .dock-btn .dock-tip {
     position: absolute; left: 62px; top: 50%; transform: translateY(-50%); max-width: none; padding: 5px 12px; border-radius: 999px;
     background: #fff; color: var(--brand-ink); font-size: 14px; font-weight: var(--fw-title); white-space: nowrap; pointer-events: none;
@@ -434,6 +437,9 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
 @media (min-width: 768px) and (max-width: 1199px) {
   .game .lf-next { left: 64px; right: auto; width: min(560px, calc(100vw - 64px - 410px)); }
   body:has(.game .lf-next) .toasts { bottom: 220px; }
+  /* Показатели выше итога месяца: он встаёт над «Следующим шагом» (bottom 152 px), и на 1024 × 768 карточка «Доля рынка»
+     лежала под ним (QA 19.10). */
+  .topbar.tpc .hud-stats { bottom: 202px; }
 }
 
 .titlebar .wicon { color: var(--brand-edge); }
@@ -541,8 +547,9 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
   /* Открыто окно - сводка (без обучения) и показатели не лежат поверх него. */
   .game:has(.window.max:not(.fs-off)) .side:not(.with-top), .game:has(.window.max:not(.fs-off)) .hud-stats { display: none; }
 
-  /* «Следующий шаг» начинается правее колонки разделов: колонка стала длиннее (внизу - меню игры). */
-  .game .lf-next { left: 84px; transform: none; width: min(640px, calc(100% - 100px)); }
+  /* «Следующий шаг» начинается правее колонки разделов: колонка стала длиннее (внизу - меню игры). Справа - не дальше
+     плитки даты и денег (~400 px): на 1024 × 768 её кнопку закрывала плитка (QA 19.10); узкая карточка переносит кнопку. */
+  .game .lf-next { left: 84px; transform: none; width: min(640px, calc(100% - 100px), calc(100vw - 84px - 412px)); }
 
   /* ---------- Счётчик на кнопке раздела: ровный круг, число по центру ---------- */
   html .game .dock-btn .count {
@@ -554,7 +561,7 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
   html .game .dock .dock-sep { display: block; height: 2px; margin: 2px 6px; border-radius: 1px; background: rgb(255 255 255 / 0.18); }
   html .game .dock .start-wrap { position: relative; }
   html .game .dock .task-start {
-    position: static; width: 60px; height: 56px; border-radius: 12px; display: grid; place-items: center;
+    position: static; width: var(--dock-sz, 60px); height: var(--dock-sz, 56px); border-radius: 12px; display: grid; place-items: center;
     background: var(--surface-control); color: var(--brand-ink); box-shadow: inset 0 -4px 0 var(--edge);
   }
   html .game .dock .task-start:hover { background: var(--surface-control-hover); }

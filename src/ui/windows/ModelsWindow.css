@@ -154,6 +154,14 @@
   .mw-focus { min-width: 100px; }
   .mw-focus-v { font-size: 28px; }
   .mw-score { grid-template-columns: 110px minmax(0, 1fr) 100px 36px; gap: 8px; }
+  /* Узкая карточка (окно рядом с подсказкой обучения, экран 1024 px): шапка как на телефоне - картинка меньше, главное
+     число отдельной строкой. Иначе сведениям оставалось ~260 px и суммы рвались по словам (QA 19.10). */
+  .mw-insp { flex-wrap: wrap; gap: 12px; }
+  .mw-pic { width: 84px; height: 84px; }
+  .mw-pic .emb { width: 68px; height: 68px; }
+  .mw-insp-main { flex: 1 1 calc(100% - 100px); }
+  .mw-focus { flex: 1 1 100%; align-items: flex-start; text-align: left; }
+  .mw-facts .mw-v { white-space: nowrap; }
 }
 
 /* ---------- Пустое окно ---------- */

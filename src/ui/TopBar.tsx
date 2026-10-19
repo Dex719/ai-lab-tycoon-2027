@@ -114,7 +114,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
 
   const rate = monthlyRate(s);
   const cashShown = useCountUp(s.cash);
-  const locked = !!s.outcome || pendingChoice(s) !== null;
+  const locked = !!s.outcome || pendingChoice(s) !== null || store.simError !== null;
   const negative = s.finance.negativeDays > 0;
   // Пауза и ожидание ответа на письмо выглядят одинаково: игра стоит.
   const paused = (speed === 0 || locked) && !s.outcome;

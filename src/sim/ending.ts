@@ -24,6 +24,13 @@ export interface PartyScore {
 
 const DIFF_MULT = { easy: 0.8, normal: 1, hard: 1.3 } as const;
 
+/**
+ * Очки за долю основателя: 8 за каждый процент. Стоимость доли идёт в счёт по логарифму, и продажа 92 % компании стоила
+ * всего ~40 очков: «сильный» бот с долей 8 % набирал 2 200 против 1 600-1 900 у «разумного» с 43 % (QA 19.10). С этой
+ * частью первое место на чужие деньги и второе со своей лабораторией идут почти вровень.
+ */
+export const CONTROL_POINTS_PER_PCT = 8;
+
 function placePoints(place: number | null): number {
   if (place === null) return 0;
   if (place === 1) return 1000;
@@ -58,6 +65,10 @@ export function partyScore(s: GameState): PartyScore {
     { label: place !== null ? `${place}-е место в конце` : 'Места в конце нет', value: placePoints(place) },
     { label: `Месяцев на 1-м месте: ${s.monthsFirst}`, value: s.monthsFirst * 15 },
     { label: 'Ваша часть компании', value: s.outcome === 'bankrupt' ? 0 : Math.round(100 * Math.log10(Math.max(1, part / 1e6))) },
+    {
+      label: `Контроль над лабораторией: ${Math.round(s.founderShare * 100)} %`,
+      value: s.outcome === 'bankrupt' ? 0 : Math.round(CONTROL_POINTS_PER_PCT * s.founderShare * 100),
+    },
     { label: 'Честная игра', value: playedClean(s) && s.models.some((m) => m.releasedDay !== null) ? 100 : 0 },
   ];
   // Сложность и испытания с условиями мира (sim/challenges.ts): трудное повышает счёт, лёгкое снижает.

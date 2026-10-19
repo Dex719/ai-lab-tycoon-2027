@@ -154,29 +154,71 @@ function factsOf(s: GameState): Facts {
 /** Примерный размер подписи: соседние подписи не должны налезать друг на друга. */
 const TAG_W = 190;
 const TAG_H = 64;
+/** Подпись стоит над точкой: от низа подписи до точки - хвостик (см. .lf-tag в labFloor.css). */
+const TAG_GAP = 10;
+/** Интерфейс поверх сцены: подписи под ним не видно (колонка разделов, лента, сводка, деньги, «Следующий шаг»). */
+const HUD_SELECTORS = '.dock, .dock-tip, .topbar-left, .pause-note, .side, .hud-stats, .hud-br, .lf-next, .month-strip';
+
+type Rect = { l: number; t: number; r: number; b: number };
+
+/** Прямоугольники интерфейса и края экрана: подпись не должна под них уходить. */
+function hudRects(): Rect[] {
+  const out: Rect[] = [];
+  for (const e of document.querySelectorAll(HUD_SELECTORS)) {
+    const b = e.getBoundingClientRect();
+    if (b.width > 0 && b.height > 0) out.push({ l: b.left, t: b.top, r: b.right, b: b.bottom });
+  }
+  const far = 1e5;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  out.push({ l: -far, t: -far, r: far, b: 0 }, { l: -far, t: -far, r: 0, b: far }, { l: w, t: -far, r: far, b: far }, { l: -far, t: h, r: far, b: far });
+  return out;
+}
 
 /** Точки сцены, у которых есть подпись или кнопка. */
 const SHOWN = new Set(['servers', 'research', 'training', 'showcase', 'seats', 'sign', 'queue']);
 
-/** Развести подписи: если две перекрываются, нижняя по экрану остаётся у места, верхняя поднимается выше. */
-function spread(at: At): At {
-  // Подпись ставится у своего предмета; при наезде пробуем сдвиг вбок, вниз, и только потом вверх.
-  // Раньше подпись сразу уезжала вверх и повисала в небе над комнатой (плейтест 17.10).
+function overlap(a: Rect, b: Rect): number {
+  const w = Math.min(a.r, b.r) - Math.max(a.l, b.l);
+  const h = Math.min(a.b, b.b) - Math.max(a.t, b.t);
+  return w > 0 && h > 0 ? w * h : 0;
+}
+
+function tagRect(p: { x: number; y: number }): Rect {
+  return { l: p.x - TAG_W / 2, r: p.x + TAG_W / 2, t: p.y - TAG_H - TAG_GAP, b: p.y - TAG_GAP };
+}
+
+/**
+ * Развести подписи. Каждая выбирает из места у своего предмета и сдвигов (вверх, вниз, вбок) вариант с наименьшим штрафом:
+ * подпись под интерфейсом или за краем экрана - хуже всего, наезд на соседнюю подпись - меньше, отход от предмета - меньше
+ * всего. Раньше подпись при наезде сразу уезжала вверх и повисала в небе (плейтест 17.10), а на 1024 × 768 уходила под
+ * колонку разделов и ленту (QA 19.10). Нижние по экрану ставятся первыми.
+ */
+export function spread(at: At, hud: readonly Rect[] = []): At {
   const order = Object.entries(at).sort((a, b) => b[1].y - a[1].y);
-  const placed: { x: number; y: number }[] = [];
+  const placed: Rect[] = [];
   const out: At = {};
-  const clash = (x: number, y: number) => placed.some((q) => Math.abs(q.x - x) < TAG_W && Math.abs(q.y - y) < TAG_H);
+  const cost = (p: { x: number; y: number }, p0: { x: number; y: number }) => {
+    const r = tagRect(p);
+    const underHud = hud.reduce((a, h) => a + overlap(r, h), 0);
+    const onTags = placed.reduce((a, q) => a + overlap(r, q), 0);
+    return underHud * 10 + onTags * 3 + Math.hypot(p.x - p0.x, p.y - p0.y) * 30;
+  };
   for (const [k, p0] of order) {
-    let p = { ...p0 };
-    if (clash(p.x, p.y)) {
-      const tries: { x: number; y: number }[] = [];
-      tries.push({ x: p0.x, y: p0.y - TAG_H }, { x: p0.x - (TAG_W + 6), y: p0.y }, { x: p0.x + (TAG_W + 6), y: p0.y }, { x: p0.x, y: p0.y + TAG_H });
-      const ok = tries.find((t) => !clash(t.x, t.y));
-      if (ok) p = ok;
-      else for (let guard = 0; guard < 6 && clash(p.x, p.y); guard++) p.y -= TAG_H;
+    const dx = TAG_W + 6;
+    const tries: { x: number; y: number }[] = [p0];
+    for (let i = 1; i <= 3; i++) tries.push({ x: p0.x, y: p0.y - i * TAG_H }, { x: p0.x, y: p0.y + i * TAG_H });
+    for (const sx of [-1, 1]) for (const sy of [-1, 0, 1]) tries.push({ x: p0.x + sx * dx, y: p0.y + sy * TAG_H });
+    // Сдвиг ровно до края интерфейса слева: подпись остаётся почти у предмета.
+    for (const h of hud) if (h.r > 0 && h.r < p0.x + TAG_W / 2 && h.l <= 0) tries.push({ x: h.r + TAG_W / 2 + 6, y: p0.y });
+    let best = p0;
+    let bestCost = cost(p0, p0);
+    for (const t of tries) {
+      const c = cost(t, p0);
+      if (c < bestCost) [best, bestCost] = [t, c];
     }
-    placed.push(p);
-    out[k] = p;
+    placed.push(tagRect(best));
+    out[k] = best;
   }
   return out;
 }
@@ -290,7 +332,7 @@ export function LabFloor({ s, open }: { s: GameState; open: Open }) {
   // Маленькие подписи зданий соперников не раздвигаются: они висят прямо над крышей.
   const onAnchors = useCallback(
     (a: At) => {
-      setAt({ ...spread(Object.fromEntries(Object.entries(a).filter(([k]) => SHOWN.has(k)))), ...Object.fromEntries(Object.entries(a).filter(([k]) => k.startsWith('rival'))) });
+      setAt({ ...spread(Object.fromEntries(Object.entries(a).filter(([k]) => SHOWN.has(k))), hudRects()), ...Object.fromEntries(Object.entries(a).filter(([k]) => k.startsWith('rival'))) });
     },
     [],
   );

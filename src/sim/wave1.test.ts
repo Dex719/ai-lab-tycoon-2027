@@ -84,6 +84,22 @@ describe('конец партии', () => {
     expect(partyScore(s).parts[0].value).toBe(0);
     expect(epilogueOf(s).every((l) => l.length > 10 && !/undefined|NaN/.test(l))).toBe(true);
   });
+
+  it('контроль над лабораторией: 8 очков за процент доли, продажа почти всей компании стоит заметно (QA 19.10)', () => {
+    const s = newGame('Т', 1);
+    released(s, 1300);
+    s.outcome = 'finished';
+    s.finance.history.push({ placeEnd: 2 } as never);
+    const control = () => partyScore(s).parts.find((p) => p.label.startsWith('Контроль'))!.value;
+    s.founderShare = 0.43;
+    expect(control()).toBe(344);
+    const kept = partyScore(s).total;
+    s.founderShare = 0.08;
+    expect(control()).toBe(64);
+    expect(kept - partyScore(s).total).toBeGreaterThan(250);
+    s.outcome = 'bankrupt';
+    expect(control()).toBe(0);
+  });
 });
 
 describe('утечка планов соперника', () => {

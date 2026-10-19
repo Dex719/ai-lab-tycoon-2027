@@ -13,6 +13,7 @@ import { overheadPerDay } from './finance';
 import { canRaise, raiseRound } from './investors';
 import { inferenceNeed, marketSnapshot, minPrice, refPrice, subsOpen } from './market';
 import { canResearch, maxContext, setResearch, techHistoryDay, yearsEarly } from './research';
+import { redTeamCost, startRedTeam } from './redteam';
 import { botPriceReflex } from './rivalry';
 import type { Difficulty } from './rivalry';
 import { advanceDay } from './tick';
@@ -35,6 +36,15 @@ import {
 import type { Allocation, GameState, GpuId, TechId, TrainingPlan } from './types';
 
 export type BotKind = 'idle' | 'reasonable' | 'strong' | 'benchmaxx';
+
+/**
+ * Боты «как игрок» (QA 19.10): план с выбором сохранений, как его собирает окно игры, - у моделей появляются уязвимости
+ * и отзывы, у партии - совет директоров. Бот перед выпуском заказывает быстрый ред-тиминг. Без этого опоры баланса не видели
+ * систем, с которыми играет человек. Основные опоры (balance.test.ts) по-прежнему считаются без них.
+ */
+export interface BotOptions {
+  playerSystems?: boolean;
+}
 
 interface BotProfile {
   rentShareOfCash: number; // какую часть денег можно «проесть» арендой за 120 дней
@@ -68,6 +78,8 @@ const BOT_SERVE_MAX = 0.5;
 const BOT_SERVE_TOTAL_MAX = 0.7;
 // Внешнюю проверку бот начинает, когда денег хватает на столько проверок.
 const BOT_REVIEW_CASH_MULT = 3;
+// С системами игрока: быстрый ред-тиминг перед выпуском, если уязвимостей не меньше стольких (спор сооснователя - с 4).
+const BOT_REDTEAM_HOLES = 3;
 
 // Новые технологии бот берёт после их исторической даты (без переплаты), в порядке дат.
 const BOT_HISTORIC_TECHS: readonly TechId[] = ['distill', 'moe', 'codetrain', 'instruct', 'cot', 'quant', 'multimodal', 'synthetic'];
@@ -259,7 +271,7 @@ function bestReleasedElo(s: GameState): number {
 }
 
 /** Бот ведёт один проект за раз. */
-function manageTraining(s: GameState, p: BotProfile): void {
+function manageTraining(s: GameState, p: BotProfile, opts: BotOptions): void {
   if (s.trainings.length > 0) return;
   // На время обучения доля «Обучение» ≈ 0,7 от свободной мощности.
   const trainPool = Math.max(pool(s, 'training'), totalH100e(s) * 0.55);
@@ -270,6 +282,7 @@ function manageTraining(s: GameState, p: BotProfile): void {
   const trainDays = daysLeft < 1.5 * p.trainDays ? daysLeft - 3 : p.trainDays;
   const flop = trainPool * TRAIN_FLOP_PER_H100E_DAY * trainDays;
   const plan = chinchillaPlan(s, flop, `Бот-${s.nextModelNum}`, p.benchShare);
+  if (opts.playerSystems) plan.checkpoint = 'normal'; // как по умолчанию в окне «Новая модель»
   if (plan.rlhf && s.cash < labelersCost(plan) * 3) plan.rlhf = false;
   const techs = modelTechs(s);
   const elo = arenaElo(capsFromPlan(plan, s.research.algoLevel, archFor(s), 0, techs), plan.rlhf, s.research.algoLevel, techs);
@@ -283,11 +296,16 @@ function manageTraining(s: GameState, p: BotProfile): void {
  * Выпуск по цене 0,8 × множитель уровня × опорная; в продаже - две лучшие модели по обоим каналам (подписка - после
  * чат-момента, без незавершённой проверки); сильной модели бот заказывает проверку, когда денег хватает на три.
  */
-function manageModels(s: GameState): void {
+function manageModels(s: GameState, opts: BotOptions): void {
   const released = s.models.filter((m) => m.releasedDay !== null);
   const best = released.reduce((b, m) => Math.max(b, m.arenaElo), 0);
   for (const m of s.models) {
     if (m.releasedDay !== null || m.arenaElo <= best) continue;
+    // Игрок с системами: быстрый ред-тиминг перед выпуском, если уязвимостей много и денег хватает на три проверки.
+    if (opts.playerSystems && m.redTeam) continue;
+    if (opts.playerSystems && !m.redTeamDone && (m.holes ?? 0) >= BOT_REDTEAM_HOLES && s.cash >= 3 * redTeamCost(s, 'quick')) {
+      if (startRedTeam(s, m.id, 'quick').ok) continue;
+    }
     const price = Math.max(minPrice(s.day), refPrice(s.day) * 0.8 * (TIER_API_PRICE_MULT[m.plan.tier] ?? 1));
     releaseModel(s, m.id, price);
   }
@@ -328,7 +346,7 @@ function manageInvestors(s: GameState, p: BotProfile): void {
 }
 
 /** Один «ход» бота (вызывается раз в неделю). */
-export function botAct(s: GameState, kind: BotKind): void {
+export function botAct(s: GameState, kind: BotKind, opts: BotOptions = {}): void {
   if (kind === 'idle') return;
   const p = PROFILES[kind];
   // Единственный ответ бота на ходы соперников: доля за месяц упала на четверть - цены моделей на API ×0,85.
@@ -337,8 +355,8 @@ export function botAct(s: GameState, kind: BotKind): void {
   if (s.research.current !== tech && canResearch(s, tech)) setResearch(s, tech);
   if (kind !== 'benchmaxx') botDatacenters(s, kind); // свои дата-центры: стройка и карты до аренды, аренда считается от остатка денег
   manageRent(s, p);
-  manageTraining(s, p);
-  manageModels(s);
+  manageTraining(s, p, opts);
+  manageModels(s, opts);
   manageTenders(s, p);
   manageInvestors(s, p);
   manageAlloc(s);
@@ -369,7 +387,7 @@ export function botChoice(s: GameState, eventId: string | undefined): number {
 }
 
 /** Прогнать всю игру ботом. Выбор в почте - botChoice. Опоры баланса считаются на Обычной сложности. */
-export function runBot(kind: BotKind, seed: number, maxDays = 4000, difficulty: Difficulty = 'normal'): BotResult {
+export function runBot(kind: BotKind, seed: number, maxDays = 4000, difficulty: Difficulty = 'normal', opts: BotOptions = {}): BotResult {
   const s = newGame('Бот', seed, difficulty);
   let days = 0;
   while (!s.outcome && days < maxDays) {
@@ -379,7 +397,7 @@ export function runBot(kind: BotKind, seed: number, maxDays = 4000, difficulty: 
       applyChoice(s, pending.id, botChoice(s, pending.eventId));
       continue;
     }
-    if (s.day % 7 === 0) botAct(s, kind);
+    if (s.day % 7 === 0) botAct(s, kind, opts);
     advanceDay(s);
     days++;
   }

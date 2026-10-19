@@ -110,7 +110,7 @@ export function releaseModel(s: GameState, modelId: string, price: number, opts:
   if (bad !== null) return { ok: false, error: bad };
   const subs = subsPriceOrError(opts.subsPrice ?? TIER_SUBS_PRICE[m.plan.tier] ?? TIER_SUBS_PRICE.mid);
   if ('error' in subs) return { ok: false, error: subs.error };
-  if (releaseDisputed(m)) dispute(s, ['holes']);
+  if (releaseDisputed(s, m)) dispute(s, ['holes']);
   m.releasedDay = s.day;
   m.onApi = true;
   m.price = price;

@@ -556,7 +556,7 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
           )}
         </div>
 
-        {releaseDisputed(m) && disputeWarning(s, ['holes']) && <div className="mw-dispute">{disputeWarning(s, ['holes'])}</div>}
+        {releaseDisputed(s, m) && disputeWarning(s, ['holes']) && <div className="mw-dispute">{disputeWarning(s, ['holes'])}</div>}
         <div className="mw-panel-foot" ref={footRef}>
           <GuardButton
             className="btn primary big mw-release-btn"

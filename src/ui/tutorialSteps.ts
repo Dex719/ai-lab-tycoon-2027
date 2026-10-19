@@ -5,6 +5,7 @@
 
 import { computeOrdered, orderedH100e, pool } from '../sim/compute';
 import { canApply, contractWorkFor } from '../sim/contracts';
+import { cofounderHere } from '../sim/cofounder';
 import { CLIENTS } from '../data/clients';
 import { modelScore } from '../sim/training';
 import { goalOfferOpen } from '../sim/goals';
@@ -132,7 +133,12 @@ export const TUTORIAL: TutorialStep[] = [
         const when = left !== null ? `будет готова ${formatDateShort(s.day + left)}, через ${left} дн.` : 'ждёт мощности в доле «Обучение»';
         return `Модель ${when} Ускорьте время кнопкой ▶▶▶: игра сама встанет на паузу, когда модель будет готова.`;
       }
-      return 'Модель готова: откройте «Модели», выберите цену за 1 млн токенов и нажмите «Выпустить».';
+      const ready = 'Модель готова: откройте «Модели», выберите цену за 1 млн токенов и нажмите «Выпустить».';
+      // Ред-тиминг: первый выпуск спора не вызывает, со второго сооснователь спорит из-за непроверенных уязвимостей.
+      const c = cofounderHere(s);
+      return c
+        ? `${ready} Ниже - ред-тиминг: со второй модели без него ${c.name} будет спорить.`
+        : ready;
     },
     targets: (s) =>
       s.models.length > 0 ? ['release', 'icon-models'] : s.trainings.length > 0 ? ['speed-fast', 'icon-models'] : ['train-confirm', 'train-start', 'icon-newModel'],

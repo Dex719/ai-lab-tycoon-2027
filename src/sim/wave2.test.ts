@@ -8,7 +8,7 @@ import { modValue } from './events';
 import { canRaise } from './investors';
 import { BOARD_RETURN_EVENT, boardBlock, boardDay, boardMonth, OUSTER_DAYS } from './board';
 import { applyChoice } from './events';
-import { COFOUNDER_LIMIT, dispute, disputeWarning, planDisputes } from './cofounder';
+import { COFOUNDER_LIMIT, dispute, disputeWarning, planDisputes, releaseDisputed } from './cofounder';
 import { reviewsDay } from './reviews';
 import { CODER_OPEN, coderBlock, coderTarget, launchCoder, productsDay } from './products';
 import { holesAtBirth, holesMonth, redTeamBlock, redTeamCost, redTeamDay, REDTEAM, startRedTeam } from './redteam';
@@ -201,6 +201,16 @@ describe('сооснователь', () => {
     const back = deserialize(serialize(newGame('Т', 1, 'normal', undefined, { cofounder: 'seller' })));
     expect(back.ok).toBe(true);
     if (back.ok) expect(back.state.cofounder?.id).toBe('seller');
+  });
+
+  it('первый выпуск партии не спорен, следующий без ред-тиминга - спорен (QA 19.10)', () => {
+    const s = newGame('Т', 1, 'normal', undefined, { cofounder: 'engineer' });
+    const unchecked = { holes: holesAtBirth({ plan: PLAN, rlhf: false }), redTeamDone: false };
+    expect(unchecked.holes).toBe(4);
+    expect(releaseDisputed(s, unchecked)).toBe(false); // в продаже ещё ничего: идёт по подсказкам обучения
+    model(s, 4); // первая модель выпущена
+    expect(releaseDisputed(s, unchecked)).toBe(true);
+    expect(releaseDisputed(s, { ...unchecked, redTeamDone: true })).toBe(false);
   });
 });
 

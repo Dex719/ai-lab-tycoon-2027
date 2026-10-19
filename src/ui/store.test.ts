@@ -217,6 +217,17 @@ describe('автосохранение', () => {
     expect(setItem).not.toHaveBeenCalled();
     expect(s.flags.autosaveDue).toBe(false);
   });
+
+  it('«Сохранить и выйти» после конца партии не пишет её в автосохранение, ручная ячейка - можно', () => {
+    const setItem = vi.fn();
+    vi.stubGlobal('localStorage', { setItem, removeItem: vi.fn() });
+    const { store, s } = newStore();
+    s.outcome = 'finished';
+    expect(store.saveToSlot('auto')).toBe(false);
+    expect(setItem).not.toHaveBeenCalled();
+    expect(store.saveToSlot(1)).toBe(true);
+    expect(setItem).toHaveBeenCalledWith('ailab.slot.1', expect.any(String));
+  });
 });
 
 describe('автопауза по галочкам настроек', () => {
@@ -320,6 +331,46 @@ describe('выбор целей года', () => {
     expect(goalOfferOpen(s)).toBe(true);
     expect(store.speed).toBe(0);
     expect(store.pauseReason).toBe('Цели года');
+  });
+});
+
+describe('ошибка симуляции', () => {
+  it('исключение в шаге дня останавливает время, день не повторяется, пока игрок не решит', () => {
+    const { store, s } = newStore();
+    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    advanceDay.mockImplementationOnce(() => {
+      throw new Error('сломалось');
+    });
+    store.setSpeed(4);
+    vi.advanceTimersByTime(125);
+    expect(store.simError).toBe('сломалось');
+    expect(store.speed).toBe(0);
+    const calls = advanceDay.mock.calls.length;
+    store.togglePause();
+    store.requestSpeed(2);
+    vi.advanceTimersByTime(2000);
+    expect(store.speed).toBe(0);
+    expect(advanceDay.mock.calls.length).toBe(calls);
+    store.dismissSimError();
+    const day = s.day;
+    store.setSpeed(1);
+    vi.advanceTimersByTime(500);
+    expect(s.day).toBe(day + 1);
+    store.setSpeed(0);
+    err.mockRestore();
+  });
+
+  it('исключение в действии игрока - ошибка вместо падения интерфейса', () => {
+    const { store } = newStore();
+    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const r = store.dispatch(() => {
+      throw new Error('плохое действие');
+    });
+    expect(r.ok).toBe(false);
+    expect(store.simError).toBe('плохое действие');
+    store.start(newGame('Другая', 9));
+    expect(store.simError).toBeNull();
+    err.mockRestore();
   });
 });
 

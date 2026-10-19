@@ -226,6 +226,8 @@ export function Game({ s }: { s: GameState }) {
 
   const visible = wins.filter((w) => !w.min);
   const topZ = visible.reduce((m, w) => Math.max(m, w.z), 0);
+  // Разделы в колонке: открываются по ходу игры (к 2024 году их 14).
+  const docked = WINDOWS.filter((d) => !d.openedDay || d.openedDay(s) !== null);
   const openIds = new Set(wins.filter((w) => !w.min).map((w) => w.id));
   // Отложенные решения прочитаны, но ещё ждут ответа: их тоже считаем на значке «Почты».
   const unread = unreadCount(s) + openChoices(s).filter((m) => m.read).length;
@@ -381,8 +383,13 @@ export function Game({ s }: { s: GameState }) {
         {phone && startMenu}
         <div className="task-sep" />
         {!phone && (
-          <nav className={`dock${s.day < DOCK_LABEL_DAYS || s.tutorial.active ? ' labels' : ''}`} aria-label="Разделы">
-            {WINDOWS.filter((d) => !d.openedDay || d.openedDay(s) !== null).map((d) => {
+          <nav
+            className={`dock${s.day < DOCK_LABEL_DAYS || s.tutorial.active ? ' labels' : ''}`}
+            aria-label="Разделы"
+            // Кнопок с меню игры: по нему колонка ужимает кнопки, чтобы поместиться по высоте (tpc.css, --dock-sz).
+            style={{ ['--dock-n' as string]: docked.length + 1 }}
+          >
+            {docked.map((d) => {
               const w = wins.find((x) => x.id === d.id);
               const active = !!w && !w.min && w.z === topZ;
               const count = iconCount(d.id);
@@ -451,6 +458,7 @@ export function Game({ s }: { s: GameState }) {
       {dialog === 'settings' && <SettingsDialog onClose={() => setDialog(null)} />}
       {dialog === 'achievements' && <AchievementsDialog onClose={() => setDialog(null)} />}
       {dialog === 'quit' && <QuitDialog onClose={() => setDialog(null)} />}
+      {store.simError !== null && <SimErrorDialog error={store.simError} />}
     </>
   );
 }
@@ -502,19 +510,88 @@ function MonthsBar({ day }: { day: number }) {
   );
 }
 
+/**
+ * Ошибка в симуляции: время стоит. День мог пройти наполовину (часть расходов уже списана), поэтому надёжнее вернуться
+ * к автосохранению; можно и продолжить как есть. Текст ошибки - для отчёта разработчику.
+ */
+function SimErrorDialog({ error }: { error: string }) {
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [auto] = useState(() => listSlots().find((x) => x.id === 'auto')?.meta ?? null);
+  return (
+    <Dialog
+      title="Ошибка в игре"
+      wide
+      onClose={() => store.dismissSimError()}
+      footer={
+        <>
+          <button className="btn" onClick={() => store.quit()}>
+            В главное меню
+          </button>
+          <button className="btn" onClick={() => store.dismissSimError()}>
+            Продолжить
+          </button>
+          {auto && (
+            <button className="btn primary" onClick={() => setLoadError(store.loadSlot('auto'))}>
+              Загрузить автосохранение
+            </button>
+          )}
+        </>
+      }
+    >
+      <div className="col" style={{ gap: 6 }}>
+        <div>
+          В расчётах игры произошла ошибка, время остановлено. Часть изменений могла уже примениться, поэтому надёжнее загрузить
+          автосохранение{auto ? ` («${auto.labName}», ${formatDateShort(auto.day)})` : ''}.
+        </div>
+        <div className="small muted" style={{ wordBreak: 'break-word' }}>
+          Текст ошибки: {error}
+        </div>
+        <ErrorText error={loadError} />
+      </div>
+    </Dialog>
+  );
+}
+
 function QuitDialog({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   // Один раз при открытии: listSlots разбирает все ячейки целиком, а Game перерисовывается на каждом ходу.
   const [auto] = useState(() => listSlots().find((x) => x.id === 'auto')?.meta ?? null);
   const day = store.state?.day ?? null;
+  const finished = !!store.state?.outcome;
+  function quit() {
+    onClose();
+    store.quit();
+  }
   function saveAndQuit() {
     // В ячейку автосохранения: «Продолжить» в главном меню откроет партию с этого дня.
     if (!store.saveToSlot('auto')) {
       setError('Сохранить не удалось: хранилище переполнено или недоступно.');
       return;
     }
-    onClose();
-    store.quit();
+    quit();
+  }
+  // Партия окончена («Посмотреть игру»): сохранять нечего, автосохранение остаётся с последнего живого дня.
+  if (finished) {
+    return (
+      <Dialog
+        title="Выйти в главное меню"
+        onClose={onClose}
+        footer={
+          <>
+            <button className="btn" onClick={onClose}>
+              Отмена
+            </button>
+            <button className="btn primary" onClick={quit}>
+              Выйти
+            </button>
+          </>
+        }
+      >
+        <div className="col" style={{ gap: 6 }}>
+          <div>Партия окончена, сохранять нечего. Автосохранение остаётся с последнего игрового дня.</div>
+        </div>
+      </Dialog>
+    );
   }
   return (
     <Dialog
@@ -525,13 +602,7 @@ function QuitDialog({ onClose }: { onClose: () => void }) {
           <button className="btn" onClick={onClose}>
             Отмена
           </button>
-          <button
-            className="btn danger"
-            onClick={() => {
-              onClose();
-              store.quit();
-            }}
-          >
+          <button className="btn danger" onClick={quit}>
             Выйти без сохранения
           </button>
           <button className="btn primary" onClick={saveAndQuit}>
