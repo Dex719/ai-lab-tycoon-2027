@@ -26,7 +26,7 @@ import { store } from './store';
 import { ALLOC_ROWS } from './alloc';
 import type { LabSpec } from './three/specs';
 import { View3D } from './three/View3D';
-import { desktop } from './desktop';
+import { desktop, desktopMac } from './desktop';
 import { ScreenSettings } from './ScreenSettings';
 
 export const VERSION = 'v0.3';
@@ -609,7 +609,15 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
               {desktop && (
                 <>
                   <dt>
-                    <kbd>F11</kbd> или <kbd>Alt</kbd>+<kbd>Enter</kbd>
+                    {desktopMac ? (
+                      <>
+                        <kbd>Ctrl</kbd>+<kbd>Cmd</kbd>+<kbd>F</kbd>
+                      </>
+                    ) : (
+                      <>
+                        <kbd>F11</kbd> или <kbd>Alt</kbd>+<kbd>Enter</kbd>
+                      </>
+                    )}
                   </dt>
                   <dd>Полный экран или окно</dd>
                 </>

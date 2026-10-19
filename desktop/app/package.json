@@ -1,0 +1,7 @@
+{
+  "name": "ai-lab-tycoon",
+  "productName": "AI Lab Tycoon",
+  "version": "0.3.0",
+  "main": "main.cjs",
+  "author": "Dex719"
+}

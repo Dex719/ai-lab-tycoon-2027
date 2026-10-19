@@ -22,10 +22,15 @@ export interface DesktopApi {
   setConfig(patch: Partial<DesktopConfig>): Promise<DesktopConfig>;
   displays(): Promise<DisplayInfo[]>;
   quit(): void;
+  /** 'win32' или 'darwin'; нет в старых оболочках (Windows). */
+  platform?: string;
 }
 
 export const desktop: DesktopApi | null =
   typeof window !== 'undefined' ? ((window as unknown as { aiLabDesktop?: DesktopApi }).aiLabDesktop ?? null) : null;
+
+/** Оболочка для macOS: другие клавиши полного экрана. */
+export const desktopMac = desktop?.platform === 'darwin';
 
 /** Стандартные разрешения, которые помещаются на экран. */
 export function resolutionsFor(d: DisplayInfo | undefined): [number, number][] {

@@ -1,0 +1,10 @@
+{
+  "name": "ai-lab-tycoon-desktop",
+  "private": true,
+  "description": "Electron-оболочка игры для Windows и macOS; сборка - README.md",
+  "devDependencies": {
+    "@electron/packager": "20.3.0",
+    "electron": "44.7.2",
+    "sharp": "0.35.5"
+  }
+}

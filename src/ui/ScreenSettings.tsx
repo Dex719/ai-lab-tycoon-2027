@@ -1,7 +1,7 @@
 // Раздел «Экран» в «Настройках»: в exe - режим, разрешение, монитор и масштаб; везде - предел кадров и качество 3D.
 
 import { useEffect, useState } from 'react';
-import { desktop, resolutionsFor, type DesktopConfig, type DisplayInfo } from './desktop';
+import { desktop, desktopMac, resolutionsFor, type DesktopConfig, type DisplayInfo } from './desktop';
 import { getSettings, setSettings, type Settings } from './settings';
 
 const SCALES = [0, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
@@ -142,7 +142,7 @@ export function ScreenSettings() {
           ))}
         </select>
       </label>
-      {desktop && <div className="small muted">F11 или Alt+Enter - полный экран.</div>}
+      {desktop && <div className="small muted">{desktopMac ? 'Ctrl+Cmd+F' : 'F11 или Alt+Enter'} - полный экран.</div>}
     </>
   );
 }

@@ -10,3 +10,11 @@ tsconfig.tsbuildinfo
 # Локальные документы: не для GitHub
 docs/
 .kiro/specs/ui-redesign-v2/
+
+# Оболочка: сборка и образы
+desktop/app/dist/
+desktop/app/icon.png
+desktop/build/
+desktop/out/
+desktop/dmg/
+desktop/stage-*/
