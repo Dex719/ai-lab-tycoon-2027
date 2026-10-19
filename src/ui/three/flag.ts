@@ -47,13 +47,13 @@ function draw(g: CanvasRenderingContext2D, id: CountryId): void {
     star(g, 24, 14, 2, 0);
     star(g, 20, 18, 2, 0.5);
   } else {
-    g.fillStyle = '#003399';
-    g.fillRect(0, 0, 60, 40);
-    g.fillStyle = '#ffcc00';
-    for (let i = 0; i < 12; i++) {
-      const a = (Math.PI * 2 * i) / 12;
-      star(g, 30 + 11 * Math.cos(a), 20 + 11 * Math.sin(a), 2);
-    }
+    // Франция: синий, белый, красный.
+    g.fillStyle = '#0055a4';
+    g.fillRect(0, 0, 20, 40);
+    g.fillStyle = '#fff';
+    g.fillRect(20, 0, 20, 40);
+    g.fillStyle = '#ef4135';
+    g.fillRect(40, 0, 20, 40);
   }
 }
 

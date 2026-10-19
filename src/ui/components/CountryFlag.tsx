@@ -41,16 +41,12 @@ function Cn() {
   );
 }
 
-function Eu() {
-  const stars = [];
-  for (let i = 0; i < 12; i++) {
-    const a = (Math.PI * 2 * i) / 12;
-    stars.push(<polygon key={i} points={star(30 + 11 * Math.cos(a), 20 + 11 * Math.sin(a), 2)} fill="#ffcc00" />);
-  }
+function Fr() {
   return (
     <>
-      <rect width={60} height={40} fill="#003399" />
-      {stars}
+      <rect width={20} height={40} fill="#0055a4" />
+      <rect x={20} width={20} height={40} fill="#fff" />
+      <rect x={40} width={20} height={40} fill="#ef4135" />
     </>
   );
 }
@@ -68,7 +64,7 @@ export function CountryFlag({ id, size = 16, title }: { id: CountryId; size?: nu
       aria-hidden={title ? undefined : true}
       style={{ flex: 'none', borderRadius: 2, boxShadow: '0 0 0 1px rgb(0 0 0 / 0.15)' }}
     >
-      {id === 'us' ? <Us /> : id === 'cn' ? <Cn /> : <Eu />}
+      {id === 'us' ? <Us /> : id === 'cn' ? <Cn /> : <Fr />}
     </svg>
   );
 }

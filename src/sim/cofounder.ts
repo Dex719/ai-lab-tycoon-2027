@@ -18,9 +18,9 @@ export interface CofounderDef {
 }
 
 export const COFOUNDERS: readonly CofounderDef[] = [
-  { id: 'engineer', role: 'Инженер', name: 'Артём Лавров', perk: 'Аренда карт дешевле на 8 %', voice: 'Я строил этот кластер не для того, чтобы мы обманывали' },
-  { id: 'seller', role: 'Продавец', name: 'Мира Холт', perk: 'Спрос на API и подписки выше на 6 %', voice: 'Клиенты покупают у нас, потому что верят нам' },
-  { id: 'scientist', role: 'Учёный', name: 'Ева Штерн', perk: 'Исследования дешевле на 12 %', voice: 'Если результаты подогнаны, это уже не наука' },
+  { id: 'engineer', role: 'Инженер', name: 'Артём Лавров', perk: 'Аренда карт дешевле на 8 %', voice: 'Я строил этот кластер не для того, чтобы мы обманывали' },
+  { id: 'seller', role: 'Продавец', name: 'Мира Холт', perk: 'Спрос на API и подписки выше на 6 %', voice: 'Клиенты покупают у нас, потому что верят нам' },
+  { id: 'scientist', role: 'Учёный', name: 'Ева Штерн', perk: 'Исследования дешевле на 12 %', voice: 'Если результаты подогнаны, это уже не наука' },
 ];
 export const COFOUNDER_IDS: readonly CofounderId[] = ['engineer', 'seller', 'scientist'];
 

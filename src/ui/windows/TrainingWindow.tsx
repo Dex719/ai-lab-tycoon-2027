@@ -244,7 +244,7 @@ export function autoTokens(s: GameState, paramsB: number, stolen = false): numbe
 /** Риск чужих данных словами: шанс иска в месяц, штраф, репутация; что меняет страна. */
 function theftLine(s: GameState): string {
   const c = countryOf(s);
-  const where = c === 'cn' ? ' В Китае такие иски редки.' : c === 'eu' ? ' В Европе суды строже.' : '';
+  const where = c === 'cn' ? ' В Китае такие иски редки.' : c === 'eu' ? ' Во Франции суды строже.' : '';
   return (
     `Пока модель продаётся, каждый месяц могут подать иск: шанс ${fmtPct(theftChance(s) * 100, 0)}, штраф от ${fmtMoney(theftFine(s, { earned: 0 }))}, ` +
     `репутация −${fmtNum(theftRepLoss(s))}${theftPulls(s) ? ', модель снимут с продажи' : ''}.${where}`

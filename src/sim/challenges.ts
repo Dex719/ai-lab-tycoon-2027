@@ -29,10 +29,10 @@ export const CHALLENGES: readonly ChallengeDef[] = [
 ];
 
 export const WORLD_MODS: readonly WorldModDef[] = [
-  { id: 'gpu-shortage', name: 'Дефицит карт', text: 'Аренда карт дороже на 30 %', score: 0.15 },
-  { id: 'ai-winter', name: 'Зима ИИ', text: 'Спрос на API и подписки ниже на 20 %', score: 0.15 },
+  { id: 'gpu-shortage', name: 'Дефицит карт', text: 'Аренда карт дороже на 30 %', score: 0.15 },
+  { id: 'ai-winter', name: 'Зима ИИ', text: 'Спрос на API и подписки ниже на 20 %', score: 0.15 },
   { id: 'strict-regulator', name: 'Строгий регулятор', text: 'Подгонку раскрывают в 1,5 раза чаще', score: 0.1 },
-  { id: 'generous-funds', name: 'Щедрые фонды', text: 'Инвесторы оценивают дороже на 25 %', score: -0.15 },
+  { id: 'generous-funds', name: 'Щедрые фонды', text: 'Инвесторы оценивают дороже на 25 %', score: -0.15 },
 ];
 
 export function hasChallenge(s: GameState, id: ChallengeId): boolean {

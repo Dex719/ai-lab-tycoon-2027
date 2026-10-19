@@ -143,7 +143,7 @@ export interface RecordEntry {
   prev: number | null;
 }
 
-/** Страна лаборатории (выбирается в новой игре, sim/country.ts): США, Китай, Европа. */
+/** Страна лаборатории (выбирается в новой игре, sim/country.ts): США, Китай, Франция (id 'eu': законы Евросоюза). */
 export type CountryId = 'us' | 'cn' | 'eu';
 export const COUNTRY_IDS: readonly CountryId[] = ['us', 'cn', 'eu'];
 export const TIER_IDS: readonly Tier[] = ['light', 'mid', 'flagship'];

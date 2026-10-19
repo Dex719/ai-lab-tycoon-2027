@@ -16,7 +16,7 @@ import { IconClose, IconLogo } from './icons';
 import './menu.css';
 import { fmtMoney } from './format';
 import { fmtRank } from './labels';
-import { deleteSlot, exportCode, formatSavedAt, importCode, latestSlot, listSlots, MANUAL_SLOTS, type SlotId, type SlotInfo } from './saves';
+import { deleteSlot, formatSavedAt, latestSlot, listSlots, MANUAL_SLOTS, type SlotId, type SlotInfo } from './saves';
 import { AchievementsDialog } from './Achievements';
 import { applyRealNames } from './realNamesDom';
 import { musicSettingsChanged } from './music';
@@ -214,12 +214,14 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
               <ul className="ng-perks" aria-label={`Особенности: ${COUNTRIES[country].name}`}>
                 {COUNTRIES[country].pros.map((p) => (
                   <li key={p} className="good">
-                    + {p}
+                    <b aria-hidden="true">+</b>
+                    <span>{p}</span>
                   </li>
                 ))}
                 {COUNTRIES[country].cons.map((p) => (
                   <li key={p} className="bad">
-                    - {p}
+                    <b aria-hidden="true">-</b>
+                    <span>{p}</span>
                   </li>
                 ))}
               </ul>
@@ -241,7 +243,7 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
               <p className="ng-cof-s">
                 {cofounder
                   ? `${cofounderDef(cofounder).name}: ${cofounderDef(cofounder).perk.charAt(0).toLowerCase()}${cofounderDef(cofounder).perk.slice(1)}. Спорит из-за подгонки и чужих данных, после третьего спора уходит.`
-                  : 'Все решения - только ваши, без выгоды и без споров.'}
+                  : 'Все решения ваши: без выгоды и без споров.'}
               </p>
             </section>
             <section className="ng-sec">
@@ -304,25 +306,25 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
                 </span>
                 {CHALLENGES.map((c) => (
                   <label key={c.id} className="ng-ch-row" title={c.text}>
-                    <input type="checkbox" checked={challenges.includes(c.id)} onChange={() => setChallenges((l) => toggle(l, c.id))} />
                     <span>{c.name}</span>
                     <small>{c.text}</small>
+                    <input type="checkbox" className="ng-switch" checked={challenges.includes(c.id)} onChange={() => setChallenges((l) => toggle(l, c.id))} />
                   </label>
                 ))}
                 {WORLD_MODS.map((m) => (
                   <label key={m.id} className="ng-ch-row" title={m.text}>
-                    <input type="checkbox" checked={worldMods.includes(m.id)} onChange={() => setWorldMods((l) => toggle(l, m.id))} />
                     <span>{m.name}</span>
                     <small>{m.text}</small>
+                    <input type="checkbox" className="ng-switch" checked={worldMods.includes(m.id)} onChange={() => setWorldMods((l) => toggle(l, m.id))} />
                   </label>
                 ))}
-                {(challenges.length > 0 || worldMods.length > 0) && (
-                  <span className={`ng-ch-mult ${scoreMult >= 1 ? 'good' : 'bad'}`}>Счёт партии ×{String(Math.round(Math.max(0.5, scoreMult) * 100) / 100).replace('.', ',')}</span>
-                )}
+                <span className={`ng-ch-mult${scoreMult > 1.001 ? ' good' : scoreMult < 0.999 ? ' bad' : ''}`}>
+                  Счёт партии ×{String(Math.round(Math.max(0.5, scoreMult) * 100) / 100).replace('.', ',')}
+                </span>
               </div>
-              <label className="row ng-tutor">
-                <input type="checkbox" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />
+              <label className="ng-ch-row ng-tutor">
                 <span>Обучение игре: подсказки по шагам</span>
+                <input type="checkbox" className="ng-switch" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />
               </label>
             </section>
           </div>
@@ -351,7 +353,7 @@ function SlotRow({ slot, children }: { slot: SlotInfo; children: React.ReactNode
   const m = slot.meta;
   return (
     <div className={`slot${m ? '' : ' empty'}`}>
-      <div className="n" title={slot.id === 'auto' ? 'Автосохранение в начале каждого месяца' : undefined}>
+      <div className={`n${slot.id === 'auto' ? ' auto' : ''}`} title={slot.id === 'auto' ? 'Автосохранение в начале каждого месяца' : undefined}>
         {slotTitle(slot.id)}
       </div>
       <div>
@@ -464,7 +466,6 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
       <div style={{ marginTop: 10 }}>
         <ErrorText error={error} />
       </div>
-      <GameCode mode={mode} inGame={inGame} onLoaded={onClose} />
       {del !== null && delSlot?.meta && (
         // Подтверждение выводится поверх этого окна; Escape в нём не должен закрывать и список ячеек.
         <span onKeyDown={(e) => e.stopPropagation()}>
@@ -641,105 +642,5 @@ function VolumeRow({ label, value, onChange, onRelease }: { label: string; value
       />
       <span style={{ width: 44, textAlign: 'right' }}>{value > 0 ? `${Math.round(value * 100)} %` : 'Выкл.'}</span>
     </label>
-  );
-}
-
-/** Код партии: в «Сохранить» - получить и скопировать, в «Загрузить» - вставить и загрузить. */
-function GameCode({ mode, inGame, onLoaded }: { mode: 'load' | 'save'; inGame: boolean; onLoaded: () => void }) {
-  const [code, setCode] = useState('');
-  const [ask, setAsk] = useState(false); // посреди партии - как у ячеек: сначала спросить
-  const [note, setNote] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function make() {
-    if (!store.state) return;
-    setBusy(true);
-    try {
-      setCode(await exportCode(store.state));
-      setError(null);
-    } catch {
-      setError('Код получить не удалось: браузер не умеет сжимать данные.');
-    }
-    setBusy(false);
-  }
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(code);
-      setNote('Код скопирован');
-    } catch {
-      setNote('Выделите код и скопируйте вручную (Ctrl+C)');
-    }
-  }
-
-  async function load() {
-    setBusy(true);
-    const r = await importCode(code);
-    setBusy(false);
-    if (!r.ok) {
-      setError(r.error);
-      return;
-    }
-    store.start(r.state);
-    onLoaded();
-  }
-
-  return (
-    <div className="game-code">
-      <div className="game-code-h">Код партии</div>
-      {mode === 'save' ? (
-        <>
-          <div className="row" style={{ gap: 8 }}>
-            <button className="btn small" disabled={busy || !store.state} onClick={() => void make()}>
-              Получить код
-            </button>
-            {code && (
-              <button className="btn small primary" onClick={() => void copy()}>
-                Скопировать
-              </button>
-            )}
-            {code && <span className="small muted">{Math.ceil(code.length / 1024)} КБ</span>}
-            {note && <span className="small good">{note}</span>}
-          </div>
-          {code && <textarea className="game-code-text" readOnly value={code} onFocus={(e) => e.currentTarget.select()} />}
-        </>
-      ) : (
-        <>
-          <textarea
-            className="game-code-text"
-            placeholder="Вставьте код партии"
-            value={code}
-            onChange={(e) => {
-              setCode(e.target.value);
-              setError(null);
-              setAsk(false);
-            }}
-          />
-          <div className="row" style={{ gap: 8 }}>
-            {ask ? (
-              <>
-                <span className="small">Текущая партия не сохранится. Загрузить?</span>
-                <button className="btn small primary" disabled={busy} onClick={() => void load()}>
-                  Загрузить
-                </button>
-                <button className="btn small" onClick={() => setAsk(false)}>
-                  Отмена
-                </button>
-              </>
-            ) : (
-              <button
-                className="btn small primary"
-                disabled={busy || !code.trim()}
-                onClick={() => (inGame ? setAsk(true) : void load())}
-              >
-                Загрузить из кода
-              </button>
-            )}
-          </div>
-        </>
-      )}
-      <ErrorText error={error} />
-    </div>
   );
 }
