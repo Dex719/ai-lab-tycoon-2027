@@ -242,8 +242,8 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
               </div>
               <p className="ng-cof-s">
                 {cofounder
-                  ? `${cofounderDef(cofounder).name}: ${cofounderDef(cofounder).perk.charAt(0).toLowerCase()}${cofounderDef(cofounder).perk.slice(1)}. Спорит из-за подгонки и чужих данных, после третьего спора уходит.`
-                  : 'Все решения ваши: без выгоды и без споров.'}
+                  ? `${cofounderDef(cofounder).name}: ${cofounderDef(cofounder).perk.charAt(0).toLowerCase()}${cofounderDef(cofounder).perk.slice(1)}.`
+                  : 'Все решения ваши.'}
               </p>
             </section>
             <section className="ng-sec">
