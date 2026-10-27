@@ -26,7 +26,7 @@ import {
   techRequires,
 } from '../../sim/research';
 import { timesWord, tokensWord } from '../../sim/text';
-import { formatDateShort } from '../../sim/time';
+import { END_DAY, formatDateShort } from '../../sim/time';
 import type { GameState, TechId } from '../../sim/types';
 import { TECH_IDS } from '../../sim/types';
 import { checkAllocation, percentsOf, soldChannels, toAllocation, withPercent, ZERO_SHARE_WARNING } from '../alloc';
@@ -325,7 +325,7 @@ function NowStrip(props: {
           </div>
           <div className="rs-now-m">
             <b>{fmtPct(share * 100, 0)}</b> · готово через {termText(days)}
-            {Number.isFinite(days) && `, ${formatDateShort(s.day + Math.max(1, days))}`} · {techGain(s, current)}
+            {Number.isFinite(days) && (s.day + Math.max(1, days) > END_DAY ? `, не успеет до ${formatDateShort(END_DAY)}` : `, ${formatDateShort(s.day + Math.max(1, days))}`)} · {techGain(s, current)}
           </div>
         </div>
         <div className="rs-now-side">
@@ -541,7 +541,8 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
   // Края ползунка - срок без карт (работает команда) и со всей мощностью: честно видно, сколько даёт ползунок.
   const endDate = (share: number): string => {
     const d = researchDaysAt(s, id, share);
-    return Number.isFinite(d) ? formatDateShort(s.day + Math.max(1, d)) : '-';
+    if (!Number.isFinite(d)) return '-';
+    return s.day + Math.max(1, d) > END_DAY ? `после ${formatDateShort(END_DAY)}` : formatDateShort(s.day + Math.max(1, d));
   };
   const penalty = earlyPenalty(s, id);
   const rentMonth = rentPerDay(s) * (pct / 100) * DAYS_IN_MONTH;

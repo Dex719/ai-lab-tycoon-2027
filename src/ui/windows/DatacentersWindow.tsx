@@ -30,7 +30,7 @@ import {
   stageProgress,
   usedKw,
 } from '../../sim/datacenters';
-import { formatDate } from '../../sim/time';
+import { END_DAY, formatDate, formatDateShort } from '../../sim/time';
 import type { Datacenter, GameState, GpuId } from '../../sim/types';
 import { ConfirmDialog, Dialog, ErrorText, GuardButton, ProgressBar, Range } from '../components/common';
 import { fmtDays, fmtH100e as fmtH, fmtInt, fmtMoney, fmtNum, ruPlural } from '../format';
@@ -322,6 +322,7 @@ function BuildDialog({ s, def, onClose }: { s: GameState; def: DcSiteDef; onClos
   const cards = gpusPerMw(def.id, g) * mw;
   const powerFull = (cards * gpuKwAt(def.id, g) * 24 * MONTH * def.powerPrice) / 1000;
   const risk = riskOf(def);
+  const late = s.day + buildMonths(def.id, mw) * MONTH > END_DAY;
   return (
     <ConfirmDialog
       title={`Стройка: ${def.name}`}
@@ -358,7 +359,10 @@ function BuildDialog({ s, def, onClose }: { s: GameState; def: DcSiteDef; onClos
           <dt>Стоимость</dt>
           <dd className="bad">{fmtMoney(cost)}</dd>
           <dt>Срок</dt>
-          <dd>{monthsText(buildMonths(def.id, mw))}</dd>
+          <dd className={late ? 'bad' : undefined}>
+            {monthsText(buildMonths(def.id, mw))}
+            {late && `, не успеет до ${formatDateShort(END_DAY)}`}
+          </dd>
           <dt>Риск задержки</dt>
           <dd className={`dc-risk ${risk.tone}`}>
             {risk.text}, {Math.round(def.risk * 100)} % на этап

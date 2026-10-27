@@ -420,7 +420,7 @@ function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
         ) : eta !== null ? (
           <span className={late ? 'warn' : undefined}>
             готово {formatDateShort(s.day + eta)}
-            {late && ', позже конца игры'}
+            {late && `, не успеет до ${formatDateShort(END_DAY)}`}
           </span>
         ) : (
           <span className="warn">стоит: нет мощности</span>
@@ -562,7 +562,7 @@ function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
         <div className={`nm-kpi-v${days === null ? ' dim' : ''}`}>{days !== null ? `${fmtNum(days)} дн.` : '-'}</div>
         <div className={`nm-kpi-s${late || (days !== null && days > LONG_RUN_DAYS) ? ' warn' : ''}`}>
           {days !== null
-            ? `Готово ${formatDateShort(s.day + days)}${late ? ', позже конца игры' : days > LONG_RUN_DAYS ? ', дольше года' : ''} · ${fmtCards(s, power)}`
+            ? `Готово ${formatDateShort(s.day + days)}${late ? `, не успеет до ${formatDateShort(END_DAY)}` : days > LONG_RUN_DAYS ? ', дольше года' : ''} · ${fmtCards(s, power)}`
             : 'Нет мощности на обучение'}
         </div>
         {overhead >= 1.05 && (
@@ -647,6 +647,8 @@ function StartConfirm(props: { s: GameState; plan: TrainingPlan; est: Est; onCon
         )}
         <dt>Срок</dt>
         <dd>{days !== null ? `${fmtDays(Math.ceil(days))}, готово ${formatDateShort(s.day + days)}` : 'нет мощности на обучение'}</dd>
+        <dt>Конец игры</dt>
+        <dd>{formatDateShort(END_DAY)}</dd>
         <dt>Мощность</dt>
         <dd>
           {fmtH100e(power)} H100e <Cards s={s} h100e={power} />
@@ -717,12 +719,15 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
   const noCompute = trainPool <= 0;
   // RLHF платит разметчикам сразу, а без мощности на обучение проект не движется: такой запуск закрываем.
   const rlhfNoCompute = plan.rlhf && noCompute;
-  const canStart = est !== null && est.error === null && !rlhfNoCompute;
+  const nums = est ? projectNumbers(s, est) : null;
+  // Обучение, которое закончится после конца игры, не стартуем: модель уже не выйдет в партии.
+  const tooLate = nums !== null && nums.days !== null && s.day + nums.days > END_DAY;
+  const canStart = est !== null && est.error === null && !rlhfNoCompute && !tooLate;
   const reason =
     est === null
       ? 'Оценка проекта недоступна.'
-      : (est.error ?? (rlhfNoCompute ? 'Выделите мощность на обучение: разметчикам платят при старте.' : null));
-  const nums = est ? projectNumbers(s, est) : null;
+      : (est.error ??
+        (rlhfNoCompute ? 'Выделите мощность на обучение: разметчикам платят при старте.' : tooLate ? `Не успеет до ${formatDateShort(END_DAY)}` : null));
 
   // Насколько данные подходят к размеру: при автоподборе отстаём, только если данных в этом году мало.
   const eff = chinchillaFactor(plan.paramsB, plan.tokensB);

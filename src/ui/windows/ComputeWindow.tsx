@@ -30,7 +30,7 @@ import { idleWarnings } from '../../sim/idle';
 import { CHAT_MOMENT_DAY, inferenceNeed, marketSnapshot, subsOpen } from '../../sim/market';
 import { TECHS } from '../../sim/research';
 import { timesWord } from '../../sim/text';
-import { formatDateShort, yearOf } from '../../sim/time';
+import { END_DAY, formatDateShort, yearOf } from '../../sim/time';
 import type { GameState, GpuDef, GpuId } from '../../sim/types';
 import {
   ALLOC_ROWS,
@@ -520,7 +520,7 @@ function RowEffect({ s, k, share }: { s: GameState; k: 'training' | 'experiments
       </div>
     );
   }
-  const date = (d: number | null) => (d === null ? 'не скоро' : formatDateShort(s.day + d));
+  const date = (d: number | null) => (d === null ? 'не скоро' : s.day + d > END_DAY ? `после ${formatDateShort(END_DAY)}` : formatDateShort(s.day + d));
   const moved = now !== next;
   const tone = !moved ? '' : next === null || (now !== null && next > now) ? ' later' : ' sooner';
   return (
