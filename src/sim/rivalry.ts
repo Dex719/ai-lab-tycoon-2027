@@ -1626,7 +1626,7 @@ const AUDIT_EVENT: EventDef = {
     {
       label: 'Снять с продажи',
       story: 'Модель уйдёт с рынка до конца проверки',
-      hint: `модель снята с API на ${AUDIT_HOLD_DAYS} дней, -10 шумихи`,
+      hint: `модель нельзя вернуть на API ${AUDIT_HOLD_DAYS} дней, потом включите её сами в «Моделях», -10 шумихи`,
       apply: (s) => {
         const m = choiceModel(s);
         if (m) {

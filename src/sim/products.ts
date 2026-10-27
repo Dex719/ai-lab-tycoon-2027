@@ -115,7 +115,7 @@ export function launchCoder(s: GameState, mode: CoderLaunch): Result {
   s.coder = { launchedDay: s.day, openDay, mode, seats: 0, earned: 0 };
   if (mode === 'show') {
     spend(s, 'overhead', showCost(s));
-    s.hype.player += SHOW_HYPE;
+    s.hype.player = Math.min(100, s.hype.player + SHOW_HYPE);
     const crashed = crashRoll(s) < SHOW_CRASH_CHANCE;
     s.coder.seats = Math.round(coderTarget(s) * (crashed ? 0.1 : 0.4));
     if (crashed) {
@@ -157,7 +157,7 @@ export function productsDay(s: GameState): void {
   }
   if (!c || s.outcome) return;
   if (s.day < c.openDay) {
-    s.hype.player += 0.1; // лист ожидания подогревает интерес
+    s.hype.player = Math.min(100, s.hype.player + 0.1); // лист ожидания подогревает интерес
     return;
   }
   if (s.day === c.openDay && c.mode === 'waitlist') {

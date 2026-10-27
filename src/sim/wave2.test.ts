@@ -134,6 +134,25 @@ describe('ИИ-программист', () => {
     if (back.ok) expect(back.state.coder?.mode).toBe('waitlist');
   });
 
+  it('шумиха игрока не выше 100: презентация при 97 даёт 100, лист ожидания тоже не выводит за 100', () => {
+    const s = newGame('Т', 4);
+    s.day = dateToDay(CODER_OPEN);
+    coderModel(s);
+    s.cash = 1e9;
+    s.hype.player = 97;
+    expect(launchCoder(s, 'show').ok).toBe(true);
+    expect(s.hype.player).toBe(100);
+
+    const w = newGame('Т', 4);
+    w.day = dateToDay(CODER_OPEN);
+    coderModel(w);
+    w.hype.player = 99.95;
+    expect(launchCoder(w, 'waitlist').ok).toBe(true);
+    w.day += 1;
+    productsDay(w);
+    expect(w.hype.player).toBe(100);
+  });
+
   it('презентация стоит денег и даёт шумиху; без модели в продаже запустить нельзя', () => {
     const s = newGame('Т', 4);
     s.day = dateToDay(CODER_OPEN);

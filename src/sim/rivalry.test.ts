@@ -881,6 +881,7 @@ describe('письма с выбором', () => {
     expect(mail.choices).toHaveLength(3);
     expect(mail.replyByDay).toBe(s.day + 30);
     expect(mail.defaultChoice).toBe(2);
+    expect(mail.choices![1].hint).toBe(`модель нельзя вернуть на API ${AUDIT_HOLD_DAYS} дней, потом включите её сами в «Моделях», -10 шумихи`);
     expect(s.rivalry.choice).toEqual({ lab: 'antropik', modelId: m.id });
     expect(s.rivalry.active.map((a) => a.move)).toEqual(['audit']);
     expect(labStance(s, 'antropik').label).toBe('проверяет');

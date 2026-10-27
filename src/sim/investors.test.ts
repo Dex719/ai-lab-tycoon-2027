@@ -613,14 +613,15 @@ describe('выкуп доли у инвесторов', () => {
     expect(buybackCost(s)).toBeCloseTo(valuation(s).total * BOARD_BUYBACK_SHARE * BOARD_BUYBACK_PREMIUM, 6);
   });
 
-  it('выкуп: деньги уходят накладными, доля основателя растёт, письмо', () => {
+  it('выкуп: деньги уходят разовым вложением (capex), доля основателя растёт, письмо', () => {
     const s = newState(dateToDay('2023-06-01'));
     s.founderShare = 0.45;
     const cost = buybackCost(s);
     const cash = s.cash;
     buyBackShares(s);
     expect(s.cash).toBeCloseTo(cash - cost, 6);
-    expect(s.finance.month.expense.overhead).toBeCloseTo(cost, 6);
+    expect(s.finance.month.expense.capex).toBeCloseTo(cost, 6);
+    expect(s.finance.month.expense.overhead).toBe(0);
     expect(s.founderShare).toBeCloseTo(0.45 + BOARD_BUYBACK_SHARE, 12);
     const mail = s.mail[s.mail.length - 1];
     expect(mail.kind).toBe('finance');

@@ -125,7 +125,8 @@ export function buybackCost(s: GameState): number {
  */
 export function buyBackShares(s: GameState): void {
   const cost = buybackCost(s);
-  spend(s, 'overhead', cost);
+  // Выкуп доли - разовое вложение, как в окне «Инвесторы».
+  spend(s, 'capex', cost);
   s.founderShare = Math.min(1, s.founderShare + BOARD_BUYBACK_SHARE);
   addMail(s, {
     kind: 'finance',
