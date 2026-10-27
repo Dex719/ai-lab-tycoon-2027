@@ -67,6 +67,7 @@ import { timesWord } from '../../sim/text';
 import { IconLock } from '../icons';
 import { actions, store } from '../store';
 import { playSound } from '../sound';
+import { Term } from '../components/Term';
 import { pushNotice } from '../Toasts';
 import { disputeWarning, planDisputes } from '../../sim/cofounder';
 import './TrainingWindow.css';
@@ -269,7 +270,7 @@ function Slider({ label, text, value, min, max, onChange, ends, color, title, ar
   return (
     <div className="nm-sl" title={title}>
       <div className="nm-sl-top">
-        <span className="nm-sl-l">{label}</span>
+        <span className="nm-sl-l"><Term text={typeof label === 'string' ? label : undefined}>{label}</Term></span>
         <span className="nm-sl-v num">{text}</span>
       </div>
       <Range value={value} min={min} max={max} onChange={onChange} color={color} label={ariaLabel} valueText={text} />
@@ -507,7 +508,7 @@ function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
   return (
     <div className="nm-hero">
       <div className="nm-kpi nm-kpi-main">
-        <div className="nm-kpi-l">Прогноз Эло</div>
+        <div className="nm-kpi-l"><Term text="Прогноз Эло">Прогноз Эло</Term></div>
         {fc ? (
           <>
             <div className="nm-kpi-v">
@@ -551,7 +552,7 @@ function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
                     </>
                   )}{' '}
               <button className="nm-link" onClick={() => open('research')}>
-                «Законы масштабирования»
+                <Term text="Законы масштабирования">«Законы масштабирования»</Term>
               </button>
             </div>
           </>
@@ -649,7 +650,7 @@ function StartConfirm(props: { s: GameState; plan: TrainingPlan; est: Est; onCon
         <dd>{days !== null ? `${fmtDays(Math.ceil(days))}, готово ${formatDateShort(s.day + days)}` : 'нет мощности на обучение'}</dd>
         <dt>Мощность</dt>
         <dd>
-          {fmtH100e(power)} H100e <Cards s={s} h100e={power} />
+          {fmtH100e(power)} <Term text="H100e">H100e</Term> <Cards s={s} h100e={power} />
         </dd>
       </dl>
       {days !== null && days > LONG_RUN_DAYS && (
@@ -836,7 +837,9 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
               />
             )}
             <div className={`nm-data ${dataTone}`}>
-              <span>{dataLine}</span>
+              <span>
+                <Term text={dataLine}>{dataLine}</Term>
+              </span>
               <button type="button" className="nm-link" onClick={() => patch(autoData ? { autoData: false, tokensB: tokens } : { autoData: true })}>
                 {autoData ? 'Настроить вручную' : 'Подбирать под размер'}
               </button>
@@ -872,7 +875,9 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
                   valueText={fmtPct(d.mix[k], 0)}
                   onChange={(v) => patch({ mix: rescaleMix(d.mix, k, v) })}
                 />
-                <span className="nm-mix-what">{mixGrowth(s, k)}</span>
+                <span className="nm-mix-what">
+                  <Term text={mixGrowth(s, k)}>{mixGrowth(s, k)}</Term>
+                </span>
               </div>
             ))}
           </section>

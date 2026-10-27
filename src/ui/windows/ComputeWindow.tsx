@@ -47,6 +47,7 @@ import {
   type SoldChannels,
 } from '../alloc';
 import { Cards } from '../components/Cards';
+import { Term } from '../components/Term';
 import { contractsNeedWithApplications, researchDaysAt, trainingDaysAt } from '../forecast';
 import { ConfirmDialog, Dialog, GuardButton, NewBadge, Range } from '../components/common';
 import { fmtH100e as fmtH, fmtInt, fmtMoney, fmtNum, h100ePerCard, ruPlural } from '../format';
@@ -181,7 +182,9 @@ function Side({ s, onRent }: { s: GameState; onRent: () => void }) {
       </div>
       <div className={`cw-fig-value${total > 0 ? '' : ' dim'}`}>
         {fmtH(total)}
-        <span>H100e</span>
+        <Term text="H100e">
+          <span>H100e</span>
+        </Term>
       </div>
       <div className="cw-fig-sub">
         {layout.cards > 0 ? `${fmtCardsCount(layout.cards)} в аренде, ${racks}` : 'Карт в аренде нет'}

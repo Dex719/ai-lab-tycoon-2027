@@ -7,6 +7,7 @@ import { activeBonuses, capitalize, untilText } from '../data/questKit';
 import { goalPenaltyText, goalProgress, goalRewardShort, goalRewardText } from '../sim/goals';
 import type { GameState } from '../sim/types';
 import { IconCheck } from './icons';
+import { Term } from './components/Term';
 import { TasksPanel } from './TasksPanel';
 import type { WindowAlias, WindowId } from './windows';
 import './goals.css';
@@ -52,7 +53,9 @@ export function GoalsPanel({ s, open }: { s: GameState; open: (id: WindowId | Wi
                 >
                   <div className="gt">
                     {isDone && <IconCheck size={14} className="gt-ok" />}
-                    <span className="gt-name">{v.title}</span>
+                    <span className="gt-name">
+                      <Term text={v.title}>{v.title}</Term>
+                    </span>
                     <span className={`gt-reward${isDone ? ' ok' : ''}`}>{capitalize(goalRewardShort(g, y.year))}</span>
                   </div>
                   <div className="gp">

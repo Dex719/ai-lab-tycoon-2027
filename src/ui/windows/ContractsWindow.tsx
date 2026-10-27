@@ -13,6 +13,7 @@ import { formatDateShort } from '../../sim/time';
 import { modelScore } from '../../sim/training';
 import type { Contract, GameState, PlayerModel, Tender } from '../../sim/types';
 import { Cards } from '../components/Cards';
+import { Term } from '../components/Term';
 import { Alert, ConfirmDialog, ErrorText, GuardButton } from '../components/common';
 import { endSentence, fmtDays, fmtH100e, fmtInt, fmtMoney, fmtPct, fmtShare, h100ePerCard } from '../format';
 import { contractsNeedWith, contractsNeedWithApplications } from '../forecast';
@@ -249,12 +250,14 @@ function DocHead({ clientId, sub, children }: { clientId: string; sub: string; c
 }
 
 /** Строка заказа: три главных числа в одну линию. */
-function Slip({ cells }: { cells: { label: string; value: ReactNode; sub?: ReactNode; tone?: string }[] }) {
+function Slip({ cells }: { cells: { label: string; value: ReactNode; sub?: ReactNode; tone?: string; tip?: string }[] }) {
   return (
     <div className="ct-slip">
       {cells.map((c) => (
         <div key={c.label} className="ct-slip-c">
-          <span className="ct-slip-l">{c.label}</span>
+          <span className={`ct-slip-l${c.tip ? ' term' : ''}`} title={c.tip}>
+            {c.label}
+          </span>
           <b className={`ct-slip-v${c.tone ? ` ${c.tone}` : ''}`}>{c.value}</b>
           <span className="ct-slip-s">{c.sub ?? ' '}</span>
         </div>
@@ -417,7 +420,7 @@ function TenderCard(props: {
   return (
     <div className="ct-doc">
       <DocHead clientId={t.clientId} sub={`${clientIndustry(t.clientId)}, ${kind}`}>
-        Нужна модель{rlhf ? ', обученная с RLHF,' : ''} с баллом не ниже <b>{fmtPct(t.requirement, 0)}</b> на <b>{bench.name}</b>. Работа займёт{' '}
+        Нужна модель{rlhf ? ', обученная с RLHF,' : ''} с баллом не ниже <b>{fmtPct(t.requirement, 0)}</b> на <b><Term text={bench.name}>{bench.name}</Term></b>. Работа займёт{' '}
         <b>{fmtDays(t.durationDays)}</b> после победы, оплата <b>{fmtMoney(t.payment)}</b> после сдачи.
       </DocHead>
 
@@ -433,6 +436,7 @@ function TenderCard(props: {
             value: chance === null ? '-' : fmtShare(chance, 0),
             tone: chanceTone(chance),
             sub: app ? 'заявка подана' : model ? `модель «${model.name}»` : released.length === 0 ? 'моделей ещё нет' : 'модель не подходит',
+            tip: 'Шанс растёт с репутацией и с запасом балла над требованием. Больше 92 % не бывает.',
           },
           { label: 'Срок работы', value: fmtDays(t.durationDays), sub: decideText(s, decide) },
         ]}
@@ -443,7 +447,7 @@ function TenderCard(props: {
           <h3 className="ct-h">{app ? 'Заявка' : 'Модель для заявки'}</h3>
           {picker}
           <div className="ct-req-h">
-            Балл на {bench.name}
+            <Term text={bench.name}>Балл на {bench.name}</Term>
             {rlhf && shownModel && <span className={shownModel.rlhf ? 'good' : 'bad'}>{shownModel.rlhf ? ', RLHF есть' : ', нет RLHF'}</span>}
           </div>
           <ScoreGauge req={t.requirement} shown={shown} honest={honest} />
@@ -454,7 +458,7 @@ function TenderCard(props: {
           <dl className="ct-kv">
             <dt>Требование</dt>
             <dd>
-              {bench.name} от {fmtPct(t.requirement, 0)}
+              <Term text={bench.name}>{bench.name}</Term> от {fmtPct(t.requirement, 0)}
             </dd>
             <dt title="Списывается при отказе, просрочке и балле ниже требования; оплаты в этом случае нет">Если сорвать</dt>
             <dd className="bad">

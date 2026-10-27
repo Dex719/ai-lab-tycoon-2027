@@ -7,6 +7,7 @@ import { capitalize } from '../data/questKit';
 import { chooseGoals, goalOfferOpen, goalPenaltyText, goalRewardText, goalTitle, GOALS_PER_YEAR, unseenReview } from '../sim/goals';
 import type { GameState } from '../sim/types';
 import { DenyNote, GuardButton, useFlash, useModalFocus } from './components/common';
+import { Term } from './components/Term';
 import { IconClose } from './icons';
 import { store } from './store';
 import './goals.css';
@@ -82,7 +83,9 @@ export function GoalPicker({ s, picked, toggle, note }: { s: GameState; picked: 
               <input type="checkbox" checked={on} onChange={() => toggle(g.id)} />
               <span className="gc-style">{STYLE_NAMES[style]}</span>
               <span className="gc-main">
-                <span className="gc-title">{goalTitle(g, year)}</span>
+                <span className="gc-title">
+                  <Term text={goalTitle(g, year)}>{goalTitle(g, year)}</Term>
+                </span>
                 {hint && <span className="gc-hint">{hint}</span>}
               </span>
               <span className="gc-prize">

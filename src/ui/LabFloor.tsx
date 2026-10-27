@@ -15,6 +15,7 @@ import { formatDateShort } from '../sim/time';
 import type { GameState, LabId, PlayerModel, Tier } from '../sim/types';
 import { distribute, ALLOC_ROWS } from './alloc';
 import { fmtH100e, fmtMoney, fmtNum, fmtShare, ruPlural } from './format';
+import { glossFor } from './terms';
 import { openDossier } from './dossier';
 import { nextStep, type NextStep } from './nextStep';
 import { raceMetricOf, raceRows } from './race';
@@ -309,7 +310,7 @@ function NextPlate({ step, open }: { step: NextStep; open: Open }) {
       <div className="lf-next-t">
         <span>Следующий шаг</span>
         <b>{step.title}</b>
-        <small>{step.detail}</small>
+        <small title={glossFor(step.detail)}>{step.detail}</small>
       </div>
       {step.action && (
         <button type="button" className="btn primary" onClick={() => (step.open === 'play' ? store.setSpeed(1) : open(step.open))}>

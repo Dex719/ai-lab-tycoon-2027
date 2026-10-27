@@ -132,6 +132,7 @@ table.grid th { background: var(--brand); color: var(--on-brand); font-weight: v
 table.grid td { font-weight: var(--fw-text); }
 table.grid tr:nth-child(even) td { background: var(--row-alt); }
 .card { background: var(--surface-card); border: none; border-radius: 10px; }
+.term { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
 .badge { background: var(--bad-fill); color: #fff; font-weight: var(--fw-strong); }
 
 @media (min-width: 768px) {

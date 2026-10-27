@@ -49,6 +49,7 @@ import {
   termText,
 } from './researchMap';
 import type { GraphTech } from './researchMap';
+import { glossFor } from '../terms';
 import './ResearchWindow.css';
 
 type Status = 'done' | 'current' | 'available' | 'blocked';
@@ -667,7 +668,7 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
             </div>
           </div>
         </div>
-        <p className="rs-d-desc">{info.description}</p>
+        <p className="rs-d-desc" title={glossFor(info.description)}>{info.description}</p>
 
         <dl className="rs-d-kv">
           {past && (

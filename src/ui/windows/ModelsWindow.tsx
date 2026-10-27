@@ -49,6 +49,8 @@ import {
   type TrainingRun,
 } from '../../sim/types';
 import { Cards } from '../components/Cards';
+import { Term } from '../components/Term';
+import { glossFor } from '../terms';
 import { Alert, ConfirmDialog, DenyNote, ErrorText, GuardButton, ProgressBar, useFlash } from '../components/common';
 import { ModelEmblem } from '../components/ModelEmblem';
 import { TierBadge } from '../components/TierBadge';
@@ -271,7 +273,7 @@ function ModelList(props: {
                 1-е
               </b>
             )}
-            <span className="mw-item-elo" title="Рейтинг Эло">
+            <span className="mw-item-elo" title={glossFor('Рейтинг Эло')}>
               <FlashNum value={m.arenaElo} frac={0} minAbs={2} className="on-light">{fmtElo(m.arenaElo)}</FlashNum>
             </span>
           </span>
@@ -904,10 +906,16 @@ function Hero(props: {
         <dl className="mw-facts">
           {facts.map((k) => (
             <Fragment key={k.label}>
-              <dt>{k.label}</dt>
+              <dt>
+                <Term text={k.label}>{k.label}</Term>
+              </dt>
               <dd title={k.title}>
                 <span className={k.tone ? `mw-v ${k.tone}` : 'mw-v'}>{k.value}</span>
-                {k.sub && <small>{k.sub}</small>}
+                {k.sub && (
+                  <small>
+                    <Term text={k.sub}>{k.sub}</Term>
+                  </small>
+                )}
               </dd>
             </Fragment>
           ))}
