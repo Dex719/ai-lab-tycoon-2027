@@ -87,6 +87,12 @@ export function specKey(spec: ViewSpec): string {
   return JSON.stringify(spec);
 }
 
+/** Описания лаборатории отличаются только цветами задач по стойкам: сцену можно перекрасить без перестройки. */
+export function onlyRackColorsDiffer(a: ViewSpec, b: ViewSpec): boolean {
+  if (a.kind !== 'lab' || b.kind !== 'lab') return false;
+  return specKey({ ...a, rackColors: [] }) === specKey({ ...b, rackColors: [] }) && specKey(a) !== specKey(b);
+}
+
 // ---------- Ферма ----------
 
 export interface FarmRack {

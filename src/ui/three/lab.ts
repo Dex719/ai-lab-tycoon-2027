@@ -11,7 +11,7 @@ import { EVENT_MS, live } from './live';
 import { rng } from './kit';
 import { flagTexture } from './flag';
 import { Crowd, type Look, type Spot } from './people';
-import type { LabSpec } from './specs';
+import { onlyRackColorsDiffer, type LabSpec } from './specs';
 
 interface RoomDef {
   w: number;
@@ -45,11 +45,13 @@ const PERSON_CAP = 40;
 const CHAIRS = ['#35aebb', '#f2922c', '#5d6b7a', '#e0574f'];
 
 export function buildLab(spec: LabSpec): Content {
+  let cur = spec; // текущее описание: patch меняет только цвета стоек
   const room = ROOMS[spec.stage] ?? ROOMS[0];
   const { w: W, d: D } = room;
   const root = new THREE.Group();
   const geos = new Set<THREE.BufferGeometry>();
   const mats = new Map<string, THREE.MeshStandardMaterial>();
+  const strips: { mesh: THREE.Mesh; rack: number }[] = [];
   const extraMats: THREE.Material[] = [];
   const extraTex: THREE.Texture[] = [];
   const rivalDoors: { x: number; z: number }[] = [];
@@ -220,7 +222,7 @@ export function buildLab(spec: LabSpec): Content {
     box(RACK_W, 2.1, 0.95, '#3a4652', x, 1.05, rackZ);
     box(RACK_W + 0.02, 0.06, 0.97, '#3a3e45', x, 2.12, rackZ);
     // Планка цвета задачи над дверцей (как в «Мощностях»).
-    if (spec.racksLit > i * 8) box(RACK_W - 0.06, 0.07, 0.02, spec.rackColors[i] ?? '#7dd87f', x, 2.03, rackZ + 0.49, root, 0.8);
+    if (spec.racksLit > i * 8) strips.push({ mesh: box(RACK_W - 0.06, 0.07, 0.02, spec.rackColors[i] ?? '#7dd87f', x, 2.03, rackZ + 0.49, root, 0.8), rack: i });
     for (let sv = 0; sv < 8; sv++) {
       const y = 0.3 + sv * 0.23;
       const on = litLeft > 0;
@@ -648,7 +650,7 @@ export function buildLab(spec: LabSpec): Content {
     const trouble = live.trouble;
     const busy = Math.max(0.15, live.load);
     for (const l of leds) {
-      const color = trouble ? '#e8c34a' : spec.rackColors[l.rack % Math.max(1, spec.rackColors.length)] ?? '#7dd87f';
+      const color = trouble ? '#e8c34a' : cur.rackColors[l.rack % Math.max(1, cur.rackColors.length)] ?? '#7dd87f';
       let on: boolean;
       if (eventOn) on = true;
       else if (!animated) on = l.seed < busy;
@@ -696,6 +698,13 @@ export function buildLab(spec: LabSpec): Content {
     shadows: true,
     ambient,
     anchors,
+    patch: (next) => {
+      if (!onlyRackColorsDiffer(cur, next) || next.kind !== 'lab') return false;
+      cur = next;
+      for (const s of strips) s.mesh.material = mat(next.rackColors[s.rack] ?? '#7dd87f', 0.8);
+      paint(0, false, false);
+      return true;
+    },
     dispose: () => {
       for (const g of geos) g.dispose();
       for (const m of mats.values()) m.dispose();

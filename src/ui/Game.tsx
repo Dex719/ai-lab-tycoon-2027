@@ -334,12 +334,14 @@ export function Game({ s }: { s: GameState }) {
     </div>
   );
 
+  const toggleSheet = useCallback(() => setSheet((v) => !v), []);
+
   return (
     <>
     <div className="game" inert={blocked}>
-      <TopBar s={s} phone={phone} sheetOpen={sheet} onToggleSheet={() => setSheet((v) => !v)} />
+      <TopBar s={s} phone={phone} sheetOpen={sheet} onToggleSheet={toggleSheet} version={store.version} />
       <div className="desk" ref={deskRef} onPointerDown={() => setStartOpen(false)}>
-        {!phone && <LabFloor s={s} open={open} />}
+        {!phone && <LabFloor s={s} open={open} version={store.version} />}
         {phone && (
         <div className="icons">
         <div className="icon-col left">

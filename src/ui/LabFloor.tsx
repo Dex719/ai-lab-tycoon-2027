@@ -3,7 +3,7 @@
 // и что нужно до следующего; в первый год внизу - «Следующий шаг». Сцена перестраивается только при смене того,
 // что на ней видно (spec), а не каждый игровой день.
 
-import { useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { GPUS } from '../data/gpus';
 import { LABS } from '../data/labs';
 import { idleWarnings } from '../sim/idle';
@@ -320,9 +320,11 @@ function NextPlate({ step, open }: { step: NextStep; open: Open }) {
   );
 }
 
-export function LabFloor({ s, open }: { s: GameState; open: Open }) {
+function LabFloorView({ s, open }: { s: GameState; open: Open; version?: number /* новизна состояния для memo (как у WindowBody) */ }) {
   const speed = useSpeed();
-  const f = factsOf(s);
+  const version = store.version;
+  // Состояние меняется на месте: новизну показывает версия хранилища. Подписи сцены (setAt) не пересчитывают описание.
+  const f = useMemo(() => factsOf(s), [s, version]); // eslint-disable-line react-hooks/exhaustive-deps
   const key = specKey(f.spec);
   // Тот же объект описания, пока не изменилось то, что видно: View3D сравнивает по ключу.
   const spec = useMemo(() => f.spec, [key]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -405,3 +407,5 @@ export function LabFloor({ s, open }: { s: GameState; open: Open }) {
     </div>
   );
 }
+
+export const LabFloor = memo(LabFloorView);

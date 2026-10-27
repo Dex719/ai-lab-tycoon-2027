@@ -55,6 +55,8 @@ export interface Content {
   ambient?: (ctx: { now: number; since: number; reduced: boolean; slow: boolean }) => { dirty: boolean; next: number };
   /** Точки сцены, над которыми интерфейс рисует подписи (см. ViewOptions.onAnchors). */
   anchors?: Record<string, THREE.Vector3>;
+  /** Обновить сцену под новое описание без перестройки; false - нужна полная перестройка. */
+  patch?: (next: ViewSpec) => boolean;
   dispose(): void;
 }
 
@@ -328,6 +330,12 @@ export class View {
 
   setSpec(spec: ViewSpec): void {
     if (this.disposed) return;
+    if (this.content?.patch && this.spec && this.spec.kind === spec.kind && this.content.patch(spec)) {
+      this.spec = spec;
+      this.ambientAt = 0; // огоньки стоек сразу берут новые цвета
+      this.markDirty();
+      return;
+    }
     const prev = this.spec;
     const sameKind = prev?.kind === spec.kind;
     if (this.content) {

@@ -3,7 +3,38 @@ import { DC_STAGES } from '../../data/datacenters';
 import { buildDatacenter } from '../../sim/datacenters';
 import { newGame } from '../../sim/actions';
 import { dateToDay } from '../../sim/time';
-import { campusSpec, CARDS_PER_RACK, farmLayout, rentedFarm, specKey } from './specs';
+import { campusSpec, CARDS_PER_RACK, farmLayout, onlyRackColorsDiffer, rentedFarm, specKey, type LabSpec } from './specs';
+
+function labSpec(over: Partial<LabSpec> = {}): LabSpec {
+  return {
+    kind: 'lab',
+    stage: 0,
+    people: 2,
+    freeSeats: 0,
+    racks: 2,
+    racksLit: 8,
+    rackColors: ['#a', '#b'],
+    research: false,
+    training: false,
+    models: [],
+    cups: [],
+    ...over,
+  };
+}
+
+describe('onlyRackColorsDiffer', () => {
+  it('меняются только цвета стоек: сцену можно перекрасить', () => {
+    expect(onlyRackColorsDiffer(labSpec(), labSpec({ rackColors: ['#c', '#b'] }))).toBe(true);
+  });
+
+  it('меняются цвета и обучение: нужна полная перестройка', () => {
+    expect(onlyRackColorsDiffer(labSpec(), labSpec({ rackColors: ['#c', '#b'], training: true }))).toBe(false);
+  });
+
+  it('описания одинаковые: перекрашивать нечего', () => {
+    expect(onlyRackColorsDiffer(labSpec(), labSpec())).toBe(false);
+  });
+});
 
 describe('farmLayout', () => {
   it('раскладывает карты по стойкам: 32 карты на стойку, неполная стойка последней', () => {

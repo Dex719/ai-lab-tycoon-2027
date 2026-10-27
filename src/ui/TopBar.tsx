@@ -1,7 +1,7 @@
 // Верхняя панель (как в Processor Tycoon): деньги, изменение за месяц, дата, скорость; справа доля рынка и место на «Арене».
 import { StageMark } from './LabFloor';
 
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { memo, useEffect, useRef, useState, type ReactElement } from 'react';
 import { COUNTRIES } from '../sim/country';
 import { pendingChoice } from '../sim/events';
 import { CountryFlag } from './components/CountryFlag';
@@ -62,7 +62,7 @@ function MoneyPopup({ s }: { s: GameState }) {
 
 const SPEED_KEYS: Record<string, Speed> = { Digit1: 1, Digit2: 2, Digit3: 4, Numpad1: 1, Numpad2: 2, Numpad3: 4 };
 
-export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; phone: boolean; sheetOpen: boolean; onToggleSheet: () => void }) {
+function TopBarView({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; phone: boolean; sheetOpen: boolean; onToggleSheet: () => void; version?: number /* новизна состояния для memo (как у WindowBody) */ }) {
   const speed = useSpeed();
   const [hover, setHover] = useState(false);
   const [pinned, setPinned] = useState(false); // касание: сводку денег держим открытой до следующего нажатия мимо
@@ -309,6 +309,8 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
     </header>
   );
 }
+
+export const TopBar = memo(TopBarView);
 
 /** Запас денег при нынешнем расходе: «хватит на 4 мес.»; жёлтым меньше полугода, красным меньше трёх месяцев. */
 function Runway({ cash, rate }: { cash: number; rate: number }) {
