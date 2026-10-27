@@ -186,7 +186,7 @@ export const TUTORIAL: TutorialStep[] = [
     },
     targets: (s) => {
       const { fit, minNeed } = tutorialTender(s);
-      if (fit) return ['tender-fit', 'apply', 'icon-contracts'];
+      if (fit) return ['apply-confirm', 'tender-fit', 'apply', 'icon-contracts'];
       return minNeed !== null ? ['rent-confirm', 'rent-button', 'icon-compute'] : ['speed-play', 'icon-contracts'];
     },
     done: applied,

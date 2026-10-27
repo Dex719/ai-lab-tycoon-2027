@@ -1718,7 +1718,7 @@ const TEAM_POACH_EVENT: EventDef = {
       label: 'Удержать команду',
       story: 'Команда остаётся и продолжает работу, но обходится дороже',
       hint: 'полгода зарплаты команды',
-      hintFn: (s) => `${fmtMoney(retainCost(choiceTeam(s)))}, команда остаётся`,
+      hintFn: (s) => `-${fmtMoney(retainCost(choiceTeam(s)))}, команда остаётся`,
       apply: (s) => {
         spend(s, 'overhead', retainCost(choiceTeam(s)));
       },

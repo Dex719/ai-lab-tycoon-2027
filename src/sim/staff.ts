@@ -494,7 +494,7 @@ export const STAFF_EVENTS: EventDef[] = [
         label: 'Удержать',
         story: 'Сотрудник остаётся за премию, год его не переманят',
         hint: 'премия в 4 зарплаты',
-        hintFn: (s) => `${money(retainCost(poachTarget(s)))}, сотрудник остаётся`,
+        hintFn: (s) => `-${money(retainCost(poachTarget(s)))}, сотрудник остаётся`,
         apply: retainPoached,
       },
       {

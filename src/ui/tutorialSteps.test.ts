@@ -183,7 +183,9 @@ describe('обучение игре', () => {
         fit = tutorialTender(s).fit;
       }
       expect(fit, 'посильный тендер').not.toBeNull();
-      expect(stepTargets(TUTORIAL[order], s)[0]).toBe('tender-fit');
+      // Тест обучения: в шаге заказа первая цель - подтверждение заявки (кнопка в диалоге), затем строка тендера.
+      expect(stepTargets(TUTORIAL[order], s)[0]).toBe('apply-confirm');
+      expect(stepTargets(TUTORIAL[order], s)).toContain('tender-fit');
       expect(stepText(TUTORIAL[order], s)).toContain(fit!.client);
       expect(applyTender(s, fit!.id, s.models[0].id).ok).toBe(true);
       expect(done(order)).toBe(true);
