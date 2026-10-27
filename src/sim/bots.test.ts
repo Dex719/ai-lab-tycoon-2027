@@ -2,7 +2,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { newGame } from './actions';
-import { botAct, botChoice, chinchillaPlan, nextTech, runBot } from './bots';
+import { EXTRA_EVENTS } from '../data/events';
+import { botAct, botChoice, chinchillaPlan, nextTech, pickChoice, runBot } from './bots';
 import { computeDay, orderedCount, rentNow } from './compute';
 import { FAIL_ROLLBACK, TRAIN_FLOP_PER_H100E_DAY } from './constants';
 import { minPrice } from './market';
@@ -10,7 +11,7 @@ import { botPriceReflex } from './rivalry';
 import { emptyLedger } from './state';
 import { dateToDay, END_DAY } from './time';
 import { tierOf } from './training';
-import type { GameState, MonthRecord, PlayerModel, TrainingRun } from './types';
+import type { GameState, Mail, MonthRecord, PlayerModel, TrainingRun } from './types';
 
 function run(flopTotal: number, flopDone: number, failed = true): TrainingRun {
   return {
@@ -66,6 +67,28 @@ describe('botChoice', () => {
     expect(botChoice(s, 'training-fail')).toBe(1);
     s.trainings[1].failed = false;
     expect(botChoice(s, 'training-fail')).toBe(0); // ни один проект не ждёт решения
+  });
+});
+
+describe('pickChoice', () => {
+  it('first - первый вариант, last - последний, bot - как botChoice (письмо с тремя вариантами)', () => {
+    const ev = EXTRA_EVENTS.find((e) => e.choices?.length === 3);
+    expect(ev).toBeDefined();
+    const s = newGame('Бот', 1);
+    const mail: Mail = {
+      id: 'm1',
+      day: 0,
+      title: 'Письмо',
+      body: '',
+      kind: 'event',
+      read: false,
+      eventId: ev!.id,
+      choices: [0, 1, 2].map((i) => ({ label: `Вариант ${i}`, hint: '' })),
+    };
+    expect(pickChoice(s, mail, 'first')).toBe(0);
+    expect(pickChoice(s, mail, 'last')).toBe(2);
+    expect(pickChoice(s, mail, 'bot')).toBe(botChoice(s, ev!.id));
+    expect(pickChoice(s, mail)).toBe(botChoice(s, ev!.id));
   });
 });
 

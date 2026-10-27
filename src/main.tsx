@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { botAct, type BotKind } from './sim/bots';
+import { botAct, pickChoice, type BotKind, type ChoicePolicy } from './sim/bots';
 import { applyChoice, openChoices, pendingChoice } from './sim/events';
 import { advanceDay } from './sim/tick';
 import { App } from './ui/App';
@@ -21,15 +21,15 @@ if (import.meta.env.DEV) {
     advance: (n: number) => store.advance(n),
     act: (name: keyof typeof actions, ...args: unknown[]) =>
       store.dispatch(actions[name] as (s: unknown, ...a: unknown[]) => never, ...args),
-    // Автоигра ботом на n дней (выбор в письмах - первый вариант): быстро дойти до поздней игры.
-    autoplay: (days: number, kind: BotKind = 'reasonable') => {
+    // Автоигра ботом на n дней; ответы в письмах - как у бота баланса (choice = first - всегда первый вариант)
+    autoplay: (days: number, kind: BotKind = 'reasonable', choice: ChoicePolicy = 'bot') => {
       const s = store.state;
       if (!s) return 0;
       let done = 0;
       while (done < days && !s.outcome) {
         const pending = pendingChoice(s) ?? openChoices(s)[0] ?? null;
         if (pending) {
-          applyChoice(s, pending.id, 0);
+          applyChoice(s, pending.id, pickChoice(s, pending, choice));
           continue;
         }
         if (s.day % 7 === 0) botAct(s, kind);

@@ -33,9 +33,15 @@ import {
   trainingPoolPerRun,
   trainOverhead,
 } from './training';
-import type { Allocation, GameState, GpuId, TechId, TrainingPlan } from './types';
+import type { Allocation, GameState, GpuId, Mail, TechId, TrainingPlan } from './types';
 
 export type BotKind = 'idle' | 'reasonable' | 'strong' | 'benchmaxx';
+
+/**
+ * Ответы в письмах с выбором: 'bot' - как botChoice (по нему измерены опоры баланса), 'first' - всегда первый вариант
+ * (как раньше делала автоигра), 'last' - всегда последний.
+ */
+export type ChoicePolicy = 'bot' | 'first' | 'last';
 
 /**
  * Боты «как игрок» (QA 19.10): план с выбором сохранений, как его собирает окно игры, - у моделей появляются уязвимости
@@ -44,6 +50,8 @@ export type BotKind = 'idle' | 'reasonable' | 'strong' | 'benchmaxx';
  */
 export interface BotOptions {
   playerSystems?: boolean;
+  /** Ответы в письмах; по умолчанию 'bot'. */
+  choice?: ChoicePolicy;
 }
 
 interface BotProfile {
@@ -369,9 +377,18 @@ export interface BotResult {
   days: number;
 }
 
+/** Ответ на письмо с выбором по политике: 'bot' - botChoice, 'first' - первый вариант, 'last' - последний. */
+export function pickChoice(s: GameState, mail: Mail, policy: ChoicePolicy = 'bot'): number {
+  if (policy === 'first') return 0;
+  if (policy === 'last') return (mail.choices?.length ?? 1) - 1;
+  return botChoice(s, mail.eventId);
+}
+
 /**
- * Выбор бота в письме: первый вариант, кроме срыва обучения, когда откат к чекпоинту не успеет
- * до конца игры, - тогда «Продолжить» (модель слабее, но она выйдет).
+ * Выбор бота в письме (политика 'bot', см. pickChoice). Основные письма: первый вариант, кроме срыва обучения, когда
+ * откат к чекпоинту не успеет до конца игры, - тогда «Продолжить» (модель слабее, но она выйдет). Дополнительные письма
+ * (EXTRA_EVENTS: ранние, история, случайные, поздние, страны, совет директоров) бот не разбирает: отвечает вариантом по
+ * умолчанию или последним, как занятой игрок. Опоры баланса (balance.test.ts) измерены с этой политикой.
  */
 export function botChoice(s: GameState, eventId: string | undefined): number {
   // Новые письма (ранние заказы, история, случайные события) бот не разбирает: отвечает вариантом по умолчанию, как
@@ -386,7 +403,7 @@ export function botChoice(s: GameState, eventId: string | undefined): number {
   return daysAfterRollback > END_DAY - s.day - 3 ? 1 : 0;
 }
 
-/** Прогнать всю игру ботом. Выбор в почте - botChoice. Опоры баланса считаются на Обычной сложности. */
+/** Прогнать всю игру ботом. Выбор в почте - pickChoice (по умолчанию botChoice). Опоры баланса считаются на Обычной сложности. */
 export function runBot(kind: BotKind, seed: number, maxDays = 4000, difficulty: Difficulty = 'normal', opts: BotOptions = {}): BotResult {
   const s = newGame('Бот', seed, difficulty);
   let days = 0;
@@ -394,7 +411,7 @@ export function runBot(kind: BotKind, seed: number, maxDays = 4000, difficulty: 
     // Отложенные мелкие письма бот тоже разбирает сразу: как раньше, когда они ставили игру на паузу.
     const pending = pendingChoice(s) ?? openChoices(s)[0] ?? null;
     if (pending) {
-      applyChoice(s, pending.id, botChoice(s, pending.eventId));
+      applyChoice(s, pending.id, pickChoice(s, pending, opts.choice));
       continue;
     }
     if (s.day % 7 === 0) botAct(s, kind, opts);
