@@ -12,6 +12,7 @@ vi.mock('./leaderboard', () => ({
 }));
 
 import {
+  BANKRUPT_DAYS,
   BOARD_BUYBACK_PREMIUM,
   BOARD_BUYBACK_SHARE,
   BOARD_PLAN_VALUATION_MULT,
@@ -20,21 +21,25 @@ import {
   REV_MULT,
   ROUND_COOLDOWN_DAYS,
   ROUND_FRACTIONS,
+  ROUND_RESCUE_GRACE_DAYS,
   VALUATION_FLOOR,
 } from './constants';
-import { beginDay, earn } from './finance';
+import { beginDay, dayStep, earn } from './finance';
 import {
+  bankruptDay,
   BOARD_PLAN_FLAG,
   buyBackShares,
   buybackCost,
   cancelRound,
   canRaise,
   EMERGENCY_ROUND_DAYS,
+  EMERGENCY_USED_FLAG,
   emergencyRound,
   FOUNDER_WARNED_FLAG,
   investorsDay,
   raiseRound,
   raiseRoundNow,
+  roundTooLate,
   ROUND_CANCEL_HYPE,
   ROUND_DAYS,
   valuation,
@@ -792,5 +797,98 @@ describe('раунд с переговорами', () => {
     expect(canRaise(old.state)).toBeNull();
     investorsDay(old.state);
     expect(raiseRound(old.state, 0.1).ok).toBe(true);
+  });
+});
+
+describe('банкротство и раунд в минусе', () => {
+  /** Один день как в тике: сначала инвесторы, потом деньги. */
+  function passDay(s: GameState): void {
+    investorsDay(s);
+    dayStep(s);
+    s.day += 1;
+  }
+
+  it('первый раунд игры в минусе - экстренный: две недели, оценка ×0,6', () => {
+    // Раньше первый раунд не считался экстренным (lastRoundDay === null), и письмо «Деньги закончились» обещало то, чего не было.
+    const s = newState(5);
+    s.cash = -1;
+    expect(emergencyRound(s)).toBe(true);
+    expect(raiseRound(s, 0.3)).toEqual({ ok: true });
+    expect(s.round!.emergency).toBe(true);
+    expect(s.round!.closeDay).toBe(5 + EMERGENCY_ROUND_DAYS);
+  });
+
+  it('раунд на 30 % в первый день минуса спасает от банкротства: обычный срок 60 дней, деньги приходят', () => {
+    const s = newState(500);
+    s.lastRoundDay = 100; // перерыв прошёл: экстренного нет, раунд обычный
+    s.flags[EMERGENCY_USED_FLAG] = true;
+    s.cash = -1_000;
+    passDay(s);
+    expect(s.finance.negativeDays).toBe(1);
+    expect(emergencyRound(s)).toBe(false);
+    expect(raiseRound(s, 0.3)).toEqual({ ok: true });
+    expect(s.round!.closeDay).toBe(s.day + ROUND_DAYS[0.3]);
+    for (let i = 0; i < 100 && s.round; i++) passDay(s);
+    expect(s.outcome).not.toBe('bankrupt');
+    expect(s.round).toBeNull();
+    expect(s.lastRoundDay).toBe(500 + 1 + ROUND_DAYS[0.3]);
+  });
+
+  it('roundTooLate: раунд, который закроется позже банкротства больше чем на две недели, - день банкротства; иначе null', () => {
+    const s = newState(1000);
+    s.lastRoundDay = 100;
+    s.cash = -1;
+    s.finance.negativeDays = 50;
+    // банкротство на 1009-й день, обычный раунд на 10 % (30 дней) закроется на 1030-й, это позже 1023-го
+    expect(roundTooLate(s, 0.1)).toBe(bankruptDay(s));
+    expect(roundTooLate(s, 0.1)).toBe(1000 + BANKRUPT_DAYS - 1 - 50);
+    s.finance.negativeDays = 1;
+    expect(roundTooLate(s, 0.1)).toBeNull();
+    s.cash = 5;
+    expect(roundTooLate(s, 0.1)).toBeNull();
+  });
+
+  it('bankruptDay совпадает с днём, когда финансы ставят банкротство', () => {
+    const s = newState(200);
+    s.cash = -1_000;
+    const predicted = bankruptDay(s);
+    expect(predicted).toBe(200 + BANKRUPT_DAYS - 1);
+    for (let i = 0; i < 200 && !s.outcome; i++) {
+      const day = s.day;
+      passDay(s);
+      if (s.outcome) expect(day).toBe(predicted);
+    }
+    expect(s.outcome).toBe('bankrupt');
+  });
+
+  it('отменённый раунд не спасает: банкротство наступает, как только переговоры сорваны', () => {
+    const s = newState(10);
+    s.cash = -1; // первый раунд - экстренный, закроется через две недели: в срок спасения
+    s.finance.negativeDays = BANKRUPT_DAYS - 1;
+    expect(raiseRound(s, 0.3)).toEqual({ ok: true });
+    passDay(s);
+    expect(s.outcome).toBeNull();
+    expect(s.round).not.toBeNull();
+    expect(cancelRound(s)).toEqual({ ok: true });
+    passDay(s);
+    expect(s.outcome).toBe('bankrupt');
+  });
+
+  it('повторные экстренные раунды не продлевают срок: отмена и новый раунд не отодвигают банкротство дальше окна', () => {
+    // Срок банкротства фиксирован (день 10 + 59 = 69). Окно спасения - ROUND_RESCUE_GRACE_DAYS после срока. Раунд,
+    // начатый после срока, закроется позже окна и не спасает, поэтому банкротство не уходит за срок + окно.
+    const s = newState(10);
+    s.cash = -1e9;
+    let bankruptAt: number | null = null;
+    for (let i = 0; i < 400 && !s.outcome; i++) {
+      if (s.round && s.round.closeDay <= s.day + 1) cancelRound(s);
+      if (!s.round) raiseRound(s, 0.3);
+      const day = s.day;
+      passDay(s);
+      if (s.outcome) bankruptAt = day;
+    }
+    expect(s.outcome).toBe('bankrupt');
+    expect(bankruptAt).not.toBeNull();
+    expect(bankruptAt!).toBeLessThanOrEqual(10 + BANKRUPT_DAYS - 1 + ROUND_RESCUE_GRACE_DAYS);
   });
 });

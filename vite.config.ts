@@ -8,5 +8,6 @@ export default defineConfig({
   optimizeDeps: { entries: ['index.html'] },
   // Игра локальная, один бандл с React и Recharts — нормально.
   build: { chunkSizeWarningLimit: 1500 },
-  test: { environment: 'node', include: ['src/**/*.test.ts'] },
+  // Полный прогон параллельно: симуляции ботов под нагрузкой не должны падать по таймауту (TECH-1).
+  test: { environment: 'node', include: ['src/**/*.test.ts'], testTimeout: 30000 },
 });

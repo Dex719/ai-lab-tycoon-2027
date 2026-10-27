@@ -1,6 +1,7 @@
 // Раунды инвестиций (FR-10). TSK-008.
 
 import {
+  BANKRUPT_DAYS,
   BOARD_BUYBACK_PREMIUM,
   BOARD_BUYBACK_SHARE,
   BOARD_PLAN_VALUATION_MULT,
@@ -11,6 +12,7 @@ import {
   REV_MULT,
   ROUND_COOLDOWN_DAYS,
   ROUND_FRACTIONS,
+  ROUND_RESCUE_GRACE_DAYS,
   VALUATION_FLOOR,
 } from './constants';
 import { boardBlock } from './board';
@@ -41,13 +43,16 @@ export interface Valuation {
 }
 
 /**
- * Деньги в минусе, а годовой перерыв между раундами не прошёл: можно провести экстренный раунд со скидкой.
- * Один раз подряд: после экстренного раунда следующий - только обычный, через перерыв. Иначе экстренные раунды
- * брали каждые две недели, уходя в минус покупками, и годовой перерыв ничего не значил.
+ * Деньги в минусе, а годовой перерыв между раундами не прошёл (или раунда ещё не было - первый раунд игры тоже
+ * экстренный): можно провести экстренный раунд со скидкой. Один раз подряд: после экстренного раунда следующий -
+ * только обычный, через перерыв. Иначе экстренные раунды брали каждые две недели, уходя в минус покупками, и годовой
+ * перерыв ничего не значил.
  */
 export function emergencyRound(s: GameState): boolean {
   return (
-    s.cash < 0 && s.lastRoundDay !== null && s.day < s.lastRoundDay + ROUND_COOLDOWN_DAYS && !s.flags[EMERGENCY_USED_FLAG]
+    s.cash < 0 &&
+    !s.flags[EMERGENCY_USED_FLAG] &&
+    (s.lastRoundDay === null || s.day < s.lastRoundDay + ROUND_COOLDOWN_DAYS)
   );
 }
 
@@ -210,6 +215,26 @@ export const ROUND_CANCEL_HYPE = 3;
 
 export function roundDays(s: GameState, fraction: number): number {
   return emergencyRound(s) ? EMERGENCY_ROUND_DAYS : (ROUND_DAYS[fraction] ?? 45);
+}
+
+/**
+ * День, когда финансы объявят банкротство при текущем минусе (или null, если счёт не в минусе). Тик: сначала
+ * investorsDay, потом dayStep финансов; dayStep в день X добавляет 1 к negativeDays, и банкротство наступает,
+ * когда счётчик дошёл до BANKRUPT_DAYS, то есть в день X + (BANKRUPT_DAYS - 1 - negativeDays).
+ */
+export function bankruptDay(s: GameState): number | null {
+  if (s.cash >= 0) return null;
+  return s.day + (BANKRUPT_DAYS - 1 - s.finance.negativeDays);
+}
+
+/**
+ * Раунд с долей fraction, начатый сегодня, закроется позже банкротства больше чем на ROUND_RESCUE_GRACE_DAYS:
+ * тогда деньги не успеют и окно раунда должно это сказать. Возвращает день банкротства или null.
+ */
+export function roundTooLate(s: GameState, fraction: number): number | null {
+  const bankrupt = bankruptDay(s);
+  if (bankrupt === null) return null;
+  return s.day + roundDays(s, fraction) > bankrupt + ROUND_RESCUE_GRACE_DAYS ? bankrupt : null;
 }
 
 /** Раунд на переговорах (или null). */

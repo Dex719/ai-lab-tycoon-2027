@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import type { WindowProps } from '.';
 import { FOUNDER_BOARD_SHARE, FOUNDER_WARN_SHARE, MANIA, ROUND_COOLDOWN_DAYS, ROUND_FRACTIONS, VALUATION_FLOOR } from '../../sim/constants';
-import { buybackError, buybackStep, buybackStepCost, BUYBACK_GAP_DAYS, canRaise, pendingRound, ROUND_CANCEL_HYPE, roundDays, valuation } from '../../sim/investors';
+import { buybackError, buybackStep, buybackStepCost, BUYBACK_GAP_DAYS, canRaise, pendingRound, ROUND_CANCEL_HYPE, roundDays, roundTooLate, valuation } from '../../sim/investors';
 import type { Valuation } from '../../sim/investors';
 import { BOARD_OUST_TRUST, BOARD_WARN_TRUST, boardOusted, OUSTER_DAYS } from '../../sim/board';
 import { formatDateShort, lerpByDate } from '../../sim/time';
@@ -226,6 +226,8 @@ function DealRow(props: {
 function SellConfirm(props: { s: GameState; fraction: number; v: Valuation; share: number; onClose: () => void }) {
   const { s, fraction, v, share } = props;
   const days = roundDays(s, fraction);
+  // Деньги раунда придут после банкротства (с запасом ROUND_RESCUE_GRACE_DAYS): окно предупреждает, но кнопку не блокирует.
+  const lateDay = roundTooLate(s, fraction);
   const [err, setErr] = useState<string | null>(null);
   const money = v.total * fraction;
   const after = share * (1 - fraction);
@@ -256,6 +258,12 @@ function SellConfirm(props: { s: GameState; fraction: number; v: Valuation; shar
         <span>
           {fmtDays(days)}, деньги придут {formatDateShort(s.day + days)}
         </span>
+        {lateDay !== null && (
+          <>
+            <span>Банкротство</span>
+            <span className="bad">{formatDateShort(lateDay)}, раньше денег раунда</span>
+          </>
+        )}
         <span>Следующий раунд</span>
         <span>через {fmtDays(ROUND_COOLDOWN_DAYS)} после закрытия</span>
       </div>

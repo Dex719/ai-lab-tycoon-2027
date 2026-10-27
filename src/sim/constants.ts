@@ -359,6 +359,8 @@ export const ROUND_COOLDOWN_DAYS = 365;
 export const EMERGENCY_VALUATION_MULT = 0.6;
 /** Переговоры экстренного раунда, дней: короче обычных 30-60, чтобы деньги пришли раньше банкротства (BANKRUPT_DAYS). */
 export const EMERGENCY_ROUND_DAYS = 14;
+/** Раунд на переговорах, который закроется не позже чем через столько дней после срока банкротства, откладывает банкротство до своего закрытия. */
+export const ROUND_RESCUE_GRACE_DAYS = 14;
 // Доля основателя: ниже FOUNDER_BOARD_SHARE совет директоров берёт управление (событие 'board-control'),
 // ниже FOUNDER_WARN_SHARE приходит важное письмо-предупреждение (один раз).
 export const FOUNDER_BOARD_SHARE = 0.5;
