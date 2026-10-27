@@ -12,6 +12,7 @@ import { fmtMoney, fmtNum } from '../format';
 import { IconChevronLeft } from '../icons';
 import { Line, type LineIconProps } from '../icons/base';
 import { LabEmblem } from '../components/LabEmblem';
+import { GuardButton } from '../components/common';
 import { useFlip } from '../alive';
 import { actions, store } from '../store';
 import './MailWindow.css';
@@ -287,15 +288,9 @@ export default function MailWindow({ s }: WindowProps) {
           );
         })}
         <span className="grow" />
-        <button
-          type="button"
-          className="mail-markall"
-          title={markAllTitle}
-          disabled={markable === 0}
-          onClick={() => store.dispatch(actions.markAllRead)}
-        >
+        <GuardButton className="mail-markall" reason={markAllTitle ?? null} onClick={() => store.dispatch(actions.markAllRead)}>
           Отметить все прочитанными
-        </button>
+        </GuardButton>
       </nav>
 
       <aside className="mail-side">

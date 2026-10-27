@@ -20,7 +20,7 @@ import { ARENA_PLACE_TITLE } from './arena';
 import { formatDateShort } from '../sim/time';
 import { trainingPoolPerRun } from '../sim/training';
 import type { GameState } from '../sim/types';
-import { ProgressBar } from './components/common';
+import { DenyNote, ProgressBar, useFlash } from './components/common';
 import { fmtH100e, fmtMoney, fmtNum, fmtPrice, fmtShare } from './format';
 import { IconChevronLeft, IconChevronRight } from './icons';
 import { GoalsPanel } from './GoalsPanel';
@@ -380,6 +380,7 @@ export function SidePanel({
 }) {
   const [shownState, setShown] = useState(vp === 'desktop'); // на планшете панель по умолчанию свёрнута
   const pinned = !!top; // пока идёт обучение, панель закреплена: подсказка помощника должна оставаться на виду
+  const [pinNote, flashPin] = useFlash();
   const shown = shownState || pinned;
   const [tab, setTab] = useState<Tab>('projects');
   const projects =
@@ -427,13 +428,14 @@ export function SidePanel({
     <aside className={`side${top ? ' with-top' : ''}`} aria-label="Боковая панель">
       <button
         className="side-tab"
-        onClick={() => setShown((v) => !v)}
-        disabled={pinned}
+        onClick={() => (pinned ? flashPin('Панель закреплена до конца обучения') : setShown((v) => !v))}
+        aria-disabled={pinned || undefined}
         aria-label={tabLabel}
         title={pinned ? 'Панель закреплена на время обучения' : tabLabel}
       >
         {shown ? <IconChevronRight /> : <IconChevronLeft />}
       </button>
+      <DenyNote text={pinNote} className="deny-left" />
       {shown && <div className="side-body">{content}</div>}
     </aside>
   );

@@ -16,7 +16,7 @@
   .game .speed button { width: 30px; height: 28px; border-radius: 3px; }
   .game .speed button.on { background: #3a3b40; color: #fff; }
   .game .speed button.on[aria-label^='Пауза'] { color: #f2b84b; }
-  .game .speed button:disabled { opacity: 0.35; cursor: default; }
+  .game .speed button[aria-disabled='true'] { opacity: 0.35; cursor: not-allowed; }
   .game .topbar-right { gap: 14px; }
 
   /* ---------- Панель задач ---------- */

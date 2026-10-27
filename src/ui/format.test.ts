@@ -14,8 +14,10 @@ import {
   fmtNum,
   fmtParams,
   fmtPct,
+  fmtPrice,
   fmtSci,
   h100ePerCard,
+  priceDigits,
   ruPlural,
 } from './format';
 import { EXPENSE_KINDS, EXPENSE_LABELS, fmtRank, INCOME_KINDS, INCOME_LABELS } from './labels';
@@ -23,6 +25,15 @@ import { clampPos, deskAreaOf, TITLEBAR_H } from './Window';
 
 /** ru-RU разделяет разряды неразрывным пробелом: сводим все пробелы к обычному. */
 const norm = (t: string) => t.replace(/\s/g, ' ');
+
+describe('fmtPrice и priceDigits', () => {
+  it('цена за 1М токенов округляется так же, как в поле ввода (221,91 -> $222)', () => {
+    expect(priceDigits(221.91)).toBe(0);
+    expect(fmtPrice(221.91)).toBe('$222');
+    expect(priceDigits(4.567)).toBe(2);
+    expect(priceDigits(0.2534)).toBe(3);
+  });
+});
 
 describe('fmtMoney', () => {
   it('обычные значения', () => {

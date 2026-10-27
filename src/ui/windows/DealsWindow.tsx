@@ -78,9 +78,9 @@ function TeamRow({ s, def, onHire, onRelease }: { s: GameState; def: TeamDef; on
         {hired ? (
           <div className="dl-act-in">
             <span className="dl-sub">с {formatDateShort(hired.since)}</span>
-            <button type="button" className="btn small danger" onClick={onRelease} disabled={!!s.outcome}>
+            <GuardButton className="btn small danger" reason={s.outcome ? 'Партия окончена' : null} onClick={onRelease}>
               Отпустить
-            </button>
+            </GuardButton>
           </div>
         ) : (
           <GuardButton className="btn small primary" reason={teamHireError(s, def.id)} onClick={onHire}>
@@ -363,9 +363,9 @@ function CloudTab({ s }: { s: GameState }) {
             <span className={c.shortfall > 0 ? 'bad' : undefined}>{fmtMoney(c.shortfall)}</span>
           </div>
           <div className="dl-contract-foot">
-            <button type="button" className="btn danger" onClick={() => setExit(true)} disabled={!!s.outcome}>
+            <GuardButton className="btn danger" reason={s.outcome ? 'Партия окончена' : null} onClick={() => setExit(true)}>
               Расторгнуть за {fmtMoney(fee)}
-            </button>
+            </GuardButton>
           </div>
         </section>
       )}

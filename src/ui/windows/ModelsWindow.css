@@ -101,7 +101,8 @@
 
 .mw-edit { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
 .mw-field { display: flex; flex-direction: column; gap: 4px; }
-.mw-price-row { display: flex; align-items: center; gap: 6px; }
+.mw-price-row { display: flex; align-items: center; gap: 6px; position: relative; }
+.mw-price-row input[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
 .mw-cur { color: var(--text-dim); }
 .mw-price-input { width: 96px; text-align: right; font-variant-numeric: tabular-nums; }
 .mw-price-row input.mw-bad, .mw-price-row input.mw-bad:focus { border-color: var(--bad-fill); border-bottom-color: var(--bad-fill); }
@@ -124,7 +125,8 @@
 .mw-tier:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .mw-tier b { font-size: 16px; font-weight: var(--fw-title); color: var(--text); font-variant-numeric: tabular-nums; }
 .mw-tier.on { background: var(--row-sel); box-shadow: inset 0 -4px 0 var(--edge), 0 0 0 3px var(--brand); }
-.mw-tier:disabled { opacity: 0.5; cursor: default; }
+.mw-tiers-guard.guard { display: block; width: 100%; }
+.mw-tier[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
 
 /* Характеристики */
 .mw-specs { display: grid; grid-template-columns: max-content 1fr; gap: 4px 24px; max-width: 560px; margin: 0; }

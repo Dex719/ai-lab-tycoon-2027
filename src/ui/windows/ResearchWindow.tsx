@@ -30,7 +30,7 @@ import { END_DAY, formatDateShort } from '../../sim/time';
 import type { GameState, TechId } from '../../sim/types';
 import { TECH_IDS } from '../../sim/types';
 import { checkAllocation, percentsOf, soldChannels, toAllocation, withPercent, ZERO_SHARE_WARNING } from '../alloc';
-import { ConfirmDialog, DenyNote, Dialog, ErrorText, Range, useFlash } from '../components/common';
+import { ConfirmDialog, DenyNote, Dialog, ErrorText, GuardButton, Range, useFlash } from '../components/common';
 import { researchDaysAt } from '../forecast';
 import { fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
 import { IconCheck, IconClose, IconLock } from '../icons';
@@ -613,9 +613,13 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
         <button className="btn" onClick={onClose}>
           Закрыть
         </button>
-        <button className="btn primary" disabled={!changed || noCards} onClick={() => ask('save')}>
+        <GuardButton
+          className="btn primary"
+          reason={noCards ? 'Нет карт: арендуйте мощность' : !changed ? 'Доля не изменилась' : null}
+          onClick={() => ask('save')}
+        >
           Применить
-        </button>
+        </GuardButton>
       </>
     ) : (
       <>

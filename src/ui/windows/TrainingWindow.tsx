@@ -616,6 +616,35 @@ function TierOption(props: { s: GameState; tier: Tier; selected: boolean; onPick
   );
 }
 
+const RLHF_LOCKED = 'Нужно исследование RLHF';
+const HONEST_LOCKED = 'Закрыто испытанием «Честная лаборатория»';
+
+/**
+ * Флажок, который закрыт причиной (reason): нажатие не меняет его, а показывает причину красной строкой.
+ * Строка выводится внутри <label> (родителя с position: relative), поэтому флажок рендерится вместе с ней.
+ */
+function GuardCheck(props: { checked: boolean; reason: string | null; className?: string; onChange: (v: boolean) => void }) {
+  const [note, flash] = useFlash();
+  const blocked = props.reason !== null;
+  return (
+    <>
+      <input
+        type="checkbox"
+        className={props.className}
+        checked={props.checked}
+        aria-disabled={blocked || undefined}
+        onClick={(e) => {
+          if (!blocked) return;
+          e.preventDefault();
+          flash(props.reason!);
+        }}
+        onChange={(e) => !blocked && props.onChange(e.target.checked)}
+      />
+      <DenyNote text={note} />
+    </>
+  );
+}
+
 // ---------- Подтверждение ----------
 
 /** Окно перед стартом: стоимость, срок и мощность проекта, кнопка-глагол. */
@@ -892,7 +921,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
             >
               <span className="nm-opt-top">
                 <span>Отзывы людей (RLHF)</span>
-                <input type="checkbox" className="nm-switch" checked={plan.rlhf} disabled={!rlhfDone} onChange={(e) => patch({ rlhf: e.target.checked })} />
+                <GuardCheck className="nm-switch" checked={plan.rlhf} reason={rlhfDone ? null : RLHF_LOCKED} onChange={(v) => patch({ rlhf: v })} />
               </span>
               <span className="nm-opt-d">
                 Модель отвечает как собеседник: Эло выше.{' '}
@@ -914,7 +943,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
             <label className={`nm-opt risk${stolen ? ' on' : ''}`}>
               <span className="nm-opt-top">
                 <span>Чужие данные</span>
-                <input type="checkbox" className="nm-switch" checked={stolen} disabled={honestRun} onChange={(e) => patch({ stolen: e.target.checked })} />
+                <GuardCheck className="nm-switch" checked={stolen} reason={honestRun ? HONEST_LOCKED : null} onChange={(v) => patch({ stolen: v })} />
               </span>
               <span className="nm-opt-d">
                 Книги, сайты и ответы чужих моделей без разрешения: данных в {fmtNum(STOLEN_TOKENS_MULT)} раза больше, Эло выше на{' '}
@@ -945,7 +974,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
                         className={`nm-tag${checked ? ' on' : ''}${full ? ' off' : ''}`}
                         title={full ? `Выбрано максимум тестов: ${MAX_BENCH_TARGETS}.` : `${def.description} Область: ${DOMAIN_RU[def.domain]}.`}
                       >
-                        <input type="checkbox" checked={checked} disabled={full} onChange={() => toggleTarget(b)} />
+                        <GuardCheck checked={checked} reason={full ? `Выбрано максимум тестов: ${MAX_BENCH_TARGETS}` : null} onChange={() => toggleTarget(b)} />
                         {def.name}
                       </label>
                     );
