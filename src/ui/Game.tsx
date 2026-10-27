@@ -7,7 +7,7 @@ import { goalOfferOpen, unseenReview } from '../sim/goals';
 import type { GameState } from '../sim/types';
 import { ChoiceModal } from './ChoiceModal';
 import { Dialog, ErrorText, isFresh } from './components/common';
-import { listSlots } from './saves';
+import { slotMeta } from './saves';
 import { EndDialog } from './EndDialog';
 import { YearReviewModal } from './YearReviewModal';
 import { GoalChoiceModal } from './GoalChoice';
@@ -535,7 +535,7 @@ function MonthsBar({ day }: { day: number }) {
  */
 function SimErrorDialog({ error }: { error: string }) {
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [auto] = useState(() => listSlots().find((x) => x.id === 'auto')?.meta ?? null);
+  const [auto] = useState(() => slotMeta('auto'));
   return (
     <Dialog
       title="Ошибка в игре"
@@ -573,8 +573,8 @@ function SimErrorDialog({ error }: { error: string }) {
 
 function QuitDialog({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
-  // Один раз при открытии: listSlots разбирает все ячейки целиком, а Game перерисовывается на каждом ходу.
-  const [auto] = useState(() => listSlots().find((x) => x.id === 'auto')?.meta ?? null);
+  // Один раз при открытии: slotMeta разбирает ячейку целиком, а Game перерисовывается на каждом ходу.
+  const [auto] = useState(() => slotMeta('auto'));
   const day = store.state?.day ?? null;
   const finished = !!store.state?.outcome;
   function quit() {

@@ -1,7 +1,7 @@
 // Ячейки сохранений в браузере: 5 ручных и автосохранение. В ячейке - краткие сведения для списка и само состояние.
 
 import { DIFFICULTY_IDS, type Difficulty } from '../sim/rivalry';
-import { deserialize, serialize } from '../sim/save';
+import { deserialize, deserializeData, serialize } from '../sim/save';
 import { bestArenaPlace } from './arena';
 import type { GameState } from '../sim/types';
 
@@ -154,7 +154,8 @@ export function readSlot(id: SlotId): { ok: true; state: GameState } | { ok: fal
   const { stored, broken } = readRaw(id);
   if (broken) return { ok: false, error: 'Сохранение повреждено.' };
   if (!stored) return { ok: false, error: 'Ячейка пуста.' };
-  return deserialize(JSON.stringify(stored.state));
+  // stored.state разобран заново в readRaw и никем не разделяется, поэтому миграции меняют его на месте.
+  return deserializeData(stored.state);
 }
 
 export function deleteSlot(id: SlotId): void {

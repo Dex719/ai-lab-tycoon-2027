@@ -7,7 +7,7 @@ import { botAct, runBot } from './bots';
 import { CHOICE_DAYS, FAIL_CHOICE_DAYS, TIER_SUBS_PRICE } from './constants';
 import { applyChoice, expireChoices, FOREVER, pendingChoice } from './events';
 import { emptyRivalry } from './rivalry';
-import { deserialize, SAVE_VERSION, serialize } from './save';
+import { deserialize, deserializeData, SAVE_VERSION, serialize } from './save';
 import { createInitialState, emptyMarket } from './state';
 import { advanceDay, advanceDays } from './tick';
 import { END_DAY } from './time';
@@ -146,6 +146,16 @@ describe('здоровые сохранения загружаются', () => {
     expect(deserialize(serialize(s)).ok).toBe(true);
   });
 
+  it('ячейка: разобранный JSON загружается так же, как текст (путь читателя ячеек без второго разбора)', () => {
+    const { state: s } = runBot('reasonable', 7, 400);
+    const json = serialize(s);
+    const r = deserializeData(JSON.parse(json));
+    const text = deserialize(json);
+    expect(r.ok).toBe(true);
+    expect(text.ok).toBe(true);
+    if (r.ok && text.ok) expect(serialize(r.state)).toBe(serialize(text.state));
+  });
+
   it('загруженная игра идёт дальше без исключений и без NaN', () => {
     const r = deserialize(serialize(richState()));
     expect(r.ok).toBe(true);
@@ -167,6 +177,12 @@ describe('несовместимые сохранения отклоняются
     expect(deserialize('{"version":0}')).toEqual({ ok: false, error: 'Сохранение от другой версии игры' });
     expect(deserialize('{"version":"1"}')).toEqual({ ok: false, error: 'Сохранение повреждено' });
     expect(deserialize('{}').ok).toBe(false);
+  });
+
+  it('разобранный JSON ячейки (deserializeData): не объект - повреждено, как и текст', () => {
+    expect(deserializeData(null)).toEqual({ ok: false, error: 'Сохранение повреждено' });
+    expect(deserializeData([])).toEqual({ ok: false, error: 'Сохранение повреждено' });
+    expect(deserializeData('42')).toEqual({ ok: false, error: 'Сохранение повреждено' });
   });
 
   it('сохранение без нового бенчмарка (случай из ревью): ошибка с названием поля', () => {

@@ -814,6 +814,11 @@ export function deserialize(json: string): { ok: true; state: GameState } | { ok
   } catch {
     return { ok: false, error: 'Сохранение повреждено' };
   }
+  return deserializeData(data);
+}
+
+/** То же для уже разобранного JSON (ячейка сохранения): объект меняется на месте миграциями. */
+export function deserializeData(data: unknown): { ok: true; state: GameState } | { ok: false; error: string } {
   if (!isRec(data)) return { ok: false, error: 'Сохранение повреждено' };
   if (typeof data.version !== 'number' || !Number.isInteger(data.version)) return { ok: false, error: 'Сохранение повреждено' };
   if (data.version > SAVE_VERSION) return { ok: false, error: 'Сохранение от более новой версии игры: обновите игру' };
