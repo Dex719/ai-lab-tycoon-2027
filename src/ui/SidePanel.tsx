@@ -232,7 +232,7 @@ function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) =>
         {race?.metric.kind === 'arena' && <span className="sr-m">На 1-м месте: {fmtNum(months)} мес.</span>}
         {showSubs && (
           <span className="sr-m" title="Пользователи подписки, обслуженные вчера">
-            Подписчиков: <b style={{ color: SIDE_SUBS }}>{fmtNum(Math.round(finite(s.market.playerSubs)))}</b>
+            Подписчиков: <b>{fmtNum(Math.round(finite(s.market.playerSubs)))}</b>
           </span>
         )}
       </span>

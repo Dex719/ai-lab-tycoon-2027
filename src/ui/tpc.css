@@ -384,6 +384,7 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
   .game .side-race.first .sr-place { color: var(--good-ink); }
   .game .side-race .sr-k, .game .side-race .sr-m { color: var(--text-2); font-weight: var(--fw-small); }
   .game .side-race .sr-v { color: var(--text); font-weight: var(--fw-title); }
+  .game .side-race .sr-m b { color: var(--text); font-weight: var(--fw-strong); }
   .game .side-rival { margin: 0 10px 6px; border: none; border-radius: 999px; background: rgb(255 255 255 / 0.12); color: var(--hud-text-2); }
   .game .side-rival b { color: #fff; }
   /* Простой и другие тревоги - белая карточка, как гонка: красное только слово-причина, без красной заливки. */

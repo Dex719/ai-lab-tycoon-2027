@@ -318,7 +318,6 @@ table.grid tr.player td { background: var(--row-sel); font-weight: 600; }
 table.grid tbody tr:hover td { background: var(--row-hover); }
 table.grid td.num, table.grid th.num { text-align: right; }
 .est { color: var(--text-dim); font-style: italic; }
-.dim { opacity: 0.5; }
 
 .tabs { display: flex; gap: 20px; padding: 0 14px; background: var(--win-title); border-bottom: 1px solid var(--line); margin: -12px -14px 12px; }
 .tab {

@@ -29,7 +29,7 @@
 .an-grid th.bad { color: var(--bad-ink); }
 .an-grid th.sat, .an-grid td.sat { color: var(--text-2); }
 .an-grid td.top { font-weight: var(--fw-strong); }
-.an-grid tr.grp th { text-align: center; border-bottom: 0; padding-bottom: 0; }
+.an-grid tr.grp th { text-align: center; border-bottom: 0; padding-bottom: 0; background: var(--surface-card); }
 .an-grid tfoot td { font-weight: var(--fw-strong); background: var(--surface-control); border-top: 1px solid var(--line); }
 .an-grid tfoot tr:nth-child(even) td { background: var(--surface-control); }
 
