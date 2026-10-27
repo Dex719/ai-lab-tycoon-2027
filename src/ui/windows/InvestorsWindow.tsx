@@ -8,7 +8,7 @@ import { FOUNDER_BOARD_SHARE, FOUNDER_WARN_SHARE, MANIA, ROUND_COOLDOWN_DAYS, RO
 import { buybackError, buybackStep, buybackStepCost, BUYBACK_GAP_DAYS, canRaise, pendingRound, ROUND_CANCEL_HYPE, roundDays, roundTooLate, valuation } from '../../sim/investors';
 import type { Valuation } from '../../sim/investors';
 import { BOARD_OUST_TRUST, BOARD_WARN_TRUST, boardOusted, OUSTER_DAYS } from '../../sim/board';
-import { formatDateShort, lerpByDate } from '../../sim/time';
+import { dateToDay, END_DAY, formatDateShort, lerpByDate } from '../../sim/time';
 import type { GameState } from '../../sim/types';
 import { Alert, ConfirmDialog, ErrorText, GuardButton } from '../components/common';
 import { fmtDays, fmtMoney, fmtNum, fmtShare } from '../format';
@@ -24,6 +24,9 @@ function safeValuation(s: GameState): Valuation | null {
     return null;
   }
 }
+
+/** С 1 октября 2024 деньги раунда остаются меньше чем на три месяца гонки. */
+const LATE_ROUND_DAY = dateToDay('2024-10-01');
 
 /** Дней до следующего раунда (0 - можно сейчас). */
 function cooldownLeft(s: GameState): number {
@@ -258,6 +261,16 @@ function SellConfirm(props: { s: GameState; fraction: number; v: Valuation; shar
         <span>
           {fmtDays(days)}, деньги придут {formatDateShort(s.day + days)}
         </span>
+        {s.day + days > LATE_ROUND_DAY && (
+          <>
+            <span>До конца гонки</span>
+            <span className="warn">
+              {END_DAY - (s.day + days) > 0
+                ? `${fmtDays(END_DAY - (s.day + days))} после денег: потратить не успеете, доля упадёт сразу`
+                : 'деньги придут после конца гонки, доля упадёт сразу'}
+            </span>
+          </>
+        )}
         {lateDay !== null && (
           <>
             <span>Банкротство</span>

@@ -170,7 +170,7 @@
     {
       "id": "instructgtp",
       "lab": "openbrain",
-      "realName": "InstructGPT 175B (text-davinci-001/002)",
+      "realName": "InstructGPT 175B (text-davinci-001)",
       "gameName": "InstructGTP",
       "released": "2022-01-27",
       "api": true,
@@ -201,6 +201,38 @@
       ]
     },
     {
+      "id": "tixt-davanci-002",
+      "lab": "openbrain",
+      "realName": "text-davinci-002 (GPT-3.5 series)",
+      "gameName": "Tixt-Davanci-002",
+      "released": "2022-03-15",
+      "api": true,
+      "openWeights": false,
+      "paramsB": null,
+      "trainFlop": 2.578e24,
+      "priceInPer1M": 60,
+      "priceOutPer1M": 60,
+      "scores": {
+        "squad": null,
+        "glue": null,
+        "mmlu": 60,
+        "humaneval": null,
+        "gsm8k": 55.4,
+        "gpqa": null,
+        "swebench": null
+      },
+      "arenaElo": 1000,
+      "arenaEstimated": true,
+      "benchContaminationSuspected": false,
+      "notes": "First GPT-3.5-series model (built on code-davinci-002), API 2022-03-15 at $0.06 per 1K tokens until the cut to $0.02 on 2022-09-01. MMLU 60.0 and GSM8K 55.4 from the Chain-of-Thought Hub. Arena Elo 1000 is a game estimate between InstructGPT (920) and text-davinci-003 (1050).",
+      "sources": [
+        "https://github.com/FranxYao/chain-of-thought-hub",
+        "https://epoch.ai/data/notable_ai_models.csv",
+        "https://community.openai.com/t/the-openai-api-is-now-more-affordable/20432",
+        "https://huggingface.co/datasets/mathewhe/chatbot-arena-elo/raw/20250124/elo.csv"
+      ]
+    },
+    {
       "id": "tixt-davanci-003",
       "lab": "openbrain",
       "realName": "text-davinci-003 (GPT-3.5 series)",
@@ -221,10 +253,10 @@
         "gpqa": null,
         "swebench": null
       },
-      "arenaElo": 960,
+      "arenaElo": 1050,
       "arenaEstimated": true,
       "benchContaminationSuspected": false,
-      "notes": "Released 2022-11-28 (two days before ChatGPT) as the flagship of the GPT-3.5 series completion models, at $0.02 per 1K tokens ($20 per 1M) for prompt and completion, the same as the other Davinci models after the Sept 2022 cut; deprecated in January 2024. Parameter count undisclosed (Epoch speculates 175B for the series). MMLU 64.6 is from the third-party Chain-of-Thought Hub; that table has no GSM8K or HumanEval entry for it. Training compute 2.578e24 FLOP is Epoch's speculative estimate for the GPT-3.5 series (its 'GPT-3.5 (davinci-002)' row dated 2022-03-15); Epoch's own davinci-003 row has no compute figure. Arena Elo 960 is an extrapolation (never on LMArena), placed between Alpaca-13B (902, distilled from this model) and gpt-3.5-turbo-0314 (1107) on the 2025-01-24 snapshot.",
+      "notes": "Released 2022-11-28 (two days before ChatGPT) as the flagship of the GPT-3.5 series completion models, at $0.02 per 1K tokens ($20 per 1M) for prompt and completion, the same as the other Davinci models after the Sept 2022 cut; deprecated in January 2024. Parameter count undisclosed (Epoch speculates 175B for the series). MMLU 64.6 is from the third-party Chain-of-Thought Hub; that table has no GSM8K or HumanEval entry for it. Training compute 2.578e24 FLOP is Epoch's speculative estimate for the GPT-3.5 series (its 'GPT-3.5 (davinci-002)' row dated 2022-03-15); Epoch's own davinci-003 row has no compute figure. Arena Elo 1050 is a game estimate: same GPT-3.5 series as ChatGPT (1090) and gpt-3.5-turbo-0314 (1107), slightly weaker as a completion model.",
       "sources": [
         "https://github.com/FranxYao/chain-of-thought-hub",
         "https://epoch.ai/data/notable_ai_models.csv",
@@ -528,5 +560,5 @@
       ]
     }
   ],
-  "caveats": "Changes vs the draft. (1) Arena Elo now comes from ONE snapshot: the LMArena text leaderboard, default view (style control off), as mirrored by the HF dataset mathewhe/chatbot-arena-elo at git tag 20250124 (tag 20250116 agrees within 1 point). Values: gpt-4-0314 1186, gpt-3.5-turbo-0314 1107 (was 1106), gpt-4-1106-preview 1250 (was 1251), gpt-4o-2024-05-13 1285, gpt-4o-mini 1273, o1-preview 1335, o1-mini 1305 (was 1306), o1-2024-12-17 1352 (was 1351). Mixed Sept-2024 / Dec-2023 / Mar-2024 sources were dropped. Estimated rows (never on Arena): GPT-1 550, GPT-2 650, GPT-3 800 (was 780; parity with raw LLaMA-13B = 800 on that snapshot), Codex 750, InstructGPT 920, text-davinci-003 960, ChatGPT 1090. (2) Codex note corrected: 77.5% is Codex-S pass@100 with an oracle, not an oracle-free reranking (mean-log-prob selection gives 44.5%). (3) ChatGPT trainFlop filled with Epoch's speculative GPT-3.5 series estimate 2.578e24 (the draft wrongly said Epoch has no GPT-3.5 row); gpt-3.5-turbo stays null (Epoch gives no compute, and its ~20B param source was reportedly retracted). (4) Removed unsupported or unverifiable statements: simple-evals 'ChatGPT-prompt row' for GPT-4o (README now lists only assistant-prompt rows, and the launch-blog numbers match Meta's Llama 3.1 table), the 'later free users' claim for o1-mini, the Codeforces-contamination remark for GPT-4, and 'training tokens ~499B' for GPT-3 (it trained on ~300B tokens from a ~499B mix). (5) Verified against primary text: GPT-2 LAMBADA 63.24 / CoQA 55 F1, MMLU Table 1 (GPT-2 32.4 fine-tuned, GPT-3 43.9 5-shot), GPQA Table 6 (GPT-3.5 28.1 and GPT-4 35.7 zero-shot CoT), GPT-4 report Table 2 and contamination Table 11, o1 system cards (SWE-bench), simple-evals rows, CoT Hub rows, Llama 3.1 Table 2, and Epoch params/compute/dates (GPT-1 1.7578e19, GPT-2 1.92e21, GPT-3 3.14e23, Codex 7.344e22, InstructGPT 3.19e23, GPT-4 2.1e25, GPT-4 Turbo 2.2e25, GPT-4o 3.8e25, GPT-4o mini 7.36e24). (6) Added text-davinci-003 (2022-11-28, $20/1M, MMLU 64.6) as a missing GPT-3.5-series milestone; o3 stays out (public release 2025). (7) Naming rule applied to descriptor words: Turbo->Turbu, Preview->Previow, text->Tixt, with ids updated (gtp-3-5-turbu, gtp-4-turbu, q1-previow, tixt-davanci-003). Remaining gaps: GPT-3's per-engine price at the Oct 2020 paid start and later gpt-3.5-turbo price cuts are from memory; GPT-2 1.5B date (2019-11-05) is from press because openai.com returned 403; the o3 SWE-bench figure varies by source; InstructGPT scores are for the later text-davinci-002 snapshot; GPT-3.5 benchmark rows (ChatGPT, gpt-3.5-turbo) share the GPT-4 report baseline; the seven estimated Elo values are game-balance numbers. Design note: .kiro design.md anchors a no-RLHF 'GTP-3-like' player model at Elo 930-1000, while this catalog's real GPT-3 base estimate is 800."
+  "caveats": "Changes vs the draft. (1) Arena Elo now comes from ONE snapshot: the LMArena text leaderboard, default view (style control off), as mirrored by the HF dataset mathewhe/chatbot-arena-elo at git tag 20250124 (tag 20250116 agrees within 1 point). Values: gpt-4-0314 1186, gpt-3.5-turbo-0314 1107 (was 1106), gpt-4-1106-preview 1250 (was 1251), gpt-4o-2024-05-13 1285, gpt-4o-mini 1273, o1-preview 1335, o1-mini 1305 (was 1306), o1-2024-12-17 1352 (was 1351). Mixed Sept-2024 / Dec-2023 / Mar-2024 sources were dropped. Estimated rows (never on Arena): GPT-1 550, GPT-2 650, GPT-3 800 (was 780; parity with raw LLaMA-13B = 800 on that snapshot), Codex 750, InstructGPT 920, text-davinci-002 1000, text-davinci-003 1050, ChatGPT 1090. (2) Codex note corrected: 77.5% is Codex-S pass@100 with an oracle, not an oracle-free reranking (mean-log-prob selection gives 44.5%). (3) ChatGPT trainFlop filled with Epoch's speculative GPT-3.5 series estimate 2.578e24 (the draft wrongly said Epoch has no GPT-3.5 row); gpt-3.5-turbo stays null (Epoch gives no compute, and its ~20B param source was reportedly retracted). (4) Removed unsupported or unverifiable statements: simple-evals 'ChatGPT-prompt row' for GPT-4o (README now lists only assistant-prompt rows, and the launch-blog numbers match Meta's Llama 3.1 table), the 'later free users' claim for o1-mini, the Codeforces-contamination remark for GPT-4, and 'training tokens ~499B' for GPT-3 (it trained on ~300B tokens from a ~499B mix). (5) Verified against primary text: GPT-2 LAMBADA 63.24 / CoQA 55 F1, MMLU Table 1 (GPT-2 32.4 fine-tuned, GPT-3 43.9 5-shot), GPQA Table 6 (GPT-3.5 28.1 and GPT-4 35.7 zero-shot CoT), GPT-4 report Table 2 and contamination Table 11, o1 system cards (SWE-bench), simple-evals rows, CoT Hub rows, Llama 3.1 Table 2, and Epoch params/compute/dates (GPT-1 1.7578e19, GPT-2 1.92e21, GPT-3 3.14e23, Codex 7.344e22, InstructGPT 3.19e23, GPT-4 2.1e25, GPT-4 Turbo 2.2e25, GPT-4o 3.8e25, GPT-4o mini 7.36e24). (6) Added text-davinci-003 (2022-11-28, $20/1M, MMLU 64.6) as a missing GPT-3.5-series milestone; o3 stays out (public release 2025). (7) Naming rule applied to descriptor words: Turbo->Turbu, Preview->Previow, text->Tixt, with ids updated (gtp-3-5-turbu, gtp-4-turbu, q1-previow, tixt-davanci-003). Remaining gaps: GPT-3's per-engine price at the Oct 2020 paid start and later gpt-3.5-turbo price cuts are from memory; GPT-2 1.5B date (2019-11-05) is from press because openai.com returned 403; the o3 SWE-bench figure varies by source; InstructGPT scores are for the later text-davinci-002 snapshot; GPT-3.5 benchmark rows (ChatGPT, gpt-3.5-turbo) share the GPT-4 report baseline; the seven estimated Elo values are game-balance numbers. Design note: .kiro design.md anchors a no-RLHF 'GTP-3-like' player model at Elo 930-1000, while this catalog's real GPT-3 base estimate is 800."
 }

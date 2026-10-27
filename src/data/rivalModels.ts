@@ -72,10 +72,16 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     notes: 'Исследовательская модель на 280 млрд параметров: анонсирована и не выпускалась. Эло задано условно.',
   },
   {
-    id: 'instructgtp', lab: 'openbrain', gameName: 'InstructGTP', realName: 'InstructGPT 175B (text-davinci-001/002)', released: '2022-01-27',
+    id: 'instructgtp', lab: 'openbrain', gameName: 'InstructGTP', realName: 'InstructGPT 175B (text-davinci-001)', released: '2022-01-27',
     api: true, openWeights: false, chat: true, paramsB: 175, priceIn: 60, priceOut: 60,
     scores: { mmlu: 60, gsm8k: 55.4 }, arenaElo: 920, arenaEstimated: true, contaminated: false, context: 2048,
     notes: 'GTP-3, дообученная на отзывах людей; стала моделью API по умолчанию.',
+  },
+  {
+    id: 'tixt-davanci-002', lab: 'openbrain', gameName: 'Tixt-Davanci-002', realName: 'text-davinci-002 (GPT-3.5 series)', released: '2022-03-15',
+    api: true, openWeights: false, chat: true, paramsB: null, priceIn: 60, priceOut: 60,
+    scores: { mmlu: 60, gsm8k: 55.4 }, arenaElo: 1000, arenaEstimated: true, contaminated: false, context: 4096,
+    notes: 'Первая модель серии GTP-3.5 по API; $60 за 1 млн токенов, с 01.09.2022 - $20.',
   },
   {
     id: 'chinchella', lab: 'gogle', gameName: 'Chinchella', realName: 'Chinchilla (70B)', released: '2022-03-29',
@@ -104,7 +110,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
   {
     id: 'tixt-davanci-003', lab: 'openbrain', gameName: 'Tixt-Davanci-003', realName: 'text-davinci-003 (GPT-3.5 series)', released: '2022-11-28',
     api: true, openWeights: false, chat: true, paramsB: null, priceIn: 20, priceOut: 20,
-    scores: { mmlu: 64.6 }, arenaElo: 960, arenaEstimated: true, contaminated: false, context: 4096,
+    scores: { mmlu: 64.6 }, arenaElo: 1050, arenaEstimated: true, contaminated: false, context: 4096,
     notes: 'Флагман серии GTP-3.5 за два дня до ChatGTP; $20 за 1 млн токенов.',
   },
   {

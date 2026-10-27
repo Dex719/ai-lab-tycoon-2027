@@ -31,6 +31,12 @@ const DIFF_MULT = { easy: 0.8, normal: 1, hard: 1.3 } as const;
  */
 export const CONTROL_POINTS_PER_PCT = 8;
 
+/**
+ * Деньги на счёте в конце: 50 очков за каждый порядок сверх $10 млн, не больше 150 (около 5 % обычного счёта).
+ * Без этого последние два года, когда касса росла до $1,3 млрд, не влияли на счёт (QA lategame-M1).
+ */
+export const CASH_POINTS_CAP = 150;
+
 function placePoints(place: number | null): number {
   if (place === null) return 0;
   if (place === 1) return 1000;
@@ -52,7 +58,10 @@ export function playedClean(s: GameState): boolean {
   return !s.models.some((m) => m.exposed || m.stolenCaught);
 }
 
-/** Счёт партии: место, месяцы на 1-м месте, ваша часть компании, честность; × множитель сложности. */
+/**
+ * Счёт партии: место, месяцы на 1-м месте, ваша часть компании, контроль, деньги на счёте (до CASH_POINTS_CAP),
+ * честность; × множитель сложности. Банкротство обнуляет части, которые зависят от компании и денег.
+ */
 export function partyScore(s: GameState): PartyScore {
   const place = finalPlace(s);
   let part = 0;
@@ -68,6 +77,10 @@ export function partyScore(s: GameState): PartyScore {
     {
       label: `Контроль над лабораторией: ${Math.round(s.founderShare * 100)} %`,
       value: s.outcome === 'bankrupt' ? 0 : Math.round(CONTROL_POINTS_PER_PCT * s.founderShare * 100),
+    },
+    {
+      label: 'Деньги на счёте',
+      value: s.outcome === 'bankrupt' ? 0 : Math.min(CASH_POINTS_CAP, Math.max(0, Math.round(50 * Math.log10(Math.max(1, s.cash / 1e7))))),
     },
     { label: 'Честная игра', value: playedClean(s) && s.models.some((m) => m.releasedDay !== null) ? 100 : 0 },
   ];

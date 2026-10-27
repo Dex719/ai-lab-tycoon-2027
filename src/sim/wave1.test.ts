@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { newGame } from './actions';
 import { LEAK_EVENT } from '../data/lateEvents';
 import { rentNow } from './compute';
-import { endingOf, epilogueOf, partyScore } from './ending';
+import { CASH_POINTS_CAP, endingOf, epilogueOf, partyScore } from './ending';
 import { BUYBACK_GAP_DAYS, buybackError, buyBackStake, buybackStepCost } from './investors';
 import { leakDay, LEAK_ID, lastChoiceDay } from './randomEvents';
 import { recordsMonth } from './records';
@@ -115,6 +115,23 @@ describe('конец партии', () => {
     expect(kept - partyScore(s).total).toBeGreaterThan(250);
     s.outcome = 'bankrupt';
     expect(control()).toBe(0);
+  });
+
+  it('деньги на счёте: 50 очков за порядок сверх $10 млн, потолок 150, банкротство 0 (QA lategame-M1)', () => {
+    const s = newGame('Т', 1);
+    released(s, 1300);
+    s.outcome = 'finished';
+    s.finance.history.push({ placeEnd: 2 } as never);
+    const cash = () => partyScore(s).parts.find((p) => p.label === 'Деньги на счёте')!.value;
+    s.cash = 1e9;
+    expect(cash()).toBe(100);
+    s.cash = 1e7;
+    expect(cash()).toBe(0);
+    s.cash = 1e11;
+    expect(cash()).toBe(CASH_POINTS_CAP);
+    expect(CASH_POINTS_CAP).toBe(150);
+    s.outcome = 'bankrupt';
+    expect(cash()).toBe(0);
   });
 });
 

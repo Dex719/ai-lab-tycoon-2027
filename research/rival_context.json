@@ -15,6 +15,7 @@
   "paln": { "context": 2048, "confidence": "high", "source": "Chowdhery et al. 2022, PaLM paper (sequence length 2048)", "note": "" },
   "gml-130b": { "context": 2048, "confidence": "high", "source": "Zeng et al. 2022, GLM-130B paper (sequence length 2048)", "note": "" },
   "kodegeex": { "context": 2048, "confidence": "high", "source": "Zheng et al. 2023, CodeGeeX paper (max sequence length 2048)", "note": "" },
+  "tixt-davanci-002": { "context": 4096, "confidence": "high", "source": "OpenAI API model docs (text-davinci-002: 4,097 tokens)", "note": "Docs list 4,097; rounded to 4096." },
   "tixt-davanci-003": { "context": 4096, "confidence": "high", "source": "OpenAI API model docs (text-davinci-003: 4,097 tokens)", "note": "Docs list 4,097; rounded to 4096." },
   "chatgtp": { "context": 4096, "confidence": "high", "source": "OpenAI ChatGPT launch (GPT-3.5, 4K context)", "note": "" },
   "gtp-3-5-turbu": { "context": 4096, "confidence": "high", "source": "OpenAI API docs, gpt-3.5-turbo-0301 (4,096 tokens)", "note": "16k variant came 2023-06-13." },
