@@ -11,7 +11,8 @@ import { LAB_STAGES, labStage, metricStage, yearCups } from '../sim/labStage';
 import { rpPerDay, techCost, TECHS } from '../sim/research';
 import { staffSeats } from '../sim/staff';
 import { nextArrival, totalH100e } from '../sim/compute';
-import { formatDateShort } from '../sim/time';
+import { formatDateShort, yearOf } from '../sim/time';
+import { personalityOf } from '../data/labPersonalities';
 import type { GameState, LabId, PlayerModel, Tier } from '../sim/types';
 import { distribute, ALLOC_ROWS } from './alloc';
 import { fmtH100e, fmtMoney, fmtNum, fmtShare, ruPlural } from './format';
@@ -59,12 +60,36 @@ interface Facts {
   shareLeader: boolean;
 }
 
-/** Три лаборатории-соперника с наибольшей долей рынка (хотя бы 1 %), в порядке data/labs.ts: дома не переезжают. */
-function topRivals(s: GameState) {
-  const top = LABS.filter((l) => (s.market.labShares[l.id] ?? 0) >= 0.01)
+/** Год основания лаборатории: с этого года её здание стоит в комнате, даже если доли на рынке ещё нет. */
+const LAB_FOUNDED: Record<LabId, number> = {
+  openbrain: 2015,
+  gogle: 2010,
+  alibabo: 2017,
+  zhipo: 2019,
+  antropik: 2021,
+  charakter: 2021,
+  infleksion: 2022,
+  deepcent: 2023,
+  moonshoot: 2023,
+};
+
+/**
+ * Три лаборатории-соперника в комнате. Сначала с наибольшей долей рынка (хотя бы 1 %). Если таких меньше трёх,
+ * добираем основанные к этому году по силе бренда (LabDef.brand): в первые годы здания стоят без доли рынка.
+ * Возвращаются в порядке data/labs.ts: дома не переезжают.
+ */
+export function topRivals(s: GameState) {
+  const shown = LABS.filter((l) => (s.market.labShares[l.id] ?? 0) >= 0.01)
     .sort((a, b) => (s.market.labShares[b.id] ?? 0) - (s.market.labShares[a.id] ?? 0))
     .slice(0, 3);
-  return LABS.filter((l) => top.includes(l));
+  if (shown.length < 3) {
+    const year = yearOf(s.day);
+    const extra = LABS.filter((l) => !shown.includes(l) && LAB_FOUNDED[l.id] <= year)
+      .sort((a, b) => b.brand - a.brand)
+      .slice(0, 3 - shown.length);
+    shown.push(...extra);
+  }
+  return LABS.filter((l) => shown.includes(l));
 }
 
 /** Этажей у здания соперника по доле: до 5 % - один, до 15 % - два, до 30 % - три, больше - четыре. */
@@ -384,17 +409,21 @@ export function LabFloor({ s, open }: { s: GameState; open: Open }) {
         {/* Люди на дорожке - клиенты: очередь растёт с долей рынка (без подписи было непонятно, кто это, отзыв 18.10). */}
         <Tag at={f.share > 0.005 ? at.queue : undefined} k="Клиенты в очереди" v={`Доля рынка ${fmtShare(f.share, 0)}`} onClick={() => open('market')} />
         {/* Здания соперников: кто ещё забирает клиентов и сколько. */}
-        {f.rivals.map((r, i) => (
-          <button
-            key={r.lab}
-            type="button"
-            className="lf-mini"
-            style={at[`rival${i}`] ? { left: at[`rival${i}`].x, top: at[`rival${i}`].y } : { display: 'none' }}
-            onClick={() => openDossier(r.lab, open)}
-          >
-            {r.name} · {fmtShare(r.share, 0)}
-          </button>
-        ))}
+        {f.rivals.map((r, i) => {
+          const p = personalityOf(r.lab);
+          return (
+            <button
+              key={r.lab}
+              type="button"
+              className="lf-mini"
+              title={`${p.archetype}: ${p.description}`}
+              style={at[`rival${i}`] ? { left: at[`rival${i}`].x, top: at[`rival${i}`].y } : { display: 'none' }}
+              onClick={() => openDossier(r.lab, open)}
+            >
+              {r.share < 0.005 ? r.name : `${r.name} · ${fmtShare(r.share, 0)}`}
+            </button>
+          );
+        })}
         <Plus at={at.seats} label={`Нанять (${fmtNum(f.freeSeats)} ${ruPlural(f.freeSeats, 'место', 'места', 'мест')})`} onClick={() => open('team')} />
         {/* Кнопка «+» - только если подпись рядом не предлагает то же самое: иначе пузыри дублировали друг друга и
             налезали («Свободно: новая модель» и «+ Новая модель», плейтест 17.10). */}
