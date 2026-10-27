@@ -321,7 +321,7 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
                 </span>
               </div>
               <label className="ng-ch-row ng-tutor">
-                <span>Обучение игре: подсказки по шагам</span>
+                <span>Подсказки по шагам</span>
                 <input type="checkbox" className="ng-switch" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />
               </label>
             </section>

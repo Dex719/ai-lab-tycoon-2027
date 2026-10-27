@@ -448,8 +448,6 @@ table.grid td.num, table.grid th.num { text-align: right; }
 /* «Пропустить» - обычная кнопка игры слева, а не серый текст. */
 .tutor .foot .skip { margin-right: auto; white-space: nowrap; }
 /* Подсветка цели шага: ровная янтарная рамка без свечения и мигания, заметна и на тёмном столе, и в светлом окне. */
-/* Копия панели поверх затемнения диалога: на месте закреплённой, кнопки нажимаются. */
-.tutor.tutor-float { position: fixed; z-index: 10100; margin: 0; max-height: calc(100vh - 16px); }
 .tutor .tutor-check { display: inline-grid; place-items: center; width: 22px; height: 22px; margin-right: 8px; border-radius: 50%; background: var(--good, #2e8b57); color: #fff; vertical-align: -4px; }
 .tutor .tutor-done h3 { color: var(--good, #2e8b57); }
 .tutor .tutor-step, .tutor .tutor-done { animation: tutor-in 200ms ease-out; }
