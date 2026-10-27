@@ -88,6 +88,10 @@ export const REAL_NAME_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ['Mino', 'mini'],
   ['q1', 'o1'],
 
+  // Ранние письма (data/earlyEvents.ts): площадка соревнований; падежная форма «на «Кегле»» отдельной записью
+  ['Кегл', 'Kaggle'],
+  ['Кегле', 'Kaggle'],
+
   // Исторические события (data/historyEvents.ts)
   ['AlfaGo', 'AlphaGo'],
   ['AlfaFold', 'AlphaFold'],

@@ -60,7 +60,8 @@ describe('набор новых событий', () => {
   it('у каждого события 2-3 варианта, заполнены тексты, подсказки (после отправки) и нет длинного тире', () => {
     for (const def of EXTRA_EVENTS) {
       expect(def.choices, def.id).toBeDefined();
-      expect(def.choices!.length, def.id).toBeGreaterThanOrEqual(2);
+      // Возврат кредита - единственный вариант (долг надо вернуть): см. data/earlyEvents.ts.
+      expect(def.choices!.length, def.id).toBeGreaterThanOrEqual(def.id === 'early-kirill-repay' ? 1 : 2);
       expect(def.choices!.length, def.id).toBeLessThanOrEqual(3);
       const s = newGame('Тест', 3);
       s.day = D('2022-03-01');
@@ -128,7 +129,7 @@ describe('набор новых событий', () => {
         triggerEvent(s, def.id);
         const mail = s.mail[s.mail.length - 1];
         const hint = mail.choices![i].hint;
-        if (/шансом|если|на \d+ дн|навсегда|доли основателя/.test(hint)) continue; // случай и условия проверяются отдельно
+        if (/шансом|если|на \d+ дн|навсегда|доли основателя|через год/.test(hint)) continue; // случай, условия и отложенные платежи (кредит) проверяются отдельно
         if (/(?:шумиха|аренда|исследован|спрос|проекты|иски|шанс)/i.test(hint)) continue;
         const exp = parse(hint);
         if (exp.known.some((k) => !k)) continue;

@@ -2,8 +2,9 @@
 // Суммы скромные (3-8 % стартовых денег): основной доход игры по-прежнему тендеры и продажи моделей.
 // Сработать письмо может только в своём окне: сохранение, загруженное позже, не получит разом все старые заказы.
 
+import type { GameState } from '../sim/types';
 import type { EventDef } from './events';
-import { addRep, grant, hasReleased, order, pay, REFUSE_HINT, refuseFocus, roll, usd, windowFrom } from './eventKit';
+import { addHype, addRep, grant, hasReleased, order, pay, pct, REFUSE_HINT, refuseFocus, rentedCount, roll, usd, windowFrom } from './eventKit';
 
 /** Отказ: исследования дешевле на 5 % на 30 дней; последствие словами своё у каждого письма. */
 const decline = (story: string) => ({ label: 'Отказаться', hint: REFUSE_HINT, story, apply: refuseFocus });
@@ -79,6 +80,9 @@ function contestEvent(opts: { id: string; date: string; title: string; body: str
   };
 }
 
+/** Шанс места в тройке на «Кегле»: зависит от арендованных карт (100 карт - 75 %, без карт - 25 %). */
+const keglChance = (s: GameState): number => Math.min(0.75, 0.25 + 0.5 * Math.min(1, rentedCount(s) / 100));
+
 export const EARLY_EVENTS: EventDef[] = [
   orderEvent({
     id: 'early-bank-forms',
@@ -149,6 +153,36 @@ export const EARLY_EVENTS: EventDef[] = [
     takeStory: 'Простой бот на правилах, оплата после сдачи',
     declineStory: 'Бота сделает другая команда',
   }),
+  {
+    id: 'early-kegl',
+    when: windowFrom('2017-09-25'),
+    mail: () => ({
+      kind: 'event',
+      title: 'Соревнование на «Кегле»: прогноз спроса',
+      body:
+        'На площадке «Кегл» открыли соревнование: прогноз спроса для сети магазинов. Месяц работы, призы получат три лучшие команды. ' +
+        'Шансы выше у тех, у кого больше видеокарт.',
+    }),
+    choices: [
+      {
+        label: 'Участвовать',
+        story: 'Месяц часть карт считает задачу соревнования',
+        hint: '',
+        hintFn: (s) =>
+          `-${usd(8_000)} на вычисления, +${usd(60_000)}, +2 репутации и +3 шумихи с шансом ${pct(keglChance(s))}`,
+        luck: { good: 'лаборатория вошла в тройку призёров', bad: 'до тройки призёров не хватило немного' },
+        apply: (s) => {
+          pay(s, 8_000);
+          if (roll(s, keglChance(s), true)) {
+            grant(s, 60_000);
+            addRep(s, 2);
+            addHype(s, 'player', 3);
+          }
+        },
+      },
+      decline('Соревнование пройдёт без лаборатории'),
+    ],
+  },
   orderEvent({
     id: 'early-gov-requests',
     date: '2017-11-13',
@@ -199,6 +233,29 @@ export const EARLY_EVENTS: EventDef[] = [
         apply: (s) => grant(s, 85_000),
       },
       decline('Фонд разделит гранты между другими'),
+    ],
+  },
+  {
+    id: 'early-kirill-loan',
+    when: windowFrom('2018-08-20'),
+    mail: () => ({
+      kind: 'event',
+      title: 'Кирилл из банка «Северный» предлагает кредит',
+      body:
+        'Звонит Кирилл, ваш однокурсник: он работает в отделе данных банка «Северный». Банк готов дать лаборатории кредит на ' +
+        '$250 тыс. на год. Вернуть нужно $290 тыс.',
+    }),
+    choices: [
+      {
+        label: 'Взять кредит',
+        story: 'Деньги придут сразу, через год банк попросит вернуть долг с процентами',
+        hint: `+${usd(250_000)} сейчас, -${usd(290_000)} через год`,
+        apply: (s) => {
+          grant(s, 250_000);
+          s.flags['kirillLoan'] = true;
+        },
+      },
+      decline('Лаборатория обойдётся без долга'),
     ],
   },
   orderEvent({
@@ -257,6 +314,28 @@ export const EARLY_EVENTS: EventDef[] = [
         },
       },
       decline('Государственный грант достанется другим'),
+    ],
+  },
+  {
+    // Единственный вариант: это долг, его надо вернуть, поэтому он же и вариант по умолчанию.
+    id: 'early-kirill-repay',
+    when: { check: (s) => !!s.flags['kirillLoan'] && windowFrom('2019-08-19').check(s) },
+    mail: () => ({
+      kind: 'event',
+      title: 'Банк «Северный»: срок кредита',
+      body: 'Кирилл напоминает, что прошёл год: банк ждёт возврата кредита с процентами.',
+    }),
+    choices: [
+      {
+        label: 'Вернуть кредит',
+        story: 'Долг закрыт, банк запомнит аккуратного заёмщика',
+        hint: `-${usd(290_000)}, +1 репутации`,
+        apply: (s) => {
+          pay(s, 290_000);
+          addRep(s, 1);
+          delete s.flags['kirillLoan'];
+        },
+      },
     ],
   },
   contestEvent({

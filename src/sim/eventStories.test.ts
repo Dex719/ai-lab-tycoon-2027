@@ -4,12 +4,14 @@
 import { describe, expect, it } from 'vitest';
 import { EVENTS, EXTRA_EVENTS, type EventDef } from '../data/events';
 import { REFUSE_HINT } from '../data/eventKit';
+import { EARLY_EVENTS } from '../data/earlyEvents';
 import { HISTORY_DATE, HISTORY_EVENTS } from '../data/historyEvents';
 import { RANDOM_EVENTS } from '../data/randomEvents';
+import { toRealNames } from '../data/realNames';
 import { newGame } from './actions';
 import { botAct, botChoice, pickChoice } from './bots';
 import { applyChoice, deferChoice, mailChoices, openChoices, pendingChoice, triggerEvent } from './events';
-import { DATED_SPACING_DAYS, randomCandidates, RANDOM_QUIET_DAYS } from './randomEvents';
+import { DATED_SPACING_DAYS, extraDateEventsDay, randomCandidates, RANDOM_QUIET_DAYS } from './randomEvents';
 import { RIVALRY_EVENTS } from './rivalry';
 import { advanceDay } from './tick';
 import { dateToDay, END_DAY, yearOf } from './time';
@@ -68,7 +70,7 @@ function dayFor(def: EventDef): number {
   const hist = HISTORY_DATE[def.id];
   if (hist) return D(hist);
   if (def.id.startsWith('early-') && 'check' in def.when) {
-    for (let d = 0; d < END_DAY; d++) if (def.when.check({ day: d } as GameState)) return d;
+    for (let d = 0; d < END_DAY; d++) if (def.when.check({ day: d, flags: {} } as GameState)) return d;
   }
   return D('2024-06-01');
 }
@@ -381,4 +383,101 @@ describe('письма не вплотную', () => {
       expect(missed, `ответ через ${answerAfter} дн.`).toEqual([]);
     }
   }, 60_000);
+});
+
+describe('Ранние сцены главы 1', () => {
+  const early = (id: string): EventDef => EARLY_EVENTS.find((e) => e.id === id)!;
+
+  it('«Кегл»: шанс в подсказке честный и растёт с арендой карт: 100 карт - 75 %, без карт - 25 %', () => {
+    const hintFor = (cards: number): string => {
+      const s = busy(D('2017-09-25'));
+      s.compute.rented.p100 = cards;
+      return send(s, early('early-kegl')).choices![0].hint;
+    };
+    expect(hintFor(100)).toContain('с шансом 75 %');
+    expect(hintFor(0)).toContain('с шансом 25 %');
+  });
+
+  it('«Кегл»: участие платит взнос всегда, приз и репутация приходят только при удаче', () => {
+    const outcomes = new Set<boolean>();
+    for (let seed = 1; seed < 80 && outcomes.size < 2; seed++) {
+      const s = busy(D('2017-09-25'));
+      s.yearly.rng = seed * 7919;
+      const mail = send(s, early('early-kegl'));
+      const cash = s.cash, rep = s.reputation, hype = s.hype.player;
+      expect(applyChoice(s, mail.id, 0).ok).toBe(true);
+      const lucky = mail.outcome!.lucky;
+      expect(s.cash - cash).toBe(lucky ? 52_000 : -8_000); // взнос 8 000 и приз 60 000 при удаче
+      expect(s.reputation - rep).toBe(lucky ? 2 : 0);
+      expect(s.hype.player - hype).toBe(lucky ? 3 : 0);
+      outcomes.add(lucky);
+    }
+    expect([...outcomes].sort()).toEqual([false, true]);
+  });
+
+  it('«Кегл»: отказ по умолчанию, а письмо называет соревнование настоящим словом только в «оригинальных названиях»', () => {
+    const s = busy(D('2017-09-25'));
+    const mail = send(s, early('early-kegl'));
+    expect(mail.defaultChoice).toBe(1);
+    expect(toRealNames(mail.title)).toBe('Соревнование на «Kaggle»: прогноз спроса');
+  });
+
+  it('кредит Кирилла: деньги сразу и флаг долга; отказ не меняет деньги, и он же вариант по умолчанию', () => {
+    const loan = early('early-kirill-loan');
+    const s = busy(D('2018-08-20'));
+    const cash = s.cash;
+    const mail = send(s, loan);
+    expect(mail.defaultChoice).toBe(1);
+    expect(mail.choices![1].hint).toBe(REFUSE_HINT);
+    expect(applyChoice(s, mail.id, 0).ok).toBe(true);
+    expect(s.cash - cash).toBe(250_000);
+    expect(s.flags.kirillLoan).toBe(true);
+
+    const t = busy(D('2018-08-20'));
+    const cash2 = t.cash;
+    const mail2 = send(t, loan);
+    applyChoice(t, mail2.id, 1);
+    expect(t.cash - cash2).toBe(0);
+    expect(t.flags.kirillLoan).toBeFalsy();
+  });
+
+  it('письмо кредита приходит 20.08.2018, а не раньше', () => {
+    const s = busy(D('2018-08-19'));
+    extraDateEventsDay(s);
+    expect(s.mail.some((m) => m.eventId === 'early-kirill-loan')).toBe(false);
+    s.day = D('2018-08-20');
+    extraDateEventsDay(s);
+    expect(s.mail.some((m) => m.eventId === 'early-kirill-loan')).toBe(true);
+  });
+
+  it('срок кредита: без флага не приходит; с флагом - в окне 19.08.2019 (60 дней), берёт 290 000 и снимает флаг', () => {
+    const repay = early('early-kirill-repay');
+    const check = (repay.when as { check: (s: GameState) => boolean }).check;
+    const s = busy(D('2019-08-25'));
+    expect(check(s)).toBe(false);
+    s.flags.kirillLoan = true;
+    expect(check(s)).toBe(true);
+    s.day = D('2019-10-18');
+    expect(check(s)).toBe(false);
+    s.day = D('2019-08-25');
+
+    const mail = send(s, repay);
+    expect(mail.choices!.length).toBe(1);
+    expect(mail.defaultChoice).toBe(0);
+    const cash = s.cash, rep = s.reputation;
+    expect(applyChoice(s, mail.id, 0).ok).toBe(true);
+    expect(s.cash - cash).toBe(-290_000);
+    expect(s.reputation - rep).toBe(1);
+    expect(s.flags.kirillLoan).toBeFalsy();
+  });
+
+  it('новые письма без длинных тире: заголовок, текст, подсказки и последствия', () => {
+    for (const id of ['early-kegl', 'early-kirill-loan', 'early-kirill-repay']) {
+      const s = busy(D('2018-08-20'));
+      s.flags.kirillLoan = true;
+      const mail = send(s, early(id));
+      const text = [mail.title, mail.body, ...mail.choices!.flatMap((c) => [c.label, c.hint, c.story ?? ''])].join(' ');
+      expect(text, id).not.toMatch(BAD_DASH);
+    }
+  });
 });
