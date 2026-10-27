@@ -384,8 +384,19 @@ function nextLine(next: TechId | null): string {
 }
 
 /**
+ * Очередь пуста, current свободен, а «Алгоритмические улучшения» уже начаты (есть уровень) и не остановлены:
+ * они продолжаются сами. Возвращает фразу для письма или ''.
+ */
+function resumeAlgo(s: GameState): string {
+  if (s.research.current !== null || s.research.stopped || s.research.algoLevel <= 0 || !canResearch(s, 'algo')) return '';
+  s.research.current = 'algo';
+  return ` Дальше: «${techName('algo')}».`;
+}
+
+/**
  * Ежедневно: прибавить rpPerDay к points[current]. По достижении цены - изучено, письмо (kind 'research').
- * algo: algoLevel += 1, points.algo = 0, current остаётся 'algo'. Остальные: в done, current = null.
+ * algo: algoLevel += 1, points.algo = 0, current остаётся 'algo' (очередь уходит вперёд, если в ней что-то есть).
+ * Остальные: в done, current = null; если очередь пуста, а algo начат - algo снова текущий (resumeAlgo).
  */
 export function progressDay(s: GameState): void {
   if (s.research.current === null) {
@@ -411,6 +422,7 @@ export function progressDay(s: GameState): void {
     const last = level >= CONTEXT_MAX_LEVEL;
     if (last) s.research.done.push('context');
     const next = startNext(s);
+    const resumed = next ? '' : resumeAlgo(s);
     addMail(s, {
       kind: 'research',
       title: `Исследование завершено: ${techName(tech)}, ${contextLabel(maxContext(s))} токенов`,
@@ -418,7 +430,9 @@ export function progressDay(s: GameState): void {
       reward: true,
       body:
         `Новые модели можно обучать с контекстом до ${contextLabel(maxContext(s))} токенов. Контекст выбирается в окне «Новая модель».` +
-        (next ? nextLine(next) : last ? '' : ' Следующий уровень можно начать в окне «Исследования».'),
+        nextLine(next) +
+        resumed +
+        (next || last ? '' : ' Следующий уровень можно начать в окне «Исследования».'),
     });
     return;
   }
@@ -446,11 +460,12 @@ export function progressDay(s: GameState): void {
   s.research.done.push(tech);
   s.research.current = null;
   const next = startNext(s);
+  const resumed = next ? '' : resumeAlgo(s);
   addMail(s, {
     kind: 'research',
     title: `Исследование завершено: ${techName(tech)}`,
     tag: 'research-done',
     reward: true,
-    body: EFFECT_LINE[tech] + nextLine(next),
+    body: EFFECT_LINE[tech] + nextLine(next) + resumed,
   });
 }

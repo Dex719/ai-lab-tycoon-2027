@@ -22,6 +22,7 @@ import {
   earlyPenalty,
   maxContext,
   progressDay,
+  queueResearch,
   researchBlockReason,
   rpPerDay,
   setResearch,
@@ -567,6 +568,40 @@ describe('алгоритмические улучшения повторяютс
     expect(s.research.algoLevel).toBe(2);
     expect(days2).toBe(Math.ceil(8000 / rp));
     expect(days2).toBeGreaterThan(days);
+  });
+
+  it('очередь важнее алгоритмов; когда очередь опустела, algo продолжается сам', () => {
+    const s = createInitialState('Тест', 1);
+    setResearch(s, 'algo');
+    s.research.algoLevel = 1;
+    expect(queueResearch(s, 'attention')).toEqual({ ok: true });
+
+    s.research.points.algo = techCost(s, 'algo');
+    progressDay(s);
+    expect(s.research.algoLevel).toBe(2);
+    expect(s.research.current).toBe('attention');
+    expect(s.research.queue).toEqual([]);
+
+    s.research.points.attention = techCost(s, 'attention');
+    progressDay(s);
+    expect(s.research.done).toEqual(['attention']);
+    expect(s.research.current).toBe('algo');
+    expect(researchMail(s).at(-1)!.body).toContain('Дальше: «Алгоритмические улучшения».');
+
+    // Уровень продолжает расти: очки снова идут в algo.
+    s.research.points.algo = techCost(s, 'algo');
+    progressDay(s);
+    expect(s.research.algoLevel).toBe(3);
+    expect(s.research.current).toBe('algo');
+  });
+
+  it('algo без начатых уровней сам не запускается после очереди', () => {
+    const s = createInitialState('Тест', 1);
+    expect(queueResearch(s, 'attention')).toEqual({ ok: true });
+    s.research.points.attention = techCost(s, 'attention');
+    progressDay(s);
+    expect(s.research.done).toEqual(['attention']);
+    expect(s.research.current).toBeNull();
   });
 });
 

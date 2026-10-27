@@ -9,7 +9,7 @@ import type { ArenaStanding } from '../sim/leaderboard';
 import { END_DAY } from '../sim/time';
 import type { GameState, LabId } from '../sim/types';
 import { fmtDays, fmtInt, fmtMoney, ruPlural } from './format';
-import { LAB_STAGES, metricStage, stageFlag } from './labStage';
+import { LAB_STAGES, labStage, metricStage, stageFlag } from './labStage';
 
 export interface LateMoment {
   id: 'push-held' | 'main-rival' | 'startup' | `stage-${number}`;
@@ -87,16 +87,21 @@ const STAGE_NEWS: Record<number, { headline: (lab: string) => string; art: LateM
   3: { headline: (lab) => `«${lab}» переезжает в свой кампус`, art: 'campus' },
 };
 
-/** Новый этап лаборатории (labStage.ts): заметка о переезде, один раз на этап. */
+/**
+ * Новый этап лаборатории (labStage.ts): заметка о переезде, один раз на этап.
+ * Этап берётся как у верхней строки (labStage, с учётом достигнутых): иначе после падения оценки
+ * пришла бы заметка о переезде на уже пройденный этап.
+ */
 function stageMoved(s: GameState): LateMoment | null {
   if (s.outcome) return null;
+  const stage = labStage(s);
   const m = metricStage(s);
-  const news = STAGE_NEWS[m.stage];
-  const def = LAB_STAGES[m.stage];
+  const news = STAGE_NEWS[stage];
+  const def = LAB_STAGES[stage];
   if (!news || !def) return null;
   const seats = def.desks * 2;
   return {
-    id: stageFlag(m.stage).replace('moment:', '') as LateMoment['id'],
+    id: stageFlag(stage).replace('moment:', '') as LateMoment['id'],
     kicker: 'Компания',
     headline: news.headline(s.labName),
     sub: m.by === 'value' ? `Инвесторы оценивают компанию в ${fmtMoney(m.value)}.` : `Лучший месяц лаборатории - ${fmtMoney(m.month)} выручки.`,

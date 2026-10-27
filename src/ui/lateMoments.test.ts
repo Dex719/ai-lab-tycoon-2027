@@ -8,6 +8,7 @@ import { emptyLate } from '../sim/lateState';
 import { arenaStanding, type ArenaStanding } from '../sim/leaderboard';
 import type { LabId } from '../sim/types';
 import { lateMoments } from './lateMoments';
+import { metricStage } from './labStage';
 
 const BAD = /[—–★✓▲▼]/;
 
@@ -69,6 +70,18 @@ describe('газетные моменты новых систем', () => {
     expect(m.sub).toBe('Лучший месяц лаборатории - $6 млн выручки.');
     expect(m.body).toBe('На новом месте 10 рабочих мест и серверная на 4 стойки.');
     expect(`${m.headline} ${m.sub} ${m.body}`).not.toMatch(BAD);
+  });
+
+  it('переезд не откатывается: этап, уже достигнутый по оценке, важнее сегодняшних показателей', () => {
+    const s = newGame('Нейрон', 1);
+    const base = s.finance.history[0];
+    // Лучший месяц 600 тыс. - по показателям только первый этап (офис).
+    s.finance.history = [{ ...(base ?? {}), year: 2020, month: 3, income: { api: 0, subs: 0, contracts: 6e5 } } as (typeof s.finance.history)[number]];
+    expect(metricStage(s).stage).toBe(1);
+    s.flags['stage-reached-2'] = true;
+    const moments = lateMoments(s, null);
+    expect(moments.map((m) => m.headline)).toEqual(['«Нейрон» заняла этаж в бизнес-центре']);
+    expect(moments.some((m) => m.headline.includes('переехала из гаража в офис'))).toBe(false);
   });
 
   it('рывок отбит: рывок состоялся, лаборатория осталась первой на «Арене»', () => {
