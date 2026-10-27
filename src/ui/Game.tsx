@@ -239,6 +239,8 @@ export function Game({ s }: { s: GameState }) {
   const [watched, setWatched] = useState<GameState | null>(null);
   const [released, setReleased] = useState<string | null>(null); // карточка выхода модели
   const closeReleased = useCallback(() => setReleased(null), []);
+  // Полоса «Вестник технологий» сообщает, видна ли она сейчас.
+  const [, setMomentUp] = useState(false);
   const [contractsSeenDay, setContractsSeenDay] = useState(-1); // день, когда игрок последний раз видел список тендеров
 
   const visible = wins.filter((w) => !w.min);
@@ -467,7 +469,7 @@ export function Game({ s }: { s: GameState }) {
       <ClientFeed s={s} />
       {released && <ReleaseCard s={s} modelId={released} onClose={closeReleased} />}
       <ChoiceModal s={s} />
-      <Moments s={s} />
+      <Moments s={s} open={open} onShow={setMomentUp} hold={!!released || pendingChoice(s) !== null || showEnd || (!s.outcome && (unseenReview(s) !== null || (goalOfferOpen(s) && !store.goalsHidden)))} />
       {!s.outcome && !pendingChoice(s) && <YearReviewModal s={s} />}
       {!s.outcome && !pendingChoice(s) && <GoalChoiceModal s={s} />}
       {showEnd && <EndDialog s={s} onWatch={() => setWatched(s)} />}
