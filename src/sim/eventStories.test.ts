@@ -7,8 +7,8 @@ import { REFUSE_HINT } from '../data/eventKit';
 import { HISTORY_DATE, HISTORY_EVENTS } from '../data/historyEvents';
 import { RANDOM_EVENTS } from '../data/randomEvents';
 import { newGame } from './actions';
-import { botAct, botChoice } from './bots';
-import { applyChoice, deferChoice, mailChoices, openChoices, triggerEvent } from './events';
+import { botAct, botChoice, pickChoice } from './bots';
+import { applyChoice, deferChoice, mailChoices, openChoices, pendingChoice, triggerEvent } from './events';
 import { DATED_SPACING_DAYS, randomCandidates, RANDOM_QUIET_DAYS } from './randomEvents';
 import { RIVALRY_EVENTS } from './rivalry';
 import { advanceDay } from './tick';
@@ -90,7 +90,7 @@ function snapshot(s: GameState): string {
     share: s.founderShare,
     flops: s.trainings.map((t) => t.flopDone),
     algo: s.research.algoLevel,
-    models: s.models.map((m) => [m.onApi, m.exposed]),
+    models: s.models.map((m) => [m.onApi, m.exposed, m.price]), // цена меняется письмом «Мини-модель соперника»
   });
 }
 
@@ -343,6 +343,36 @@ describe('письма не вплотную', () => {
     // от любой правки денег, QA 19.10). Смысловые пределы - 16 в год и промежутки - выше.
     expect(letters.length).toBeLessThanOrEqual(8 * 12);
   }, 60_000);
+
+  /** Письма с выбором по годам в партии разумного бота (как runBot): считаются по мере прихода, без обрезки почты. */
+  function lettersPerYear(seed: number): Map<number, number> {
+    const s = newGame('Бот', seed, 'normal');
+    const seen = new Set<string>();
+    const perYear = new Map<number, number>();
+    let days = 0;
+    while (!s.outcome && days < 4000) {
+      for (const m of s.mail) {
+        if (!m.choices || seen.has(m.id)) continue;
+        seen.add(m.id);
+        perYear.set(yearOf(m.day), (perYear.get(yearOf(m.day)) ?? 0) + 1);
+      }
+      const pending = pendingChoice(s) ?? openChoices(s)[0] ?? null;
+      if (pending) {
+        applyChoice(s, pending.id, pickChoice(s, pending));
+        continue;
+      }
+      if (s.day % 7 === 0) botAct(s, 'reasonable');
+      advanceDay(s);
+      days++;
+    }
+    return perYear;
+  }
+
+  it('в каждом году не больше 16 решений на шести зёрнах: жребий учитывает письма по датам, которые ещё впереди', () => {
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      for (const [y, n] of lettersPerYear(seed)) expect(n, `зерно ${seed}, ${y}`).toBeLessThanOrEqual(16);
+    }
+  }, 120_000);
 
   it('все исторические письма доходят, даже если игрок решает не сразу', () => {
     for (const answerAfter of [0, 20]) {

@@ -111,10 +111,37 @@ const LEAK_GAP_DAYS = 400;
 const LEAK_YEAR_MAX = 13;
 const LEAK_BUSY_YEAR = 10;
 
+/** Сколько решений (писем с выбором) пришло в году: со всеми письмами, включая утечку и соперников. */
+function choicesInYear(s: GameState, year: number): number {
+  return s.mail.filter((m) => m.choices && yearOf(m.day) === year).length;
+}
+
+/**
+ * Случайные письма (жребий) не приходят, когда в году решений уже RANDOM_YEAR_MAX, считая и ещё не пришедшие письма
+ * по датам этого года (datedAhead): иначе жребий, брошенный в начале года, выталкивает год за 16 решений, когда
+ * придут письма по датам. Запас 2 решения оставлен под соперников и утечку, которые по датам не запланированы.
+ * Проверяет eventStories.test на нескольких зёрнах.
+ */
+const RANDOM_YEAR_MAX = 14;
+
 /** Сколько писем по датам (история и поздняя игра) запланировано на год. */
 function datedInYear(year: number): number {
   let n = 0;
   for (const d of [...Object.values(HISTORY_DATE), ...Object.values(LATE_DATE)]) if (Number(d.slice(0, 4)) === year) n++;
+  return n;
+}
+
+/**
+ * Письма по датам этого года, которые ещё не пришли и придут позже сегодняшнего дня (не отработаны в s.firedEvents).
+ * Считаются как будущие решения: жребий не должен занимать их место в году.
+ */
+function datedAhead(s: GameState, year: number): number {
+  let n = 0;
+  for (const [id, d] of [...Object.entries(HISTORY_DATE), ...Object.entries(LATE_DATE)]) {
+    if (Number(d.slice(0, 4)) !== year) continue;
+    if (dateToDay(d) <= s.day || s.firedEvents.includes(id)) continue;
+    n++;
+  }
   return n;
 }
 
@@ -131,7 +158,7 @@ export function leakDay(s: GameState): void {
   // и когда решений в году уже LEAK_YEAR_MAX, утечка ждёт следующего года.
   const year = yearOf(s.day);
   if (datedInYear(year) >= LEAK_BUSY_YEAR) return;
-  if (s.mail.filter((m) => m.choices && yearOf(m.day) === year).length >= LEAK_YEAR_MAX) return;
+  if (choicesInYear(s, year) >= LEAK_YEAR_MAX) return;
   // Как у случайных писем: не раньше чем через 10 дней после другого решения.
   if (s.day - lastChoiceDay(s) < RANDOM_QUIET_DAYS || mainChoiceSoon(s, DATED_SPACING_DAYS)) return;
   // Детерминированный «жребий» от зерна и дня: основной и годовой потоки случайности не сдвигаются.
@@ -150,6 +177,8 @@ export function randomEventDay(s: GameState): void {
   if (openChoices(s).length > 0) return; // не больше одного письма с выбором: ждём ответа
   if (s.day - lastChoiceDay(s) < RANDOM_QUIET_DAYS) return; // только что было другое решение: даём передохнуть
   if (mainChoiceSoon(s, DATED_SPACING_DAYS)) return;
+  const year = yearOf(s.day);
+  if (choicesInYear(s, year) + datedAhead(s, year) >= RANDOM_YEAR_MAX) return;
   const list = randomCandidates(s);
   const pick = pickWeighted(list, nextRandom(y));
   if (!pick) return;

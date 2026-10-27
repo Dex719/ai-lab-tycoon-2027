@@ -1,18 +1,18 @@
-// Письма с выбором для 2022-2023 годов (самое пустое место партии в плейтестах 18.10: больше 800 дней без наград,
+// Письма с выбором для 2022-2024 годов (самое пустое место партии в плейтестах 18.10: больше 800 дней без наград,
 // деньги лежат) и письма по стране лаборатории (sim/country.ts). Устроены как data/historyEvents.ts: приходят в свою
 // дату и не позже чем через 60 дней, не вплотную к другим письмам с выбором; без ответа - последний вариант (отказ),
 // поэтому боты баланса играют как раньше. Суммы - в денежных единицах года (eventKit.amount).
 
 import { addMail, addModifier, FOREVER } from '../sim/events';
 import { bestElo } from '../sim/leaderboard';
-import { subsOpen } from '../sim/market';
+import { minPrice, subsOpen } from '../sim/market';
 import { techCost } from '../sim/research';
 import { rivalDayIn, rivalEloIn } from '../sim/rivalry';
 import { formatDate } from '../sim/time';
 import { RIVAL_MODELS } from './catalog';
 import type { CountryId, GameState, LabId, RivalModelDef, SegmentId } from '../sim/types';
 import type { EventChoiceDef, EventDef } from './events';
-import { addHype, addRep, amount, fixUnit, grant, pay, REFUSE_HINT, refuseFocus, roll, usd, windowFrom } from './eventKit';
+import { addHype, addRep, amount, fixUnit, grant, hasOnSale, pay, REFUSE_HINT, refuseFocus, roll, usd, windowFrom } from './eventKit';
 import { LABS } from './labs';
 
 /** Отказ: исследования дешевле на 5 % на 30 дней; последствие словами своё у каждого письма. */
@@ -49,6 +49,21 @@ function late(date: string, def: Omit<EventDef, 'when'>, also?: (s: GameState) =
 
 function inCountry(c: CountryId): (s: GameState) => boolean {
   return (s) => s.country === c; // без импорта sim/country: модули событий и стран импортируют друг друга
+}
+
+/** Соперник выпустил модель: её день с учётом сдвигов (rivalDayIn) уже наступил. */
+function rivalReleased(s: GameState, id: string): boolean {
+  const def = RIVAL_MODELS.find((m) => m.id === id);
+  return !!def && s.day >= rivalDayIn(s, def);
+}
+
+/** Цены ваших моделей в API ниже на долю, но не ниже минимальной цены рынка (как в sim/market.minPrice). */
+function cutPlayerPrices(s: GameState, mult: number): void {
+  const floor = minPrice(s.day);
+  for (const m of s.models) {
+    if (m.releasedDay === null || !m.onApi) continue;
+    m.price = Math.max(floor, Math.round(m.price * mult * 1000) / 1000);
+  }
 }
 
 export const LATE_EVENTS: EventDef[] = [
@@ -230,6 +245,150 @@ export const LATE_EVENTS: EventDef[] = [
       nothing('Оставить модели закрытыми', 'Лаборатория останется при закрытых моделях'),
     ],
   }),
+  late(
+    '2024-05-10',
+    {
+      id: 'late-price-war',
+      mail: () => ({
+        kind: 'event',
+        title: 'DeepCent начала ценовую войну',
+        body:
+          'DeepCent выпустила DeepSeak-V2 и продаёт её по API в десятки раз дешевле флагманов. ' +
+          'Соперники в Китае уже снижают цены вслед за ней, разработчики сравнивают счета. Цены DeepCent будут ниже ещё четыре месяца.',
+      }),
+      onFire: (s) => {
+        fixUnit(s);
+        addModifier(s, { id: 'late-price-war-deepcent', kind: 'rivalPrice', target: 'deepcent', mult: 0.7, untilDay: s.day + 120 });
+        addHype(s, 'deepcent', 8);
+      },
+      choices: [
+        {
+          label: 'Дать разработчикам скидку за свой счёт',
+          story: 'Разработчики останутся с вами, скидку лаборатория оплатит сама',
+          hint: '',
+          hintFn: (s) => `-${usd(amount(s, 1.5))}, разработчики выбирают вас чаще на 120 дней`,
+          apply: (s) => {
+            pay(s, amount(s, 1.5));
+            trust(s, 'late-price-war-dev', 'developers', 0.2, 120);
+          },
+        },
+        {
+          label: 'Сделать упор на крупные компании',
+          story: 'Корпорациям важнее надёжность, чем цена, но разработчики уйдут к дешёвой модели',
+          hint: 'корпоративные клиенты выбирают вас чаще, разработчики реже на 120 дней',
+          apply: (s) => {
+            trust(s, 'late-price-war-ent', 'enterprise', 0.15, 120);
+            trust(s, 'late-price-war-dev2', 'developers', -0.15, 120);
+          },
+        },
+        nothing('Не менять цены', 'Часть разработчиков сравнит цены и уйдёт к DeepCent'),
+      ],
+    },
+    (s) => hasOnSale(s) && rivalReleased(s, 'deepseak-v2'),
+  ),
+  late(
+    '2024-06-20',
+    {
+      id: 'late-ai-stocks',
+      // Сумма в тексте письма и в подсказке - одна единица: текст строится до onFire, поэтому фиксируем её здесь.
+      mail: (s) => {
+        fixUnit(s);
+        return {
+          kind: 'event',
+          title: 'Акции компаний ИИ выросли на 30 % за год',
+          body:
+            'Рынок растёт на ожиданиях от ИИ, фонды ищут, куда вложить деньги. ' +
+            `Один из фондов предлагает ${usd(amount(s, 6))} за небольшую долю лаборатории.`,
+        };
+      },
+      onFire: fixUnit,
+      choices: [
+        {
+          label: 'Продать долю на пике',
+          story: 'Деньги приходят сразу, доля основателя становится меньше',
+          hint: '',
+          hintFn: (s) => `+${usd(amount(s, 6))}, доля основателя -2 п.п.`,
+          apply: (s) => {
+            grant(s, amount(s, 6));
+            s.founderShare = Math.max(0, s.founderShare - 0.02);
+          },
+        },
+        nothing('Не продавать', 'Лаборатория дождётся своей оценки, фонд уйдёт к соперникам'),
+      ],
+    },
+    hasOnSale,
+  ),
+  late(
+    '2024-07-18',
+    {
+      id: 'late-rival-mini',
+      mail: () => ({
+        kind: 'event',
+        title: 'OpenBrain выпустила mini-модель в 10 раз дешевле',
+        body: 'Новая mini-модель OpenBrain почти не уступает флагману и стоит в 10 раз меньше. Разработчики переносят на неё свои сервисы.',
+      }),
+      onFire: (s) => {
+        fixUnit(s);
+        addHype(s, 'openbrain', 10);
+      },
+      choices: [
+        {
+          label: 'Снизить цены на 20 %',
+          story: 'Ваши модели остаются в списке выгодных, выручка с клиента ниже',
+          hint: 'цены ваших моделей по API ×0,8',
+          apply: (s) => cutPlayerPrices(s, 0.8),
+        },
+        {
+          label: 'Сделать упор на крупные компании',
+          story: 'Корпорации остаются, разработчики уходят к дешёвой модели',
+          hint: 'корпоративные клиенты выбирают вас чаще, разработчики реже на 120 дней',
+          apply: (s) => {
+            trust(s, 'late-mini-ent', 'enterprise', 0.15, 120);
+            trust(s, 'late-mini-dev', 'developers', -0.15, 120);
+          },
+        },
+        nothing('Держать цены', 'Часть разработчиков попробует дешёвую модель'),
+      ],
+    },
+    (s) => hasOnSale(s) && rivalReleased(s, 'gtp-4o-mino'),
+  ),
+  late(
+    '2024-11-12',
+    {
+      id: 'late-agent-order',
+      mail: () => ({
+        kind: 'event',
+        title: 'Агент на вашей модели заказал лишнее',
+        body:
+          'Сеть кафе подключила вашу модель к агенту, который сам закупает продукты. За ночь агент заказал четыреста мешков муки ' +
+          'вместо сорока и оплатил доставку. Скриншоты переписки с агентом уже ходят по сети как анекдот.',
+      }),
+      onFire: fixUnit,
+      choices: [
+        {
+          label: 'Вернуть клиенту деньги',
+          story: 'Клиент остаётся, история расходится как курьёз',
+          hint: '',
+          hintFn: (s) => `-${usd(amount(s, 0.4))}, +2 репутации`,
+          apply: (s) => {
+            pay(s, amount(s, 0.4));
+            addRep(s, 2);
+          },
+        },
+        {
+          label: 'Ввести подтверждение покупок',
+          story: 'Агенты на ваших моделях станут медленнее, зато покупки проверит человек',
+          hint: '-5 шумихи, +1 репутации',
+          apply: (s) => {
+            addHype(s, 'player', -5);
+            addRep(s, 1);
+          },
+        },
+        nothing('Промолчать', 'Клиент недоволен, но история быстро забудется'),
+      ],
+    },
+    hasOnSale,
+  ),
 ];
 
 // ---------- Утечка планов соперника (случайное письмо) ----------
