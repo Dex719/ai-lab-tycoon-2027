@@ -12,10 +12,11 @@ import { formatDate } from '../sim/time';
 import { RIVAL_MODELS } from './catalog';
 import type { CountryId, GameState, LabId, RivalModelDef, SegmentId } from '../sim/types';
 import type { EventChoiceDef, EventDef } from './events';
-import { addHype, addRep, amount, fixUnit, grant, pay, roll, usd, windowFrom } from './eventKit';
+import { addHype, addRep, amount, fixUnit, grant, pay, REFUSE_HINT, refuseFocus, roll, usd, windowFrom } from './eventKit';
 import { LABS } from './labs';
 
-const nothing = (label: string, story: string): EventChoiceDef => ({ label, hint: 'без изменений', story, apply: () => {} });
+/** Отказ: исследования дешевле на 5 % на 30 дней; последствие словами своё у каждого письма. */
+const nothing = (label: string, story: string): EventChoiceDef => ({ label, hint: REFUSE_HINT, story, apply: refuseFocus });
 
 function trust(s: GameState, id: string, seg: SegmentId, add: number, days: number | null): void {
   addModifier(s, { id, kind: 'segBrand', target: `player:${seg}`, add, untilDay: days === null ? FOREVER : s.day + days });

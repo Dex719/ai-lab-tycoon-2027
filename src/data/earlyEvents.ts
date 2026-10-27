@@ -3,10 +3,10 @@
 // Сработать письмо может только в своём окне: сохранение, загруженное позже, не получит разом все старые заказы.
 
 import type { EventDef } from './events';
-import { addRep, grant, hasReleased, order, pay, roll, usd, windowFrom } from './eventKit';
+import { addRep, grant, hasReleased, order, pay, REFUSE_HINT, refuseFocus, roll, usd, windowFrom } from './eventKit';
 
-/** Отказ без последствий; последствие словами своё у каждого письма. */
-const decline = (story: string) => ({ label: 'Отказаться', hint: 'без изменений', story, apply: () => {} });
+/** Отказ: исследования дешевле на 5 % на 30 дней; последствие словами своё у каждого письма. */
+const decline = (story: string) => ({ label: 'Отказаться', hint: REFUSE_HINT, story, apply: refuseFocus });
 
 /** Обычный заказ: взять за фиксированную плату или попросить больше (шанс не угадать). */
 function orderEvent(opts: {

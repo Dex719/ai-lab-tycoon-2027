@@ -46,9 +46,20 @@ export function unitForDay(day: number): number {
   return unitForYear(yearOf(day));
 }
 
+/** Доля кассы в денежной единице письма: в 2024 году $10 млн при кассе $1 млрд - мелочь, поэтому единица растёт с лабораторией. */
+export const LAB_UNIT_CASH_SHARE = 0.04;
+/** Единица письма не больше стольких единиц года. */
+export const LAB_UNIT_MAX_MULT = 5;
+
+/** Единица письма для лаборатории: единица года, а при большой кассе - доля кассы (но не больше LAB_UNIT_MAX_MULT единиц года). */
+export function labUnit(s: GameState): number {
+  const y = unitForDay(s.day);
+  return Math.max(y, Math.min(y * LAB_UNIT_MAX_MULT, LAB_UNIT_CASH_SHARE * Math.max(0, s.cash)));
+}
+
 /** Единица, зафиксированная при отправке письма (подсказки и эффекты берут одно и то же число). */
 export function unit(s: GameState): number {
-  return s.yearly.eventUnit > 0 ? s.yearly.eventUnit : unitForDay(s.day);
+  return s.yearly.eventUnit > 0 ? s.yearly.eventUnit : labUnit(s);
 }
 
 /** Сумма в единицах, круглая до тысяч (или сотен долларов, если единица мала). */
@@ -68,7 +79,16 @@ export function amountForYear(year: number, k: number): number {
 
 /** Фиксируем единицу на день письма: вызывается из onFire. */
 export function fixUnit(s: GameState): void {
-  s.yearly.eventUnit = unitForDay(s.day);
+  s.yearly.eventUnit = labUnit(s);
+}
+
+/** Подсказка отказа: честно, что даёт вариант «ничего не делать». */
+export const REFUSE_HINT = 'исследования дешевле на 5 % на 30 дней';
+
+/** Отказ в письме: команда не отвлекается, исследования дешевле на 5 % на 30 дней (один модификатор, не складывается). */
+export function refuseFocus(s: GameState): void {
+  s.modifiers = s.modifiers.filter((m) => m.id !== 'refuse-focus');
+  s.modifiers.push({ id: 'refuse-focus', kind: 'researchCost', mult: 0.95, untilDay: s.day + 30 });
 }
 
 const clamp100 = (x: number): number => Math.max(0, Math.min(100, x));

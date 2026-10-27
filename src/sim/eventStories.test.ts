@@ -3,6 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { EVENTS, EXTRA_EVENTS, type EventDef } from '../data/events';
+import { REFUSE_HINT } from '../data/eventKit';
 import { HISTORY_DATE, HISTORY_EVENTS } from '../data/historyEvents';
 import { RANDOM_EVENTS } from '../data/randomEvents';
 import { newGame } from './actions';
@@ -174,6 +175,8 @@ describe('последствие словами', () => {
         applyChoice(s, mail.id, i);
         const tag = `${def.id}/${i}: ${hint}`;
         if (hint === 'без изменений') expect(snapshot(s), tag).toBe(before);
+        // отказ честно пишет свой эффект: исследования дешевле на 30 дней (модификатор refuse-focus)
+        else if (hint === REFUSE_HINT) expect(snapshot(s), tag).not.toBe(before);
         else if (!/шанс/.test(hint)) expect(snapshot(s), tag).not.toBe(before);
         checked++;
       });

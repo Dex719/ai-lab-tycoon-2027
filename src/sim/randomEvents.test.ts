@@ -153,11 +153,12 @@ describe('набор новых событий', () => {
     triggerEvent(t, 'rnd-conference');
     const late = t.mail[t.mail.length - 1].choices![0].hint;
     expect(early).not.toBe(late);
-    // единица зафиксирована в письме: смена года до ответа не меняет сумму
+    // единица зафиксирована в письме: смена года до ответа не меняет сумму.
+    // Единица 2017 года - 4 % стартовой кассы $3 млн = $120 тыс. (единица растёт с кассой, eventKit.labUnit), вариант стоит 0,2 единицы.
     const cash = s.cash;
     s.day = D('2024-01-01');
     applyChoice(s, s.mail[s.mail.length - 1].id, 0);
-    expect(cash - s.cash).toBeCloseTo(20_000, -3);
+    expect(cash - s.cash).toBeCloseTo(24_000, -3);
   });
 });
 

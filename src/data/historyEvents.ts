@@ -6,10 +6,10 @@
 import { addModifier, FOREVER } from '../sim/events';
 import type { GameState, SegmentId } from '../sim/types';
 import type { EventDef } from './events';
-import { addHype, addRep, fixUnit, pay, roll, usd, windowFrom } from './eventKit';
+import { addHype, addRep, fixUnit, pay, REFUSE_HINT, refuseFocus, roll, usd, windowFrom } from './eventKit';
 
-/** Ничего не меняется: последствие словами своё у каждого письма. */
-const nothing = (story: string) => ({ hint: 'без изменений', story, apply: () => {} });
+/** Отказ: исследования дешевле на 5 % на 30 дней; последствие словами своё у каждого письма. */
+const nothing = (story: string) => ({ hint: REFUSE_HINT, story, apply: refuseFocus });
 
 /** Скидка на исследования на несколько дней (общая, без привязки к технологии). */
 function researchDiscount(id: string, mult: number, days: number, s: GameState): void {
