@@ -602,12 +602,12 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
   @media (max-height: 900px) {
     .game .side { bottom: 236px; }
     .game .side:has(.tutor) .side-race { display: none; }
-    .game .side .tutor { max-height: 34%; }
+    .game .side .tutor { max-height: none; margin: 3px 3px 6px; }
     .game .side .tutor .titlebar { height: 36px; }
-    .game .side .tutor .body { padding: 6px 16px 0; }
+    .game .side .tutor .body { padding: 4px 16px 0; }
     .game .side .tutor h3 { margin: 0 0 2px; }
     .game .side .tutor p { margin: 0; line-height: 1.35; }
-    .game .side .tutor .foot { padding: 4px 16px 8px; }
+    .game .side .tutor .foot { padding: 2px 16px 6px; }
     .game .side:has(.tutor:not(.collapsed)) .side-tabs,
     .game .side:has(.tutor:not(.collapsed)) .side-list { display: none; }
     .game .side .side-head { padding: 5px 14px 4px; }

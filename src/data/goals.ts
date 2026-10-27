@@ -13,7 +13,7 @@ import { canResearch, researchDaysLeft, rpPerDay, TECHS, techCost } from '../sim
 import { ruPlural } from '../sim/text';
 import { dateToDay, yearOf } from '../sim/time';
 import { archFor, capsFromPlan, modelScore, tierPreset } from '../sim/training';
-import type { BenchmarkId, GameState, TechId, YearGoalState } from '../sim/types';
+import type { BenchmarkId, GameState, TechId, Tier, YearGoalState } from '../sim/types';
 import { eloText, usd } from './eventKit';
 import {
   clamp01,
@@ -638,9 +638,13 @@ function shareTarget(cur: number, r: number, risky: boolean): number {
   return niceShare(Math.min(risky ? 0.7 : 0.6, raw));
 }
 
-/** Балл флагмана, который можно обучить сейчас (данные с упором на тексты): планка цели «модель с баллом». */
+/**
+ * Балл модели, которую можно обучить сейчас: до первой модели - средней по умолчанию (её обучают подсказки), потом - флагмана.
+ * Иначе первая цель «SQuAT от 60 %» не по силам той модели, которую обучает обучение игре (newcomer-M4).
+ */
 function reachableScore(s: GameState, bid: BenchmarkId): number {
-  const p = tierPreset(s, 'flagship');
+  const tier: Tier = s.models.length === 0 && s.trainings.length === 0 ? 'mid' : 'flagship';
+  const p = tierPreset(s, tier);
   const plan = {
     name: '',
     ...p,
@@ -649,7 +653,7 @@ function reachableScore(s: GameState, bid: BenchmarkId): number {
     benchTargets: [],
     rlhf: false,
     context: 512,
-    tier: 'flagship' as const,
+    tier,
   };
   const caps = capsFromPlan(plan, s.research.algoLevel, archFor(s));
   return benchScore(bid, caps[benchDef(bid).domain], 0);
