@@ -73,6 +73,20 @@ describe('ред-тиминг', () => {
     expect(redTeamBlock(s, old, 'quick')).toMatch(/до появления/);
   });
 
+  it('проверка невыпущенной модели кончается важным письмом с меткой: игра встанет (newcomer-M2)', () => {
+    const s = newGame('Т', 1);
+    const m = model(s, 3);
+    m.releasedDay = null;
+    s.cash = 1e9;
+    expect(startRedTeam(s, m.id, 'quick').ok).toBe(true);
+    s.day += REDTEAM.quick.days;
+    redTeamDay(s);
+    const last = s.mail[s.mail.length - 1];
+    expect(last.tag).toBe('redteam-done');
+    expect(last.important).toBe(true);
+    expect(last.title).toBe('Проверка готова: «Модель» можно выпустить');
+  });
+
   it('дыры всплывают инцидентами у моделей в продаже; без дыр (боты) - никогда', () => {
     const s = newGame('Т', 2);
     const m = model(s, 5);

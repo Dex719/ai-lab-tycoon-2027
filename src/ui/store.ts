@@ -275,6 +275,12 @@ export class GameStore {
     }
     const goals = s.yearly.year * 100 + s.yearly.goals.filter((g) => g.done).length;
     if (set.pauseOnGoal && goals > mark.goals && goals % 100 > 0) return 'Цель года выполнена';
+    // Проверка модели закончилась, модель ждёт выпуска: пауза по метке, даже когда «Пауза на важных письмах» выключена (newcomer-M2).
+    // Подпись - заголовок самого письма: у игры может быть и другая модель, уже проверенная и ждущая выпуска.
+    if (set.pauseOnReady) {
+      const checked = freshTitle(s, mark, 'redteam-done');
+      if (checked) return checked;
+    }
     // Готовая модель не выпущена: напоминание с паузой каждые READY_REMIND_DAYS дней (плейтест 17.10 - простояла 113 дней).
     if (set.pauseOnReady) {
       const idle = s.models.find((m) => m.releasedDay === null && s.day > m.trainedDay && (s.day - m.trainedDay) % READY_REMIND_DAYS === 0);

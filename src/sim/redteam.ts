@@ -70,10 +70,13 @@ export function redTeamDay(s: GameState): void {
     m.redTeam = undefined;
     m.redTeamDone = true;
     const left = m.holes === 0 ? 'уязвимостей не осталось' : m.holes === 1 ? 'осталась примерно одна' : `осталось примерно ${m.holes}`;
+    // Модель ждёт выпуска: отчёт - важное письмо с меткой, игра встаёт на конце проверки (newcomer-M2).
+    const waiting = m.releasedDay === null;
     addMail(s, {
       kind: 'training',
-      title: `Ред-тиминг «${m.name}»: найдено ${before}, закрыто ${fixed}`,
+      title: waiting ? `Проверка готова: «${m.name}» можно выпустить` : `Ред-тиминг «${m.name}»: найдено ${before}, закрыто ${fixed}`,
       body: `${REDTEAM[mode].name} ред-тиминг закончен: найдено уязвимостей ${before}, закрыто ${fixed}, ${left}. Каждая оставшаяся может всплыть, пока модель в продаже.`,
+      ...(waiting ? { important: true, tag: 'redteam-done' as const } : {}),
     });
   }
 }

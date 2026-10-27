@@ -52,6 +52,8 @@ interface ToastData {
   label?: string;
   /** Письмо лично от лаборатории-соперника: вместо значка - её эмблема. */
   from?: LabId;
+  /** Подпись кнопки вместо «Открыть» (например, «Выпустить» у готовой проверки). */
+  act?: string;
 }
 
 /** Уведомление интерфейса: ответ на действие игрока (обучение началось и т. п.), не письмо. */
@@ -110,7 +112,7 @@ function ToastItem({ t, onOpen, onClose }: { t: ToastData; onOpen: (t: ToastData
       <span className="tt">{t.title}</span>
       <span className="ta">
         <button type="button" onClick={() => onOpen(t)} title={t.win ? 'Открыть окно' : 'Открыть письмо в «Почте»'}>
-          Открыть
+          {t.act ?? 'Открыть'}
         </button>
       </span>
       <button type="button" className="toast-x" onClick={dismiss} title="Скрыть уведомление" aria-label="Скрыть уведомление">
@@ -194,6 +196,8 @@ export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | Window
       tone: !group && m.reward ? 'reward' : undefined,
       label: !group && m.reward ? 'Награда' : undefined,
       from: group ? undefined : m.from,
+      win: !group && m.tag === 'redteam-done' ? 'models' : undefined,
+      act: !group && m.tag === 'redteam-done' ? 'Выпустить' : undefined,
     });
     // Награды - каждая отдельной карточкой, их не сворачиваем. Затем важные письма, затем новости.
     const rewards = fresh.filter((m) => m.reward);

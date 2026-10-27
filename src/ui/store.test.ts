@@ -232,7 +232,20 @@ describe('автосохранение', () => {
 
 describe('автопауза по галочкам настроек', () => {
   afterEach(() => {
-    setSettings({ pauseOnReady: true, pauseOnResearch: false, pauseOnTender: false, pauseOnGoal: false });
+    setSettings({ pauseOnReady: true, pauseOnImportant: true, pauseOnResearch: false, pauseOnTender: false, pauseOnGoal: false });
+  });
+
+  it('проверка модели готова: пауза по метке с названием модели, без галочки важных писем (newcomer-M2)', () => {
+    const { store, s } = newStore();
+    setSettings({ pauseOnReady: true, pauseOnImportant: false });
+    store.setSpeed(1);
+    s.models.push({ id: 'p8', name: 'Проверяемая', releasedDay: null, trainedDay: s.day, redTeamDone: true } as GameState['models'][number]);
+    advanceDay.mockImplementationOnce((st) => {
+      addMail(st, { kind: 'training', title: 'Проверка готова: «Проверяемая» можно выпустить', body: '', tag: 'redteam-done' });
+    });
+    vi.advanceTimersByTime(500);
+    expect(store.speed).toBe(0);
+    expect(store.pauseReason).toBe('Проверка готова: «Проверяемая» можно выпустить');
   });
 
   it('исследование завершено: без галочки игра идёт, с галочкой встаёт', () => {
