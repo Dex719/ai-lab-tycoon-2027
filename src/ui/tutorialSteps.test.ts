@@ -156,7 +156,7 @@ describe('обучение игре', () => {
       for (let i = 0; i < 60 && s.models.length === 0; i++) day(s);
       expect(s.models).toHaveLength(1);
       expect(s.research.done).not.toContain('attention');
-      expect(stepTargets(TUTORIAL[release], s)[0]).toBe('release');
+      expect(stepTargets(TUTORIAL[release], s)[0]).toBe('release-confirm');
       expect(done(release)).toBe(false);
       expect(releaseModel(s, s.models[0].id, refPrice(s.day)).ok).toBe(true);
       expect(done(release)).toBe(true);

@@ -24,7 +24,7 @@ import { benchRank, type RaceMetric } from '../../sim/leaderboard';
 import { ARENA_PLACE_TITLE } from '../arena';
 import { minPrice, overpriceFrom, playerSales, refPrice, subsOpen } from '../../sim/market';
 import { formatDateShort } from '../../sim/time';
-import { REDTEAM, redTeamBlock, redTeamCost } from '../../sim/redteam';
+import { INCIDENT_HYPE, INCIDENT_REP, REDTEAM, redTeamBlock, redTeamCost } from '../../sim/redteam';
 import { disputeWarning, releaseDisputed } from '../../sim/cofounder';
 import {
   arenaElo as forecastElo,
@@ -44,6 +44,7 @@ import {
   type GameState,
   type ModelRef,
   type PlayerModel,
+  type RedTeamMode,
   type Result,
   type TrainingPlan,
   type TrainingRun,
@@ -191,7 +192,7 @@ const RUN_PREFIX = 'run:';
  * Модели без уязвимостей в данных (обучены до этой механики) блока не показывают.
  */
 function RedTeamBlock({ s, m }: { s: GameState; m: PlayerModel }) {
-  const [err, setErr] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<RedTeamMode | null>(null);
   if (m.holes === undefined) return null;
   const status = m.redTeam
     ? `Проверка идёт до ${formatDateShort(m.redTeam.endDay)}.`
@@ -211,18 +212,38 @@ function RedTeamBlock({ s, m }: { s: GameState; m: PlayerModel }) {
               key={mode}
               className="btn"
               reason={redTeamBlock(s, m, mode)}
-              onClick={() => {
-                const r = store.dispatch(actions.startRedTeam, m.id, mode);
-                setErr(r.ok ? null : r.error);
-              }}
+              onClick={() => setConfirm(mode)}
             >
               {REDTEAM[mode].name}: {REDTEAM[mode].days} дн., {fmtMoney(redTeamCost(s, mode))}
             </GuardButton>
           ))}
         </div>
         <span className="mw-rt-note">Быстрый закрывает около половины уязвимостей, полный - почти все. Пока идёт проверка, модель не выпустить.</span>
-        <ErrorText error={err} />
       </div>
+      {confirm !== null && (
+        <ConfirmDialog
+          title="Проверка модели"
+          confirmLabel="Начать проверку"
+          onConfirm={() => {
+            const r = store.dispatch(actions.startRedTeam, m.id, confirm);
+            if (r.ok) setConfirm(null);
+            return r;
+          }}
+          onClose={() => setConfirm(null)}
+        >
+          {m.releasedDay === null && <div>Пока идёт проверка, модель нельзя выпустить.</div>}
+          <div className="kv">
+            <span>Стоимость</span>
+            <span>{fmtMoney(redTeamCost(s, confirm))}</span>
+            <span>Срок</span>
+            <span>
+              {fmtDays(REDTEAM[confirm].days)}, до {formatDateShort(s.day + REDTEAM[confirm].days)}
+            </span>
+            <span>Закроет</span>
+            <span>{confirm === 'quick' ? 'около половины уязвимостей' : 'почти все уязвимости'}</span>
+          </div>
+        </ConfirmDialog>
+      )}
     </section>
   );
 }
@@ -438,6 +459,13 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
   const [text, setText] = useState(() => priceText(base));
   const [subsText, setSubsText] = useState(() => priceText(TIER_SUBS_PRICE[tier] ?? TIER_SUBS_PRICE.mid));
   const [err, setErr] = useState<string | null>(null);
+  const [confirmRelease, setConfirmRelease] = useState(false);
+  // Выпуск без проверки: уязвимости неизвестны, выпуск надо подтвердить (модели до ред-тиминга без дыр не имеют).
+  const unchecked = m.holes !== undefined && !m.redTeamDone && !m.redTeam;
+  // Ошибка выпуска относится к прошлому состоянию: при смене проверки она не должна висеть под кнопкой.
+  useEffect(() => {
+    setErr(null);
+  }, [m.id, m.redTeam?.endDay, m.redTeamDone]);
   const api = parsePrice(text, s.day);
   const subs = parseSubsPrice(subsText);
   // Кнопка «Выпустить» сама прокручивается в видимую часть окна: в небольшом окне (1024×768) она оказывалась под
@@ -459,14 +487,16 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
   const subsBlock = !opened ? null : reason !== null ? `Нужна внешняя проверка: ${reason}. Подписку можно включить после неё.` : null;
   const subsOn = opened && subsWanted && subsBlock === null;
 
-  const canRelease = (apiOn || subsOn) && (!apiOn || api.price !== null) && (!subsOn || subs.price !== null);
-  const blockReason = !(apiOn || subsOn)
-    ? 'Выберите хотя бы один канал продаж.'
-    : apiOn && api.price === null
-      ? (api.error ?? 'Укажите цену API')
-      : subsOn && subs.price === null
-        ? (subs.error ?? 'Укажите цену подписки')
-        : null;
+  const canRelease = !m.redTeam && (apiOn || subsOn) && (!apiOn || api.price !== null) && (!subsOn || subs.price !== null);
+  const blockReason = m.redTeam
+    ? `Идёт проверка модели до ${formatDateShort(m.redTeam.endDay)}: выпустить можно после отчёта`
+    : !(apiOn || subsOn)
+      ? 'Выберите хотя бы один канал продаж.'
+      : apiOn && api.price === null
+        ? (api.error ?? 'Укажите цену API')
+        : subsOn && subs.price === null
+          ? (subs.error ?? 'Укажите цену подписки')
+          : null;
 
   function release() {
     if (!canRelease) return;
@@ -564,13 +594,40 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
             data-tutorial="release"
             reason={canRelease ? null : (blockReason ?? 'Модель пока нельзя выпустить.')}
             title={canRelease ? 'Выпустить модель на рынок' : undefined}
-            onClick={release}
+            onClick={() => (unchecked ? setConfirmRelease(true) : release())}
           >
             Выпустить
           </GuardButton>
         </div>
         <ErrorText error={err} />
       </div>
+      {confirmRelease && (
+        <ConfirmDialog
+          title="Выпуск модели"
+          confirmLabel="Выпустить"
+          tutorial="release-confirm"
+          onConfirm={() => {
+            setConfirmRelease(false);
+            release();
+          }}
+          onClose={() => setConfirmRelease(false)}
+        >
+          <div>
+            <b>Модель не проверена.</b> Уязвимостей неизвестно: каждая может всплыть инцидентом, пока модель в продаже (репутация -{INCIDENT_REP},
+            шумиха -{INCIDENT_HYPE}).
+          </div>
+          <div className="kv">
+            <span>Быстрая проверка</span>
+            <span>
+              {fmtDays(REDTEAM.quick.days)}, {fmtMoney(redTeamCost(s, 'quick'))}
+            </span>
+            <span>Полная проверка</span>
+            <span>
+              {fmtDays(REDTEAM.full.days)}, {fmtMoney(redTeamCost(s, 'full'))}
+            </span>
+          </div>
+        </ConfirmDialog>
+      )}
     </section>
   );
 }

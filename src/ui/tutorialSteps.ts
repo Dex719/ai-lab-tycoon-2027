@@ -164,10 +164,10 @@ export const TUTORIAL: TutorialStep[] = [
           ? `Модель учится и будет готова ${formatDateShort(s.day + left)}. Ждите: игра встанет на паузу.`
           : 'Модели не хватает мощности: в «Мощностях» нажмите «Как нужно».';
       }
-      return 'Модель готова. Откройте «Модели» и нажмите «Выпустить». Ред-тиминг в том же окне понадобится со второй модели.';
+      return 'Модель готова. Откройте «Модели» и нажмите «Выпустить».';
     },
     targets: (s) =>
-      s.models.length > 0 ? ['release', 'icon-models'] : s.trainings.length > 0 ? ['speed-fast', 'icon-models'] : ['train-confirm', 'train-start', 'icon-newModel'],
+      s.models.length > 0 ? ['release-confirm', 'release', 'icon-models'] : s.trainings.length > 0 ? ['speed-fast', 'icon-models'] : ['train-confirm', 'train-start', 'icon-newModel'],
     done: released,
   },
   {
