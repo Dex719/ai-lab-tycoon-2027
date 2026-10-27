@@ -262,6 +262,7 @@ export function Game({ s }: { s: GameState }) {
   // Раздел открылся по ходу игры (дата-центры, сделки, финал): ярлык появляется с кольцом, плюс уведомление «Открыт раздел».
   const shownLeft = WINDOWS.filter((d) => d.side === 'left' && (!d.openedDay || d.openedDay(s) !== null)).map((d) => d.id);
   const knownIcons = useRef<{ state: GameState; ids: Set<WindowId> } | null>(null);
+  const freshTimers = useRef(new Set<number>());
   const [freshIcons, setFreshIcons] = useState<ReadonlySet<WindowId>>(new Set());
   useEffect(() => {
     const prev = knownIcons.current;
@@ -274,9 +275,16 @@ export function Game({ s }: { s: GameState }) {
       const def = WINDOWS.find((d) => d.id === id);
       if (def) pushNotice({ kind: 'event', label: 'Новый раздел', title: `Открыт раздел «${def.title}»`, win: id });
     }
-    // Без очистки таймера: эффект идёт на каждый ход игры, а метку надо снять ровно через 3,2 с.
-    window.setTimeout(() => setFreshIcons((f) => new Set([...f].filter((id) => !added.includes(id)))), 3200);
+    // Эффект идёт на каждый ход игры: таймер метки не снимается следующим ходом, только уходом с экрана партии.
+    const t = window.setTimeout(() => {
+      freshTimers.current.delete(t);
+      setFreshIcons((f) => new Set([...f].filter((id) => !added.includes(id))));
+    }, 3200);
+    freshTimers.current.add(t);
   });
+  useEffect(() => () => {
+    for (const t of freshTimers.current) window.clearTimeout(t);
+  }, []);
 
   function iconCount(id: WindowId): number {
     if (id === 'mail') return unread;

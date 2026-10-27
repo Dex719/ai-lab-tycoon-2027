@@ -11,7 +11,9 @@ const FLASH_MS = 2200;
 /** Вспышка изменения: показатель вырос или упал на целое число за один шаг (событие, цель, письмо). */
 function useDelta(s: GameState, value: number): number | null {
   const prev = useRef<{ state: GameState; day: number; value: number } | null>(null);
+  const timer = useRef<number | undefined>(undefined);
   const [delta, setDelta] = useState<number | null>(null);
+  useEffect(() => () => window.clearTimeout(timer.current), []); // снять таймер при уходе компонента
   useEffect(() => {
     const p = prev.current;
     prev.current = { state: s, day: s.day, value };
@@ -21,8 +23,8 @@ function useDelta(s: GameState, value: number): number | null {
     // Ежемесячное остывание шумихи (×0,9 в начале месяца) не показываем: это не событие.
     if (d < 0 && s.day !== p.day && dayToDate(s.day).day <= s.day - p.day) return;
     setDelta(Math.round(d));
-    const id = window.setTimeout(() => setDelta(null), FLASH_MS);
-    return () => window.clearTimeout(id);
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setDelta(null), FLASH_MS);
   }, [s, value]);
   return delta;
 }

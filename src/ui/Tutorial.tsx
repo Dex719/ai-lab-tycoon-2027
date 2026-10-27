@@ -89,6 +89,7 @@ export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState;
     if (!active || !docked || showDone) return;
     let el: Element | null = null;
     const update = () => {
+      if (document.hidden) return; // вкладка скрыта: искать цель незачем
       let next: Element | null = null;
       for (const t of stepTargets(step, latest.current)) {
         // Цель в окне, закрытом другим окном (или скрытом), не видна: берём следующую - обычно кнопку раздела.

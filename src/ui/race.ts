@@ -10,7 +10,8 @@ import type { GameState, HypeOwner, PlayerModel } from '../sim/types';
 function safe<T>(f: () => T): T | null {
   try {
     return f();
-  } catch {
+  } catch (e) {
+    if (import.meta.env.DEV) console.error('[ai-lab] расчёт гонки', e);
     return null;
   }
 }

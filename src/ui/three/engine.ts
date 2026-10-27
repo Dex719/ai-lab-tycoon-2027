@@ -453,7 +453,8 @@ export class View {
       const light = !this.dirty;
       try {
         this.render(light);
-      } catch {
+      } catch (e) {
+        console.error('[ai-lab] 3D: ошибка отрисовки вида', this.spec?.kind, e);
         webglFailed = true;
       }
       if (webglFailed) {

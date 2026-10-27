@@ -709,7 +709,8 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
   let est: Est | null = null;
   try {
     est = estimate(s, plan);
-  } catch {
+  } catch (e) {
+    if (import.meta.env.DEV) console.error('[ai-lab] оценка проекта', e);
     est = null;
   }
 
