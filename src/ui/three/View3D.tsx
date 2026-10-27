@@ -3,7 +3,6 @@
 // Сцена перестраивается, только когда меняется её описание; кадры - по требованию (см. engine.ts).
 
 import { useEffect, useRef, useState } from 'react';
-import type { GpuId } from '../../sim/types';
 import { specKey, type ViewSpec } from './specs';
 import './three.css';
 
@@ -86,26 +85,4 @@ export function View3D(props: {
       <canvas ref={canvasRef} className={interactive ? 'v3d-grab' : undefined} role="img" aria-label={props.label} title={interactive ? 'Потяните мышью, чтобы повернуть' : undefined} />
     </div>
   );
-}
-
-/** Картинка карты для списков (рисуется один раз). Пока движок грузится - null. */
-export function useGpuThumb(gpu: GpuId, w: number, h: number): string | null {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let alive = true;
-    loadEngine()
-      .then((eng) => {
-        if (!alive) return;
-        try {
-          setUrl(eng.gpuThumb(gpu, w, h));
-        } catch {
-          setUrl(null);
-        }
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, [gpu, w, h]);
-  return url;
 }

@@ -341,12 +341,6 @@ function built(id: GpuId): Built {
   return g;
 }
 
-/** Геометрии карт общие (кэш): освобождать их при смене сцены не нужно. */
-export function isSharedGpuGeometry(geo: THREE.BufferGeometry): boolean {
-  for (const b of geoCache.values()) for (const g of b.geos.values()) if (g === geo) return true;
-  return false;
-}
-
 /**
  * Модель карты: группа с центром в середине корпуса, тень-пятно снизу.
  * Карты PCIe стоят на ребре (контактами вниз), модули лежат радиатором вверх.

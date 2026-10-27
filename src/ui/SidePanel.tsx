@@ -6,7 +6,7 @@ import { LabEmblem } from './components/LabEmblem';
 import { openDossier } from './dossier';
 import { duelOf, mainRival, timesCount } from '../sim/duel';
 import { LABS } from '../data/labs';
-import { useState, type ReactElement, type ReactNode } from 'react';
+import { useState, type KeyboardEvent, type ReactElement, type ReactNode } from 'react';
 import { pool } from '../sim/compute';
 import { idleWarnings, type IdleItem } from '../sim/idle';
 import { canApply, lateContracts } from '../sim/contracts';
@@ -31,6 +31,17 @@ import type { WindowAlias, WindowId } from './windows';
 
 type Tab = 'projects' | 'models';
 
+/** Enter и пробел на блоке-кнопке: как щелчок. Нажатия внутри вложенных кнопок не перехватываем. */
+function keyOpen(go: () => void) {
+  return (e: KeyboardEvent<HTMLElement>) => {
+    if (e.target !== e.currentTarget) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      go();
+    }
+  };
+}
+
 const finite = (n: number | undefined): number => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
 
 function days(n: number): string {
@@ -46,10 +57,16 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
       <div
         className="side-item t-decision decision"
         key={m.id}
+        role="button"
+        tabIndex={0}
         onClick={() => {
           store.focusMail(m.id);
           open('mail');
         }}
+        onKeyDown={keyOpen(() => {
+          store.focusMail(m.id);
+          open('mail');
+        })}
         style={{ cursor: 'pointer' }}
       >
         <div className="t">Решение: {m.title}</div>
@@ -64,7 +81,7 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
   const speed = trainingPoolPerRun(s) * TRAIN_FLOP_PER_H100E_DAY;
   for (const t of s.trainings) {
     items.push(
-      <div className="side-item t-train" key={t.id} onClick={() => open('newModel')} style={{ cursor: 'pointer' }}>
+      <div className="side-item t-train" key={t.id} role="button" tabIndex={0} onClick={() => open('newModel')} onKeyDown={keyOpen(() => open('newModel'))} style={{ cursor: 'pointer' }}>
         <div className="t">Обучение: {t.plan.name}</div>
         <div className="r">
           <span>Готово</span>
@@ -84,7 +101,7 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
     const pts = s.research.points[cur];
     const name = TECHS.find((x) => x.id === cur)?.name ?? cur;
     items.push(
-      <div className="side-item t-research" key="research" onClick={() => open('research')} style={{ cursor: 'pointer' }}>
+      <div className="side-item t-research" key="research" role="button" tabIndex={0} onClick={() => open('research')} onKeyDown={keyOpen(() => open('research'))} style={{ cursor: 'pointer' }}>
         <div className="t">Исследование: {name}</div>
         <div className="r">
           <span>Осталось</span>
@@ -98,7 +115,7 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
   for (const c of s.contracts) {
     const client = CLIENTS.find((x) => x.id === c.tender.clientId)?.name ?? 'Клиент';
     items.push(
-      <div className="side-item t-contract" key={c.id} onClick={() => open('contracts')} style={{ cursor: 'pointer' }}>
+      <div className="side-item t-contract" key={c.id} role="button" tabIndex={0} onClick={() => open('contracts')} onKeyDown={keyOpen(() => open('contracts'))} style={{ cursor: 'pointer' }}>
         <div className="t">Контракт: {client}</div>
         <div className="r">
           <span>{benchDef(c.tender.benchmark).name}</span>
@@ -119,7 +136,7 @@ function Projects({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias
   const waiting = s.tenders.filter((x) => x.application);
   if (waiting.length) {
     items.push(
-      <div className="side-item t-contract" key="apps" onClick={() => open('contracts')} style={{ cursor: 'pointer' }}>
+      <div className="side-item t-contract" key="apps" role="button" tabIndex={0} onClick={() => open('contracts')} onKeyDown={keyOpen(() => open('contracts'))} style={{ cursor: 'pointer' }}>
         <div className="t">Заявки на рассмотрении: {waiting.length}</div>
         {waiting.slice(0, 4).map((x) => (
           <div className="r" key={x.id}>
@@ -153,7 +170,7 @@ function Models({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) 
         const revenue = sales.apiRevenueDay + sales.subsRevenueDay;
         const note = reviewNote(m);
         return (
-          <div className="side-item t-model" key={m.id} onClick={() => open('models')} style={{ cursor: 'pointer' }}>
+          <div className="side-item t-model" key={m.id} role="button" tabIndex={0} onClick={() => open('models')} onKeyDown={keyOpen(() => open('models'))} style={{ cursor: 'pointer' }}>
             <div className="t side-model-t">
               <ModelEmblem m={m} size={26} exposed={m.exposed} />
               {m.name}
@@ -214,7 +231,7 @@ function Goal({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) =>
   const first = race?.rank === 1;
   const near = race ? (first ? race.below : race.above) : null;
   return (
-    <div className={`side-race${first ? ' first' : ''}`} title={ARENA_PLACE_TITLE} onClick={() => open('analytics')}>
+    <div className={`side-race${first ? ' first' : ''}`} title={ARENA_PLACE_TITLE} role="button" tabIndex={0} onClick={() => open('analytics')} onKeyDown={keyOpen(() => open('analytics'))}>
       {race && <span className="sr-place">{race.rank}-е</span>}
       <span className="sr-txt">
         <span className="sr-k">{race ? `Место: ${raceName(race.metric)}` : 'Гонка'}</span>

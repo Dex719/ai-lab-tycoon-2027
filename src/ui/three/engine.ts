@@ -701,48 +701,5 @@ export function createView(canvas: HTMLCanvasElement, opts: ViewOptions): View {
   return new View(canvas, opts);
 }
 
-// ---------- Миниатюры ----------
-
-const thumbCache = new Map<string, string>();
-
-/** Картинка карты (data URL) для списков: рисуется один раз на тип и размер. */
-export function gpuThumb(gpu: GpuId, cssW: number, cssH: number): string {
-  if (webglFailed) throw new Error('WebGL недоступен');
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const w = Math.round(cssW * dpr);
-  const h = Math.round(cssH * dpr);
-  const key = `${gpu}|${w}x${h}`;
-  const hit = thumbCache.get(key);
-  if (hit) return hit;
-  const c = gpuContent(gpu);
-  const scene = new THREE.Scene();
-  scene.add(c.root);
-  const cam = new THREE.PerspectiveCamera(26, w / h, 0.1, 500);
-  const f = c.framing;
-  const dir = direction(-0.5, 0.32);
-  const tv = Math.tan(THREE.MathUtils.degToRad(13));
-  const dist = 'orbit' in f.fit ? orbitDistance(f.fit.orbit, 0.32, tv, tv * (w / h)) * 0.92 : 50;
-  cam.position.copy(f.target).addScaledVector(dir, dist);
-  cam.lookAt(f.target);
-  const r = getRenderer(w, h);
-  scene.environment = envTex;
-  r.shadowMap.enabled = false;
-  r.setViewport(0, 0, w, h);
-  r.setScissor(0, 0, w, h);
-  r.setClearColor(0x000000, 0);
-  r.render(scene, cam);
-  const out = document.createElement('canvas');
-  out.width = w;
-  out.height = h;
-  out.getContext('2d')!.drawImage(r.domElement, 0, r.domElement.height - h, w, h, 0, 0, w, h);
-  const url = out.toDataURL('image/png');
-  thumbCache.set(key, url);
-  scene.remove(c.root);
-  c.dispose();
-  stats.frames++;
-  scheduleRelease();
-  return url;
-}
-
 // Только в разработке: проверка «ничего не крутится» из консоли.
 if (import.meta.env.DEV && typeof window !== 'undefined') (window as unknown as { __render3d: typeof stats }).__render3d = stats;
