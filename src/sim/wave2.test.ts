@@ -68,7 +68,7 @@ describe('ред-тиминг', () => {
     s.day += 1;
     redTeamDay(s);
     expect(m.holes).toBe(1);
-    expect(s.mail.some((x) => x.title.startsWith('Ред-тиминг «Модель»: найдено 4, закрыто 3'))).toBe(true);
+    expect(s.mail.some((x) => x.title.startsWith('Проверка модели «Модель»: найдено 4, закрыто 3'))).toBe(true);
     const old = model(s);
     expect(redTeamBlock(s, old, 'quick')).toMatch(/до появления/);
   });

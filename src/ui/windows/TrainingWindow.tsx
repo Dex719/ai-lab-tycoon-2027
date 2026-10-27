@@ -63,7 +63,7 @@ import {
   fmtPrice,
   fmtTokens,
 } from '../format';
-import { timesWord } from '../../sim/text';
+import { timesWord, tokensWord } from '../../sim/text';
 import { IconLock } from '../icons';
 import { actions, store } from '../store';
 import { playSound } from '../sound';
@@ -308,8 +308,8 @@ function ContextSeg(props: { s: GameState; value: number; onChange: (v: number) 
   const [note, flash] = useFlash();
   return (
     <div className="nm-ctx-wrap">
-      <div className="nm-lbl" title="Модели с контекстом длиннее обычного покупают охотнее, с коротким - реже.">
-        Контекст <span className="muted">· обычный на рынке {contextLabel(market)}</span>
+      <div className="nm-lbl" title="Сколько текста модель видит за раз, в токенах. Модели с контекстом длиннее обычного покупают охотнее, с коротким - реже.">
+        Контекст <span className="muted">· обычный на рынке {contextLabel(market)} {tokensWord(market)}</span>
       </div>
       <div className="nm-seg" role="radiogroup" aria-label="Длина контекста">
         {shown.map(([tokens], i) => {
@@ -353,7 +353,10 @@ function CheckpointSeg(props: { s: GameState; value: CheckpointMode; onChange: (
   const chance = Math.round(clusterFailChance(props.s) * 100);
   return (
     <div className="nm-ctx-wrap">
-      <div className="nm-lbl" title="Сбой кластера откатывает обучение к последнему сохранению. Чем больше карт, тем чаще сбои.">
+      <div
+        className="nm-lbl"
+        title="Как часто сохранять модель во время обучения: реже - быстрее, но сбой отбросит дальше назад. Сбой кластера откатывает обучение к последнему сохранению; чем больше карт, тем чаще сбои."
+      >
         Сохранять прогресс <span className="muted">· шанс сбоя за неделю {chance} %</span>
       </div>
       <div className="nm-seg" role="radiogroup" aria-label="Сохранять прогресс">
@@ -542,15 +545,7 @@ function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
             <div className="nm-kpi-s">
               {est.roughElo === null
                 ? 'Прогноз откроется после исследования'
-                : (
-                    <>
-                      <span className="nm-rough-long">
-                        Грубо, по алгоритмам уровня {s.research.algoLevel} на день старта (улучшения во время обучения модель не получит). Точный
-                        прогноз и место откроет исследование
-                      </span>
-                      <span className="nm-rough-short">Точный прогноз - после исследования</span>
-                    </>
-                  )}{' '}
+                : 'Точный прогноз - после исследования'}{' '}
               <button className="nm-link" onClick={() => open('research')}>
                 <Term text="Законы масштабирования">«Законы масштабирования»</Term>
               </button>
@@ -568,7 +563,7 @@ function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
         </div>
         {overhead >= 1.05 && (
           <span className="nm-chip warn" title="Фреймворки и сети ранних лет медленные; множитель падает каждый месяц, к середине 2020 года - обычная скорость.">
-            Обучение {timesWord(overhead >= 10 ? Math.round(overhead) : overhead)} медленнее: ранние фреймворки, с каждым месяцем быстрее
+            Обучение {timesWord(overhead >= 10 ? Math.round(overhead) : overhead)} медленнее, к 2020 году ускорится
           </span>
         )}
       </div>
@@ -737,7 +732,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
       ? `${fmtTokens(tokens)} токенов: хорошо подходит к размеру`
       : tokens > wantTokens
         ? `${fmtTokens(tokens)} токенов: больше, чем выгодно. Качество выше, обучение дороже.`
-        : `${fmtTokens(tokens)} токенов: мало для такого размера. Часть вычислений пропадёт.`;
+        : `${fmtTokens(tokens)} токенов: мало для такого размера. Часть мощности пропадёт впустую.`;
   const dataTone = (autoData && !dataShort) || (!autoData && eff >= EFF_GOOD) ? 'good' : eff >= EFF_BAD ? 'warn' : 'bad';
 
   const rlhfCost = labelersCost({ ...plan, rlhf: true });
@@ -820,7 +815,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
               max={POS_MAX}
               onChange={(v) => patch({ paramsB: fromPos(v, sizeMin, sizeMax) })}
               ends={[fmtParams(sizeMin), fmtParams(sizeMax)]}
-              title={`Размер ограничен уровнем «${TIER_NAMES[tier]}». Больше параметров - модель сильнее, но обучение дольше и каждый запрос клиента дороже.`}
+              title={`Размер модели: больше - умнее, но дольше и дороже. Размер ограничен уровнем «${TIER_NAMES[tier]}».`}
               ariaLabel="Параметры"
             />
             {!autoData && (
@@ -888,7 +883,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
             </h2>
             <label
               className={`nm-opt${rlhfDone ? '' : ' off'}${plan.rlhf ? ' on' : ''}`}
-              title={rlhfDone ? `Вычислений нужно на ${fmtPct(RLHF_FLOP_EXTRA * 100, 0)} больше. Разметчикам платят при старте.` : undefined}
+              title={rlhfDone ? `Мощности нужно на ${fmtPct(RLHF_FLOP_EXTRA * 100, 0)} больше. Разметчикам платят при старте.` : undefined}
             >
               <span className="nm-opt-top">
                 <span>Отзывы людей (RLHF)</span>
@@ -911,14 +906,20 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
               </span>
             </label>
 
-            <label className={`nm-opt risk${stolen ? ' on' : ''}`}>
+            <label
+              className={`nm-opt risk${stolen ? ' on' : ''}`}
+              title={`Книги, сайты и ответы чужих моделей без разрешения: данных в ${fmtNum(STOLEN_TOKENS_MULT)} раза больше, Эло выше на ${fmtNum(
+                STOLEN_CAP_BONUS * ELO_PER_CAP,
+              )}. ${honestRun ? 'Закрыто испытанием «Честная лаборатория».' : theftLine(s)}`}
+            >
               <span className="nm-opt-top">
                 <span>Чужие данные</span>
                 <input type="checkbox" className="nm-switch" checked={stolen} disabled={honestRun} onChange={(e) => patch({ stolen: e.target.checked })} />
               </span>
               <span className="nm-opt-d">
-                Книги, сайты и ответы чужих моделей без разрешения: данных в {fmtNum(STOLEN_TOKENS_MULT)} раза больше, Эло выше на{' '}
-                {fmtNum(STOLEN_CAP_BONUS * ELO_PER_CAP)}. {honestRun ? 'Закрыто испытанием «Честная лаборатория».' : theftLine(s)}
+                {honestRun
+                  ? 'Закрыто испытанием «Честная лаборатория».'
+                  : `Данных в ${fmtNum(STOLEN_TOKENS_MULT)} раза больше, Эло +${fmtNum(STOLEN_CAP_BONUS * ELO_PER_CAP)}, риск иска`}
               </span>
             </label>
 

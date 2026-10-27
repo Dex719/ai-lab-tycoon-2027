@@ -105,7 +105,7 @@ export function releaseModel(s: GameState, modelId: string, price: number, opts:
   if (m.releasedDay !== null) return { ok: false, error: 'Модель уже выпущена' };
   const ousted = boardBlock(s);
   if (ousted) return { ok: false, error: ousted };
-  if (m.redTeam) return { ok: false, error: `Идёт ред-тиминг до ${formatDate(m.redTeam.endDay)}: выпустить можно после отчёта` };
+  if (m.redTeam) return { ok: false, error: `Идёт проверка модели до ${formatDate(m.redTeam.endDay)}: выпустить можно после отчёта` };
   const bad = priceError(s, price);
   if (bad !== null) return { ok: false, error: bad };
   const subs = subsPriceOrError(opts.subsPrice ?? TIER_SUBS_PRICE[m.plan.tier] ?? TIER_SUBS_PRICE.mid);

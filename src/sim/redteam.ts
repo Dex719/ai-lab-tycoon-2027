@@ -16,8 +16,8 @@ export function holesAtBirth(m: Pick<PlayerModel, 'plan' | 'rlhf'>): number {
 }
 
 export const REDTEAM: Record<RedTeamMode, { name: string; days: number; fix: number; costK: number }> = {
-  quick: { name: 'Быстрый', days: 7, fix: 0.5, costK: 0.15 },
-  full: { name: 'Полный', days: 21, fix: 0.85, costK: 0.5 },
+  quick: { name: 'Быстрая', days: 7, fix: 0.5, costK: 0.15 },
+  full: { name: 'Полная', days: 21, fix: 0.85, costK: 0.5 },
 };
 
 /** Денежная единица года для цен проверки (как у писем, data/eventKit). */
@@ -72,8 +72,8 @@ export function redTeamDay(s: GameState): void {
     const left = m.holes === 0 ? 'уязвимостей не осталось' : m.holes === 1 ? 'осталась примерно одна' : `осталось примерно ${m.holes}`;
     addMail(s, {
       kind: 'training',
-      title: `Ред-тиминг «${m.name}»: найдено ${before}, закрыто ${fixed}`,
-      body: `${REDTEAM[mode].name} ред-тиминг закончен: найдено уязвимостей ${before}, закрыто ${fixed}, ${left}. Каждая оставшаяся может всплыть, пока модель в продаже.`,
+      title: `Проверка модели «${m.name}»: найдено ${before}, закрыто ${fixed}`,
+      body: `${REDTEAM[mode].name} проверка закончена: найдено уязвимостей ${before}, закрыто ${fixed}, ${left}. Каждая оставшаяся может всплыть, пока модель в продаже.`,
     });
   }
 }
@@ -97,7 +97,7 @@ export function holesMonth(s: GameState): void {
       title: `Пользователи обошли запреты «${m.name}»`,
       body:
         `В сети разошлись примеры, как заставить «${m.name}» отвечать на запрещённые вопросы. Лазейку закрыли, но о ней уже пишут: ` +
-        `репутация −${INCIDENT_REP}, шумиха −${INCIDENT_HYPE}. Ред-тиминг до выпуска находит такие лазейки заранее.`,
+        `репутация −${INCIDENT_REP}, шумиха −${INCIDENT_HYPE}. Проверка модели до выпуска находит такие лазейки заранее.`,
     });
   }
 }

@@ -84,7 +84,7 @@ function monthReview(s: GameState, m: PlayerModel): void {
   }
   lines.push(`За месяц модель заработала ${fmtMoney(m.earned)}${m.earnedSubs > 0 ? `, из них по подписке ${fmtMoney(m.earnedSubs)}` : ''}.`);
   if (m.holes !== undefined) {
-    lines.push(m.holes === 0 ? 'Известных уязвимостей не осталось.' : m.redTeamDone ? 'После ред-тиминга уязвимостей осталось немного.' : 'Ред-тиминга не было: в модели могут быть лазейки.');
+    lines.push(m.holes === 0 ? 'Известных уязвимостей не осталось.' : m.redTeamDone ? 'После проверки уязвимостей осталось немного.' : 'Модель не проверяли: в ней могут быть лазейки.');
   }
   addMail(s, { kind: 'news', read: true, title: `Отзывы о «${m.name}»: месяц в продаже`, body: lines.join(' ') });
 }

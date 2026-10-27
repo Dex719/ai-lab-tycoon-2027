@@ -204,7 +204,7 @@ function RedTeamBlock({ s, m }: { s: GameState; m: PlayerModel }) {
       : 'Не проверялась: уязвимостей неизвестно. Каждая может всплыть инцидентом, пока модель в продаже.';
   return (
     <section className="mw-release">
-      <h3 className="mw-h">Ред-тиминг</h3>
+      <h3 className="mw-h">Проверка модели</h3>
       <div className="mw-panel">
         <p className="mw-rt-s">{status}</p>
         <div className="mw-rt-btns">
@@ -222,7 +222,7 @@ function RedTeamBlock({ s, m }: { s: GameState; m: PlayerModel }) {
             </GuardButton>
           ))}
         </div>
-        <span className="mw-rt-note">Быстрый закрывает около половины уязвимостей, полный - почти все. Пока идёт проверка, модель не выпустить.</span>
+        <span className="mw-rt-note">Быстрая закрывает около половины уязвимостей, полная - почти все. Пока идёт проверка, модель не выпустить.</span>
         <ErrorText error={err} />
       </div>
     </section>
@@ -1111,7 +1111,7 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
             onClose={() => setStopping(false)}
           >
             <p>
-              «{t.plan.name}» готова на {fmtShare(frac, 0)}. Модели не будет, вычисления пропадут. Ничего не возвращается: аренда за прошедшие дни и
+              «{t.plan.name}» готова на {fmtShare(frac, 0)}. Модели не будет, мощность пропадёт впустую. Ничего не возвращается: аренда за прошедшие дни и
               разметчики уже оплачены. Доля «Обучение» освободится для нового проекта.
             </p>
           </ConfirmDialog>

@@ -37,7 +37,7 @@ export type Dispute = 'overfit' | 'stolen' | 'holes';
 const DISPUTE_TEXT: Record<Dispute, string> = {
   overfit: 'подгонка модели под тесты',
   stolen: 'обучение на чужих данных',
-  holes: 'выпуск модели без ред-тиминга',
+  holes: 'выпуск модели без проверки',
 };
 
 export function cofounderDef(id: CofounderId): CofounderDef {
