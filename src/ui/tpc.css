@@ -175,6 +175,7 @@ table.grid tr:nth-child(even) td { background: var(--row-alt); }
   .tb-stage-bar > i { background: #fff; }
   /* Причина паузы - тёмная плашка, как HUD: это сообщение, а не ошибка. */
   .game .pause-note { top: 60px; background: var(--hud-2); color: var(--hud-text); border: none; border-radius: 999px; font-weight: var(--fw-strong); padding: 6px 16px; }
+  .game .pause-note .pause-act { margin-left: 10px; padding: 2px 12px; height: 26px; }
 
   /* ---------- Панель задач: полоса месяцев внизу, разделы - колонкой значков слева ---------- */
   html .game .taskbar { height: 34px; padding: 0; gap: 0; background: var(--hud-2); box-shadow: none; }

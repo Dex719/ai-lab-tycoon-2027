@@ -28,6 +28,11 @@ export class GameStore {
   autosaveError: string | null = null;
   /** Почему игра встала на паузу сама (заголовок важного письма и т. п.) или null. Пропадает, когда игрок продолжает игру. */
   pauseReason: string | null = null;
+  /**
+   * Окно выбора целей года отложено крестиком: окно скрыто, но время всё так же стоит, пока цели не выбраны.
+   * Только для интерфейса: в сохранение не пишется. Сбрасывается при начале партии.
+   */
+  goalsHidden = false;
   /** Письмо, которое «Почта» должна открыть (после нажатия «Открыть» в уведомлении); окно забирает его и сбрасывает. */
   mailFocus: string | null = null;
   /**
@@ -66,6 +71,7 @@ export class GameStore {
     this.autosaveError = null;
     this.pauseReason = null;
     this.mailFocus = null;
+    this.goalsHidden = false;
     this.simError = null;
     this.autoMine = Date.now();
     this.setSpeed(0);
@@ -154,6 +160,8 @@ export class GameStore {
       // Игрок ответил на событие (выбор в письме, действие в окне): плашка «Пауза: …» больше не нужна, сама пауза остаётся
       // (плейтест 17.10 - старая причина висела минутами после решения).
       this.pauseReason = null;
+      // Цели выбраны, пока окно было отложено (например, из другого места): отложенного окна больше нет.
+      if (this.goalsHidden && !goalOfferOpen(this.state)) this.goalsHidden = false;
     }
     this.bump();
     return r;
@@ -166,14 +174,36 @@ export class GameStore {
     this.bump();
   }
 
+  /** Крестик окна целей: окно прячется, время не идёт (игрок смотрит окна и может вернуться к выбору). */
+  hideGoals(): void {
+    this.goalsHidden = true;
+    this.bump();
+  }
+
+  /** Вернуть окно выбора целей, которое было отложено. */
+  showGoals(): void {
+    this.goalsHidden = false;
+    this.bump();
+  }
+
+  /** Отложенное окно целей при попытке пустить время возвращается на экран; true, если так и было. */
+  private reopenGoalsIfHidden(): boolean {
+    const s = this.state;
+    if (!s || !this.goalsHidden || !goalOfferOpen(s)) return false;
+    this.showGoals();
+    return true;
+  }
+
   /** Скорость с клавиатуры (1, 2, 3): те же запреты, что у паузы и кнопок скорости. */
   requestSpeed(speed: Speed): void {
+    if (this.reopenGoalsIfHidden()) return;
     const s = this.state;
     if (!s || s.outcome || this.simError || blockedByChoice(s) || unseenReview(s) || goalOfferOpen(s)) return;
     this.setSpeed(speed);
   }
 
   setSpeed(speed: Speed): void {
+    if (speed !== 0 && this.reopenGoalsIfHidden()) return;
     this.speed = speed;
     if (speed !== 0) {
       this.lastSpeed = speed;
@@ -187,6 +217,7 @@ export class GameStore {
 
   /** Пауза/продолжение. В законченной игре и пока в почте ждёт выбор, часы не трогаем. */
   togglePause(): void {
+    if (this.reopenGoalsIfHidden()) return;
     const s = this.state;
     if (!s || s.outcome || this.simError || blockedByChoice(s) || unseenReview(s) || goalOfferOpen(s)) return;
     this.setSpeed(this.speed === 0 ? this.lastSpeed : 0);

@@ -1,7 +1,7 @@
 // Выбор целей года: пять строк разного стиля, отмечены три. Список стоит в «Итогах года» (второй шаг) и в окне
 // «Цели {год} года» в начале партии. Светлое окно, строки как в бланке: флажок, стиль, цель, награда.
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { findGoal, STYLE_NAMES } from '../data/goals';
 import { capitalize } from '../data/questKit';
 import { chooseGoals, goalOfferOpen, goalPenaltyText, goalRewardText, goalTitle, GOALS_PER_YEAR, unseenReview } from '../sim/goals';
@@ -45,11 +45,10 @@ export function pickReason(s: GameState, picked: string[]): string | null {
   return `Отметьте ещё ${left} ${left === 1 ? 'цель' : 'цели'}`;
 }
 
-/** Принять отмеченные цели; если отмечено не три (окно закрыли крестиком) - цели по умолчанию. */
+/** Принять отмеченные цели (ровно три). */
 export function acceptGoals(s: GameState, picked: string[]): void {
-  if (!goalOfferOpen(s)) return;
-  const ids = pickReason(s, picked) === null ? picked : s.yearly.goals.map((g) => g.id);
-  store.dispatch(chooseGoals, ids);
+  if (!goalOfferOpen(s) || pickReason(s, picked) !== null) return;
+  store.dispatch(chooseGoals, picked);
 }
 
 /** Список пяти целей с флажками. */
@@ -99,27 +98,32 @@ export function GoalPicker({ s, picked, toggle, note }: { s: GameState; picked: 
 
 /**
  * Окно выбора целей без итогов года: в начале партии (цели 2017 года) и в сохранении, где выбор остался открытым.
- * Крестик принимает отмеченные цели (или цели по умолчанию): время без целей не идёт.
+ * Крестик откладывает выбор: время стоит, пока цели не выбраны.
  */
 export function GoalChoiceModal({ s }: { s: GameState }) {
   const offer = s.quests.offer;
   const show = goalOfferOpen(s) && !unseenReview(s);
   if (!show || !offer) return null;
-  return <GoalChoiceDialog key={offer.year} s={s} />;
+  return <GoalChoiceDialog key={offer.year} s={s} hidden={store.goalsHidden} />;
 }
 
-function GoalChoiceDialog({ s }: { s: GameState }) {
+/** Окно остаётся смонтированным, когда его отложили: отмеченные цели не сбрасываются при возврате. */
+function GoalChoiceDialog({ s, hidden }: { s: GameState; hidden: boolean }) {
   const year = s.quests.offer!.year;
   const title = `Цели ${year} года`;
   const pick = useGoalPick(s);
   const { ref, onKeyDown } = useModalFocus<HTMLDivElement>(title);
   const reason = pickReason(s, pick.picked);
+  // Вернули из отложенного: фокус снова в окне, чтобы работала клавиатура (Escape, Tab).
+  useEffect(() => {
+    if (!hidden) ref.current?.focus();
+  }, [hidden]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <div className="modal-backdrop">
+    <div className="modal-backdrop" style={hidden ? { display: 'none' } : undefined} onKeyDown={(e) => e.key === 'Escape' && store.hideGoals()}>
       <div ref={ref} tabIndex={-1} className="dialog wide yr-dialog" role="dialog" aria-modal="true" aria-label={title} onKeyDown={onKeyDown}>
         <div className="titlebar">
           <span className="t">{title}</span>
-          <button className="wbtn close" onClick={() => acceptGoals(s, pick.picked)} aria-label="Закрыть" title="Закрыть">
+          <button className="wbtn close" onClick={() => store.hideGoals()} aria-label="Отложить выбор">
             <IconClose size={14} />
           </button>
         </div>

@@ -4,6 +4,7 @@ import { StageMark } from './LabFloor';
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { COUNTRIES } from '../sim/country';
 import { pendingChoice } from '../sim/events';
+import { goalOfferOpen } from '../sim/goals';
 import { CountryFlag } from './components/CountryFlag';
 import { ArenaStrip } from './ArenaFeedback';
 import { MoneyFlies, useCountUp } from './Juice';
@@ -116,6 +117,8 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
   const cashShown = useCountUp(s.cash);
   const locked = !!s.outcome || pendingChoice(s) !== null || store.simError !== null;
   const negative = s.finance.negativeDays > 0;
+  // Окно целей года закрыто крестиком: время стоит, пока цели не выбраны.
+  const goalsPostponed = goalOfferOpen(s) && store.goalsHidden;
   // Пауза и ожидание ответа на письмо выглядят одинаково: игра стоит.
   const paused = (speed === 0 || locked) && !s.outcome;
 
@@ -137,11 +140,15 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
       ))}
     </div>
   );
-  const pauseNote = (store.pauseReason || negative) && speed === 0 && (
-    <div className="pause-note">
-      {store.pauseReason ? `Пауза: ${store.pauseReason}` : 'Деньги в минусе'}
-      {negative && ` · до банкротства ${Math.max(0, 60 - s.finance.negativeDays)} дн.`}
-    </div>
+  const pauseNote = goalsPostponed ? (
+    <GoalsPauseNote />
+  ) : (
+    (store.pauseReason || negative) && speed === 0 && (
+      <div className="pause-note">
+        {store.pauseReason ? `Пауза: ${store.pauseReason}` : 'Деньги в минусе'}
+        {negative && ` · до банкротства ${Math.max(0, 60 - s.finance.negativeDays)} дн.`}
+      </div>
+    )
   );
 
   // Компьютер: лента лаборатории слева сверху, плашка денег, даты и скорости справа снизу (по образцу Two Point Campus).
@@ -300,17 +307,24 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
         <LabStats s={s} />
         <ArenaStrip s={s} />
       </div>
-      {(store.pauseReason || negative) && speed === 0 && (
-        <div className="pause-note">
-          {store.pauseReason ? `Пауза: ${store.pauseReason}` : 'Деньги в минусе'}
-          {negative && ` · до банкротства ${Math.max(0, 60 - s.finance.negativeDays)} дн.`}
-        </div>
-      )}
+      {pauseNote}
     </header>
   );
 }
 
 /** Запас денег при нынешнем расходе: «хватит на 4 мес.»; жёлтым меньше полугода, красным меньше трёх месяцев. */
+/** Окно целей отложено: игра стоит, выбор можно вернуть одной кнопкой. */
+function GoalsPauseNote() {
+  return (
+    <div className="pause-note with-act">
+      Пауза: цели года не выбраны
+      <button type="button" className="btn pause-act" onClick={() => store.showGoals()}>
+        Выбрать цели
+      </button>
+    </div>
+  );
+}
+
 function Runway({ cash, rate }: { cash: number; rate: number }) {
   if (rate >= 0 || cash <= 0) return null;
   const months = cash / -rate;

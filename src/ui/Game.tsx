@@ -257,7 +257,8 @@ export function Game({ s }: { s: GameState }) {
   const newTenders = s.tenders.filter((t) => !t.application && t.appearedDay > contractsSeenDay).length;
   const showEnd = !!s.outcome && watched !== s;
   // Пока открыт выбор в письме, итог или диалог, остальной интерфейс закрыт для кликов и клавиатуры.
-  const blocked = showEnd || pendingChoice(s) !== null || dialog !== null || (!s.outcome && (unseenReview(s) !== null || goalOfferOpen(s)));
+  // Отложенное окно целей (крестик) не закрывает интерфейс: игрок смотрит окна, а время стоит.
+  const blocked = showEnd || pendingChoice(s) !== null || dialog !== null || (!s.outcome && (unseenReview(s) !== null || (goalOfferOpen(s) && !store.goalsHidden)));
 
   // Раздел открылся по ходу игры (дата-центры, сделки, финал): ярлык появляется с кольцом, плюс уведомление «Открыт раздел».
   const shownLeft = WINDOWS.filter((d) => d.side === 'left' && (!d.openedDay || d.openedDay(s) !== null)).map((d) => d.id);
