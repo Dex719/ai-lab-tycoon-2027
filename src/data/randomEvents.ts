@@ -409,11 +409,12 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Продать лицензию',
-        story: 'Деньги придут сразу, а Gogle похвастается сервисами на вашей модели',
-        hint: '', hintFn: (s) => `+${usd(amount(s, 2))}, шумиха Gogle +5`,
+        story: 'Деньги придут сразу, но инженеры займутся передачей модели Gogle',
+        hint: '', hintFn: (s) => `+${usd(amount(s, 2))}, шумиха Gogle +5, исследования дороже на 15 % на 90 дней`,
         apply: (s) => {
           grant(s, amount(s, 2));
           addHype(s, 'gogle', 5);
+          timed(s, 'license-help', 'researchCost', 1.15, 90);
         },
       },
       {
@@ -1046,11 +1047,12 @@ export const RANDOM_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Подписать договор со скидкой',
-        story: 'Банк платит сразу за год, о договоре узнают другие банки',
-        hint: '', hintFn: (s) => `+${usd(amount(s, 2))}, доверие корпоративных клиентов выше на 180 дней`,
+        story: 'Банк платит сразу за год, но инженеры займутся настройкой модели под него',
+        hint: '', hintFn: (s) => `+${usd(amount(s, 2))}, доверие корпоративных клиентов выше на 180 дней, исследования дороже на 15 % на 90 дней`,
         apply: (s) => {
           order(s, amount(s, 2));
           trust(s, 'big-client', 'enterprise', 0.1, 180);
+          timed(s, 'big-client-setup', 'researchCost', 1.15, 90);
         },
       },
       {

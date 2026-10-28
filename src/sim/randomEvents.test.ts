@@ -366,3 +366,24 @@ describe('мелкие письма не останавливают игру (п
     expect(checked).toBeGreaterThan(0);
   });
 });
+
+describe('цена писем с деньгами', () => {
+  it('деньги от лицензии и банка стоят времени команды: исследования дороже на 15 % на 90 дней', () => {
+    const cases: Array<[string, string]> = [
+      ['rnd-license-offer', 'rnd-license-help'],
+      ['rnd-big-client', 'rnd-big-client-setup'],
+    ];
+    for (const [id, modId] of cases) {
+      const s = newGame('Тест', 3);
+      s.day = D('2023-03-01');
+      const def = RANDOM_EVENTS.find((e) => e.id === id);
+      expect(def, id).toBeDefined();
+      def!.choices![0].apply(s);
+      const mod = s.modifiers.find((m) => m.id === modId);
+      expect(mod, id).toBeDefined();
+      expect(mod!.kind).toBe('researchCost');
+      expect(mod!.mult).toBeCloseTo(1.15, 9);
+      expect(mod!.untilDay).toBe(s.day + 90);
+    }
+  });
+});
