@@ -119,6 +119,7 @@ describe('письма поздней игры и по стране', () => {
     expect(s.cash).toBeGreaterThan(cash);
     expect(s.founderShare).toBeCloseTo(0.9, 9);
     expect(s.modifiers.some((m) => m.id === 'late-corp-cloud' && m.kind === 'rentPrice')).toBe(true);
+    expect(s.modifiers.some((m) => m.id === 'late-corp-reports' && m.kind === 'researchCost' && m.mult === 1.2)).toBe(true);
   });
 });
 

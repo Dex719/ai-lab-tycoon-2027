@@ -108,13 +108,15 @@ export const LATE_EVENTS: EventDef[] = [
     choices: [
       {
         label: 'Принять деньги и облако',
-        story: 'Денег и мощности станет больше, но часть решений будет у корпорации',
+        story: 'Денег и мощности станет больше, но отчёты для корпорации отнимут у команды время',
         hint: '',
-        hintFn: (s) => `+${usd(amount(s, 20))}, аренда карт на 15 % дешевле на 2 года, -10 % вашей доли, -3 репутации`,
+        hintFn: (s) =>
+          `+${usd(amount(s, 20))}, аренда карт на 15 % дешевле на 2 года, исследования дороже на 20 % на 1,5 года, -10 % вашей доли, -3 репутации`,
         apply: (s) => {
           grant(s, amount(s, 20));
           s.founderShare *= 0.9;
           addModifier(s, { id: 'late-corp-cloud', kind: 'rentPrice', mult: 0.85, untilDay: s.day + 730 });
+          addModifier(s, { id: 'late-corp-reports', kind: 'researchCost', mult: 1.2, untilDay: s.day + 540 });
           addRep(s, -3);
         },
       },
@@ -305,12 +307,13 @@ export const LATE_EVENTS: EventDef[] = [
       choices: [
         {
           label: 'Продать долю на пике',
-          story: 'Деньги приходят сразу, доля основателя становится меньше',
+          story: 'Деньги приходят сразу, доля основателя меньше, а проверка фонда займёт команду',
           hint: '',
-          hintFn: (s) => `+${usd(amount(s, 6))}, доля основателя -2 п.п.`,
+          hintFn: (s) => `+${usd(amount(s, 6))}, доля основателя -2 п.п., исследования дороже на 20 % на 120 дней`,
           apply: (s) => {
             grant(s, amount(s, 6));
             s.founderShare = Math.max(0, s.founderShare - 0.02);
+            addModifier(s, { id: 'late-ai-stocks-audit', kind: 'researchCost', mult: 1.2, untilDay: s.day + 120 });
           },
         },
         nothing('Не продавать', 'Лаборатория дождётся своей оценки, фонд уйдёт к соперникам'),
