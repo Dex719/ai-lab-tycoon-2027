@@ -330,8 +330,8 @@ export interface Mail {
   tag?: MailTag;
 }
 
-export type MailTag = 'model-ready' | 'tender-won' | 'research-done';
-export const MAIL_TAGS: readonly MailTag[] = ['model-ready', 'tender-won', 'research-done'];
+export type MailTag = 'model-ready' | 'tender-won' | 'research-done' | 'redteam-done';
+export const MAIL_TAGS: readonly MailTag[] = ['model-ready', 'tender-won', 'research-done', 'redteam-done'];
 
 /**
  * rivalPrice: target - LabId; mult - множитель цен лаборатории, add - доля опорной цены как нижняя граница.

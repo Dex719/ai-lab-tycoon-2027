@@ -108,6 +108,8 @@ body:has(.menu-screen) .modal-backdrop { background: rgba(0, 0, 0, 0.94); }
   position: absolute; top: 46px; left: 50%; transform: translateX(-50%); z-index: 890; padding: 4px 12px; pointer-events: none; /* лежит над заголовками окон: не мешает их перетаскивать */
   background: #3a3220; color: #f3d48a; border: 1px solid #6a5a2c; border-radius: 3px; font-size: 13px; white-space: nowrap;
 }
+/* Плашка с кнопкой («Выбрать цели») принимает клики; остальные плашки по-прежнему не мешают окнам. */
+.pause-note.with-act { pointer-events: auto; }
 
 .desk { position: relative; flex: 1; overflow: hidden; background: var(--desk); }
 .desk-logo { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); opacity: 0.22; pointer-events: none; }

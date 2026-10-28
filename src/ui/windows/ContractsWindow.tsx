@@ -517,7 +517,7 @@ function TenderCard(props: {
         ) : (
           <>
             <span className="ct-why">{model ? (left <= 0 ? 'Последний день: решение в конце дня' : `Решение при закрытии тендера, ${formatDateShort(t.expiresDay)}`) : ' '}</span>
-            <GuardButton className="btn primary" data-tutorial="apply" reason={reason} onClick={() => (trap || overload ? setConfirming(true) : submit())}>
+            <GuardButton className="btn primary" data-tutorial="apply" reason={reason} onClick={() => setConfirming(true)}>
               Подать заявку
             </GuardButton>
           </>
@@ -525,23 +525,43 @@ function TenderCard(props: {
         <ErrorText error={err} />
       </div>
 
-      {confirming && model && honest !== null && (
-        <ConfirmDialog title="Подтверждение заявки" confirmLabel="Подать заявку" onConfirm={submit} onClose={() => setConfirming(false)}>
+      {confirming && model && (
+        <ConfirmDialog
+          title="Подтверждение заявки"
+          confirmLabel="Подать заявку"
+          tutorial="apply-confirm"
+          onConfirm={submit}
+          onClose={() => setConfirming(false)}
+        >
           {trap ? (
             <div>Честный балл модели «{model.name}» ниже требования: при победе в тендере контракт будет провален при сдаче.</div>
-          ) : (
+          ) : overload ? (
             <div>
               Мощности не хватит: всем контрактам нужно {perDay(totalNeed)}, а всей мощности {perDay(ordered)}. Если не арендовать ещё карт, контракт
               будет просрочен.
             </div>
+          ) : (
+            <div>Заявка на тендер с моделью «{model.name}».</div>
           )}
           <div className="kv">
-            {trap && (
+            {trap && honest !== null && (
               <>
                 <span>Честный балл</span>
                 <span>{fmtPct(honest)}</span>
                 <span>Требование</span>
                 <span>от {fmtPct(t.requirement, 0)}</span>
+              </>
+            )}
+            {!trap && !overload && (
+              <>
+                <span>Оплата</span>
+                <span>{fmtMoney(t.payment)}</span>
+                <span>Шанс победы</span>
+                <span>{chance === null ? '-' : fmtShare(chance, 0)}</span>
+                <span>Решение</span>
+                <span>{formatDateShort(t.expiresDay)}</span>
+                <span>Срок работы</span>
+                <span>{fmtDays(t.durationDays)} после победы</span>
               </>
             )}
             <span>Штраф</span>

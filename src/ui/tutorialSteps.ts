@@ -167,7 +167,7 @@ export const TUTORIAL: TutorialStep[] = [
       return 'Модель готова. Откройте «Модели» и нажмите «Выпустить». Без «Проверки модели» в ней могут остаться уязвимости.';
     },
     targets: (s) =>
-      s.models.length > 0 ? ['release', 'icon-models'] : s.trainings.length > 0 ? ['speed-fast', 'icon-models'] : ['train-confirm', 'train-start', 'icon-newModel'],
+      s.models.length > 0 ? ['release-confirm', 'release', 'icon-models'] : s.trainings.length > 0 ? ['speed-fast', 'icon-models'] : ['train-confirm', 'train-start', 'icon-newModel'],
     done: released,
   },
   {
@@ -186,7 +186,7 @@ export const TUTORIAL: TutorialStep[] = [
     },
     targets: (s) => {
       const { fit, minNeed } = tutorialTender(s);
-      if (fit) return ['tender-fit', 'apply', 'icon-contracts'];
+      if (fit) return ['apply-confirm', 'tender-fit', 'apply', 'icon-contracts'];
       return minNeed !== null ? ['rent-confirm', 'rent-button', 'icon-compute'] : ['speed-play', 'icon-contracts'];
     },
     done: applied,

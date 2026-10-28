@@ -49,6 +49,11 @@ function ReviewDialog({ s, r }: { s: GameState; r: YearReview }) {
     acceptGoals(s, pick.picked);
     store.dispatch(ackYearReview);
   };
+  // Крестик закрывает итоги; если следом ждёт выбор целей, он откладывается (цели по умолчанию не принимаются).
+  const later = () => {
+    store.dispatch(ackYearReview);
+    if (nextOffer) store.hideGoals();
+  };
 
   const idx = s.yearly.reviews.indexOf(r);
   const prev = idx > 0 ? s.yearly.reviews[idx - 1] : null;
@@ -60,7 +65,7 @@ function ReviewDialog({ s, r }: { s: GameState; r: YearReview }) {
       <div ref={ref} tabIndex={-1} className="dialog wide yr-dialog" role="dialog" aria-modal="true" aria-label={title} onKeyDown={onKeyDown}>
         <div className="titlebar">
           <span className="t">{title}</span>
-          <button className="wbtn close" onClick={finish} aria-label="Закрыть" title="Закрыть">
+          <button className="wbtn close" onClick={later} aria-label="Закрыть">
             <IconClose size={14} />
           </button>
         </div>

@@ -156,7 +156,7 @@ describe('обучение игре', () => {
       for (let i = 0; i < 60 && s.models.length === 0; i++) day(s);
       expect(s.models).toHaveLength(1);
       expect(s.research.done).not.toContain('attention');
-      expect(stepTargets(TUTORIAL[release], s)[0]).toBe('release');
+      expect(stepTargets(TUTORIAL[release], s)[0]).toBe('release-confirm');
       expect(done(release)).toBe(false);
       expect(releaseModel(s, s.models[0].id, refPrice(s.day)).ok).toBe(true);
       expect(done(release)).toBe(true);
@@ -183,7 +183,9 @@ describe('обучение игре', () => {
         fit = tutorialTender(s).fit;
       }
       expect(fit, 'посильный тендер').not.toBeNull();
-      expect(stepTargets(TUTORIAL[order], s)[0]).toBe('tender-fit');
+      // Тест обучения: в шаге заказа первая цель - подтверждение заявки (кнопка в диалоге), затем строка тендера.
+      expect(stepTargets(TUTORIAL[order], s)[0]).toBe('apply-confirm');
+      expect(stepTargets(TUTORIAL[order], s)).toContain('tender-fit');
       expect(stepText(TUTORIAL[order], s)).toContain(fit!.client);
       expect(applyTender(s, fit!.id, s.models[0].id).ok).toBe(true);
       expect(done(order)).toBe(true);

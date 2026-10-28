@@ -232,7 +232,20 @@ describe('автосохранение', () => {
 
 describe('автопауза по галочкам настроек', () => {
   afterEach(() => {
-    setSettings({ pauseOnReady: true, pauseOnResearch: false, pauseOnTender: false, pauseOnGoal: false });
+    setSettings({ pauseOnReady: true, pauseOnImportant: true, pauseOnResearch: false, pauseOnTender: false, pauseOnGoal: false });
+  });
+
+  it('проверка модели готова: пауза по метке с названием модели, без галочки важных писем (newcomer-M2)', () => {
+    const { store, s } = newStore();
+    setSettings({ pauseOnReady: true, pauseOnImportant: false });
+    store.setSpeed(1);
+    s.models.push({ id: 'p8', name: 'Проверяемая', releasedDay: null, trainedDay: s.day, redTeamDone: true } as GameState['models'][number]);
+    advanceDay.mockImplementationOnce((st) => {
+      addMail(st, { kind: 'training', title: 'Проверка готова: «Проверяемая» можно выпустить', body: '', tag: 'redteam-done' });
+    });
+    vi.advanceTimersByTime(500);
+    expect(store.speed).toBe(0);
+    expect(store.pauseReason).toBe('Проверка готова: «Проверяемая» можно выпустить');
   });
 
   it('исследование завершено: без галочки игра идёт, с галочкой встаёт', () => {
@@ -343,6 +356,45 @@ describe('выбор целей года', () => {
     expect(goalOfferOpen(s)).toBe(true);
     expect(store.speed).toBe(0);
     expect(store.pauseReason).toBe('Цели года');
+  });
+
+  it('крестик откладывает окно целей, время не идёт; Пробел или скорость возвращают окно', () => {
+    const store = new GameStore();
+    store.newGame('Тест', { seed: 3 });
+    const s = store.state!;
+    expect(goalOfferOpen(s)).toBe(true);
+    store.hideGoals();
+    expect(store.goalsHidden).toBe(true);
+    expect(goalOfferOpen(s)).toBe(true); // цели не выбраны и не приняты по умолчанию
+    store.setSpeed(1);
+    expect(store.goalsHidden).toBe(false);
+    expect(store.speed).toBe(0);
+    vi.advanceTimersByTime(2000);
+    expect(s.day).toBe(0);
+    expect(goalOfferOpen(s)).toBe(true);
+    store.hideGoals();
+    store.togglePause();
+    expect(store.goalsHidden).toBe(false);
+    expect(store.speed).toBe(0);
+    store.hideGoals();
+    store.requestSpeed(2);
+    expect(store.goalsHidden).toBe(false);
+    expect(store.speed).toBe(0);
+    expect(s.day).toBe(0);
+  });
+
+  it('отложенный выбор целей потом принимается обычным способом, и время идёт', () => {
+    const store = new GameStore();
+    store.newGame('Тест', { seed: 3 });
+    const s = store.state!;
+    store.hideGoals();
+    store.dispatch(chooseGoals, s.yearly.goals.map((g) => g.id));
+    expect(goalOfferOpen(s)).toBe(false);
+    expect(store.goalsHidden).toBe(false);
+    store.togglePause();
+    vi.advanceTimersByTime(1000);
+    expect(s.day).toBeGreaterThan(0);
+    store.setSpeed(0);
   });
 });
 

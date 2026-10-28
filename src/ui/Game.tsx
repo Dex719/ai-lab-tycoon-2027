@@ -239,6 +239,8 @@ export function Game({ s }: { s: GameState }) {
   const [watched, setWatched] = useState<GameState | null>(null);
   const [released, setReleased] = useState<string | null>(null); // карточка выхода модели
   const closeReleased = useCallback(() => setReleased(null), []);
+  // Полоса «Вестник технологий» сообщает, видна ли она сейчас.
+  const [, setMomentUp] = useState(false);
   const [contractsSeenDay, setContractsSeenDay] = useState(-1); // день, когда игрок последний раз видел список тендеров
 
   const visible = wins.filter((w) => !w.min);
@@ -257,7 +259,8 @@ export function Game({ s }: { s: GameState }) {
   const newTenders = s.tenders.filter((t) => !t.application && t.appearedDay > contractsSeenDay).length;
   const showEnd = !!s.outcome && watched !== s;
   // Пока открыт выбор в письме, итог или диалог, остальной интерфейс закрыт для кликов и клавиатуры.
-  const blocked = showEnd || pendingChoice(s) !== null || dialog !== null || (!s.outcome && (unseenReview(s) !== null || goalOfferOpen(s)));
+  // Отложенное окно целей (крестик) не закрывает интерфейс: игрок смотрит окна, а время стоит.
+  const blocked = showEnd || pendingChoice(s) !== null || dialog !== null || (!s.outcome && (unseenReview(s) !== null || (goalOfferOpen(s) && !store.goalsHidden)));
 
   // Раздел открылся по ходу игры (дата-центры, сделки, финал): ярлык появляется с кольцом, плюс уведомление «Открыт раздел».
   const shownLeft = WINDOWS.filter((d) => d.side === 'left' && (!d.openedDay || d.openedDay(s) !== null)).map((d) => d.id);
@@ -476,7 +479,7 @@ export function Game({ s }: { s: GameState }) {
       <ClientFeed s={s} />
       {released && <ReleaseCard s={s} modelId={released} onClose={closeReleased} />}
       <ChoiceModal s={s} />
-      <Moments s={s} />
+      <Moments s={s} open={open} onShow={setMomentUp} hold={!!released || pendingChoice(s) !== null || showEnd || (!s.outcome && (unseenReview(s) !== null || (goalOfferOpen(s) && !store.goalsHidden)))} />
       {!s.outcome && !pendingChoice(s) && <YearReviewModal s={s} />}
       {!s.outcome && !pendingChoice(s) && <GoalChoiceModal s={s} />}
       {showEnd && <EndDialog s={s} onWatch={() => setWatched(s)} />}

@@ -4,14 +4,22 @@
 .mo-backdrop { z-index: 10050; background: rgb(14 40 46 / 0.7); }
 .mo-paper {
   --ink: #1e1b16;
+  position: relative;
   width: 640px; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow: auto; outline: none;
   padding: 20px 28px 18px; background: #f4efe2; color: var(--ink); border-radius: 2px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
   font-family: Georgia, 'Times New Roman', serif;
   animation: mo-in 260ms ease-out both;
 }
+/* Крестик как у окон: тот же размер и подсветка, без теней. */
+.mo-x {
+  position: absolute; top: 8px; right: 8px;
+  width: 28px; height: 24px; display: grid; place-items: center; padding: 0;
+  background: none; border: none; border-radius: 2px; color: var(--ink); cursor: pointer;
+}
+.mo-x:hover { background: #d64545; color: #fff; }
 .mo-mast {
-  display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 6px;
+  display: flex; justify-content: space-between; align-items: baseline; padding-right: 36px; padding-bottom: 6px;
   border-bottom: 3px double var(--ink); font: 700 26px Georgia, 'Times New Roman', serif;
 }
 .mo-date { font: var(--fw-small) 14px var(--font); color: #5a5246; font-variant-numeric: tabular-nums; }
@@ -36,8 +44,9 @@
 
 .mo-sub { margin: 0 0 10px; font-size: 18px; line-height: 1.35; font-style: italic; }
 .mo-body { margin: 0; font-size: 15px; line-height: 1.5; color: #3a342b; }
-.mo-foot { display: flex; justify-content: flex-end; margin-top: 16px; padding-top: 12px; border-top: 1px solid #b9ae98; }
+.mo-foot { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-top: 16px; padding-top: 12px; border-top: 1px solid #b9ae98; }
 .mo-foot .btn { font-family: var(--font); }
+.mo-more { margin-right: auto; font-size: 14px; color: #5a5246; }
 
 @keyframes mo-in { from { opacity: 0; transform: translateY(10px); } }
 @media (max-width: 560px) {

@@ -1,6 +1,7 @@
 // Письмо с выбором поверх всего. Игра стоит, пока игрок не выберет вариант или не отложит решение.
 // Отложенное письмо ждёт ответа в «Почте»; если срок истечёт, сработает вариант по умолчанию.
 
+import { useEffect, useState } from 'react';
 import { pendingChoice } from '../sim/events';
 import { formatDate, formatDateShort } from '../sim/time';
 import type { GameState, Mail } from '../sim/types';
@@ -26,6 +27,14 @@ export function hintTone(part: string): Tone {
   return 'flat';
 }
 
+/** Минус перед числом или суммой внутри части: «репутация -3», «-$100 тыс.», «−1 п.п.». */
+const LOSS_NUMBER = /(^|\s)[-−]\s?[\d$]/;
+
+/** Вариант стоит денег, доли или репутации: одна из частей последствия - потеря. Такой выбор идёт через подтверждение. */
+export function costlyChoice(hint: string): boolean {
+  return hint.split(', ').some((p) => hintTone(p) === 'bad' || LOSS_NUMBER.test(p));
+}
+
 /** Выделяет числа жирным: «+15 репутации» -> «+», «15» жирным, « репутации». */
 function boldNumbers(text: string) {
   return text.split(/(\d[\d\s.,]*\d|\d)/).map((p, i) => (i % 2 === 1 ? <b key={i}>{p}</b> : p));
@@ -47,22 +56,54 @@ export function HintLine({ hint }: { hint: string }) {
 }
 
 export function ChoiceList({ mail }: { mail: Mail }) {
+  // Вариант с потерей ждёт подтверждения: первый щелчок «Выбрать» включает его, второй - «Подтвердить».
+  const [armed, setArmed] = useState<number | null>(null);
+  useEffect(() => {
+    setArmed(null);
+  }, [mail.id]);
   if (!mail.choices) return null;
   return (
     <div className="choice-list">
-      {mail.choices.map((c, i) => (
+      {mail.choices.map((c, i) => {
+        const isArmed = armed === i;
         // Выбор - только кнопкой «Выбрать»: раньше кликалась вся карточка, и вариант выбирался случайным щелчком (плейтест 17.10).
-        <div key={i} className="choice">
-          <span className="choice-main">
-            <span className="choice-l">{c.label}</span>
-            {c.story && <span className="choice-s">{c.story}</span>}
-            <HintLine hint={c.hint} />
-          </span>
-          <button type="button" className="choice-go" aria-label={`Выбрать: ${c.label}`} onClick={() => store.dispatch(actions.chooseOption, mail.id, i)}>
-            Выбрать
-          </button>
-        </div>
-      ))}
+        return (
+          <div key={i} className={isArmed ? 'choice armed' : 'choice'}>
+            <span className="choice-main">
+              <span className="choice-l">{c.label}</span>
+              {c.story && <span className="choice-s">{c.story}</span>}
+              <HintLine hint={c.hint} />
+            </span>
+            {isArmed ? (
+              <span className="choice-acts">
+                <button
+                  type="button"
+                  className="choice-go confirm"
+                  aria-label={`Подтвердить: ${c.label}`}
+                  onClick={() => {
+                    setArmed(null);
+                    store.dispatch(actions.chooseOption, mail.id, i);
+                  }}
+                >
+                  Подтвердить
+                </button>
+                <button type="button" className="choice-go" onClick={() => setArmed(null)}>
+                  Отмена
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="choice-go"
+                aria-label={`Выбрать: ${c.label}`}
+                onClick={() => (costlyChoice(c.hint) ? setArmed(i) : store.dispatch(actions.chooseOption, mail.id, i))}
+              >
+                Выбрать
+              </button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

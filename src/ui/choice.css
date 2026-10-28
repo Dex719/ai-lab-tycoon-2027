@@ -20,6 +20,13 @@
   font-weight: var(--fw-strong); box-shadow: inset 0 0 0 2px var(--edge);
 }
 :is(.choice-dialog, .mail-decision) .choice-go:hover, :is(.choice-dialog, .mail-decision) .choice-go:focus-visible { background: var(--brand); color: var(--on-brand); box-shadow: inset 0 -3px 0 var(--brand-edge); }
+/* Вариант с потерей: «Подтвердить» и «Отмена» в той же колонке, где была «Выбрать». */
+.choice-acts { display: flex; flex-direction: column; gap: 6px; }
+:is(.choice-dialog, .mail-decision) .choice.armed { outline: 2px solid var(--select); outline-offset: -2px; }
+/* Специфичность выше правила наведения на карточку из theme.css: «Подтвердить» остаётся оранжевым, пока курсор над карточкой. */
+:is(.choice-dialog, .mail-decision) .choice.armed .choice-go.confirm { background: var(--select); color: var(--on-select); box-shadow: inset 0 -3px 0 var(--select-edge); }
+/* «Отмена» в открытой карточке не заливается только из-за наведения на карточку. */
+:is(.choice-dialog, .mail-decision) .choice.armed:hover .choice-go:not(.confirm):not(:hover):not(:focus-visible) { background: var(--surface-control); color: var(--brand-ink); box-shadow: inset 0 0 0 2px var(--edge); }
 
 /* Вариант: подпись, последствие словами, ниже числа цветом. */
 .choice-s { font-size: 14px; line-height: 1.35; font-weight: var(--fw-small); color: var(--text); }

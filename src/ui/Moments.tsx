@@ -11,8 +11,10 @@ import { fmtGap, raceName } from './ArenaFeedback';
 import { useModalFocus } from './components/common';
 import { fmtDays, fmtInt } from './format';
 import { lateMoments } from './lateMoments';
+import { IconClose } from './icons';
 import { playSound } from './sound';
 import { store } from './store';
+import type { WindowAlias, WindowId } from './windows';
 import './moments.css';
 
 interface Moment {
@@ -22,6 +24,8 @@ interface Moment {
   sub: string;
   body: string;
   art: 'attention' | 'chat' | 'trophy' | 'arena' | 'rlhf' | 'final' | 'push' | 'swap' | 'deal' | 'office' | 'floor' | 'campus';
+  /** Письмо с выбором, о котором говорит момент: в полосе даётся «Открыть письмо». */
+  mailEvent?: string;
 }
 
 function standing(s: GameState): ArenaStanding | null {
@@ -50,6 +54,7 @@ function currentMoments(s: GameState): Moment[] {
       sub: 'Лаборатория изучила механизм внимания до того, как вышла статья «Внимание - всё, что нужно».',
       body: 'Теперь решение за вами: опубликовать результаты первыми или оставить метод в секрете.',
       art: 'attention',
+      mailEvent: 'attention-paper-player',
     });
   }
   if (s.firedEvents.includes('chat-moment-player')) {
@@ -352,8 +357,22 @@ function Art({ kind }: { kind: string }) {
   );
 }
 
-/** Следит за партией и показывает газетную полосу, когда выполнен новый момент. */
-export function Moments({ s }: { s: GameState }) {
+/**
+ * Следит за партией и показывает газетную полосу, когда выполнен новый момент.
+ * hold: пока открыто окно поважнее (письмо, выпуск модели, итоги года), полоса ждёт в очереди.
+ * onShow: сообщает родителю, видна ли полоса сейчас.
+ */
+export function Moments({
+  s,
+  hold,
+  open,
+  onShow,
+}: {
+  s: GameState;
+  hold: boolean;
+  open: (id: WindowId | WindowAlias) => void;
+  onShow?: (shown: boolean) => void;
+}) {
   const version = useSyncExternalStore(store.subscribe, store.getVersion);
   const seenState = useRef<GameState | null>(null);
   const [queue, setQueue] = useState<Moment[]>([]);
@@ -376,12 +395,22 @@ export function Moments({ s }: { s: GameState }) {
     playSound('first');
   }, [s, version]);
 
-  const m = queue[0];
+  useEffect(() => onShow?.(!!queue[0] && !hold), [queue, hold, onShow]);
+
+  const m = hold ? undefined : queue[0];
   if (!m) return null;
   const close = () => setQueue((q) => q.slice(1));
+  const more = queue.length - 1;
+  // Письмо, о котором говорит момент: пока решение не принято, даём открыть его в «Почте».
+  // Если такого письма без ответа уже нет, текст не обещает решения, которое нельзя принять.
+  const letter = m.mailEvent ? s.mail.find((x) => x.eventId === m.mailEvent && x.choices && x.chosen === undefined) : undefined;
+  const decided = !!m.mailEvent && !letter;
   return (
     <div className="modal-backdrop mo-backdrop" onKeyDown={(e) => e.key === 'Escape' && close()}>
       <div ref={ref} tabIndex={-1} key={m.id} className="mo-paper" role="dialog" aria-modal="true" aria-label={m.headline} onKeyDown={onKeyDown}>
+        <button type="button" className="wbtn close mo-x" onClick={close} aria-label="Закрыть">
+          <IconClose size={14} />
+        </button>
         <div className="mo-mast">
           <span>Вестник технологий</span>
           <span className="mo-date">{formatDateShort(s.day)}</span>
@@ -392,10 +421,24 @@ export function Moments({ s }: { s: GameState }) {
           <Art kind={m.art} />
           <div className="mo-text">
             <p className="mo-sub">{m.sub}</p>
-            <p className="mo-body">{m.body}</p>
+            <p className="mo-body">{decided ? 'Решение по письму уже принято.' : m.body}</p>
           </div>
         </div>
         <div className="mo-foot">
+          {more > 0 && <span className="mo-more">Ещё {more} {ruPlural(more, 'новость', 'новости', 'новостей')}</span>}
+          {letter && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                store.focusMail(letter.id);
+                open('mail');
+                close();
+              }}
+            >
+              Открыть письмо
+            </button>
+          )}
           <button className="btn primary" onClick={close} autoFocus>
             Продолжить
           </button>
