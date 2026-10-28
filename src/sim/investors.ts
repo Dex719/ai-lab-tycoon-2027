@@ -231,7 +231,7 @@ export function canRaise(s: GameState): string | null {
 
 /**
  * Действие: начать переговоры о продаже доли fraction ∈ ROUND_FRACTIONS. Оценка и сумма фиксируются сегодня,
- * деньги earn('investors') и доля ×(1 − f) - в день закрытия (investorsDay), с письмом.
+ * деньги earn('investors') и доля ×(1 - f) - в день закрытия (investorsDay), с письмом.
  */
 export function raiseRound(s: GameState, fraction: number): Result {
   // Допуск на ошибку дробей: 0,1 + 0,2 - это почти 0,3. Дальше считаем по точному значению из списка.
@@ -249,7 +249,7 @@ export function raiseRound(s: GameState, fraction: number): Result {
   return { ok: true };
 }
 
-/** Действие: прервать переговоры. Денег и размытия нет, шумиха −ROUND_CANCEL_HYPE; новый раунд можно начать сразу. */
+/** Действие: прервать переговоры. Денег и размытия нет, шумиха -ROUND_CANCEL_HYPE; новый раунд можно начать сразу. */
 export function cancelRound(s: GameState): Result {
   if (!pendingRound(s)) return { ok: false, error: 'Переговоров нет' };
   s.round = null;

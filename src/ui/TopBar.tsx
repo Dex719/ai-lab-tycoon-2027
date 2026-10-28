@@ -47,7 +47,7 @@ function MoneyPopup({ s }: { s: GameState }) {
       {EXPENSE_KINDS.filter((k) => k !== 'capex').map((k) => (
         <div className={`r${m.expense[k] > 0 ? ' bad' : ''}${k === EXPENSE_KINDS.find((x) => x !== 'capex') ? ' first-exp' : ''}`} key={k}>
           <span>{EXPENSE_LABELS[k]}</span>
-          <span className="v">{m.expense[k] > 0 ? '−' : ''}{fmtMoney(m.expense[k])}</span>
+          <span className="v">{m.expense[k] > 0 ? '-' : ''}{fmtMoney(m.expense[k])}</span>
         </div>
       ))}
       {m.expense.capex > 0 && (
@@ -198,7 +198,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
                 className={`hb-rate ${rate >= 0 ? 'good' : 'bad'}`}
                 title="Средний доход за 3 месяца (API, подписки, контракты) минус постоянные расходы: аренда, зарплаты, дата-центры. Инвесторы и разовые платежи не входят"
               >
-                {rate >= 0 ? '+' : '−'}
+                {rate >= 0 ? '+' : '-'}
                 {fmtMoney(Math.abs(rate))}/мес.
               </span>
             </div>
@@ -251,7 +251,7 @@ export function TopBar({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; p
         <div className="tb-item tb-rate" title="Средний доход за 3 месяца (API, подписки, контракты) минус постоянные расходы: аренда, зарплаты, дата-центры. Инвесторы и разовые платежи (покупки, штрафы, разметчики) не входят">
           <IconArrowUpDown />
           <span className={rate >= 0 ? 'tb-good' : 'tb-bad'}>
-            {rate >= 0 ? '' : '−'}
+            {rate >= 0 ? '' : '-'}
             {fmtMoney(Math.abs(rate))}/мес.
           </span>
           <Runway cash={s.cash} rate={rate} />

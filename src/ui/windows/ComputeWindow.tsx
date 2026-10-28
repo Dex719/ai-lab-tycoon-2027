@@ -442,7 +442,7 @@ function Delta({ value, good, fmt }: { value: number | null; good: (v: number) =
   if (value === null || value === 0) return <small>без изменений</small>;
   return (
     <small className={good(value) ? 'good' : 'bad'}>
-      {value > 0 ? '+' : '−'}
+      {value > 0 ? '+' : '-'}
       {fmt(Math.abs(value))}
     </small>
   );

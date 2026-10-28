@@ -60,7 +60,7 @@ export function maxPercent(cur: Percents, key: AllocKey): number {
   return Math.max(0, 100 - (totalPercent(cur) - cur[key]));
 }
 
-/** Поставить долю key в value %, не трогая остальные; значение зажимается в 0…(100 − сумма остальных). */
+/** Поставить долю key в value %, не трогая остальные; значение зажимается в 0…(100 - сумма остальных). */
 export function setPercent(cur: Percents, key: AllocKey, value: number): Percents {
   const v = Math.max(0, Math.min(maxPercent(cur, key), Math.round(Number.isFinite(value) ? value : 0)));
   return { ...cur, [key]: v };

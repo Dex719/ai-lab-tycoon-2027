@@ -75,7 +75,7 @@ function NeighborLine({ n, dir, metric }: { n: ArenaNeighbor | null; dir: 'up' |
       <Dot lab={n.lab} />
       <span className="ar-name">{n.name}</span>
       <span className="ar-gap">
-        {dir === 'up' ? '−' : '+'}
+        {dir === 'up' ? '-' : '+'}
         {fmtGap(metric, n.gap)}
       </span>
       {close && <span className="ar-close">почти</span>}

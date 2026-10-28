@@ -11,7 +11,7 @@ export interface LabPersonality {
   archetype: string;
   /** Подсказка к характеру: чего ждать от лаборатории (одна-две фразы). */
   description: string;
-  /** Множитель роста накала к игроку (heat += 30 × threat × gain × сложность − 8). */
+  /** Множитель роста накала к игроку (heat += 30 × threat × gain × сложность - 8). */
   gain: number;
   /** Веса ходов при выборе; ход без веса недоступен. */
   weights: Partial<Record<MoveId, number>>;
@@ -19,7 +19,7 @@ export interface LabPersonality {
   never: MoveId[];
   /** Множитель задержки между слухом и ходом (большая компания действует медленнее). */
   delayMult: number;
-  /** Множитель силы снижения цен (priceCut: цена × (1 − 0,3 × k × priceCutMult)). */
+  /** Множитель силы снижения цен (priceCut: цена × (1 - 0,3 × k × priceCutMult)). */
   priceCutMult: number;
   gates: {
     /** Лаборатория спит до этой даты (помимо выхода первой модели на рынок). */

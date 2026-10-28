@@ -145,7 +145,7 @@ export function parseSubsPrice(text: string): { price: number | null; error: str
 export function versusMarket(price: number, ref: number): string {
   const rel = Math.round((price / ref - 1) * 100);
   if (rel === 0) return 'На уровне рынка';
-  return `${rel > 0 ? '+' : '−'}${fmtPct(Math.abs(rel), 0)} к рынку`;
+  return `${rel > 0 ? '+' : '-'}${fmtPct(Math.abs(rel), 0)} к рынку`;
 }
 
 /** Продажи модели игрока за вчера по каналам; у выключенного канала значения нет (undefined). */

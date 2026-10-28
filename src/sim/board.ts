@@ -43,7 +43,7 @@ export function boardMonthDelta(s: GameState): { delta: number; reasons: string[
   let delta = 0;
   const add = (v: number, why: string) => {
     delta += v;
-    reasons.push(`${v > 0 ? '+' : '−'}${Math.abs(v)} ${why}`);
+    reasons.push(`${v > 0 ? '+' : '-'}${Math.abs(v)} ${why}`);
   };
   const place = h?.placeEnd ?? null;
   if (place === 1) add(5, 'первое место');

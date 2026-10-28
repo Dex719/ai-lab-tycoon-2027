@@ -110,7 +110,7 @@ export function ReleaseCard({ s, modelId, onClose }: { s: GameState; modelId: st
               </span>
               <span className="rc-l">Эло на «Арене»</span>
               <span className={`rc-sub ${eloDelta !== null && eloDelta > 0 ? 'good' : eloDelta !== null && eloDelta < 0 ? 'bad' : ''}`}>
-                {eloDelta === null ? 'Первая модель в продаже' : `${eloDelta >= 0 ? '+' : '−'}${fmtInt(Math.abs(eloDelta))} к «${prev?.name}»`}
+                {eloDelta === null ? 'Первая модель в продаже' : `${eloDelta >= 0 ? '+' : '-'}${fmtInt(Math.abs(eloDelta))} к «${prev?.name}»`}
               </span>
             </div>
             <div className="rc-place">

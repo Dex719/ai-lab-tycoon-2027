@@ -259,7 +259,7 @@ function SellConfirm(props: { s: GameState; fraction: number; v: Valuation; shar
         <span>Следующий раунд</span>
         <span>через {fmtDays(ROUND_COOLDOWN_DAYS)} после закрытия</span>
       </div>
-      <p className="inv-note">Доля продаётся в день закрытия. Переговоры можно прервать: денег не будет, шумиха −{ROUND_CANCEL_HYPE}.</p>
+      <p className="inv-note">Доля продаётся в день закрытия. Переговоры можно прервать: денег не будет, шумиха -{ROUND_CANCEL_HYPE}.</p>
       {crossesControl ? (
         <Alert tone="bad">После продажи доля ниже {fmtShare(FOUNDER_WARN_SHARE, 0)}: контроль над компанией перейдёт к совету директоров</Alert>
       ) : crossesBoard ? (
@@ -433,7 +433,7 @@ export default function InvestorsWindow({ s }: WindowProps) {
             <span>Выкупается</span>
             <span>{fmtShare(buybackStep(s), 0)} компании</span>
             <span>Цена</span>
-            <span className="bad">−{fmtMoney(buybackStepCost(s))}</span>
+            <span className="bad">-{fmtMoney(buybackStepCost(s))}</span>
             <span>Доля до</span>
             <span>{fmtShare(share)}</span>
             <span>Доля после</span>
@@ -456,7 +456,7 @@ export default function InvestorsWindow({ s }: WindowProps) {
           onClose={() => setCancelling(false)}
         >
           <p>
-            Инвесторы не вложат {fmtMoney(round.money)}, доля основателя не изменится. Рынок узнает о сорванной сделке: шумиха −{ROUND_CANCEL_HYPE}. Новый раунд
+            Инвесторы не вложат {fmtMoney(round.money)}, доля основателя не изменится. Рынок узнает о сорванной сделке: шумиха -{ROUND_CANCEL_HYPE}. Новый раунд
             можно начать сразу, по сегодняшней оценке.
           </p>
         </ConfirmDialog>

@@ -24,7 +24,7 @@ function dec(n: number, digits: number): string {
 /** $950, $12 тыс., $1,2 млн, $3,4 млрд, $1,1 трлн */
 export function fmtMoney(n: number): string {
   if (!Number.isFinite(n)) return '-';
-  const sign = n < 0 ? '−' : '';
+  const sign = n < 0 ? '-' : '';
   const a = Math.abs(n);
   if (a < 999.5) return `${sign}$${dec(a, 0)}`;
   if (a < 999_500) return `${sign}$${dec(a / 1e3, a < 1e4 ? 1 : 0)} тыс.`;
@@ -53,7 +53,7 @@ export function fmtShare(fraction: number, digits = 1): string {
 /** 1 234 567 → «1,2 млн»; маленькие - целиком с пробелами */
 export function fmtNum(n: number): string {
   if (!Number.isFinite(n)) return '-';
-  const sign = n < 0 ? '−' : '';
+  const sign = n < 0 ? '-' : '';
   const a = Math.abs(n);
   if (a < 1e4) return sign + dec(a, a < 10 ? 2 : 0);
   if (a < 999_950) return `${sign}${dec(a / 1e3, 1)} тыс.`;

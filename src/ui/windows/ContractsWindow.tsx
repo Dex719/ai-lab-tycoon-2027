@@ -28,7 +28,7 @@ type View = 'tenders' | 'contracts';
 type TypeFilter = 'all' | Tender['type'];
 type OpenFn = WindowProps['open'];
 
-const REP_LOSS = `−${Math.abs(REP_CONTRACT_FAIL)}`;
+const REP_LOSS = `-${Math.abs(REP_CONTRACT_FAIL)}`;
 /** «последний день» / «ещё 3 дня»: тендер без заявки исчезает в конце дня expiresDay, подать можно и в этот день. */
 export function tenderLeftText(left: number): string {
   return left <= 0 ? 'последний день' : `ещё ${fmtDays(left)}`;
@@ -463,7 +463,7 @@ function TenderCard(props: {
             </dd>
             <dt title="Списывается при отказе, просрочке и балле ниже требования; оплаты в этом случае нет">Если сорвать</dt>
             <dd className="bad">
-              штраф {fmtMoney(t.penalty)}, репутация −{Math.abs(REP_CONTRACT_FAIL)}
+              штраф {fmtMoney(t.penalty)}, репутация -{Math.abs(REP_CONTRACT_FAIL)}
             </dd>
             {rlhf && (
               <>
@@ -594,7 +594,7 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
             value: fmtMoney(t.payment),
             sub: (
               <span className="bad" title="Списывается при отказе, просрочке и балле ниже требования; оплаты в этом случае нет">
-                если сорвать: штраф {fmtMoney(t.penalty)}, репутация −{Math.abs(REP_CONTRACT_FAIL)}
+                если сорвать: штраф {fmtMoney(t.penalty)}, репутация -{Math.abs(REP_CONTRACT_FAIL)}
               </span>
             ),
           },

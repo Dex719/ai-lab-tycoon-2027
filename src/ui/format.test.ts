@@ -30,7 +30,7 @@ describe('fmtMoney', () => {
     expect(norm(fmtMoney(12_000))).toBe('$12 тыс.');
     expect(norm(fmtMoney(1_234_567))).toBe('$1,2 млн');
     expect(norm(fmtMoney(3_400_000_000))).toBe('$3,4 млрд');
-    expect(norm(fmtMoney(-12_000))).toBe('−$12 тыс.');
+    expect(norm(fmtMoney(-12_000))).toBe('-$12 тыс.');
     expect(fmtMoney(NaN)).toBe('-');
   });
 
@@ -40,7 +40,7 @@ describe('fmtMoney', () => {
     expect(norm(fmtMoney(999_600))).toBe('$1 млн');
     expect(norm(fmtMoney(999_600_000))).toBe('$1 млрд');
     expect(norm(fmtMoney(999_600_000_000))).toBe('$1 трлн');
-    expect(norm(fmtMoney(-999_600))).toBe('−$1 млн');
+    expect(norm(fmtMoney(-999_600))).toBe('-$1 млн');
   });
 
   it('в строке не бывает «1 000» перед единицей', () => {

@@ -36,7 +36,7 @@ function Stat(props: { label: string; value: string; raw?: number; delta?: numbe
         {raw !== undefined ? <FlashNum value={raw} frac={0} minAbs={1}>{value}</FlashNum> : value}
         {delta ? (
           <b key={`${delta}`} className="ls-d">
-            {delta > 0 ? '+' : '−'}
+            {delta > 0 ? '+' : '-'}
             {Math.abs(delta)}
           </b>
         ) : null}

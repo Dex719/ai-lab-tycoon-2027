@@ -293,7 +293,7 @@ export function hireBlock(s: GameState, c: Candidate | undefined): string | null
   return null;
 }
 
-/** Действие: нанять кандидата. Выходит на работу через c.wait дней; «просит долю» - доля основателя −0,2 %. */
+/** Действие: нанять кандидата. Выходит на работу через c.wait дней; «просит долю» - доля основателя -0,2 %. */
 export function hireCandidate(s: GameState, id: string): Result {
   const st = staffOf(s);
   const c = st.candidates.find((x) => x.id === id);

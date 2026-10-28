@@ -249,7 +249,7 @@ function theftLine(s: GameState): string {
   const where = c === 'cn' ? ' В Китае такие иски редки.' : c === 'eu' ? ' Во Франции суды строже.' : '';
   return (
     `Пока модель продаётся, каждый месяц могут подать иск: шанс ${fmtPct(theftChance(s) * 100, 0)}, штраф от ${fmtMoney(theftFine(s, { earned: 0 }))}, ` +
-    `репутация −${fmtNum(theftRepLoss(s))}${theftPulls(s) ? ', модель снимут с продажи' : ''}.${where}`
+    `репутация -${fmtNum(theftRepLoss(s))}${theftPulls(s) ? ', модель снимут с продажи' : ''}.${where}`
   );
 }
 
@@ -518,7 +518,7 @@ function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
               {fmtElo(fc.elo)}
               {delta !== null && prevBest && (
                 <span className={`nm-delta ${delta >= 0 ? 'up' : 'down'}`}>
-                  {delta >= 0 ? '+' : '−'}
+                  {delta >= 0 ? '+' : '-'}
                   {fmtNum(Math.abs(delta))} к «{prevBest}»
                 </span>
               )}
@@ -778,7 +778,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
   const fitLine =
     d.share > 0 && d.targets.length === 0
       ? 'Тесты не выбраны: доля данных потратится впустую.'
-      : `Каждый месяц подгонку могут раскрыть: репутация −${fmtNum(Math.abs(EXPOSE_REP))}, шумиха −${fmtPct((1 - EXPOSE_HYPE_MULT) * 100, 0)}.`;
+      : `Каждый месяц подгонку могут раскрыть: репутация -${fmtNum(Math.abs(EXPOSE_REP))}, шумиха -${fmtPct((1 - EXPOSE_HYPE_MULT) * 100, 0)}.`;
 
   const footInfo = slotsFull
     ? 'Идут два проекта обучения: новый можно начать после завершения одного из них.'

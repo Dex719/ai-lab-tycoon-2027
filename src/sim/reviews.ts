@@ -67,7 +67,7 @@ function weekReview(s: GameState, m: PlayerModel): void {
   const sd = sides(s, m);
   const lines = [`${verdict(rank)}.`];
   if (sd) lines.push(`Сильнее всего она в ${sd.strong}, слабее - в ${sd.weak}.`);
-  if (noticed) lines.push(`В работе модель слабее, чем в таблице: на тесте ${gap.name} разница около ${Math.round(gap.gap)} пунктов, и пользователи это заметили. Шумиха −${GAP_HYPE}.`);
+  if (noticed) lines.push(`В работе модель слабее, чем в таблице: на тесте ${gap.name} разница около ${Math.round(gap.gap)} пунктов, и пользователи это заметили. Шумиха -${GAP_HYPE}.`);
   else if (rank !== null && rank <= 3) lines.push(`Хорошие отзывы расходятся по сети: шумиха +${GOOD_HYPE}.`);
   if (noticed) s.hype.player = Math.max(0, s.hype.player - GAP_HYPE);
   else if (rank !== null && rank <= 3) s.hype.player = Math.min(100, s.hype.player + GOOD_HYPE);

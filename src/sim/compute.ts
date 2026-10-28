@@ -57,7 +57,7 @@ export function rentPerDay(s: GameState): number {
   return sum;
 }
 
-/** Лимит штук на тип по обычной цене: RENT_CAP_2017 × 2^(год − 2017) × модификатор rentCap, вниз до целого. */
+/** Лимит штук на тип по обычной цене: RENT_CAP_2017 × 2^(год - 2017) × модификатор rentCap, вниз до целого. */
 export function rentCapFor(s: GameState, id: GpuId): number {
   const base = RENT_CAP_2017 * 2 ** (yearOf(s.day) - 2017);
   return Math.max(0, Math.floor(base * modValue(s, 'rentCap', id).mult));
@@ -196,7 +196,7 @@ export function setRent(s: GameState, id: GpuId, count: number): Result {
       cut -= take;
       if (o.count === 0) list.splice(i, 1);
     }
-    if (cut > 0) s.compute.rented[id] = s.compute.rented[id] - cut + 0; // «+ 0» превращает −0 в обычный 0
+    if (cut > 0) s.compute.rented[id] = s.compute.rented[id] - cut + 0; // «+ 0» превращает -0 в обычный 0
   }
   if (count !== current) s.compute.rentChangedDay = s.day;
   return { ok: true };

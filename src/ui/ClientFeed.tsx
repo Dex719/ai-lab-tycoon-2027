@@ -99,11 +99,11 @@ export function clientNews(s: GameState, prev: Shares, cur: Shares, month: numbe
   } else if (pick.seg === 'developers') {
     title = gain
       ? `Разработчики выбирают «${model}»${rivalName ? ` вместо ${rivalName}` : ''}: +${pp} доли`
-      : `Разработчики уходят${rivalName ? ` к ${rivalName}` : ''}: −${pp} доли`;
+      : `Разработчики уходят${rivalName ? ` к ${rivalName}` : ''}: -${pp} доли`;
   } else {
     title = gain
       ? `Пользователи чатов выбирают «${model}»: +${pp} доли`
-      : `Пользователи чатов уходят${rivalName ? ` к ${rivalName}` : ''}: −${pp} доли`;
+      : `Пользователи чатов уходят${rivalName ? ` к ${rivalName}` : ''}: -${pp} доли`;
   }
   return { kind: gain ? 'contract' : 'rival', label: 'Клиенты', title, tone: gain ? 'good' : 'bad', win: 'market', from: gain ? undefined : rival?.lab };
 }

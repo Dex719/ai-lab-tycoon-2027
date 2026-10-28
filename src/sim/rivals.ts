@@ -22,7 +22,7 @@ const BY_ID = new Map<string, RivalModelDef>(RIVAL_MODELS.map((m) => [m.id, m]))
 // запускаться повторно из самого построения: иначе шаблон без базовой модели зациклил бы поиск вместо ошибки.
 let searchingTemplates = false;
 
-// Способность из Эло для моделей без опубликованных баллов: cap = (Эло − 374) / 11,7.
+// Способность из Эло для моделей без опубликованных баллов: cap = (Эло - 374) / 11,7.
 export const RIVAL_CAP_ELO_ZERO = 374;
 export const RIVAL_CAP_ELO_PER_POINT = 11.7;
 const LAB_NAME = new Map<LabId, string>(LABS.map((l) => [l.id, l.name]));
@@ -97,7 +97,7 @@ function computeCaps(def: RivalModelDef): Record<DomainId, number> {
 
 /**
  * Способности по доменам: среднее capFromScore по реальным баллам домена; домен без баллов - среднее
- * остальных доменов; модель без баллов - (arenaElo − 374) / 11,7 во всех доменах. Кешируется по id.
+ * остальных доменов; модель без баллов - (arenaElo - 374) / 11,7 во всех доменах. Кешируется по id.
  */
 export function rivalCaps(def: RivalModelDef): Record<DomainId, number> {
   const hit = capsCache.get(def.id);

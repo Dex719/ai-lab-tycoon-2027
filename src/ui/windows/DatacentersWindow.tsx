@@ -109,7 +109,7 @@ function Head({ s }: { s: GameState }) {
         <dt title="Электричество и обслуживание готовых дата-центров, без стройки и покупки карт">Расходы в месяц</dt>
         <dd className={cost > 0 ? 'bad' : undefined}>{cost > 0 ? fmtMoney(cost) : '-'}</dd>
         <dt title="Сколько стоили бы те же карты в аренде, минус расходы своих дата-центров">Экономия против аренды</dt>
-        <dd className={own > 0 ? (saving > 0 ? 'good' : 'bad') : undefined}>{own > 0 ? `${saving < 0 ? '−' : ''}${fmtMoney(Math.abs(saving))} в месяц` : '-'}</dd>
+        <dd className={own > 0 ? (saving > 0 ? 'good' : 'bad') : undefined}>{own > 0 ? `${saving < 0 ? '-' : ''}${fmtMoney(Math.abs(saving))} в месяц` : '-'}</dd>
       </dl>
     </header>
   );
