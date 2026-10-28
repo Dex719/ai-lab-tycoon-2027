@@ -478,6 +478,12 @@ table.grid td.num, table.grid th.num { text-align: right; }
 .tip.above { transform: translate(-50%, -100%); }
 
 /* ---------- Всплывающие уведомления (src/ui/Toasts.tsx) ---------- */
+/* Одна колонка уведомлений: достижения и письма вместе, снизу вверх. Внутри неё блоки обычные, не закреплённые. */
+.note-col {
+  position: fixed; right: 12px; bottom: 52px; z-index: 920; width: min(340px, calc(100vw - 24px));
+  display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+}
+.note-col .toasts, .note-col .ach-toasts { position: static; width: auto; }
 .toasts {
   position: fixed; right: 12px; bottom: 52px; z-index: 920; width: min(340px, calc(100vw - 24px));
   display: flex; flex-direction: column; gap: 8px; pointer-events: none;

@@ -239,14 +239,20 @@ export function Game({ s }: { s: GameState }) {
   const [watched, setWatched] = useState<GameState | null>(null);
   const [released, setReleased] = useState<string | null>(null); // карточка выхода модели
   const closeReleased = useCallback(() => setReleased(null), []);
-  // Полоса «Вестник технологий» сообщает, видна ли она сейчас.
-  const [, setMomentUp] = useState(false);
+  // Полоса «Вестник технологий» сообщает, видна ли она сейчас: пока она на экране, уведомления ждут.
+  const [momentUp, setMomentUp] = useState(false);
   const [contractsSeenDay, setContractsSeenDay] = useState(-1); // день, когда игрок последний раз видел список тендеров
 
   const visible = wins.filter((w) => !w.min);
   const topZ = visible.reduce((m, w) => Math.max(m, w.z), 0);
-  // Разделы в колонке: открываются по ходу игры (к 2024 году их 14).
-  const docked = WINDOWS.filter((d) => !d.openedDay || d.openedDay(s) !== null);
+  // Разделы в колонке: открываются по ходу игры (к 2024 году их 14). Порядок стабильный: новый раздел встаёт в конец,
+  // значки на месте не сдвигаются (плейтест: «Контракты» уезжали при открытии «Продуктов»).
+  const docked = WINDOWS.flatMap((d, i) => {
+    const day = d.openedDay ? d.openedDay(s) : -1;
+    return day === null ? [] : [{ d, i, day }];
+  })
+    .sort((a, b) => a.day - b.day || a.i - b.i)
+    .map((x) => x.d);
   const openIds = new Set(wins.filter((w) => !w.min).map((w) => w.id));
   // Отложенные решения прочитаны, но ещё ждут ответа: их тоже считаем на значке «Почты».
   const unread = unreadCount(s) + openChoices(s).filter((m) => m.read).length;
@@ -261,6 +267,8 @@ export function Game({ s }: { s: GameState }) {
   // Пока открыт выбор в письме, итог или диалог, остальной интерфейс закрыт для кликов и клавиатуры.
   // Отложенное окно целей (крестик) не закрывает интерфейс: игрок смотрит окна, а время стоит.
   const blocked = showEnd || pendingChoice(s) !== null || dialog !== null || (!s.outcome && (unseenReview(s) !== null || (goalOfferOpen(s) && !store.goalsHidden)));
+  // Уведомления и достижения ждут, пока открыто окно поважнее: выпуск, письмо с выбором, итоги, новая газета.
+  const hold = momentUp || !!released || pendingChoice(s) !== null || showEnd || dialog !== null || (!s.outcome && (unseenReview(s) !== null || (goalOfferOpen(s) && !store.goalsHidden)));
 
   // Раздел открылся по ходу игры (дата-центры, сделки, финал): ярлык появляется с кольцом, плюс уведомление «Открыт раздел».
   const shownLeft = WINDOWS.filter((d) => d.side === 'left' && (!d.openedDay || d.openedDay(s) !== null)).map((d) => d.id);
@@ -299,7 +307,7 @@ export function Game({ s }: { s: GameState }) {
   // Меню игры: на компьютере - последняя кнопка в колонке разделов (другим цветом), на телефоне - в панели задач.
   const startMenu = (
     <div className="start-wrap">
-      <button className={`task-start${startOpen ? ' on' : ''}`} title="Меню игры" aria-label="Меню игры" onClick={() => setStartOpen((v) => !v)}>
+      <button className={`task-start${startOpen ? ' on' : ''}`} aria-label="Меню игры" onClick={() => setStartOpen((v) => !v)}>
         <IconLogo size={26} />
       </button>
       {startOpen && (
@@ -406,8 +414,6 @@ export function Game({ s }: { s: GameState }) {
           <nav
             className={`dock${s.day < DOCK_LABEL_DAYS || s.tutorial.active ? ' labels' : ''}`}
             aria-label="Разделы"
-            // Кнопок с меню игры: по нему колонка ужимает кнопки, чтобы поместиться по высоте (tpc.css, --dock-sz).
-            style={{ ['--dock-n' as string]: docked.length + 1 }}
           >
             {docked.map((d) => {
               const w = wins.find((x) => x.id === d.id);
@@ -419,7 +425,7 @@ export function Game({ s }: { s: GameState }) {
                   key={d.id}
                   className={`dock-btn${w ? ' open' : ''}${active ? ' active' : ''}${freshIcons.has(d.id) ? ' fresh' : ''}`}
                   style={{ ['--wa' as string]: WIN_ACCENT[d.id] }}
-                  title={d.title}
+                  aria-label={d.title}
                   data-tutorial={`icon-${d.id}`}
                   onClick={() => (active ? minAnim(d.id) : w ? focusOnly(d.id) : open(d.id))}
                 >
@@ -460,9 +466,11 @@ export function Game({ s }: { s: GameState }) {
       </footer>
     </div>
 
-      <Toasts s={s} open={open} />
+      <div className="note-col">
+        <AchievementToasts s={s} hold={hold} />
+        <Toasts s={s} open={open} hold={hold} />
+      </div>
       <ArenaBanner s={s} open={open} />
-      <AchievementToasts s={s} />
       <FeelLayer />
       <Juice s={s} onRelease={setReleased} />
       <SceneLive s={s} />

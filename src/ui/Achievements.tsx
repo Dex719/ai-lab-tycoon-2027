@@ -20,12 +20,16 @@ function Medal({ on, size = 34 }: { on: boolean; size?: number }) {
   );
 }
 
-/** Следит за партией и показывает полученные достижения. Уже случившееся в загруженной партии тоже засчитывается. */
-export function AchievementToasts({ s }: { s: GameState }) {
+/**
+ * Следит за партией и показывает полученные достижения. Уже случившееся в загруженной партии тоже засчитывается.
+ * hold: пока открыто окно поважнее, плашки не показываются и не сгорают; после него каждая получает полное время.
+ */
+export function AchievementToasts({ s, hold = false }: { s: GameState; hold?: boolean }) {
   const [items, setItems] = useState<{ key: number; at: number; a: AchievementDef }[]>([]);
   const key = useRef(0);
   const releasedCount = s.models.filter((m) => m.releasedDay !== null).length;
 
+  // Достижения ищутся и во время hold: плашка ждёт в памяти, а не теряется.
   useEffect(() => {
     const fresh = checkAchievements(s);
     if (fresh.length === 0) return;
@@ -35,16 +39,21 @@ export function AchievementToasts({ s }: { s: GameState }) {
     playSound('goal');
   }, [s, s.day, s.outcome, releasedCount]);
 
+  // После закрытия окна каждая плашка получает полный срок показа, а не остаток от времени, проведённого в очереди.
+  useEffect(() => {
+    if (!hold) setItems((cur) => cur.map((x) => ({ ...x, at: Date.now() })));
+  }, [hold]);
+
   // Скрытие - своим таймером: смена игрового дня не должна его сбрасывать.
   useEffect(() => {
-    if (items.length === 0) return;
+    if (hold || items.length === 0) return;
     const oldest = items[0];
     const wait = Math.max(0, oldest.at + SHOW_MS - Date.now());
     const id = window.setTimeout(() => setItems((cur) => cur.filter((x) => x.key !== oldest.key)), wait);
     return () => window.clearTimeout(id);
-  }, [items]);
+  }, [items, hold]);
 
-  if (items.length === 0) return null;
+  if (hold || items.length === 0) return null;
   return (
     <div className="ach-toasts" aria-live="polite">
       {items.map(({ key: k, a }) => (

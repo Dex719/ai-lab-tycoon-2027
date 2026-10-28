@@ -122,7 +122,8 @@ function ToastItem({ t, onOpen, onClose }: { t: ToastData; onOpen: (t: ToastData
   );
 }
 
-export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | WindowAlias) => void }) {
+/** hold: пока открыто окно поважнее (выпуск, выбор, итоги), уведомления копятся в памяти и не показываются. */
+export function Toasts({ s, open, hold = false }: { s: GameState; open: (id: WindowId | WindowAlias) => void; hold?: boolean }) {
   const [items, setItems] = useState<ToastData[]>([]);
   const seen = useRef<{ state: GameState; num: number }>({ state: s, num: s.nextMailNum });
   /** Письма, исход которых уже показан (или был до начала сессии). */
@@ -246,7 +247,7 @@ export function Toasts({ s, open }: { s: GameState; open: (id: WindowId | Window
     [open],
   );
 
-  if (items.length === 0) return null;
+  if (hold || items.length === 0) return null;
   return (
     <div className="toasts" aria-live="polite" ref={flipRef}>
       {items.map((t) => (
