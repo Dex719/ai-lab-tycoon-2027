@@ -177,12 +177,19 @@ function factsOf(s: GameState): Facts {
 }
 
 /** Примерный размер подписи: соседние подписи не должны налезать друг на друга. */
-const TAG_W = 190;
+/** Ширина подписи по её верхнему пределу (.lf-tag max-width 240): подписи разной длины не налезают друг на друга (UX-17, 1024 px). */
+const TAG_W = 240;
 const TAG_H = 64;
 /** Подпись стоит над точкой: от низа подписи до точки - хвостик (см. .lf-tag в labFloor.css). */
 const TAG_GAP = 10;
+/** Сетка поиска свободной точки вокруг предмета, если сдвигов не хватило (шаг и размах в пикселях). */
+const GRID_STEP = 8;
+const GRID_X = 360;
+const GRID_Y = 240;
+/** Наезд меньше 5 % площади подписи - допуск: подпись в модели шире своего текста (короткие подписи уже настоящих). */
+const CLASH_TOL = TAG_W * TAG_H * 0.05;
 /** Интерфейс поверх сцены: подписи под ним не видно (колонка разделов, лента, сводка, деньги, «Следующий шаг»). */
-const HUD_SELECTORS = '.dock, .dock-tip, .topbar-left, .pause-note, .side, .hud-stats, .hud-br, .lf-next, .month-strip';
+const HUD_SELECTORS = '.dock, .dock-tip, .topbar-left, .pause-note, .side, .hud-stats, .hud-br, .lf-next, .month-strip, .ar-banner';
 
 type Rect = { l: number; t: number; r: number; b: number };
 
@@ -213,6 +220,31 @@ function tagRect(p: { x: number; y: number }): Rect {
   return { l: p.x - TAG_W / 2, r: p.x + TAG_W / 2, t: p.y - TAG_H - TAG_GAP, b: p.y - TAG_GAP };
 }
 
+/** Ширина кнопки «Нанять» с подписью (.lf-plus: круг 44 px и подпись справа, около 190 px). */
+const PLUS_W = 190;
+
+/**
+ * Кнопка «+» (.lf-plus) центрируется по точке по вертикали и сдвинута на 22 px влево: круг и подпись справа.
+ * Прямоугольник берётся реальный, иначе spread() не видит наезд «Нанять» на подпись комнаты (UX-17, 1024 px).
+ */
+function plusRect(p: { x: number; y: number }): Rect {
+  return { l: p.x - 22, r: p.x - 22 + PLUS_W, t: p.y - 22, b: p.y + 22 };
+}
+
+/** Табличка лаборатории (.lf-sign, translate(-50%, -100% - 10px)): до 280 px в ширину, высота около 74 px, низ на 10 px выше точки. */
+const SIGN_W = 280;
+const SIGN_H = 74;
+function signRect(p: { x: number; y: number }): Rect {
+  return { l: p.x - SIGN_W / 2, r: p.x + SIGN_W / 2, t: p.y - SIGN_H - 10, b: p.y - 10 };
+}
+
+/** Прямоугольник предмета: кнопка «Нанять» (ключ seats), табличка (sign) или подпись комнаты. */
+function itemRect(k: string, p: { x: number; y: number }): Rect {
+  if (k === 'seats') return plusRect(p);
+  if (k === 'sign') return signRect(p);
+  return tagRect(p);
+}
+
 /**
  * Развести подписи. Каждая выбирает из места у своего предмета и сдвигов (вверх, вниз, вбок) вариант с наименьшим штрафом:
  * подпись под интерфейсом или за краем экрана - хуже всего, наезд на соседнюю подпись - меньше, отход от предмета - меньше
@@ -223,11 +255,16 @@ export function spread(at: At, hud: readonly Rect[] = []): At {
   const order = Object.entries(at).sort((a, b) => b[1].y - a[1].y);
   const placed: Rect[] = [];
   const out: At = {};
-  const cost = (p: { x: number; y: number }, p0: { x: number; y: number }) => {
-    const r = tagRect(p);
+  const cost = (k: string, p: { x: number; y: number }, p0: { x: number; y: number }) => {
+    const r = itemRect(k, p);
     const underHud = hud.reduce((a, h) => a + overlap(r, h), 0);
     const onTags = placed.reduce((a, q) => a + overlap(r, q), 0);
     return underHud * 10 + onTags * 3 + Math.hypot(p.x - p0.x, p.y - p0.y) * 30;
+  };
+  // Площадь наезда на интерфейс и уже размещённые предметы.
+  const clash = (k: string, p: { x: number; y: number }) => {
+    const r = itemRect(k, p);
+    return hud.reduce((a, h) => a + overlap(r, h), 0) + placed.reduce((a, q) => a + overlap(r, q), 0);
   };
   for (const [k, p0] of order) {
     const dx = TAG_W + 6;
@@ -237,12 +274,23 @@ export function spread(at: At, hud: readonly Rect[] = []): At {
     // Сдвиг ровно до края интерфейса слева: подпись остаётся почти у предмета.
     for (const h of hud) if (h.r > 0 && h.r < p0.x + TAG_W / 2 && h.l <= 0) tries.push({ x: h.r + TAG_W / 2 + 6, y: p0.y });
     let best = p0;
-    let bestCost = cost(p0, p0);
+    let bestCost = cost(k, p0, p0);
     for (const t of tries) {
-      const c = cost(t, p0);
+      const c = cost(k, t, p0);
       if (c < bestCost) [best, bestCost] = [t, c];
     }
-    placed.push(tagRect(best));
+    // Если сдвиги не дали места без наезда (плотная комната, сводка открыта на 1024 × 768), ищем свободную точку по сетке
+    // вокруг предмета: кнопка «Нанять» и подписи не должны накладываться ни друг на друга, ни на интерфейс.
+    if (clash(k, best) > CLASH_TOL) {
+      for (let x = p0.x - GRID_X; x <= p0.x + GRID_X; x += GRID_STEP) {
+        for (let y = p0.y - GRID_Y; y <= p0.y + GRID_Y; y += GRID_STEP) {
+          const t = { x, y };
+          const c = cost(k, t, p0);
+          if (c < bestCost && clash(k, t) === 0) [best, bestCost] = [t, c];
+        }
+      }
+    }
+    placed.push(itemRect(k, best));
     out[k] = best;
   }
   return out;

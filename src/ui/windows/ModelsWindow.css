@@ -59,7 +59,7 @@
 .mw-tr-s { font-size: 12px; font-weight: var(--fw-small); color: var(--text-2); line-height: 1.3; }
 
 /* ---------- Карточка ---------- */
-.mw-main { flex: 1; min-width: 0; overflow: auto; background: var(--panel); container-type: inline-size; }
+.mw-main { flex: 1; min-width: 0; overflow-x: hidden; overflow-y: auto; background: var(--panel); container-type: inline-size; }
 .mw-body { padding: 4px 16px 16px; }
 .mw-body > .alert:first-child { margin-top: 14px; }
 
@@ -154,6 +154,10 @@
 /* Карточка уже 640 px (окно по умолчанию минус список): показатели в два столбца. */
 @container (max-width: 640px) {
   .mw-focus { min-width: 100px; }
+  /* Узкая карточка: сведения списком в один столбец (подпись над значением), значения переносятся, а не рвутся по словам. */
+  .mw-facts { grid-template-columns: minmax(0, 1fr); gap: 6px 0; }
+  .mw-facts dt { font-size: 13px; }
+  .mw-main .mw-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mw-focus-v { font-size: 28px; }
   .mw-score { grid-template-columns: 110px minmax(0, 1fr) 100px 36px; gap: 8px; }
   /* Узкая карточка (окно рядом с подсказкой обучения, экран 1024 px): шапка как на телефоне - картинка меньше, главное
@@ -163,7 +167,6 @@
   .mw-pic .emb { width: 68px; height: 68px; }
   .mw-insp-main { flex: 1 1 calc(100% - 100px); }
   .mw-focus { flex: 1 1 100%; align-items: flex-start; text-align: left; }
-  .mw-facts .mw-v { white-space: nowrap; }
 }
 
 /* ---------- Пустое окно ---------- */
@@ -200,10 +203,10 @@
 .mw-metric { display: flex; flex-direction: column; min-width: 0; padding: 6px 10px 6px 0; }
 .mw-metric + .mw-metric { padding-left: 10px; border-left: 1px solid var(--line-soft); }
 .mw-metric-l { font-size: 12px; font-weight: var(--fw-small); color: var(--text-2); }
-.mw-metric-v { font-size: 16px; font-weight: var(--fw-title); line-height: 1.3; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.mw-metric-v { font-size: 16px; font-weight: var(--fw-title); line-height: 1.3; color: var(--text); white-space: normal; overflow-wrap: break-word; min-width: 0; font-variant-numeric: tabular-nums; }
 .mw-metric-v.income { color: var(--good-ink); }
 .mw-metric-v.off { font-weight: var(--fw-small); color: var(--text-2); }
-.mw-metric-s { font-size: 12px; line-height: 1.3; font-weight: var(--fw-small); color: var(--text-2); }
+.mw-metric-s { font-size: 12px; line-height: 1.3; font-weight: var(--fw-small); color: var(--text-2); white-space: normal; overflow-wrap: break-word; min-width: 0; }
 .mw-ch-edit { padding-top: 2px; }
 .mw-ch-edit .mw-vs { align-self: center; min-height: 18px; }
 .mw-ch > .alert { padding: 6px 10px; font-size: 13px; }

@@ -373,7 +373,12 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
 
 @media (min-width: 768px) {
   /* ---------- Сводка справа, как панель целей в образце ---------- */
-  .game .side-body { background: var(--hud); border-radius: 16px; overflow: hidden; }
+  .game .side-body { background: var(--hud); border-radius: 16px; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
+  /* Сводка прокручивается целиком, если не умещается в высоту окна (на 1024x768 тендер и цели обрезались снизу):
+     список проектов не сжимается в ноль, а уходит под прокрутку. */
+  .game .side-body > .side-list { flex: none; }
+  /* Цели года не сжимаются в свою прокрутку: вся сводка прокручивается одним блоком без полосы. */
+  .game .side .side-body > div.quests-zone:not(.tutor) { flex: none; min-height: 0; overflow: visible; }
   .game .side-head { font-size: 17px; letter-spacing: 0.02em; box-shadow: inset 0 -4px 0 var(--brand-edge); }
   /* Гонка - белая карточка: крупное место и разрыв. */
   .game .side-race {
