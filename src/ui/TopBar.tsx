@@ -51,7 +51,7 @@ function MoneyPopup({ s }: { s: GameState }) {
         </div>
       ))}
       {m.expense.capex > 0 && (
-        <div className="r first-exp" title="Стройка дата-центров и покупка карт. В изменение за месяц не входит">
+        <div className="r first-exp" title="Стройка дата-центров и покупка карт. В расходы за месяц не входят.">
           <span>Разовые вложения</span>
           <span className="v">{fmtMoney(m.expense.capex)}</span>
         </div>

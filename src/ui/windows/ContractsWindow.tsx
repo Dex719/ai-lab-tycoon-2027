@@ -15,7 +15,7 @@ import type { Contract, GameState, PlayerModel, Tender } from '../../sim/types';
 import { Cards } from '../components/Cards';
 import { Term } from '../components/Term';
 import { Alert, ConfirmDialog, ErrorText, GuardButton } from '../components/common';
-import { endSentence, fmtDays, fmtH100e, fmtInt, fmtMoney, fmtPct, fmtShare, h100ePerCard } from '../format';
+import { endSentence, fmtDays, fmtH100e, fmtInt, fmtMoney, fmtPct, fmtShare, h100ePerCard, ruPlural } from '../format';
 import { contractsNeedWith, contractsNeedWithApplications } from '../forecast';
 import { IconAlert, IconCheck, IconChevronLeft } from '../icons';
 import { ClientEmblem } from '../icons/clients';
@@ -353,6 +353,7 @@ function TenderCard(props: {
   const ordered = orderedH100e(s);
   const perCard = h100ePerCard(s);
   const deficit = totalNeed - ordered;
+  const rentCards = Math.ceil(deficit / perCard);
   const overload = model !== null && deficit > ordered * 0.02 + 1e-9;
   const poolShort = model !== null && !overload && totalNeed > contractsPool * 1.02 + 1e-9;
 
@@ -494,7 +495,7 @@ function TenderCard(props: {
         <Alert tone="bad" action={{ label: 'Мощности', onClick: () => open('compute') }}>
           {others > 0 ? `Не потянете вместе с ${others === 1 ? 'уже взятым' : `ещё ${others}`}` : 'Не потянете'}: нужно {perDay(totalNeed)}, всей мощности{' '}
           {perDay(have)}
-          {ordered > have + 1e-9 ? `, с заказанными картами ${perDay(ordered)}` : ''}. Арендуйте ещё ≈{fmtInt(Math.ceil(deficit / perCard))} карт или не подавайте заявку.
+          {ordered > have + 1e-9 ? `, с заказанными картами ${perDay(ordered)}` : ''}. Арендуйте ещё ≈{fmtInt(rentCards)} {ruPlural(rentCards, 'карту', 'карты', 'карт')} или не подавайте заявку.
         </Alert>
       )}
       {poolShort &&

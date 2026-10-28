@@ -625,7 +625,7 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
           </button>
         )}
         <button className="btn" onClick={onClose}>
-          {queued && !startable ? 'Закрыть' : 'Отмена'}
+          Закрыть
         </button>
         {canQueue && (
           <button className="btn" data-tutorial="research-queue" onClick={enqueue}>

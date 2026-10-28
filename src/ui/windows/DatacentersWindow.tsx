@@ -424,7 +424,7 @@ function BuyDialog({ s, site, onClose }: { s: GameState; site: DcSiteId; onClose
       footer={
         <>
           <button className="btn" onClick={onClose}>
-            Отмена
+            Отменить
           </button>
           <GuardButton className="btn primary" reason={reason} onClick={submit}>
             Купить

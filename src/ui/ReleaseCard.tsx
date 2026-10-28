@@ -116,7 +116,7 @@ export function ReleaseCard({ s, modelId, onClose }: { s: GameState; modelId: st
             <div className="rc-place">
               <span className={`rc-mid${place === 1 ? ' gold' : place === null ? ' dim' : ''}`}>
                 {place === 1 && <IconTrophy size={20} />}
-                {place !== null ? `${place}-е место` : rivals ? 'Не в зачёте' : 'Соперников нет'}
+                {place !== null ? `${place}-е место` : rivals ? 'Места нет' : 'Соперников пока нет'}
               </span>
               <span className="rc-l">{metric ? raceName(metric) : 'Место в гонке'}</span>
               <span className="rc-sub">{placeSub}</span>

@@ -950,7 +950,7 @@ function kpisOf(s: GameState, m: PlayerModel, metric: RaceMetric | null, rank: n
     {
       label: placeLabel(metric),
       value: rank !== null ? `${fmtNum(rank)}-е` : '-',
-      sub: rank === null ? `${rivals ? 'Не в зачёте' : 'Соперников пока нет'}, Эло ${fmtElo(m.arenaElo)}` : `Эло ${fmtElo(m.arenaElo)}`,
+      sub: rank === null ? `${rivals ? 'Места нет' : 'Соперников пока нет'}, Эло ${fmtElo(m.arenaElo)}` : `Эло ${fmtElo(m.arenaElo)}`,
       title: `${placeTitle(metric)} Подгонка под тесты Эло не повышает.`,
       tone: rank === 1 ? 'gold' : undefined,
     },

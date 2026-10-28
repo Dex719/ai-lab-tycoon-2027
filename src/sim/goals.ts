@@ -9,7 +9,7 @@ import { applyPenalty, capitalize, giveReward, penaltyText, rewardMoney, rewardS
 import { addMail } from './events';
 import { rivalsSellByApi } from './leaderboard';
 import { nextRandom } from './rng';
-import { endSentence, timesWord } from './text';
+import { endSentence, ruPlural, timesWord } from './text';
 import { dayToDate, yearOf } from './time';
 import type { GameState, Result, YearGoalResult, YearGoalState, YearReview } from './types';
 import { bestRank, playerShare, releasedInYear, yearExpense, yearRevenue } from './yearStats';
@@ -70,7 +70,7 @@ export function chooseGoals(s: GameState, ids: string[]): Result {
   if (!o || !o.open || o.year !== s.yearly.year) return { ok: false, error: 'Цели этого года уже выбраны' };
   const need = Math.min(GOALS_PER_YEAR, o.goals.length);
   const uniq = [...new Set(ids)];
-  if (uniq.length !== need) return { ok: false, error: `Выберите ${need} цели` };
+  if (uniq.length !== need) return { ok: false, error: `Выберите ${need} ${ruPlural(need, 'цель', 'цели', 'целей')}` };
   if (!uniq.every((id) => o.goals.some((g) => g.id === id))) return { ok: false, error: 'Такой цели нет среди предложенных' };
   const prev = new Map(s.yearly.goals.map((g) => [g.id, g]));
   s.yearly.goals = o.goals.filter((g) => uniq.includes(g.id)).map((g) => prev.get(g.id) ?? { ...g });

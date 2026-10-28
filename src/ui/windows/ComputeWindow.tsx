@@ -333,7 +333,7 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
       footer={
         <>
           <button className="btn" onClick={onClose}>
-            Отмена
+            Отменить
           </button>
           <GuardButton className="btn primary cw-rd-submit" data-tutorial="rent-confirm" reason={reason} onClick={submit}>
             {label}

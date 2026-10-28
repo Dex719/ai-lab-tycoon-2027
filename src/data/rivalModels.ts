@@ -183,7 +183,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'kimo-chat', lab: 'moonshoot', gameName: 'Kimo Chat', realName: 'Kimi Chat', released: '2023-10-09',
     api: false, openWeights: false, chat: true, paramsB: null, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 1110, arenaEstimated: true, contaminated: false, context: 128000,
-    notes: 'Первый ассистент лаборатории: контекст 200 тыс. иероглифов, закрытая бета. Эло - оценка.',
+    notes: 'Первый ассистент лаборатории: контекст 200 тыс. токенов, закрытая бета. Эло - оценка.',
   },
   {
     id: 'chatgml3-6b', lab: 'zhipo', gameName: 'ChatGML3-6B', realName: 'ChatGLM3-6B', released: '2023-10-27',
@@ -285,7 +285,7 @@ export const RIVAL_MODELS: RivalModelDef[] = [
     id: 'kimo-chat-2m', lab: 'moonshoot', gameName: 'Kimo Chat 2M', realName: 'Kimi Chat 2M-character long context', released: '2024-03-18',
     api: false, openWeights: false, chat: true, paramsB: null, priceIn: null, priceOut: null,
     scores: {}, arenaElo: 1150, arenaEstimated: true, contaminated: false, context: 2000000,
-    notes: 'Контекст до 2 млн иероглифов; закрытая бета, без API и баллов. Эло - оценка.',
+    notes: 'Контекст до 2 млн токенов; закрытая бета, без API и баллов. Эло - оценка.',
   },
   {
     id: 'deepseak-v2', lab: 'deepcent', gameName: 'DeepSeak-V2', realName: 'DeepSeek-V2', released: '2024-05-06',

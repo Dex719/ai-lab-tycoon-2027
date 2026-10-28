@@ -119,7 +119,7 @@ export function valuationParts(s: GameState, v: Valuation): Part[] {
       ? 'нет моделей в продаже'
       : `${fmtRank(v.bestRank)} среди моделей в продаже${v.bestRank > 1 ? ` · на 1-м: ${fmtMoney(mania)}` : ''}`;
   const parts: Part[] = [
-    { key: 'rev', label: 'Продажи', sub: v.annualRevenue > 0 ? `выручка ${fmtMoney(v.annualRevenue)} в год по темпу 3 месяцев` : 'продаж пока нет', value: v.revenuePart },
+    { key: 'rev', label: 'Продажи', sub: v.annualRevenue > 0 ? `выручка ${fmtMoney(v.annualRevenue)} в год по темпу за 3 месяца` : 'продаж пока нет', value: v.revenuePart },
     { key: 'tech', label: 'Лучшая модель', sub: rank, value: v.techPart },
     { key: 'floor', label: 'Минимальная оценка', sub: `не ниже ${fmtMoney(VALUATION_FLOOR)} до поправок на шумиху и репутацию`, value: floorFill },
     { key: 'hype', label: 'Шумиха', sub: `уровень ${fmtNum(s.hype.player)} из 100`, value: hype },
@@ -279,10 +279,13 @@ function Buyback({ s, share, onBuy }: { s: GameState; share: number; onBuy: () =
   return (
     <div className="inv-buy">
       <h3 className="inv-h">Выкуп доли</h3>
-      <p className="inv-note">
-        Выкупить {fmtShare(buybackStep(s), 0)} у инвесторов за {fmtMoney(buybackStepCost(s))}: по оценке с надбавкой 25 %, не чаще раза в 3 месяца.
-      </p>
-      <GuardButton className="btn" reason={err} onClick={onBuy}>
+      <p className="inv-note">Выкуп по оценке с надбавкой 25 %, не чаще раза в 3 месяца.</p>
+      <GuardButton
+        className="btn"
+        reason={err}
+        onClick={onBuy}
+        title={err ?? `Выкупить ${fmtShare(buybackStep(s), 0)} у инвесторов за ${fmtMoney(buybackStepCost(s))}`}
+      >
         Выкупить {fmtShare(buybackStep(s), 0)}
       </GuardButton>
     </div>
@@ -313,7 +316,7 @@ function Board({ s }: { s: GameState }) {
           ? `Основатель отстранён до ${formatDateShort(b.oustedDay! + OUSTER_DAYS)}: новое обучение, выпуск и раунды недоступны.`
           : b.reasons.length
             ? `За месяц: ${b.reasons.join(', ')}.`
-            : 'Растёт за место в гонке и выручку, падает за провалы, пустую кассу и скандалы.'}
+            : 'Растёт от места в гонке и выручки. Падает от провалов, пустой кассы и скандалов.'}
         {!ousted && b.oustedDay === undefined && ` При ${BOARD_OUST_TRUST} совет голосует об отставке.`}
       </p>
     </div>

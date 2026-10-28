@@ -72,7 +72,7 @@ function TeamRow({ s, def, onHire, onRelease }: { s: GameState; def: TeamDef; on
         {def.extra && <span className="dl-sub good">{def.extra}</span>}
         <span className="dl-sub">{def.about}</span>
       </td>
-      <td className="num" data-label="Подъёмные">{fmtMoney(def.signing)}</td>
+      <td className="num" data-label="Разовая выплата">{fmtMoney(def.signing)}</td>
       <td className="num" data-label="Зарплата в месяц">{fmtMoney(def.salary)}</td>
       <td className="dl-act">
         {hired ? (
@@ -110,7 +110,7 @@ function TeamsTab({ s }: { s: GameState }) {
           <tr>
             <th>Команда</th>
             <th>Что даёт</th>
-            <th className="num">Подъёмные</th>
+            <th className="num">Разовая выплата</th>
             <th className="num">Зарплата в месяц</th>
             <th className="dl-act" />
           </tr>
@@ -137,7 +137,7 @@ function TeamsTab({ s }: { s: GameState }) {
             <span>
               {hireDef.name}, {hireDef.leader}
             </span>
-            <span>Подъёмные сейчас</span>
+            <span>Разовая выплата сейчас</span>
             <span className="bad">{fmtMoney(-hireDef.signing)}</span>
             <span>Зарплата</span>
             <span>{fmtMoney(hireDef.salary)} в месяц</span>
@@ -166,7 +166,7 @@ function TeamsTab({ s }: { s: GameState }) {
             </span>
             <span>Пропадёт</span>
             <span className="bad">{fireDef.effect}</span>
-            <span>Подъёмные</span>
+            <span>Разовая выплата</span>
             <span>не возвращаются</span>
           </div>
         </ConfirmDialog>
