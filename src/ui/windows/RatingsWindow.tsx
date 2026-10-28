@@ -439,7 +439,7 @@ export function ArenaTab({ s }: WindowProps) {
         className={`arn-hero${first ? ' first' : ''}`}
         title={arena ? TIP_RANK : `Пока соперники не продают модели по API, гонка идёт по тесту ${metric.name} среди всех вышедших моделей.`}
       >
-        <div className="arn-cell arn-place">
+        <div className="arn-place">
           <span className="arn-k">{arena ? 'Место на «Арене»' : `Место по тесту ${metric.name}`}</span>
           <span className="arn-big">{myRank !== null ? `${fmtNum(myRank)}-е` : '-'}</span>
           <span className="arn-s">
@@ -450,45 +450,49 @@ export function ArenaTab({ s }: WindowProps) {
                 : 'Ваших моделей с этим тестом нет'}
           </span>
         </div>
-        <div className="arn-cell">
-          <span className="arn-k">{first ? 'Отрыв от ближайшего соперника' : 'До лидера'}</span>
-          <span className={`arn-mid ${first ? 'good' : 'bad'}`}>{gap !== null ? `${first ? '+' : '−'}${gapText(metric, gap)}` : '-'}</span>
-          <span className="arn-s">
-            {runner ? (
-              <>
-                <i className="own-dot" style={{ background: ownerColor(runner.owner, true) }} />
-                {runner.row.name}, {ownerName(s, runner.owner)}
-              </>
-            ) : (
-              'Соперников пока нет'
-            )}
-          </span>
-        </div>
-        <div className="arn-cell arn-best">
-          {mineModel && <ModelEmblem m={mineModel} size={52} gold={first} />}
-          <span className="arn-best-t">
-            <span className="arn-k">Ваша лучшая модель</span>
-            <span className="arn-best-n">{mine ? mine.row.name : '-'}</span>
+        <dl className="an-dl arn-dl">
+          <dt>{first ? 'Отрыв от ближайшего соперника' : 'До лидера'}</dt>
+          <dd>
+            <span className={`arn-mid ${first ? 'good' : 'bad'}`}>{gap !== null ? `${first ? '+' : '−'}${gapText(metric, gap)}` : '-'}</span>
+            <span className="arn-s">
+              {runner ? (
+                <>
+                  <i className="own-dot" style={{ background: ownerColor(runner.owner, true) }} />
+                  {runner.row.name}, {ownerName(s, runner.owner)}
+                </>
+              ) : (
+                'Соперников пока нет'
+              )}
+            </span>
+          </dd>
+          <dt>Ваша лучшая модель</dt>
+          <dd>
+            <span className="arn-best">
+              {mineModel && <ModelEmblem m={mineModel} size={28} gold={first} />}
+              <span className="arn-best-n">{mine ? mine.row.name : '-'}</span>
+            </span>
             <span className="arn-s">{mine ? `${arena ? 'Эло' : metric.name} ${valueText(metric, mine.value)}` : 'Выпустите модель'}</span>
-          </span>
-        </div>
-        {arena ? (
-          <div className="arn-cell arn-meta">
-            <span className="arn-k" title={TIP_MONTHS}>
-              Месяцев на 1-м месте
-            </span>
-            <span className="arn-mid">{fmtNum(monthsFirst)}</span>
-            <span className="arn-s" title={expected !== null ? TIP_EXPECTED : TIP_GOAL}>
-              {expected !== null ? `Ожидаемый лидер к концу 2024: ≈ ${fmtElo(expected)} Эло` : `Цель: 1-е место на ${formatDateShort(END_DAY)}`}
-            </span>
-          </div>
-        ) : (
-          <div className="arn-cell arn-meta" title={TIP_GOAL}>
-            <span className="arn-k">Цель партии</span>
-            <span className="arn-mid">1-е место</span>
-            <span className="arn-s">на «Арене» {formatDateShort(END_DAY)}</span>
-          </div>
-        )}
+          </dd>
+          {arena ? (
+            <>
+              <dt title={TIP_MONTHS}>Месяцев на 1-м месте</dt>
+              <dd>
+                <span className="arn-mid">{fmtNum(monthsFirst)}</span>
+                <span className="arn-s" title={expected !== null ? TIP_EXPECTED : TIP_GOAL}>
+                  {expected !== null ? `Ожидаемый лидер к концу 2024: ≈ ${fmtElo(expected)} Эло` : `Цель: 1-е место на ${formatDateShort(END_DAY)}`}
+                </span>
+              </dd>
+            </>
+          ) : (
+            <>
+              <dt title={TIP_GOAL}>Цель партии</dt>
+              <dd>
+                <span className="arn-mid">1-е место</span>
+                <span className="arn-s">на «Арене» {formatDateShort(END_DAY)}</span>
+              </dd>
+            </>
+          )}
+        </dl>
       </div>
 
       {counted.length > 0 && <Podium s={s} top={counted.slice(0, 3)} metric={metric} />}

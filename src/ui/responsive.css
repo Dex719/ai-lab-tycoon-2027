@@ -67,8 +67,9 @@ html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
   .topbar-center { display: contents; }
   .topbar-right { display: none; }
   .tb-item { font-size: 14px; gap: 6px; }
-  .tb-money { grid-column: 2; grid-row: 1; justify-self: end; min-height: 32px; }
-  .tb-rate { grid-column: 3; grid-row: 1; justify-self: end; font-size: 11px; }
+  .tb-money { grid-column: 2 / -1; grid-row: 1; justify-self: end; min-height: 32px; }
+  /* Изменение денег и «хватит на N мес.» - третья строка во всю ширину: в строку с деньгами и «Сводкой» они не влезали и уходили за край (UX-4). */
+  .tb-rate { grid-column: 1 / -1; grid-row: 3; justify-self: start; min-height: 22px; font-size: 12px; }
   .tb-date { grid-column: 1; grid-row: 2; min-height: 40px; font-size: 13px; }
   .tb-date svg { display: none; }
   /* Отсчёт до финала - под датой и без слов «До финала» (полный текст во всплывающей подсказке): в строке ещё скорость и «Сводка». */

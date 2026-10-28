@@ -5,8 +5,9 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
-import { DC_SITES, DC_SIZES, DC_STAGE_NAMES, DC_STAGES, DC_UPKEEP_PER_MW_MONTH, type DcSiteDef, type DcSiteId } from '../../data/datacenters';
+import { DC_MONTH_DAYS, DC_SITES, DC_SIZES, DC_STAGE_NAMES, DC_STAGES, DC_UPKEEP_PER_MW_MONTH, type DcSiteDef, type DcSiteId } from '../../data/datacenters';
 import { GPUS } from '../../data/gpus';
+import { DAYS_PER_MONTH } from '../../sim/constants';
 import { availableGpus, gpuAvailableDay, gpuDef, ownedH100e, rentPerGpuDay } from '../../sim/compute';
 import {
   buildCost,
@@ -30,7 +31,7 @@ import {
   stageProgress,
   usedKw,
 } from '../../sim/datacenters';
-import { formatDate } from '../../sim/time';
+import { END_DAY, formatDate, formatDateShort } from '../../sim/time';
 import type { Datacenter, GameState, GpuId } from '../../sim/types';
 import { ConfirmDialog, Dialog, ErrorText, GuardButton, ProgressBar, Range } from '../components/common';
 import { fmtDays, fmtH100e as fmtH, fmtInt, fmtMoney, fmtNum, ruPlural } from '../format';
@@ -40,8 +41,6 @@ import { actions, store } from '../store';
 import { GpuChooser, powerFact } from '../three/GpuChooser';
 import { GpuBadge } from '../GpuBadge';
 import './DatacentersWindow.css';
-
-const MONTH = 30;
 
 /** Риск задержки этапа словом и цветом. */
 function riskOf(def: DcSiteDef): { text: string; tone: 'low' | 'mid' | 'high' } {
@@ -81,8 +80,8 @@ function siteStatus(s: GameState, def: DcSiteDef): { tone: 'free' | 'building' |
 
 function Head({ s }: { s: GameState }) {
   const own = ownedH100e(s);
-  const cost = dcCostPerDay(s) * MONTH;
-  const rentEq = ownedRentEquivalentPerDay(s) * MONTH;
+  const cost = dcCostPerDay(s) * DAYS_PER_MONTH;
+  const rentEq = ownedRentEquivalentPerDay(s) * DAYS_PER_MONTH;
   const building = s.datacenters.list.filter((d) => !dcReady(d)).length;
   const transit = cardsInTransit(s);
   const saving = rentEq - cost;
@@ -248,9 +247,9 @@ function ReadyBody(props: { s: GameState; dc: Datacenter; onBuy: () => void; onS
       )}
       <dl className="dc-kv">
         <dt>Электричество в месяц</dt>
-        <dd className="bad">{fmtMoney(dcPowerPerDay(dc) * MONTH)}</dd>
+        <dd className="bad">{fmtMoney(dcPowerPerDay(dc) * DAYS_PER_MONTH)}</dd>
         <dt>Обслуживание в месяц</dt>
-        <dd className="bad">{fmtMoney(dcUpkeepPerDay(dc) * MONTH)}</dd>
+        <dd className="bad">{fmtMoney(dcUpkeepPerDay(dc) * DAYS_PER_MONTH)}</dd>
       </dl>
       <div className="dc-actions">
         <GuardButton className="btn primary" reason={full ? 'Места нет: продайте или спишите старые карты' : null} onClick={props.onBuy}>
@@ -300,7 +299,7 @@ function SiteDetail(props: {
               <dt>Готовность</dt>
               <dd>примерно {formatDate(expectedReadyDay(dc))}</dd>
               <dt>Задержки</dt>
-              <dd className={dc.delayDays > 0 ? 'warn' : undefined}>{dc.delayDays > 0 ? monthsText(Math.round(dc.delayDays / MONTH)) : 'нет'}</dd>
+              <dd className={dc.delayDays > 0 ? 'warn' : undefined}>{dc.delayDays > 0 ? monthsText(Math.round(dc.delayDays / DC_MONTH_DAYS)) : 'нет'}</dd>
               <dt>Уплачено</dt>
               <dd className="bad">{fmtMoney(dc.paid)}</dd>
             </dl>
@@ -320,8 +319,9 @@ function BuildDialog({ s, def, onClose }: { s: GameState; def: DcSiteDef; onClos
   const cost = buildCost(s, def.id, mw);
   const g = bestGpu(s);
   const cards = gpusPerMw(def.id, g) * mw;
-  const powerFull = (cards * gpuKwAt(def.id, g) * 24 * MONTH * def.powerPrice) / 1000;
+  const powerFull = (cards * gpuKwAt(def.id, g) * 24 * DAYS_PER_MONTH * def.powerPrice) / 1000;
   const risk = riskOf(def);
+  const late = s.day + buildMonths(def.id, mw) * DC_MONTH_DAYS > END_DAY;
   return (
     <ConfirmDialog
       title={`Стройка: ${def.name}`}
@@ -358,7 +358,10 @@ function BuildDialog({ s, def, onClose }: { s: GameState; def: DcSiteDef; onClos
           <dt>Стоимость</dt>
           <dd className="bad">{fmtMoney(cost)}</dd>
           <dt>Срок</dt>
-          <dd>{monthsText(buildMonths(def.id, mw))}</dd>
+          <dd className={late ? 'bad' : undefined}>
+            {monthsText(buildMonths(def.id, mw))}
+            {late && `, не успеет до ${formatDateShort(END_DAY)}`}
+          </dd>
           <dt>Риск задержки</dt>
           <dd className={`dc-risk ${risk.tone}`}>
             {risk.text}, {Math.round(def.risk * 100)} % на этап
@@ -404,7 +407,7 @@ function BuyDialog({ s, site, onClose }: { s: GameState; site: DcSiteId; onClose
   const parsed = text.trim() === '' ? NaN : Number(text);
   const count = Number.isInteger(parsed) && parsed >= 1 && parsed <= max ? parsed : null;
   const n = count ?? 0;
-  const power = (n * gpuKwAt(site, id) * 24 * MONTH * DC_SITES.find((d) => d.id === site)!.powerPrice) / 1000;
+  const power = (n * gpuKwAt(site, id) * 24 * DAYS_PER_MONTH * DC_SITES.find((d) => d.id === site)!.powerPrice) / 1000;
   const reason = max === 0 ? (afford === 0 ? 'Не хватает денег даже на одну карту' : 'Места нет') : count === null ? `Введите целое число от 1 до ${fmtInt(max)}` : null;
 
   const submit = () => {
@@ -451,7 +454,7 @@ function BuyDialog({ s, site, onClose }: { s: GameState; site: DcSiteId; onClose
             { label: 'Мощность', value: powerFact(g, list) },
             { label: 'Цена', value: `${fmtMoney(price)} за карту` },
             { label: 'Поместится', value: `${fmtInt(fit)} шт., свободно ${fmtMw(dc.mw * 1000 - usedKw(dc))}` },
-            { label: 'В аренде стоила бы', value: `${fmtMoney(rentPerGpuDay(s, id) * MONTH)} в месяц` },
+            { label: 'В аренде стоила бы', value: `${fmtMoney(rentPerGpuDay(s, id) * DAYS_PER_MONTH)} в месяц` },
           ]}
         />
         <div className="dc-qty">
@@ -490,7 +493,7 @@ function BuyDialog({ s, site, onClose }: { s: GameState; site: DcSiteId; onClose
           <dt>Электричество</dt>
           <dd className={n > 0 ? 'bad' : undefined}>{n > 0 ? `${fmtMoney(power)} в месяц` : '-'}</dd>
           <dt>Те же карты в аренде</dt>
-          <dd>{n > 0 ? `${fmtMoney(n * rentPerGpuDay(s, id) * MONTH)} в месяц` : '-'}</dd>
+          <dd>{n > 0 ? `${fmtMoney(n * rentPerGpuDay(s, id) * DAYS_PER_MONTH)} в месяц` : '-'}</dd>
           <dt>Деньги после покупки</dt>
           <dd className={s.cash - n * price < 0 ? 'bad' : undefined}>{fmtMoney(s.cash - n * price)}</dd>
         </dl>

@@ -295,9 +295,9 @@ export function useFlash(ms = 3500): [string | null, (text: string) => void] {
 }
 
 /** Красная строка под элементом: причина недоступности. Не сдвигает раскладку (выводится поверх). */
-export function DenyNote({ text }: { text: string | null }) {
+export function DenyNote({ text, className }: { text: string | null; className?: string }) {
   return text ? (
-    <span className="deny-note" role="alert">
+    <span className={className ? `deny-note ${className}` : 'deny-note'} role="alert">
       {text}
     </span>
   ) : null;

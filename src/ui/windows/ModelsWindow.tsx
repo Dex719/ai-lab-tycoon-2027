@@ -52,7 +52,7 @@ import { Cards } from '../components/Cards';
 import { Alert, ConfirmDialog, DenyNote, ErrorText, GuardButton, ProgressBar, useFlash } from '../components/common';
 import { ModelEmblem } from '../components/ModelEmblem';
 import { TierBadge } from '../components/TierBadge';
-import { endSentence, fmtDays, fmtElo, fmtH100e, fmtMoney, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare, fmtTokens, ruPlural } from '../format';
+import { endSentence, fmtDays, fmtElo, fmtH100e, fmtMoney, fmtNum, fmtParams, fmtPct, fmtPrice, fmtShare, fmtTokens, priceDigits, ruPlural } from '../format';
 import { tokensWord } from '../../sim/text';
 import { IconCaret, IconChevronLeft, IconModels } from '../icons';
 import { raceMetricOf, raceRows } from '../race';
@@ -74,6 +74,9 @@ const PRICE_STEPS = [
 const PRICE_TITLE = 'Цена за 1 млн токенов в долларах. Чем ниже цена, тем больше доля рынка и выше нагрузка на мощности «API».';
 const SUBS_PRICE_TITLE = 'Цена подписки в долларах в месяц. Чем ниже цена, тем больше подписчиков и выше нагрузка на мощности «Подписки».';
 const REVIEW_FIRST = 'Сначала пройдите внешнюю проверку.';
+const API_OFF_REASON = 'Сначала включите продажу по API';
+const SUBS_OFF_REASON = 'Сначала включите подписку';
+const PRICE_SAME = 'Цена не изменилась';
 
 type Tone = 'idle' | 'sale' | 'off';
 
@@ -107,9 +110,15 @@ function tierPrice(day: number, m: PlayerModel): number {
 // Подписка дороже этой цены теряет пользователей круче (market.ts, OVERPRICE_K).
 const SUBS_OVERPRICE_FROM = SUBS_PRICE_RATIO_MAX * SUBS_REF_PRICE;
 
+/** Две цены равны, если они совпадают в том виде, как показаны: знаки берутся у второй (текущей) цены. */
+function sameShownPrice(a: number, b: number): boolean {
+  const d = priceDigits(b);
+  return Number(a.toFixed(d)) === Number(b.toFixed(d));
+}
+
 /** Округление до тех знаков, которые показывает fmtPrice: подставленная цена совпадает с видимой. */
 function roundPrice(v: number): number {
-  const k = 10 ** (v < 1 ? 3 : v < 10 ? 2 : 0);
+  const k = 10 ** priceDigits(v);
   return Math.round(v * k) / k;
 }
 
@@ -369,9 +378,13 @@ function PriceInput(props: {
   onEnter: () => void;
   invalid: boolean;
   title: string;
-  disabled?: boolean;
+  /** Причина, почему поле закрыто: тогда оно только для чтения и на нажатие показывает причину красной строкой. */
+  reason?: string | null;
 }) {
   const id = useId();
+  const [note, flash] = useFlash();
+  const blocked = !!props.reason;
+  const showReason = () => blocked && flash(props.reason!);
   return (
     <div className="mw-field">
       <label className="mw-sub" htmlFor={id}>
@@ -384,13 +397,17 @@ function PriceInput(props: {
           type="text"
           inputMode="decimal"
           value={props.value}
-          disabled={props.disabled}
+          readOnly={blocked}
+          aria-disabled={blocked || undefined}
           className={`mw-price-input${props.invalid ? ' mw-bad' : ''}`}
           aria-invalid={props.invalid}
           title={props.title}
+          onMouseDown={showReason}
+          onFocus={showReason}
           onChange={(e) => props.onChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && props.onEnter()}
         />
+        <DenyNote text={note} />
       </div>
     </div>
   );
@@ -438,6 +455,7 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
   const [text, setText] = useState(() => priceText(base));
   const [subsText, setSubsText] = useState(() => priceText(TIER_SUBS_PRICE[tier] ?? TIER_SUBS_PRICE.mid));
   const [err, setErr] = useState<string | null>(null);
+  const [tiersNote, flashTiers] = useFlash();
   const api = parsePrice(text, s.day);
   const subs = parseSubsPrice(subsText);
   // Кнопка «Выпустить» сама прокручивается в видимую часть окна: в небольшом окне (1024×768) она оказывалась под
@@ -492,20 +510,23 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
         <div className="mw-sub">
           Уровень «{TIER_NAMES[tier]}»: типичная цена за 1 млн токенов - {fmtPrice(base)}
         </div>
-        <div className="mw-tiers" role="radiogroup" aria-label="Рекомендуемая цена">
-          {steps.map((t) => (
-            <button
-              key={t.id}
-              role="radio"
-              aria-checked={api.price === t.price}
-              disabled={!apiOn}
-              className={`mw-tier${api.price === t.price ? ' on' : ''}`}
-              onClick={() => setText(priceText(t.price))}
-            >
-              <span>{t.label}</span>
-              <b className="num">{fmtPrice(t.price)}</b>
-            </button>
-          ))}
+        <div className="guard mw-tiers-guard">
+          <div className="mw-tiers" role="radiogroup" aria-label="Рекомендуемая цена">
+            {steps.map((t) => (
+              <button
+                key={t.id}
+                role="radio"
+                aria-checked={api.price === t.price}
+                aria-disabled={!apiOn || undefined}
+                className={`mw-tier${api.price === t.price ? ' on' : ''}`}
+                onClick={() => (apiOn ? setText(priceText(t.price)) : flashTiers(API_OFF_REASON))}
+              >
+                <span>{t.label}</span>
+                <b className="num">{fmtPrice(t.price)}</b>
+              </button>
+            ))}
+          </div>
+          <DenyNote text={tiersNote} />
         </div>
 
         <div className="mw-release-ch">
@@ -523,7 +544,7 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
                 onEnter={release}
                 invalid={apiOn && api.error !== null}
                 title={PRICE_TITLE}
-                disabled={!apiOn}
+                reason={apiOn ? null : API_OFF_REASON}
               />
               {apiOn && api.price !== null && <span className="mw-sub mw-vs">{versusMarket(api.price, base)}</span>}
             </div>
@@ -548,7 +569,7 @@ function ReleaseBlock({ s, m }: { s: GameState; m: PlayerModel }) {
                     onEnter={release}
                     invalid={subsOn && subs.error !== null}
                     title={SUBS_PRICE_TITLE}
-                    disabled={!subsOn}
+                    reason={subsOn ? null : SUBS_OFF_REASON}
                   />
                 </div>
               </div>
@@ -590,7 +611,8 @@ function Metric(props: { label: string; value: string; sub?: string; tone?: 'inc
 
 function ApiPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowProps['open'] }) {
   const typical = tierPrice(s.day, m);
-  const [text, setText] = useState(() => String(Math.round(m.price * 100) / 100).replace('.', ','));
+  // Поле показывает цену так же, как «Цена за 1 млн» выше (без лишних знаков), и сравнение тоже идёт по ней.
+  const [text, setText] = useState(() => priceText(m.price));
   const [err, setErr] = useState<string | null>(null);
   const { price, error } = parsePrice(text, s.day);
   const { tokens, users, apiRevenue } = salesOf(s, m);
@@ -603,9 +625,9 @@ function ApiPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowPr
   function run(r: Result) {
     setErr(r.ok ? null : r.error);
   }
-  const changePrice = () => price !== null && run(store.dispatch(actions.setModelPrice, m.id, price));
-  // Цена в поле округлена до центов, поэтому сравниваем с точностью до цента.
-  const unchanged = price !== null && Math.round(price * 100) === Math.round(m.price * 100);
+  const unchanged = price !== null && sameShownPrice(price, m.price);
+  const priceReason = price === null ? (error ?? 'Укажите цену') : unchanged ? PRICE_SAME : null;
+  const changePrice = () => priceReason === null && price !== null && run(store.dispatch(actions.setModelPrice, m.id, price));
 
   return (
     <div className={`mw-ch api${m.onApi ? ' on' : ''}`}>
@@ -646,14 +668,14 @@ function ApiPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowPr
       </div>
       <div className="mw-edit mw-ch-edit">
         <PriceInput label="Новая цена за 1 млн токенов" value={text} onChange={setText} onEnter={changePrice} invalid={error !== null} title={PRICE_TITLE} />
-        <button
+        <GuardButton
           className="btn"
-          disabled={price === null || unchanged}
-          title={price === null ? (error ?? 'Укажите цену') : unchanged ? 'Цена не изменилась' : 'Применить новую цену'}
+          reason={priceReason}
+          title={priceReason ? undefined : 'Применить новую цену'}
           onClick={changePrice}
         >
           Изменить цену
-        </button>
+        </GuardButton>
         <span className="mw-sub mw-vs">{price !== null && !unchanged ? versusMarket(price, typical) : ''}</span>
       </div>
       {error && <div className="error">{error}</div>}
@@ -740,7 +762,7 @@ function ReviewBox({ s, m }: { s: GameState; m: PlayerModel }) {
 }
 
 function SubsPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowProps['open'] }) {
-  const [text, setText] = useState(() => String(Math.round(m.subsPrice * 100) / 100).replace('.', ','));
+  const [text, setText] = useState(() => priceText(m.subsPrice));
   const [err, setErr] = useState<string | null>(null);
   const { price, error } = parseSubsPrice(text);
   const { subscribers, subsRevenue } = salesOf(s, m);
@@ -756,8 +778,9 @@ function SubsPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowP
   function run(r: Result) {
     setErr(r.ok ? null : r.error);
   }
-  const changePrice = () => price !== null && run(store.dispatch(actions.setSubsPrice, m.id, price));
-  const unchanged = price !== null && Math.round(price * 100) === Math.round(m.subsPrice * 100);
+  const unchanged = price !== null && sameShownPrice(price, m.subsPrice);
+  const priceReason = price === null ? (error ?? 'Укажите цену') : unchanged ? PRICE_SAME : null;
+  const changePrice = () => priceReason === null && price !== null && run(store.dispatch(actions.setSubsPrice, m.id, price));
 
   return (
     <div className={`mw-ch subs${m.onSubs ? ' on' : ''}`}>
@@ -788,14 +811,14 @@ function SubsPanel({ s, m, open }: { s: GameState; m: PlayerModel; open: WindowP
       </div>
       <div className="mw-edit mw-ch-edit">
         <PriceInput label="Цена подписки в месяц" value={text} onChange={setText} onEnter={changePrice} invalid={error !== null} title={SUBS_PRICE_TITLE} />
-        <button
+        <GuardButton
           className="btn"
-          disabled={price === null || unchanged}
-          title={price === null ? (error ?? 'Укажите цену') : unchanged ? 'Цена не изменилась' : 'Применить новую цену'}
+          reason={priceReason}
+          title={priceReason ? undefined : 'Применить новую цену'}
           onClick={changePrice}
         >
           Изменить цену
-        </button>
+        </GuardButton>
       </div>
       {error && <div className="error">{error}</div>}
       <ErrorText error={err} />
@@ -1013,8 +1036,6 @@ function Specs(props: { arch: 'lstm' | 'transformer'; plan: TrainingPlan; dates:
 
 // ---------- Модель в обучении ----------
 
-const DAYS_IN_MONTH = 30;
-
 function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: WindowProps['open'] }) {
   const [stopping, setStopping] = useState(false);
   const [stopErr, setStopErr] = useState<string | null>(null);
@@ -1039,7 +1060,7 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
     },
     {
       label: 'Аренда в месяц',
-      value: fmtMoney(rentDay * DAYS_IN_MONTH),
+      value: fmtMoney(rentDay * DAYS_PER_MONTH),
       sub: left !== null ? `≈ ${fmtMoney(rentDay * left)} до конца` : undefined,
       tone: 'cost',
       title: 'Часть аренды доли «Обучение», которая приходится на этот проект',

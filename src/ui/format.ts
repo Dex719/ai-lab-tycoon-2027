@@ -33,10 +33,15 @@ export function fmtMoney(n: number): string {
   return `${sign}$${dec(a / 1e12, 1)} трлн`;
 }
 
+/** Знаков после запятой у цены за 1М токенов: до $1 - три, до $10 - два, дальше целые. */
+export function priceDigits(n: number): number {
+  return n < 1 ? 3 : n < 10 ? 2 : 0;
+}
+
 /** Цена за 1М токенов: $0,25, $2,5, $60 */
 export function fmtPrice(n: number): string {
   if (!Number.isFinite(n)) return '-';
-  return `$${dec(n, n < 1 ? 3 : n < 10 ? 2 : 0)}`;
+  return `$${dec(n, priceDigits(n))}`;
 }
 
 /** value в процентах (43.9 → «43,9 %») */

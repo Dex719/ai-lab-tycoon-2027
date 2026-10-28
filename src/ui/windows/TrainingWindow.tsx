@@ -420,7 +420,7 @@ function RunningBar({ s, t }: { s: GameState; t: TrainingRun }) {
         ) : eta !== null ? (
           <span className={late ? 'warn' : undefined}>
             готово {formatDateShort(s.day + eta)}
-            {late && ', позже конца игры'}
+            {late && `, не успеет до ${formatDateShort(END_DAY)}`}
           </span>
         ) : (
           <span className="warn">стоит: нет мощности</span>
@@ -562,7 +562,7 @@ function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
         <div className={`nm-kpi-v${days === null ? ' dim' : ''}`}>{days !== null ? `${fmtNum(days)} дн.` : '-'}</div>
         <div className={`nm-kpi-s${late || (days !== null && days > LONG_RUN_DAYS) ? ' warn' : ''}`}>
           {days !== null
-            ? `Готово ${formatDateShort(s.day + days)}${late ? ', позже конца игры' : days > LONG_RUN_DAYS ? ', дольше года' : ''} · ${fmtCards(s, power)}`
+            ? `Готово ${formatDateShort(s.day + days)}${late ? `, не успеет до ${formatDateShort(END_DAY)}` : days > LONG_RUN_DAYS ? ', дольше года' : ''} · ${fmtCards(s, power)}`
             : 'Нет мощности на обучение'}
         </div>
         {overhead >= 1.05 && (
@@ -616,6 +616,35 @@ function TierOption(props: { s: GameState; tier: Tier; selected: boolean; onPick
   );
 }
 
+const RLHF_LOCKED = 'Нужно исследование RLHF';
+const HONEST_LOCKED = 'Закрыто испытанием «Честная лаборатория»';
+
+/**
+ * Флажок, который закрыт причиной (reason): нажатие не меняет его, а показывает причину красной строкой.
+ * Строка выводится внутри <label> (родителя с position: relative), поэтому флажок рендерится вместе с ней.
+ */
+function GuardCheck(props: { checked: boolean; reason: string | null; className?: string; onChange: (v: boolean) => void }) {
+  const [note, flash] = useFlash();
+  const blocked = props.reason !== null;
+  return (
+    <>
+      <input
+        type="checkbox"
+        className={props.className}
+        checked={props.checked}
+        aria-disabled={blocked || undefined}
+        onClick={(e) => {
+          if (!blocked) return;
+          e.preventDefault();
+          flash(props.reason!);
+        }}
+        onChange={(e) => !blocked && props.onChange(e.target.checked)}
+      />
+      <DenyNote text={note} />
+    </>
+  );
+}
+
 // ---------- Подтверждение ----------
 
 /** Окно перед стартом: стоимость, срок и мощность проекта, кнопка-глагол. */
@@ -647,6 +676,8 @@ function StartConfirm(props: { s: GameState; plan: TrainingPlan; est: Est; onCon
         )}
         <dt>Срок</dt>
         <dd>{days !== null ? `${fmtDays(Math.ceil(days))}, готово ${formatDateShort(s.day + days)}` : 'нет мощности на обучение'}</dd>
+        <dt>Конец игры</dt>
+        <dd>{formatDateShort(END_DAY)}</dd>
         <dt>Мощность</dt>
         <dd>
           {fmtH100e(power)} H100e <Cards s={s} h100e={power} />
@@ -718,12 +749,15 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
   const noCompute = trainPool <= 0;
   // RLHF платит разметчикам сразу, а без мощности на обучение проект не движется: такой запуск закрываем.
   const rlhfNoCompute = plan.rlhf && noCompute;
-  const canStart = est !== null && est.error === null && !rlhfNoCompute;
+  const nums = est ? projectNumbers(s, est) : null;
+  // Обучение, которое закончится после конца игры, не стартуем: модель уже не выйдет в партии.
+  const tooLate = nums !== null && nums.days !== null && s.day + nums.days > END_DAY;
+  const canStart = est !== null && est.error === null && !rlhfNoCompute && !tooLate;
   const reason =
     est === null
       ? 'Оценка проекта недоступна.'
-      : (est.error ?? (rlhfNoCompute ? 'Выделите мощность на обучение: разметчикам платят при старте.' : null));
-  const nums = est ? projectNumbers(s, est) : null;
+      : (est.error ??
+        (rlhfNoCompute ? 'Выделите мощность на обучение: разметчикам платят при старте.' : tooLate ? `Не успеет до ${formatDateShort(END_DAY)}` : null));
 
   // Насколько данные подходят к размеру: при автоподборе отстаём, только если данных в этом году мало.
   const eff = chinchillaFactor(plan.paramsB, plan.tokensB);
@@ -888,7 +922,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
             >
               <span className="nm-opt-top">
                 <span>Отзывы людей (RLHF)</span>
-                <input type="checkbox" className="nm-switch" checked={plan.rlhf} disabled={!rlhfDone} onChange={(e) => patch({ rlhf: e.target.checked })} />
+                <GuardCheck className="nm-switch" checked={plan.rlhf} reason={rlhfDone ? null : RLHF_LOCKED} onChange={(v) => patch({ rlhf: v })} />
               </span>
               <span className="nm-opt-d">
                 Модель отвечает как собеседник: Эло выше.{' '}
@@ -910,7 +944,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
             <label className={`nm-opt risk${stolen ? ' on' : ''}`}>
               <span className="nm-opt-top">
                 <span>Чужие данные</span>
-                <input type="checkbox" className="nm-switch" checked={stolen} disabled={honestRun} onChange={(e) => patch({ stolen: e.target.checked })} />
+                <GuardCheck className="nm-switch" checked={stolen} reason={honestRun ? HONEST_LOCKED : null} onChange={(v) => patch({ stolen: v })} />
               </span>
               <span className="nm-opt-d">
                 Книги, сайты и ответы чужих моделей без разрешения: данных в {fmtNum(STOLEN_TOKENS_MULT)} раза больше, Эло выше на{' '}
@@ -941,7 +975,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
                         className={`nm-tag${checked ? ' on' : ''}${full ? ' off' : ''}`}
                         title={full ? `Выбрано максимум тестов: ${MAX_BENCH_TARGETS}.` : `${def.description} Область: ${DOMAIN_RU[def.domain]}.`}
                       >
-                        <input type="checkbox" checked={checked} disabled={full} onChange={() => toggleTarget(b)} />
+                        <GuardCheck checked={checked} reason={full ? `Выбрано максимум тестов: ${MAX_BENCH_TARGETS}` : null} onChange={() => toggleTarget(b)} />
                         {def.name}
                       </label>
                     );

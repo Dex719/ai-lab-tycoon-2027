@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
 import { GPUS } from '../../data/gpus';
 import { nextArrival, pool, rentPerDay, totalH100e } from '../../sim/compute';
-import { ALGO_MULT, CONTEXT_LEVELS, RP_BASE, RP_K } from '../../sim/constants';
+import { ALGO_MULT, CONTEXT_LEVELS, DAYS_PER_MONTH, RP_BASE, RP_K } from '../../sim/constants';
 import {
   BRANCH_NAMES,
   CONTEXT_MAX_LEVEL,
@@ -26,11 +26,11 @@ import {
   techRequires,
 } from '../../sim/research';
 import { timesWord, tokensWord } from '../../sim/text';
-import { formatDateShort } from '../../sim/time';
+import { END_DAY, formatDateShort } from '../../sim/time';
 import type { GameState, TechId } from '../../sim/types';
 import { TECH_IDS } from '../../sim/types';
 import { checkAllocation, percentsOf, soldChannels, toAllocation, withPercent, ZERO_SHARE_WARNING } from '../alloc';
-import { ConfirmDialog, DenyNote, Dialog, ErrorText, Range, useFlash } from '../components/common';
+import { ConfirmDialog, DenyNote, Dialog, ErrorText, GuardButton, Range, useFlash } from '../components/common';
 import { researchDaysAt } from '../forecast';
 import { fmtMoney, fmtMult, fmtNum, fmtPct } from '../format';
 import { IconCheck, IconClose, IconLock } from '../icons';
@@ -325,7 +325,7 @@ function NowStrip(props: {
           </div>
           <div className="rs-now-m">
             <b>{fmtPct(share * 100, 0)}</b> · готово через {termText(days)}
-            {Number.isFinite(days) && `, ${formatDateShort(s.day + Math.max(1, days))}`} · {techGain(s, current)}
+            {Number.isFinite(days) && (s.day + Math.max(1, days) > END_DAY ? `, не успеет до ${formatDateShort(END_DAY)}` : `, ${formatDateShort(s.day + Math.max(1, days))}`)} · {techGain(s, current)}
           </div>
         </div>
         <div className="rs-now-side">
@@ -513,8 +513,6 @@ export default function ResearchWindow({ s, open }: WindowProps) {
 
 // ---------- Диалог исследования ----------
 
-const DAYS_IN_MONTH = 30;
-
 function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; onClose: () => void; onRent: () => void }) {
   const info = techInfo(id);
   const current = percentsOf(s.compute.alloc);
@@ -541,10 +539,11 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
   // Края ползунка - срок без карт (работает команда) и со всей мощностью: честно видно, сколько даёт ползунок.
   const endDate = (share: number): string => {
     const d = researchDaysAt(s, id, share);
-    return Number.isFinite(d) ? formatDateShort(s.day + Math.max(1, d)) : '-';
+    if (!Number.isFinite(d)) return '-';
+    return s.day + Math.max(1, d) > END_DAY ? `после ${formatDateShort(END_DAY)}` : formatDateShort(s.day + Math.max(1, d));
   };
   const penalty = earlyPenalty(s, id);
-  const rentMonth = rentPerDay(s) * (pct / 100) * DAYS_IN_MONTH;
+  const rentMonth = rentPerDay(s) * (pct / 100) * DAYS_PER_MONTH;
   const changed = pct !== current.experiments;
   const noCards = total <= 0;
   const past = pastHistory(s, id);
@@ -612,9 +611,13 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
         <button className="btn" onClick={onClose}>
           Закрыть
         </button>
-        <button className="btn primary" disabled={!changed || noCards} onClick={() => ask('save')}>
+        <GuardButton
+          className="btn primary"
+          reason={noCards ? 'Нет карт: арендуйте мощность' : !changed ? 'Доля не изменилась' : null}
+          onClick={() => ask('save')}
+        >
           Применить
-        </button>
+        </GuardButton>
       </>
     ) : (
       <>

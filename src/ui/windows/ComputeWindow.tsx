@@ -23,14 +23,14 @@ import {
   orderedCount,
   rentDeliveryDays,
 } from '../../sim/compute';
-import { BANKRUPT_DAYS, RENT_OVER_CAP_MULT } from '../../sim/constants';
+import { BANKRUPT_DAYS, DAYS_PER_MONTH, RENT_OVER_CAP_MULT } from '../../sim/constants';
 import { monthlyRate } from '../runway';
 import { ownedCards } from '../../sim/datacenters';
 import { idleWarnings } from '../../sim/idle';
 import { CHAT_MOMENT_DAY, inferenceNeed, marketSnapshot, subsOpen } from '../../sim/market';
 import { TECHS } from '../../sim/research';
 import { timesWord } from '../../sim/text';
-import { formatDateShort, yearOf } from '../../sim/time';
+import { END_DAY, formatDateShort, yearOf } from '../../sim/time';
 import type { GameState, GpuDef, GpuId } from '../../sim/types';
 import {
   ALLOC_ROWS,
@@ -60,8 +60,6 @@ import { GpuBadge } from '../GpuBadge';
 import './ComputeWindow.css';
 import { tutorialRentGoal } from '../tutorialSteps';
 
-/** Аренда списывается каждый день; в интерфейсе стоимость показана за 30 дней. */
-const DAYS_IN_MONTH = 30;
 /** «в 1,8 раза» - надбавка к цене за карты сверх лимита. */
 const OVER_TIMES = timesWord(RENT_OVER_CAP_MULT);
 
@@ -74,14 +72,14 @@ function fmtCardsCount(n: number): string {
   return `${n >= 10_000 ? fmtNum(n) : fmtInt(n)} ${cardsWord(n)}`;
 }
 
-/** Аренда count карт за 30 дней с надбавкой за карты сверх лимита (rentCostPerDay). */
+/** Аренда count карт за месяц с надбавкой за карты сверх лимита (rentCostPerDay). */
 function monthlyCost(s: GameState, id: GpuId, count: number): number {
-  return rentCostPerDay(s, id, count) * DAYS_IN_MONTH;
+  return rentCostPerDay(s, id, count) * DAYS_PER_MONTH;
 }
 
 /** Цена аренды одной карты в месяц: «$1 368». */
 function fmtCardMonth(perDay: number): string {
-  return `$${fmtInt(perDay * DAYS_IN_MONTH)}`;
+  return `$${fmtInt(perDay * DAYS_PER_MONTH)}`;
 }
 
 /** Самая дешёвая по цене за единицу мощности среди доступных; пока доступна одна карта, сравнивать не с чем. */
@@ -192,7 +190,7 @@ function Side({ s, onRent }: { s: GameState; onRent: () => void }) {
       </div>
       <dl className="cw-fig-kv">
         <dt>Аренда в месяц</dt>
-        <dd className={rentPerDay(s) > 0 ? 'bad' : undefined}>{rentPerDay(s) > 0 ? fmtMoney(rentPerDay(s) * DAYS_IN_MONTH) : '-'}</dd>
+        <dd className={rentPerDay(s) > 0 ? 'bad' : undefined}>{rentPerDay(s) > 0 ? fmtMoney(rentPerDay(s) * DAYS_PER_MONTH) : '-'}</dd>
         <dt title={`До лимита - обычная цена, сверх него карты дороже ${OVER_TIMES}. Лимит растёт каждый год`}>Лимит аренды</dt>
         <dd>{fmtInt(cap)} на тип</dd>
       </dl>
@@ -408,7 +406,7 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
             <FlashNum value={s.cash} className="on-light">
               <b className={s.cash < 0 ? 'bad' : undefined}>{fmtMoney(s.cash)}</b>
             </FlashNum>
-            <small title="Аренда всех карт после прихода заказа">вся аренда {count === null ? '-' : fmtMoney(rentPerDay(s) * DAYS_IN_MONTH + (delta?.money ?? 0))} в месяц</small>
+            <small title="Аренда всех карт после прихода заказа">вся аренда {count === null ? '-' : fmtMoney(rentPerDay(s) * DAYS_PER_MONTH + (delta?.money ?? 0))} в месяц</small>
           </div>
         </div>
         <div className={`cw-eta${warn ? ' bad' : ''}`} role="status">
@@ -468,7 +466,7 @@ const RUNWAY_WARN_DAYS = 60;
 export function runwayWarn(s: GameState, extra: number): string | null {
   const rate = monthlyRate(s) - extra;
   if (rate >= 0) return null;
-  const days = s.cash > 0 ? Math.floor(s.cash / (-rate / DAYS_IN_MONTH)) : 0;
+  const days = s.cash > 0 ? Math.floor(s.cash / (-rate / DAYS_PER_MONTH)) : 0;
   if (days >= RUNWAY_WARN_DAYS) return null;
   return days > 0
     ? `С этой арендой денег хватит примерно на ${fmtDaysWord(days)}. Через ${BANKRUPT_DAYS} дней в минусе - банкротство.`
@@ -520,7 +518,7 @@ function RowEffect({ s, k, share }: { s: GameState; k: 'training' | 'experiments
       </div>
     );
   }
-  const date = (d: number | null) => (d === null ? 'не скоро' : formatDateShort(s.day + d));
+  const date = (d: number | null) => (d === null ? 'не скоро' : s.day + d > END_DAY ? `после ${formatDateShort(END_DAY)}` : formatDateShort(s.day + d));
   const moved = now !== next;
   const tone = !moved ? '' : next === null || (now !== null && next > now) ? ' later' : ' sooner';
   return (

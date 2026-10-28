@@ -88,13 +88,15 @@ body:has(.menu-screen) .modal-backdrop { background: rgba(0, 0, 0, 0.94); }
 .tb-warn { color: #f2c94c; }
 .tb-dim { color: #a9acb2; }
 .tb-runway { margin-left: 8px; font-size: 12px; white-space: nowrap; }
-.speed { display: flex; align-items: center; gap: 2px; }
+.speed { position: relative; display: flex; align-items: center; gap: 2px; }
+.deny-note.speed-deny-under { top: calc(100% + 4px); bottom: auto; left: 0; right: auto; }
 .speed button {
   width: 32px; height: 28px; display: grid; place-items: center; background: none; border: none; border-radius: 3px;
   color: var(--bar-dim); cursor: pointer;
 }
 .speed button:hover { color: var(--bar-text); background: rgba(255, 255, 255, 0.08); }
 .speed button.on { color: var(--bar-text); }
+.speed button[aria-disabled='true'] { opacity: 0.35; cursor: not-allowed; }
 .money-pop {
   position: absolute; top: 34px; left: 50%; transform: translateX(-50%); min-width: 300px; padding: 6px 8px;
   background: rgba(20, 20, 22, 0.96); border-radius: 3px; font: 14px var(--font); color: var(--bar-dim);
@@ -171,7 +173,9 @@ body:has(.menu-screen) .modal-backdrop { background: rgba(0, 0, 0, 0.94); }
   align-self: center; width: 20px; height: 64px; display: grid; place-items: center; background: #2c2d31; color: #cfd2d6;
   border: none; border-radius: 4px 0 0 4px; cursor: pointer;
 }
-.side-tab:disabled { color: #6b6e74; cursor: default; }
+.side-tab[aria-disabled='true'] { color: #6b6e74; cursor: not-allowed; }
+/* Причина у стрелки панели: слева от неё, у правого края экрана не обрезается. */
+.deny-note.deny-left { right: calc(100% + 6px); bottom: auto; top: 50%; margin-top: -12px; }
 .side-body { width: 290px; background: var(--side); color: var(--bar-text); border-radius: 3px 0 0 3px; display: flex; flex-direction: column; }
 .side-head { padding: 10px 12px 8px; font-size: 16px; border-top: 3px solid var(--c-teal); }
 .side-tabs { display: flex; gap: 6px; padding: 0 12px 10px; }
@@ -317,7 +321,6 @@ table.grid tr.player td { background: var(--row-sel); font-weight: 600; }
 table.grid tbody tr:hover td { background: var(--row-hover); }
 table.grid td.num, table.grid th.num { text-align: right; }
 .est { color: var(--text-dim); font-style: italic; }
-.dim { opacity: 0.5; }
 
 .tabs { display: flex; gap: 20px; padding: 0 14px; background: var(--win-title); border-bottom: 1px solid var(--line); margin: -12px -14px 12px; }
 .tab {

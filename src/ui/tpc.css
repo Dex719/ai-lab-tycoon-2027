@@ -373,7 +373,12 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
 
 @media (min-width: 768px) {
   /* ---------- Сводка справа, как панель целей в образце ---------- */
-  .game .side-body { background: var(--hud); border-radius: 16px; overflow: hidden; }
+  .game .side-body { background: var(--hud); border-radius: 16px; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
+  /* Сводка прокручивается целиком, если не умещается в высоту окна (на 1024x768 тендер и цели обрезались снизу):
+     список проектов не сжимается в ноль, а уходит под прокрутку. */
+  .game .side-body > .side-list { flex: none; }
+  /* Цели года не сжимаются в свою прокрутку: вся сводка прокручивается одним блоком без полосы. */
+  .game .side .side-body > div.quests-zone:not(.tutor) { flex: none; min-height: 0; overflow: visible; }
   .game .side-head { font-size: 17px; letter-spacing: 0.02em; box-shadow: inset 0 -4px 0 var(--brand-edge); }
   /* Гонка - белая карточка: крупное место и разрыв. */
   .game .side-race {
@@ -384,6 +389,7 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
   .game .side-race.first .sr-place { color: var(--good-ink); }
   .game .side-race .sr-k, .game .side-race .sr-m { color: var(--text-2); font-weight: var(--fw-small); }
   .game .side-race .sr-v { color: var(--text); font-weight: var(--fw-title); }
+  .game .side-race .sr-m b { color: var(--text); font-weight: var(--fw-strong); }
   .game .side-rival { margin: 0 10px 6px; border: none; border-radius: 999px; background: rgb(255 255 255 / 0.12); color: var(--hud-text-2); }
   .game .side-rival b { color: #fff; }
   /* Простой и другие тревоги - белая карточка, как гонка: красное только слово-причина, без красной заливки. */

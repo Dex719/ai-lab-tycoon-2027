@@ -112,6 +112,8 @@ function PersonCard(props: { s: GameState; e?: Employee; c?: Candidate; act: (p:
   const working = e ? isWorking(e, s.day) : true;
   const canGrow = e ? e.level < levelCap(e) : false;
   const ready = !!e && canGrow && e.xp >= 1;
+  // Причина, почему кнопка «Расти некуда» закрыта: сотрудник уже на потолке своего уровня.
+  const capReason = e ? (e.level < 3 ? `Выше уровня «${LEVEL_NAMES[e.level]}» не вырастет` : 'Высший уровень') : 'Некого обучать';
   const xp = e ? Math.round(Math.min(1, e.xp) * 100) : 0;
   const studying = !!e && isOnCourse(e, s.day);
   const study = e && studying ? Math.round(courseProgress(e, s.day) * 100) : 0;
@@ -192,9 +194,9 @@ function PersonCard(props: { s: GameState; e?: Employee; c?: Candidate; act: (p:
             {studying ? 'На обучении' : `Обучить · ${fmtMoney(courseCost(e!))}`}
           </GuardButton>
         ) : (
-          <button className="btn" disabled>
+          <GuardButton className="btn" reason={capReason} onClick={() => undefined}>
             Расти некуда
-          </button>
+          </GuardButton>
         )}
         {e && (
           <button className="tm-fire" onClick={() => act({ kind: 'fire', e })} title="Уволить">

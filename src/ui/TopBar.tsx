@@ -20,6 +20,7 @@ import { subsOpen } from '../sim/market';
 import { IconAlert, IconArrowUpDown, IconBank, IconCalendar, IconFast, IconFaster, IconLogo, IconPause, IconPlay } from './icons';
 import { EXPENSE_KINDS, EXPENSE_LABELS, INCOME_KINDS, INCOME_LABELS } from './labels';
 import { store, useSpeed } from './store';
+import { DenyNote, useFlash } from './components/common';
 import { monthlyRate } from './runway';
 import { isCoarsePointer } from './viewport';
 
@@ -115,6 +116,10 @@ function TopBarView({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; phon
   const rate = monthlyRate(s);
   const cashShown = useCountUp(s.cash);
   const locked = !!s.outcome || pendingChoice(s) !== null || store.simError !== null;
+  const [speedNote, flashSpeed] = useFlash();
+  // Скорость закрыта, пока партия не окончена или ждёт ответа письмо с выбором; пауза доступна всегда.
+  const speedReason = s.outcome ? 'Партия окончена' : pendingChoice(s) !== null ? 'Сначала ответьте на письмо с выбором' : 'Игра остановлена из-за ошибки';
+  const onSpeed = (sp: Speed) => (locked && sp !== 0 ? flashSpeed(speedReason) : store.setSpeed(sp));
   const negative = s.finance.negativeDays > 0;
   // Пауза и ожидание ответа на письмо выглядят одинаково: игра стоит.
   const paused = (speed === 0 || locked) && !s.outcome;
@@ -128,13 +133,14 @@ function TopBarView({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; phon
           title={title}
           aria-label={title}
           aria-pressed={speed === sp}
-          disabled={locked && sp !== 0}
+          aria-disabled={locked && sp !== 0 ? true : undefined}
           data-tutorial={sp === 1 ? 'speed-play' : sp === 4 ? 'speed-fast' : undefined}
-          onClick={() => store.setSpeed(sp)}
+          onClick={() => onSpeed(sp)}
         >
           <Icon />
         </button>
       ))}
+      <DenyNote text={speedNote} />
     </div>
   );
   const pauseNote = (store.pauseReason || negative) && speed === 0 && (
@@ -277,13 +283,14 @@ function TopBarView({ s, phone, sheetOpen, onToggleSheet }: { s: GameState; phon
               title={title}
               aria-label={title}
               aria-pressed={speed === sp}
-              disabled={locked && sp !== 0}
+              aria-disabled={locked && sp !== 0 ? true : undefined}
               data-tutorial={sp === 1 ? 'speed-play' : sp === 4 ? 'speed-fast' : undefined}
-              onClick={() => store.setSpeed(sp)}
+              onClick={() => onSpeed(sp)}
             >
               <Icon />
             </button>
           ))}
+          <DenyNote text={speedNote} className="speed-deny-under" />
         </div>
       </div>
       {phone && (
