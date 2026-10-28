@@ -1036,8 +1036,6 @@ function Specs(props: { arch: 'lstm' | 'transformer'; plan: TrainingPlan; dates:
 
 // ---------- Модель в обучении ----------
 
-const DAYS_IN_MONTH = 30;
-
 function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: WindowProps['open'] }) {
   const [stopping, setStopping] = useState(false);
   const [stopErr, setStopErr] = useState<string | null>(null);
@@ -1062,7 +1060,7 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
     },
     {
       label: 'Аренда в месяц',
-      value: fmtMoney(rentDay * DAYS_IN_MONTH),
+      value: fmtMoney(rentDay * DAYS_PER_MONTH),
       sub: left !== null ? `≈ ${fmtMoney(rentDay * left)} до конца` : undefined,
       tone: 'cost',
       title: 'Часть аренды доли «Обучение», которая приходится на этот проект',

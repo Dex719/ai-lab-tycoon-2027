@@ -438,6 +438,11 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
                 )}
               </>
             )}
+            {mode === 'load' && !slot.meta && slot.broken && (
+              <button className="btn small danger" onClick={() => setDel(slot.id)}>
+                Удалить
+              </button>
+            )}
             {mode === 'save' && MANUAL_SLOTS.includes(slot.id) && (
               <>
                 {saved === slot.id && <span className="small good">Сохранено</span>}
@@ -464,22 +469,26 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
       <div style={{ marginTop: 10 }}>
         <ErrorText error={error} />
       </div>
-      {del !== null && delSlot?.meta && (
+      {del !== null && (delSlot?.meta || delSlot?.broken) && (
         // Подтверждение выводится поверх этого окна; Escape в нём не должен закрывать и список ячеек.
         <span onKeyDown={(e) => e.stopPropagation()}>
           <ConfirmDialog title="Удаление сохранения" confirmLabel="Удалить" danger onConfirm={() => remove(del)} onClose={() => setDel(null)}>
-            <div className="kv">
-              <span>Ячейка</span>
-              <span>{slotTitle(del)}</span>
-              <span>Лаборатория</span>
-              <span>{delSlot.meta.labName}</span>
-              <span>Дата в игре</span>
-              <span>{formatDateShort(delSlot.meta.day)}</span>
-              <span>Сложность</span>
-              <span>{DIFFICULTY[delSlot.meta.difficulty].name}</span>
-              <span>Сохранено</span>
-              <span>{formatSavedAt(delSlot.meta.savedAt)}</span>
-            </div>
+            {delSlot?.meta ? (
+              <div className="kv">
+                <span>Ячейка</span>
+                <span>{slotTitle(del)}</span>
+                <span>Лаборатория</span>
+                <span>{delSlot.meta.labName}</span>
+                <span>Дата в игре</span>
+                <span>{formatDateShort(delSlot.meta.day)}</span>
+                <span>Сложность</span>
+                <span>{DIFFICULTY[delSlot.meta.difficulty].name}</span>
+                <span>Сохранено</span>
+                <span>{formatSavedAt(delSlot.meta.savedAt)}</span>
+              </div>
+            ) : (
+              <span>Сохранение повреждено, его нельзя загрузить. Удалить его?</span>
+            )}
           </ConfirmDialog>
         </span>
       )}

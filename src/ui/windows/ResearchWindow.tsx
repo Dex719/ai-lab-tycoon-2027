@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom';
 import type { WindowProps } from '.';
 import { GPUS } from '../../data/gpus';
 import { nextArrival, pool, rentPerDay, totalH100e } from '../../sim/compute';
-import { ALGO_MULT, CONTEXT_LEVELS, RP_BASE, RP_K } from '../../sim/constants';
+import { ALGO_MULT, CONTEXT_LEVELS, DAYS_PER_MONTH, RP_BASE, RP_K } from '../../sim/constants';
 import {
   BRANCH_NAMES,
   CONTEXT_MAX_LEVEL,
@@ -513,8 +513,6 @@ export default function ResearchWindow({ s, open }: WindowProps) {
 
 // ---------- Диалог исследования ----------
 
-const DAYS_IN_MONTH = 30;
-
 function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; onClose: () => void; onRent: () => void }) {
   const info = techInfo(id);
   const current = percentsOf(s.compute.alloc);
@@ -545,7 +543,7 @@ function ResearchDialog({ s, id, onClose, onRent }: { s: GameState; id: TechId; 
     return s.day + Math.max(1, d) > END_DAY ? `после ${formatDateShort(END_DAY)}` : formatDateShort(s.day + Math.max(1, d));
   };
   const penalty = earlyPenalty(s, id);
-  const rentMonth = rentPerDay(s) * (pct / 100) * DAYS_IN_MONTH;
+  const rentMonth = rentPerDay(s) * (pct / 100) * DAYS_PER_MONTH;
   const changed = pct !== current.experiments;
   const noCards = total <= 0;
   const past = pastHistory(s, id);
