@@ -329,7 +329,6 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
   }
   .hb-pill .tb-bad { color: var(--bad-ink); }
   .hb-row { display: flex; align-items: center; gap: 8px; }
-  .hb-sub:empty { display: none; }
   html .game .topbar.tpc .speed { display: flex; gap: 3px; }
   html .game .topbar.tpc .speed button {
     width: 34px; height: 32px; border-radius: 8px; background: var(--surface-control); color: var(--brand-edge); box-shadow: inset 0 -3px 0 var(--edge);
@@ -340,7 +339,7 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
   .hb-rate { margin-left: auto; padding: 4px 10px; border-radius: 999px; background: var(--track-hud); font-size: 14px; font-weight: var(--fw-title); white-space: nowrap; }
   .hb-rate.good { color: var(--good-on-hud); }
   .hb-rate.bad { color: var(--bad-on-hud); }
-  .hb-sub { color: var(--hud-text-2); font-size: 13px; font-weight: var(--fw-small); }
+  .hb-sub { min-height: 1.75em; color: var(--hud-text-2); font-size: 13px; font-weight: var(--fw-small); }
   .hb-sub .tb-runway { margin: 0; }
 
   /* Показатели над HUD: белые таблетки с бирюзовыми шкалами. */
