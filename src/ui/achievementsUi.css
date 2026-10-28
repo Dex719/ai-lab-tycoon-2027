@@ -1,9 +1,8 @@
 /* Достижения: плашки при получении (слева под верхней панелью) и список в окне.
    Плашка - как уведомление игры: кремовая карточка с белой каймой, о награде говорит медаль и подпись. Медаль плоская. */
-/* Справа, в просвете между сводкой и показателями: окна туда не заходят (HUD_RIGHT), плашки не наезжают
-   на уведомления слева и на подписи сцены (плейтест 17.10). Новая - снизу, старые поднимаются. */
-.ach-toasts { position: fixed; right: 12px; bottom: 244px; z-index: 885; display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 6px; pointer-events: none; }
-.ach-toasts .ach-toast { min-width: 0; max-width: 290px; }
+/* Стоят в общей колонке уведомлений (theme.css, .note-col) вместе с письмами. Новая - снизу, старые поднимаются. */
+.ach-toasts { display: flex; flex-direction: column-reverse; align-items: stretch; gap: 6px; pointer-events: none; }
+.ach-toasts .ach-toast { min-width: 0; max-width: none; }
 .ach-toast {
   display: flex; align-items: center; gap: 10px; min-width: 260px; max-width: 360px; padding: 8px 14px 8px 10px;
   background: var(--surface-card); color: var(--text); border: 3px solid var(--surface-control); border-radius: 14px;

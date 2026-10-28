@@ -187,7 +187,8 @@ table.grid tr:nth-child(even) td { background: var(--row-alt); }
   .game .task-start:hover, .game .task-start.on { background: var(--brand); }
   .game .start-menu { bottom: 116px; left: 12px; border-radius: 14px; background: var(--hud-2); }
   html .game .dock {
-    position: fixed; left: 0; top: 50%; transform: translateY(-50%); flex: none; height: auto; flex-direction: column; justify-content: flex-start;
+    /* Колонка прижата к верху (под лентой, где начинаются окна), а не центрируется: иначе при появлении раздела все значки уезжали. */
+    position: fixed; left: 0; top: 62px; transform: none; max-height: calc(100vh - 62px - 44px); flex: none; height: auto; flex-direction: column; justify-content: flex-start;
     gap: 6px; padding: 10px 8px; background: var(--hud); border-radius: 0 16px 16px 0; z-index: 905;
   }
   html .game .dock-btn {
@@ -242,8 +243,12 @@ table.grid tr:nth-child(even) td { background: var(--row-alt); }
 .toast-x { border-radius: 50%; }
 
 @media (min-width: 768px) {
-  /* Уведомления - слева снизу, рядом с колонкой разделов: справа снизу деньги и скорость. */
-  .toasts { right: auto; left: 96px; bottom: 46px; }
+  /* Уведомления и достижения - одной колонкой слева снизу, рядом с колонкой разделов: справа снизу деньги и скорость.
+     Над «Следующим шагом», если он есть (высота полосы - ниже). */
+  .note-col { right: auto; left: 96px; bottom: 46px; }
+  /* Пока подписи разделов видны, колонка уходит правее: иначе она закрывает названия («Продукты», «Аналитика»). */
+  body:has(.game .dock.labels) .note-col { left: 196px; }
+  body:has(.game .lf-next) .note-col { bottom: 155px; }
 }
 
 /* ---------- Главное меню: лаборатория на траве, лента с названием, бирюзовая панель с кнопками-таблетками ---------- */
@@ -357,12 +362,13 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
 
 @media (min-width: 768px) {
   /* ---------- Колонка разделов: квадратные бирюзовые кнопки с белыми значками; название - подсказкой справа ---------- */
-  /* Кнопка не больше 52 px и такая, чтобы вся колонка (--dock-n кнопок с меню игры, шаг кнопка + 6 px) помещалась между
-     лентой сверху и полосой месяцев снизу: к 2024 году разделов 14, и на 768 px колонка уходила за край (QA 19.10). */
-  html .game .dock { --dock-sz: min(52px, calc((100vh - 150px) / var(--dock-n, 10) - 6px)); }
+  /* Размер кнопки считается на все 15 мест (14 разделов и меню игры), а не на число открытых: иначе при появлении раздела
+     все значки уменьшались и съезжали (1366 × 768). Кнопка не больше 52 px; колонка с 15 местами помещается между лентой
+     сверху и полосой месяцев снизу (62 px сверху, 44 px снизу, отступы и промежутки - 116 px). */
+  html .game .dock { --dock-sz: min(52px, calc((100vh - 222px) / 15)); }
   html .game .dock-btn { width: var(--dock-sz); height: var(--dock-sz); border-radius: 12px; }
   html .game .dock-btn .dock-tip {
-    position: absolute; left: 62px; top: 50%; transform: translateY(-50%); max-width: none; padding: 5px 12px; border-radius: 999px;
+    position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%); max-width: none; padding: 5px 12px; border-radius: 999px;
     background: #fff; color: var(--brand-ink); font-size: 14px; font-weight: var(--fw-title); white-space: nowrap; pointer-events: none;
     box-shadow: 0 2px 8px rgb(20 50 56 / 0.25); opacity: 0; transition: opacity 120ms ease-out;
   }
@@ -370,6 +376,11 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
   /* Первые 60 дней и пока идёт обучение игре названия разделов видны всегда; у подсвеченной обучением иконки - тоже
      (плейтест 18.10: «откройте «Мощности»», а какая из иконок - «Мощности», не видно). */
   html .game .dock.labels .dock-tip, html .game .dock-btn.tutor-target .dock-tip { opacity: 1; }
+  /* Раздел, чьё окно открыто, не закрывает своё окно: подпись (большое число, вкладки) остаётся видна. */
+  html .game .dock-btn.open .dock-tip, html .game .dock-btn.open:hover .dock-tip { opacity: 0; }
+  /* Пока открыто какое-то окно, подпись другого раздела появляется с паузой: случайный проход курсора по колонке не мигает. */
+  html .game:has(.window.max:not(.fs-off)) .dock-btn .dock-tip { transition-delay: 0ms; }
+  html .game:has(.window.max:not(.fs-off)) .dock-btn:hover .dock-tip { transition-delay: 350ms; }
   html .game .dock-btn .dock-new { top: auto; bottom: -6px; left: 50%; font-size: 10px; }
 }
 
@@ -444,7 +455,8 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
    поднимаются над ней и над итогом месяца. */
 @media (min-width: 768px) and (max-width: 1199px) {
   .game .lf-next { left: 64px; right: auto; width: min(560px, calc(100vw - 64px - 410px)); }
-  body:has(.game .lf-next) .toasts { bottom: 220px; }
+  /* Здесь итог месяца встаёт над «Следующим шагом» (bottom 152 px) - колонка уведомлений поднимается над обоими. */
+  body:has(.game .lf-next) .note-col { bottom: 220px; }
   /* Показатели выше итога месяца: он встаёт над «Следующим шагом» (bottom 152 px), и на 1024 × 768 карточка «Доля рынка»
      лежала под ним (QA 19.10). */
   .topbar.tpc .hud-stats { bottom: 202px; }
