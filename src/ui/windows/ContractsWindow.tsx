@@ -22,7 +22,7 @@ import { ClientEmblem } from '../icons/clients';
 import { actions, store } from '../store';
 import './ContractsWindow.css';
 import { Select } from '../components/Select';
-import { tutorialTender } from '../tutorialSteps';
+import { TUTOR_CONTRACT_MAX_PCT, tutorialTender } from '../tutorialSteps';
 
 type View = 'tenders' | 'contracts';
 type TypeFilter = 'all' | Tender['type'];
@@ -117,6 +117,22 @@ function supplyTone(have: number, need: number): 'good' | 'warn' | 'bad' {
 function chanceTone(c: number | null): string {
   if (c === null) return 'dim';
   return c >= 0.5 ? 'good' : c >= 0.3 ? 'warn' : 'bad';
+}
+
+/**
+ * Хватает ли мощности на суммарную нагрузку контрактов totalNeed. Во время обучения доля «Контракты» не больше
+ * TUTOR_CONTRACT_MAX_PCT (tutorialPower), поэтому порог и докупка карт считаются от этой доли, а не от всей мощности.
+ */
+export function contractsPowerCheck(s: GameState, totalNeed: number): { cap: number; overload: boolean; rentCards: number } {
+  const ordered = orderedH100e(s);
+  const cap = s.tutorial.active ? (ordered * TUTOR_CONTRACT_MAX_PCT) / 100 : ordered;
+  const deficit = totalNeed - cap;
+  const share = s.tutorial.active ? TUTOR_CONTRACT_MAX_PCT / 100 : 1;
+  return {
+    cap,
+    overload: deficit > cap * 0.02 + 1e-9,
+    rentCards: Math.ceil(deficit / (h100ePerCard(s) * share)),
+  };
 }
 
 // ---------- Контракт в работе: расчёт ----------
@@ -351,10 +367,10 @@ function TenderCard(props: {
   const totalNeed = (app ? contractsNeedWithApplications(s) : contractsNeedWith(s, { work, days: t.durationDays })) ?? needed;
   const have = totalH100e(s);
   const ordered = orderedH100e(s);
-  const perCard = h100ePerCard(s);
-  const deficit = totalNeed - ordered;
-  const rentCards = Math.ceil(deficit / perCard);
-  const overload = model !== null && deficit > ordered * 0.02 + 1e-9;
+  const power = contractsPowerCheck(s, totalNeed);
+  const cap = power.cap;
+  const rentCards = power.rentCards;
+  const overload = model !== null && power.overload;
   const poolShort = model !== null && !overload && totalNeed > contractsPool * 1.02 + 1e-9;
 
   function submit() {
@@ -493,9 +509,16 @@ function TenderCard(props: {
       {weak && honest !== null && <Alert tone="bad">Честный балл модели - {fmtPct(honest)}: при сдаче контракт провалится.</Alert>}
       {overload && (
         <Alert tone="bad" action={{ label: 'Мощности', onClick: () => open('compute') }}>
-          {others > 0 ? `Не потянете вместе с ${others === 1 ? 'уже взятым' : `ещё ${others}`}` : 'Не потянете'}: нужно {perDay(totalNeed)}, всей мощности{' '}
-          {perDay(have)}
-          {ordered > have + 1e-9 ? `, с заказанными картами ${perDay(ordered)}` : ''}. Арендуйте ещё ≈{fmtInt(rentCards)} {ruPlural(rentCards, 'карту', 'карты', 'карт')} или не подавайте заявку.
+          {others > 0 ? `Не потянете вместе с ${others === 1 ? 'уже взятым' : `ещё ${others}`}` : 'Не потянете'}: нужно {perDay(totalNeed)}
+          {s.tutorial.active ? (
+            <>, контрактам во время обучения можно отдать до {fmtPct(TUTOR_CONTRACT_MAX_PCT, 0)} мощности - {perDay(cap)}</>
+          ) : (
+            <>
+              , всей мощности {perDay(have)}
+              {ordered > have + 1e-9 ? `, с заказанными картами ${perDay(ordered)}` : ''}
+            </>
+          )}
+          . Арендуйте ещё ≈{fmtInt(rentCards)} {ruPlural(rentCards, 'карту', 'карты', 'карт')} или не подавайте заявку.
         </Alert>
       )}
       {poolShort &&
@@ -537,8 +560,11 @@ function TenderCard(props: {
             <div>Честный балл модели «{model.name}» ниже требования: при победе в тендере контракт будет провален при сдаче.</div>
           ) : overload ? (
             <div>
-              Мощности не хватит: всем контрактам нужно {perDay(totalNeed)}, а всей мощности {perDay(ordered)}. Если не арендовать ещё карт, контракт
-              будет просрочен.
+              Мощности не хватит: всем контрактам нужно {perDay(totalNeed)}, а{' '}
+              {s.tutorial.active
+                ? `во время обучения контрактам можно отдать до ${fmtPct(TUTOR_CONTRACT_MAX_PCT, 0)} мощности - ${perDay(cap)}`
+                : `всей мощности ${perDay(ordered)}`}
+              . Если не арендовать ещё карт, контракт будет просрочен.
             </div>
           ) : (
             <div>Заявка на тендер с моделью «{model.name}».</div>

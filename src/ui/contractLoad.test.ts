@@ -3,11 +3,12 @@
 
 import { describe, expect, it } from 'vitest';
 import { newGame } from '../sim/actions';
-import { rentNow } from '../sim/compute';
+import { orderedH100e, rentNow } from '../sim/compute';
 import type { Contract, GameState, Tender } from '../sim/types';
 import { contractsNeedWith } from './forecast';
 import { sideAlerts } from './SidePanel';
-import { tenderLeftText } from './windows/ContractsWindow';
+import { contractsPowerCheck, tenderLeftText } from './windows/ContractsWindow';
+import { h100ePerCard } from './format';
 import { autoPercents } from './windows/ComputeWindow';
 
 function tender(over: Partial<Tender> = {}): Tender {
@@ -108,6 +109,38 @@ describe('нагрузка контрактов', () => {
     const p = autoPercents(s, { training: 5, contracts: 0, experiments: 94, api: 1, subs: 0 });
     expect(p.training).toBeGreaterThan(p.experiments);
     expect(p.training + p.contracts + p.experiments + p.api + p.subs).toBe(100);
+  });
+});
+
+describe('обучение: контрактам не больше 70 % мощности', () => {
+  it('нужно больше 70 %: перегрузка, а докупка карт закрывает нагрузку внутри доли 70 %', () => {
+    const s = newGame('Тест', 1);
+    rentNow(s, 'p100', 96);
+    s.tutorial.active = true;
+    const total = orderedH100e(s);
+    const need = total * 0.9; // больше 70 %, но меньше всей мощности: прежняя проверка от всей мощности её пропускала
+    const r = contractsPowerCheck(s, need);
+    expect(r.overload).toBe(true);
+    expect(r.cap).toBeCloseTo(total * 0.7, 9);
+    // Докупленные карты поднимают долю 70 % до нужного.
+    expect((total + r.rentCards * h100ePerCard(s)) * 0.7).toBeGreaterThanOrEqual(need - 1e-9);
+  });
+
+  it('нужно не больше 70 %: перегрузки нет', () => {
+    const s = newGame('Тест', 1);
+    rentNow(s, 'p100', 96);
+    s.tutorial.active = true;
+    const total = orderedH100e(s);
+    expect(contractsPowerCheck(s, total * 0.69).overload).toBe(false);
+  });
+
+  it('вне обучения порог - вся мощность, как и раньше', () => {
+    const s = newGame('Тест', 1);
+    rentNow(s, 'p100', 96);
+    const total = orderedH100e(s);
+    expect(contractsPowerCheck(s, total * 0.9).overload).toBe(false);
+    expect(contractsPowerCheck(s, total * 1.1).overload).toBe(true);
+    expect(contractsPowerCheck(s, total * 1.1).cap).toBeCloseTo(total, 9);
   });
 });
 
