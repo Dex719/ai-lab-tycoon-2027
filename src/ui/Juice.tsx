@@ -58,7 +58,7 @@ export function MoneyFlies() {
     <div className="flies" aria-hidden="true">
       {flies.map((f, i) => (
         <span key={f.key} className={`fly ${f.amount >= 0 ? 'plus' : 'minus'}`} style={{ ['--i' as string]: i } as React.CSSProperties}>
-          {f.amount >= 0 ? '+' : '−'}
+          {f.amount >= 0 ? '+' : '-'}
           {fmtMoney(Math.abs(f.amount))}
           <small>{f.label}</small>
         </span>

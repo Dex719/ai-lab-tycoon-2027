@@ -118,6 +118,6 @@ describe('versusMarket', () => {
   it('на уровне рынка, дороже, дешевле', () => {
     expect(versusMarket(10, 10)).toBe('На уровне рынка');
     expect(norm(versusMarket(15, 10))).toBe('+50 % к рынку');
-    expect(norm(versusMarket(6, 10))).toBe('−40 % к рынку');
+    expect(norm(versusMarket(6, 10))).toBe('-40 % к рынку');
   });
 });

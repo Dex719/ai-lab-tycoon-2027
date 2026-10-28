@@ -357,7 +357,7 @@ export default function TeamWindow({ s }: WindowProps) {
             {pending.c.trait === 'equity' && (
               <>
                 <span>Доля компании</span>
-                <span className="bad">−{String(EQUITY_SHARE * 100).replace('.', ',')} %</span>
+                <span className="bad">-{String(EQUITY_SHARE * 100).replace('.', ',')} %</span>
               </>
             )}
           </div>

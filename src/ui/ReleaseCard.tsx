@@ -110,13 +110,13 @@ export function ReleaseCard({ s, modelId, onClose }: { s: GameState; modelId: st
               </span>
               <span className="rc-l">Эло на «Арене»</span>
               <span className={`rc-sub ${eloDelta !== null && eloDelta > 0 ? 'good' : eloDelta !== null && eloDelta < 0 ? 'bad' : ''}`}>
-                {eloDelta === null ? 'Первая модель в продаже' : `${eloDelta >= 0 ? '+' : '−'}${fmtInt(Math.abs(eloDelta))} к «${prev?.name}»`}
+                {eloDelta === null ? 'Первая модель в продаже' : `${eloDelta >= 0 ? '+' : '-'}${fmtInt(Math.abs(eloDelta))} к «${prev?.name}»`}
               </span>
             </div>
             <div className="rc-place">
               <span className={`rc-mid${place === 1 ? ' gold' : place === null ? ' dim' : ''}`}>
                 {place === 1 && <IconTrophy size={20} />}
-                {place !== null ? `${place}-е место` : rivals ? 'Не в зачёте' : 'Соперников нет'}
+                {place !== null ? `${place}-е место` : rivals ? 'Места нет' : 'Соперников пока нет'}
               </span>
               <span className="rc-l">{metric ? raceName(metric) : 'Место в гонке'}</span>
               <span className="rc-sub">{placeSub}</span>

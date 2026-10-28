@@ -75,7 +75,7 @@ function NeighborLine({ n, dir, metric }: { n: ArenaNeighbor | null; dir: 'up' |
       <Dot lab={n.lab} />
       <span className="ar-name">{n.name}</span>
       <span className="ar-gap">
-        {dir === 'up' ? '−' : '+'}
+        {dir === 'up' ? '-' : '+'}
         {fmtGap(metric, n.gap)}
       </span>
       {close && <span className="ar-close">почти</span>}
@@ -221,7 +221,7 @@ export function ArenaBanner({ s, open }: { s: GameState; open: (id: WindowId | W
     sub =
       banner.metric.kind === 'arena'
         ? 'У соперников появились модели в продаже: теперь гонка идёт на «Арене»'
-        : `Вышел тест ${banner.metric.name}: теперь гонка идёт по нему`;
+        : `Новый бенчмарк ${banner.metric.name}: теперь гонка идёт по нему`;
   } else if (banner.from === null) {
     sub = banner.to === 1 ? `Гонка началась: впереди вы, за вами ${names(banner.behind)}` : `Гонка началась: впереди ${names(banner.ahead)}`;
   }

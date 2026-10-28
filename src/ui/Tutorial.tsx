@@ -1,9 +1,9 @@
-// Окно «Обучение» внизу справа и подсветка цели текущего шага.
-// Панель всегда поверх: пока открыт диалог с затемнением, она показывается копией над ним на том же месте.
+// Окно «Подсказки» внизу справа и подсветка цели текущего шага.
+// Панель стоит в боковой панели и при открытом диалоге остаётся под его затемнением: диалог её перекрывает, как всё остальное.
 // Выполненный шаг на секунду показывает «Готово» со звуком, затем появляется следующий.
+// Последний шаг закрывается сам через LAST_STEP_MS, если игрок не нажал «Завершить».
 
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef, useState } from 'react';
 import type { GameState, Speed } from '../sim/types';
 import { IconCheck } from './icons';
 import { playSound } from './sound';
@@ -13,6 +13,8 @@ import type { WindowId } from './windows';
 
 /** Сколько показывать «Готово» перед следующим шагом. */
 const DONE_MS = 1200;
+/** Сколько последний шаг ждёт «Завершить», прежде чем подсказки закроются сами. */
+const LAST_STEP_MS = 15000;
 
 function setStep(s: GameState, step: number): void {
   s.tutorial.step = Math.max(0, Math.min(TUTORIAL.length - 1, step));
@@ -22,21 +24,9 @@ function finish(s: GameState): void {
   s.tutorial.active = false;
 }
 
-/** Открыт диалог с затемнением (подтверждение, письмо с выбором, газета, карточка выпуска). */
-function useOverlayOpen(enabled: boolean): boolean {
-  const [on, setOn] = useState(false);
-  useEffect(() => {
-    if (!enabled) {
-      setOn(false);
-      return;
-    }
-    const check = () => setOn(!!document.querySelector('.modal-backdrop'));
-    check();
-    const mo = new MutationObserver(check);
-    mo.observe(document.body, { childList: true, subtree: true });
-    return () => mo.disconnect();
-  }, [enabled]);
-  return on;
+/** Низкий экран рабочего стола (как max-height: 900px в tpc.css): подсказка открывается строкой, цели года важнее текста. */
+function startCollapsed(): boolean {
+  return window.innerWidth >= 768 && window.innerHeight <= 900;
 }
 
 export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState; open: ReadonlySet<WindowId>; speed: Speed; docked?: boolean }) {
@@ -47,9 +37,8 @@ export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState;
   // «Назад» на выполненный шаг сразу вернул бы сюда же: кнопка нужна, только если прошлый шаг можно перечитать.
   const prevStep = index > 0 ? TUTORIAL[index - 1] : null;
   const canBack = !!prevStep && !prevStep.done?.(s, { open, speed });
-  // Свёрнутая панель - одна строка; на новом шаге панель разворачивается сама, чтобы игрок увидел подсказку.
-  const [collapsed, setCollapsed] = useState(false);
-  useEffect(() => setCollapsed(false), [index]);
+  // Свёрнутая панель остаётся одной строкой и на следующих шагах: в строке написан текущий шаг.
+  const [collapsed, setCollapsed] = useState(startCollapsed);
   // Цели шага могут зависеть от состояния партии: таймер подсветки читает свежее состояние.
   const latest = useRef(s);
   latest.current = s;
@@ -59,7 +48,6 @@ export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState;
   useEffect(() => {
     if (!doneNow || doneIndex === index) return;
     setDoneIndex(index);
-    setCollapsed(false);
     playSound('goal');
   }, [doneNow, index, doneIndex]);
   useEffect(() => {
@@ -72,6 +60,14 @@ export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState;
     return () => window.clearTimeout(t);
   }, [doneIndex, index]);
   const showDone = doneIndex === index;
+
+  // Последний шаг без действия игрока закрывается сам: подсказка не висит на экране до конца партии.
+  const lastWaiting = active && index === TUTORIAL.length - 1 && !showDone;
+  useEffect(() => {
+    if (!lastWaiting) return;
+    const t = window.setTimeout(() => store.note(finish), LAST_STEP_MS);
+    return () => window.clearTimeout(t);
+  }, [lastWaiting]);
 
   // С шага «Первый заказ» мощность под заявку и контракт выделяет сама игра (tutorialPower): двигать доли новичку не нужно
   // (плейтест 19.10 - шаг «Мощность для контракта» никто не мог пройти). Раз в игровой день, пока доли не хватает.
@@ -112,30 +108,14 @@ export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState;
     };
   }, [active, step, docked, showDone]);
 
-  // Поверх затемнения: копия панели в body на месте закреплённой (основная панель внутри игры, которую диалог закрывает).
-  const overlay = useOverlayOpen(active && docked);
-  const ref = useRef<HTMLDivElement>(null);
-  const [rect, setRect] = useState<DOMRect | null>(null);
-  useLayoutEffect(() => {
-    if (!overlay || !ref.current) {
-      setRect(null);
-      return;
-    }
-    setRect(ref.current.getBoundingClientRect());
-  }, [overlay, collapsed, index, showDone]);
-  // Диалог при открытой подсказке встаёт левее неё (tpc.css body.tutor-overlay), а не под неё.
-  useEffect(() => {
-    document.body.classList.toggle('tutor-overlay', !!rect);
-    return () => document.body.classList.remove('tutor-overlay');
-  }, [rect]);
-
   if (!active) return null;
   const last = index === TUTORIAL.length - 1;
   const stepLabel = `Шаг ${index + 1} из ${TUTORIAL.length}`;
-  const body = (
-    <>
+  const cls = `tutor${collapsed ? ' collapsed' : ''}`;
+  return (
+    <div className={cls} role="dialog" aria-label="Подсказки">
       <div className="titlebar">
-        <span className="t">{collapsed ? `Обучение игре: ${stepLabel.toLowerCase()}` : 'Обучение игре'}</span>
+        <span className="t">{collapsed ? `Шаг ${index + 1} из ${TUTORIAL.length}: ${step.title}` : 'Подсказки'}</span>
         <button
           type="button"
           className="wbtn tutor-collapse"
@@ -164,7 +144,7 @@ export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState;
                 </span>
                 Готово: {step.title.toLowerCase()}
               </h3>
-              <p>{last ? 'Обучение пройдено.' : `Дальше: ${TUTORIAL[index + 1].title.toLowerCase()}.`}</p>
+              <p>{last ? 'Подсказки пройдены.' : `Дальше: ${TUTORIAL[index + 1].title.toLowerCase()}.`}</p>
             </div>
           ) : (
             <div className="body tutor-step" key={index}>
@@ -178,7 +158,7 @@ export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState;
             {last ? (
               <span className="skip" aria-hidden="true" />
             ) : (
-              <button className="btn small skip" title="Пропустить обучение игре" onClick={() => store.note(finish)}>
+              <button className="btn small skip" title="Скрыть подсказки" onClick={() => store.note(finish)}>
                 Пропустить
               </button>
             )}
@@ -195,23 +175,6 @@ export function TutorialPanel({ s, open, speed, docked = true }: { s: GameState;
           </div>
         </>
       )}
-    </>
-  );
-
-  const cls = `tutor${collapsed ? ' collapsed' : ''}`;
-  const floatStyle: CSSProperties | undefined = rect ? { left: rect.left, top: rect.top, width: rect.width } : undefined;
-  return (
-    <>
-      <div ref={ref} className={cls} role="dialog" aria-label="Обучение игре" style={rect ? { visibility: 'hidden' } : undefined}>
-        {body}
-      </div>
-      {rect &&
-        createPortal(
-          <div className={`${cls} tutor-float`} role="dialog" aria-label="Обучение игре" style={floatStyle}>
-            {body}
-          </div>,
-          document.body,
-        )}
-    </>
+    </div>
   );
 }

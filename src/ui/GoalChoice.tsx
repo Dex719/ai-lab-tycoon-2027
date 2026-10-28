@@ -7,6 +7,7 @@ import { capitalize } from '../data/questKit';
 import { chooseGoals, goalOfferOpen, goalPenaltyText, goalRewardText, goalTitle, GOALS_PER_YEAR, unseenReview } from '../sim/goals';
 import type { GameState } from '../sim/types';
 import { DenyNote, GuardButton, useFlash, useModalFocus } from './components/common';
+import { Term } from './components/Term';
 import { IconClose } from './icons';
 import { store } from './store';
 import './goals.css';
@@ -16,14 +17,14 @@ const GOALS_WORD: Record<number, string> = { 1: 'одна цель', 2: 'две 
 const GOALS_ACC: Record<number, string> = { 1: 'одну цель', 2: 'две цели', 3: 'три цели' };
 const OF_WORD: Record<number, string> = { 2: 'двух', 3: 'трёх', 4: 'четырёх', 5: 'пяти' };
 
-/** Отмеченные цели: по умолчанию - те, что уже в работе (деньги, гонка, исследования). */
+/** Отмеченные цели: сначала ни одной, игрок выбирает сам; крестик принимает цели по умолчанию. */
 export function useGoalPick(s: GameState): {
   picked: string[];
   toggle: (id: string) => void;
   note: string | null;
 } {
   const offer = s.quests.offer;
-  const [picked, setPicked] = useState<string[]>(() => s.yearly.goals.map((g) => g.id).filter((id) => offer?.goals.some((g) => g.id === id)));
+  const [picked, setPicked] = useState<string[]>(() => []);
   const [note, flash] = useFlash();
   const need = Math.min(GOALS_PER_YEAR, offer?.goals.length ?? 0);
   const toggle = useCallback(
@@ -82,7 +83,9 @@ export function GoalPicker({ s, picked, toggle, note }: { s: GameState; picked: 
               <input type="checkbox" checked={on} onChange={() => toggle(g.id)} />
               <span className="gc-style">{STYLE_NAMES[style]}</span>
               <span className="gc-main">
-                <span className="gc-title">{goalTitle(g, year)}</span>
+                <span className="gc-title">
+                  <Term text={goalTitle(g, year)}>{goalTitle(g, year)}</Term>
+                </span>
                 {hint && <span className="gc-hint">{hint}</span>}
               </span>
               <span className="gc-prize">

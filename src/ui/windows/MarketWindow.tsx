@@ -24,6 +24,8 @@ import { Alert } from '../components/common';
 import { TierBadge } from '../components/TierBadge';
 import { tokensWord } from '../../sim/text';
 import { fmtElo, fmtNum, fmtPrice, fmtShare, ruPlural } from '../format';
+import { glossFor } from '../terms';
+import { Term } from '../components/Term';
 import {
   buildChartData,
   ChartPanel,
@@ -305,7 +307,7 @@ function SegmentCard({ s, v }: { s: GameState; v: SegmentView }) {
       ) : (
         <>
           <dl className="seg-kv">
-            <dt title={v.channel === 'subs' ? 'Платёжеспособные пользователи чата' : 'Токены API в день'}>Спрос</dt>
+            <dt title={v.channel === 'subs' ? 'Платёжеспособные пользователи чата' : `Токены API в день. ${glossFor('токен')}`}>Спрос</dt>
             <dd>{demandLabel(v.channel, v.demand)}</dd>
             <dt title="Доля вашего спроса в сегменте после ограничения мощностью">Ваша доля</dt>
             <dd>
@@ -390,7 +392,7 @@ function MarketTable({ s, rows }: { s: GameState; rows: MarketRow[] | null }) {
             <th rowSpan={2} className="num">
               Эло
             </th>
-            <th rowSpan={2} className="num" title="Длина контекста, токенов">
+            <th rowSpan={2} className="num" title={`Длина контекста, токенов. ${glossFor('токен')}`}>
               Контекст
             </th>
             <th colSpan={subs ? 2 : 1} className="gh" title="У соперников цена API - средняя: (3 × входные + выходные) / 4">
@@ -407,7 +409,7 @@ function MarketTable({ s, rows }: { s: GameState; rows: MarketRow[] | null }) {
             </th>
           </tr>
           <tr>
-            <th className="num" title="Доллары за 1 млн токенов">
+            <th className="num" title={`Доллары за 1 млн токенов. ${glossFor('токен')}`}>
               API
             </th>
             {subs && (
@@ -420,7 +422,9 @@ function MarketTable({ s, rows }: { s: GameState; rows: MarketRow[] | null }) {
                 {SEGMENT_DEF[id].name}
               </th>
             ))}
-            <th className="num">Токенов в день</th>
+            <th className="num">
+              <Term text="Токенов в день">Токенов в день</Term>
+            </th>
             {subs && <th className="num">Пользователей</th>}
           </tr>
         </thead>

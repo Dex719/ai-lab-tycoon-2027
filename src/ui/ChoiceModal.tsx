@@ -18,11 +18,11 @@ export function replyLine(mail: Mail): string | null {
 
 type Tone = 'good' | 'bad' | 'flat';
 
-/** Цвет части последствия: «+» зелёный, «−» и «-» красный, остальное нейтральное. */
+/** Цвет части последствия: «+» зелёный, «-» красный, остальное нейтральное. */
 export function hintTone(part: string): Tone {
   const c = part.trimStart().charAt(0);
   if (c === '+') return 'good';
-  if (c === '-' || c === '−') return 'bad';
+  if (c === '-') return 'bad';
   return 'flat';
 }
 

@@ -453,7 +453,7 @@ export function ArenaTab({ s }: WindowProps) {
         <dl className="an-dl arn-dl">
           <dt>{first ? 'Отрыв от ближайшего соперника' : 'До лидера'}</dt>
           <dd>
-            <span className={`arn-mid ${first ? 'good' : 'bad'}`}>{gap !== null ? `${first ? '+' : '−'}${gapText(metric, gap)}` : '-'}</span>
+            <span className={`arn-mid ${first ? 'good' : 'bad'}`}>{gap !== null ? `${first ? '+' : '-'}${gapText(metric, gap)}` : '-'}</span>
             <span className="arn-s">
               {runner ? (
                 <>
@@ -581,7 +581,7 @@ export function ArenaTab({ s }: WindowProps) {
                     </div>
                   </td>
                   <td className={`num arn-gap${x === leader ? ' lead' : ''}`}>
-                    {x === leader ? 'лидер' : behind !== null ? `−${fmtGap(metric, Math.max(0, behind))}` : '-'}
+                    {x === leader ? 'лидер' : behind !== null ? `-${fmtGap(metric, Math.max(0, behind))}` : '-'}
                   </td>
                   <DateCell row={r} />
                   <td className="num">{ctxLabel(rowContext(s, r))}</td>

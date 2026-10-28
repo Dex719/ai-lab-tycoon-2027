@@ -598,7 +598,7 @@ function nextCatalogModel(s: RivalryGame, lab: LabId, minAhead: number, maxAhead
   return best?.def ?? null;
 }
 
-/** День выхода последней выпущенной модели лаборатории с API (или −∞). */
+/** День выхода последней выпущенной модели лаборатории с API (или -∞). */
 function predecessorDay(s: RivalryGame, lab: LabId): number {
   return releasedModels(s, lab)
     .filter((m) => m.api)

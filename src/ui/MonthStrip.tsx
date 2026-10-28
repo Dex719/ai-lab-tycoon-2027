@@ -94,7 +94,7 @@ export function MonthStrip({ s }: { s: GameState }) {
           {fmtMoney(strip.revenue)}
           {strip.revenueDelta !== null && Math.abs(strip.revenueDelta) >= 0.005 && (
             <small className={strip.revenueDelta > 0 ? 'good' : 'bad'}>
-              {strip.revenueDelta > 0 ? '+' : '−'}
+              {strip.revenueDelta > 0 ? '+' : '-'}
               {Math.round(Math.abs(strip.revenueDelta) * 100)} %
             </small>
           )}

@@ -128,7 +128,7 @@ export function rolePoints(s: { day: number; staff?: StaffState }, role: StaffRo
   return p;
 }
 
-/** Эффект роли, доля: cap × (1 − e^(−очки / масштаб года)). Без сотрудников - 0. */
+/** Эффект роли, доля: cap × (1 - e^(-очки / масштаб года)). Без сотрудников - 0. */
 export function staffEffect(s: { day: number; staff?: StaffState }, role: StaffRole): number {
   const p = rolePoints(s, role);
   if (p <= 0) return 0;

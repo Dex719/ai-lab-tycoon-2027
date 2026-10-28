@@ -193,7 +193,7 @@ function gpuEvent(gpu: GpuDef): EventDef {
       const now = perH(gpu.id);
       const gain =
         best !== null && best > now
-          ? ` Вычисления на ней дешевле ${timesWord(best / now)}, чем на любой из прежних карт.`
+          ? ` Мощность на ней дешевле ${timesWord(best / now)}, чем на любой из прежних карт.`
           : '';
       return {
         kind: 'news',

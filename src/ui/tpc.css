@@ -132,6 +132,7 @@ table.grid th { background: var(--brand); color: var(--on-brand); font-weight: v
 table.grid td { font-weight: var(--fw-text); }
 table.grid tr:nth-child(even) td { background: var(--row-alt); }
 .card { background: var(--surface-card); border: none; border-radius: 10px; }
+.term { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
 .badge { background: var(--bad-fill); color: #fff; font-weight: var(--fw-strong); }
 
 @media (min-width: 768px) {
@@ -599,15 +600,36 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
     border-radius: 14px; overflow: hidden; background: var(--surface-window); color: var(--text);
     box-shadow: 0 10px 30px rgb(20 50 56 / 0.35), 0 0 0 3px rgb(255 255 255 / 0.85);
   }
-  /* Подсказка не сжимается: место уступают цели года ниже (они прокручиваются). */
-  .game .side .tutor { flex: none; max-height: 70%; margin: 3px 3px 10px; }
-  .game .side .side-body:has(.tutor) > div.quests-zone { min-height: 0; }
+  /* Подсказка не сжимается и не съедает цели года: под ней всегда остаётся место для «Цели 2017 года» и трёх строк. */
+  .game .side .tutor { flex: none; max-height: 45%; margin: 3px 3px 10px; }
+  .game .side .side-body:has(.tutor) > div.quests-zone { min-height: 150px; }
+  /* Низкий экран (1366x768, 1024x768): шапка «Цели года» и три строки видны без прокрутки, и когда подсказка развёрнута.
+     Гонка в сводке дублирует плитку «Гонка» внизу - в подсказке её нет. Развёрнутая подсказка занимает место списка проектов:
+     его вкладки скрыты, пока подсказка открыта. Строки целей плотнее, текст подсказки - в 165 px. */
+  @media (max-height: 900px) {
+    .game .side { bottom: 236px; }
+    .game .side:has(.tutor) .side-race { display: none; }
+    .game .side .tutor { max-height: none; margin: 3px 3px 6px; }
+    .game .side .tutor .titlebar { height: 36px; }
+    .game .side .tutor .body { padding: 4px 16px 0; }
+    .game .side .tutor h3 { margin: 0 0 2px; }
+    .game .side .tutor p { margin: 0; line-height: 1.35; }
+    .game .side .tutor .foot { padding: 2px 16px 6px; }
+    .game .side:has(.tutor:not(.collapsed)) .side-tabs,
+    .game .side:has(.tutor:not(.collapsed)) .side-list { display: none; }
+    .game .side .side-head { padding: 5px 14px 4px; }
+    .game .goal-head, .game .task-head { margin-top: 4px; padding: 5px 12px 2px; }
+    .game .goal-row, .game .task-row { padding: 4px 12px 3px; }
+    .game .goal-bar, .game .task-bar { height: 8px; margin-top: 3px; }
+  }
   .tutor .titlebar {
     height: 42px; padding: 0 8px 0 14px; gap: 8px; border: none; border-radius: 0;
     background: var(--brand); color: var(--on-brand); box-shadow: inset 0 -4px 0 var(--brand-edge);
     font-size: 16px; font-weight: var(--fw-title); letter-spacing: 0.02em;
   }
-  .tutor.collapsed .titlebar { border-radius: 0; }
+  .tutor.collapsed .titlebar { border-radius: 0; font-size: 14px; letter-spacing: 0; }
+  /* Свёрнутая подсказка - одна строка: длинный шаг обрезается многоточием, а не переносится. */
+  .tutor.collapsed .titlebar .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tutor .titlebar .wbtn { width: 28px; height: 28px; border-radius: 50%; background: rgb(255 255 255 / 0.2); color: #fff; }
   .tutor .titlebar .wbtn:hover { background: rgb(255 255 255 / 0.35); }
   .tutor .body { padding: 12px 16px 4px; }
@@ -621,10 +643,6 @@ body:has(.menu-screen) .modal-backdrop { background: rgb(14 40 46 / 0.55); }
   html .game .dock-btn.tutor-target .dock-tip { box-shadow: 0 0 0 3px #f2b600; }
   @keyframes tutor-ring { 50% { outline-offset: 7px; outline-color: rgb(242 182 0 / 0.55); } }
   @media (prefers-reduced-motion: reduce) { .tutor-target { animation: none; } }
-
-  /* Диалог при открытом обучении встаёт левее подсказки, а не под неё. */
-  body.tutor-overlay .modal-backdrop { padding-right: 340px; box-sizing: border-box; }
-  body.tutor-overlay .modal-backdrop > .dialog { max-width: calc(100% - 24px); }
 }
 
 /* Обёртка меню игры на телефоне не меняет раскладку панели задач. */

@@ -22,6 +22,7 @@ import { dossierPending, onDossier } from '../dossier';
 import { ArenaTab, BenchmarksTab } from './RatingsWindow';
 import { RECORD_IDS, RECORD_NAMES } from '../../sim/records';
 import { fmtRecord } from '../recordsFormat';
+import { glossFor } from '../terms';
 
 type TabId = 'yours' | 'market' | 'bench' | 'arena' | 'finance' | 'labs' | 'records';
 
@@ -338,11 +339,11 @@ function ModelsTable({
                       <dd>{m.releasedDay !== null ? formatDateShort(m.releasedDay) : '-'}</dd>
                       <dt>Контекст</dt>
                       <dd>{ctxLabel(m.plan.context)}</dd>
-                      <dt title="Доллары за 1 млн токенов">Цена API</dt>
+                      <dt title={`Доллары за 1 млн токенов. ${glossFor('токен')}`}>Цена API</dt>
                       <dd>{m.onApi ? fmtPrice(m.price) : <Dash />}</dd>
                       <dt title="Доллары в месяц за пользователя">Цена подписки</dt>
                       <dd>{onSubs ? fmtPrice(m.subsPrice) : <Dash />}</dd>
-                      <dt title="Токены API, обслуженные вчера">Токенов в день</dt>
+                      <dt title={`Токены API, обслуженные вчера. ${glossFor('токен')}`}>Токенов в день</dt>
                       <dd>{m.onApi && v ? fmtNum(v.apiTokens) : <Dash />}</dd>
                       <dt title="Пользователи подписки, обслуженные вчера">Подписчиков</dt>
                       <dd>{onSubs && v ? fmtNum(Math.round(v.subsUsers)) : <Dash />}</dd>

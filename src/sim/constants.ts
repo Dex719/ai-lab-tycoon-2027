@@ -162,7 +162,7 @@ export const CONTEXT_REF: [string, number][] = [
 export const ARCH_MULT = { transformer: 1, lstm: 0.15 } as const;
 export const CHIN_OPT_RATIO = 20;
 export const CHIN_K = 0.2;
-export const CAP_BASE_OFFSET = 18; // base = 10·(log10 E − 18)
+export const CAP_BASE_OFFSET = 18; // base = 10·(log10 E - 18)
 export const MIX_K = 8;
 export const BENCH_DATA_PENALTY = 15;
 export const OVERFIT_K = 60;
@@ -378,7 +378,7 @@ export const OVERHEAD_MONTHLY = 100_000;
 export const OVERHEAD_REVENUE_SHARE = 0.03;
 
 // Разоблачение
-// Было 0,006 и −15: «подгонщик» (bots.ts) терял репутацию до нуля после 10-12 разоблачений и падал на 20-30-е место;
+// Было 0,006 и -15: «подгонщик» (bots.ts) терял репутацию до нуля после 10-12 разоблачений и падал на 20-30-е место;
 // теперь он на 6-9-м месте (зёрна 1-5), заметно ниже «разумного», но не на дне.
 export const EXPOSE_PER_PP = 0.004;
 export const EXPOSE_ARENA_BONUS = 0.02;

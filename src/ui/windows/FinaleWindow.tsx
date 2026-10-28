@@ -401,7 +401,7 @@ export default function FinaleWindow({ s }: WindowProps) {
               {fmtInt(chosen.arenaElo)} → {fmtInt(after)}
             </span>
             <span>Стоимость</span>
-            <span className="bad">−{fmtMoney(quote.cost)}</span>
+            <span className="bad">-{fmtMoney(quote.cost)}</span>
             <span>Срок</span>
             <span>{fmtDays(quote.days)}</span>
             <span>Готово</span>

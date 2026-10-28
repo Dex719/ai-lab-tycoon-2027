@@ -67,7 +67,7 @@ function weekReview(s: GameState, m: PlayerModel): void {
   const sd = sides(s, m);
   const lines = [`${verdict(rank)}.`];
   if (sd) lines.push(`Сильнее всего она в ${sd.strong}, слабее - в ${sd.weak}.`);
-  if (noticed) lines.push(`В работе модель слабее, чем в таблице: на тесте ${gap.name} разница около ${Math.round(gap.gap)} пунктов, и пользователи это заметили. Шумиха −${GAP_HYPE}.`);
+  if (noticed) lines.push(`В работе модель слабее, чем в таблице: на тесте ${gap.name} разница около ${Math.round(gap.gap)} пунктов, и пользователи это заметили. Шумиха -${GAP_HYPE}.`);
   else if (rank !== null && rank <= 3) lines.push(`Хорошие отзывы расходятся по сети: шумиха +${GOOD_HYPE}.`);
   if (noticed) s.hype.player = Math.max(0, s.hype.player - GAP_HYPE);
   else if (rank !== null && rank <= 3) s.hype.player = Math.min(100, s.hype.player + GOOD_HYPE);
@@ -84,7 +84,7 @@ function monthReview(s: GameState, m: PlayerModel): void {
   }
   lines.push(`За месяц модель заработала ${fmtMoney(m.earned)}${m.earnedSubs > 0 ? `, из них по подписке ${fmtMoney(m.earnedSubs)}` : ''}.`);
   if (m.holes !== undefined) {
-    lines.push(m.holes === 0 ? 'Известных уязвимостей не осталось.' : m.redTeamDone ? 'После ред-тиминга уязвимостей осталось немного.' : 'Ред-тиминга не было: в модели могут быть лазейки.');
+    lines.push(m.holes === 0 ? 'Известных уязвимостей не осталось.' : m.redTeamDone ? 'После проверки уязвимостей осталось немного.' : 'Модель не проверяли: в ней могут быть лазейки.');
   }
   addMail(s, { kind: 'news', read: true, title: `Отзывы о «${m.name}»: месяц в продаже`, body: lines.join(' ') });
 }

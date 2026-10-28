@@ -606,7 +606,7 @@ function QuitDialog({ onClose }: { onClose: () => void }) {
         footer={
           <>
             <button className="btn" onClick={onClose}>
-              Отмена
+              Отменить
             </button>
             <button className="btn primary" onClick={quit}>
               Выйти
@@ -627,7 +627,7 @@ function QuitDialog({ onClose }: { onClose: () => void }) {
       footer={
         <>
           <button className="btn" onClick={onClose}>
-            Отмена
+            Отменить
           </button>
           <button className="btn danger" onClick={quit}>
             Выйти без сохранения

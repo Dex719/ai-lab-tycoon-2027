@@ -13,8 +13,9 @@ import { formatDateShort } from '../../sim/time';
 import { modelScore } from '../../sim/training';
 import type { Contract, GameState, PlayerModel, Tender } from '../../sim/types';
 import { Cards } from '../components/Cards';
+import { Term } from '../components/Term';
 import { Alert, ConfirmDialog, ErrorText, GuardButton } from '../components/common';
-import { endSentence, fmtDays, fmtH100e, fmtInt, fmtMoney, fmtPct, fmtShare, h100ePerCard } from '../format';
+import { endSentence, fmtDays, fmtH100e, fmtInt, fmtMoney, fmtPct, fmtShare, h100ePerCard, ruPlural } from '../format';
 import { contractsNeedWith, contractsNeedWithApplications } from '../forecast';
 import { IconAlert, IconCheck, IconChevronLeft } from '../icons';
 import { ClientEmblem } from '../icons/clients';
@@ -27,7 +28,7 @@ type View = 'tenders' | 'contracts';
 type TypeFilter = 'all' | Tender['type'];
 type OpenFn = WindowProps['open'];
 
-const REP_LOSS = `−${Math.abs(REP_CONTRACT_FAIL)}`;
+const REP_LOSS = `-${Math.abs(REP_CONTRACT_FAIL)}`;
 /** «последний день» / «ещё 3 дня»: тендер без заявки исчезает в конце дня expiresDay, подать можно и в этот день. */
 export function tenderLeftText(left: number): string {
   return left <= 0 ? 'последний день' : `ещё ${fmtDays(left)}`;
@@ -249,12 +250,14 @@ function DocHead({ clientId, sub, children }: { clientId: string; sub: string; c
 }
 
 /** Строка заказа: три главных числа в одну линию. */
-function Slip({ cells }: { cells: { label: string; value: ReactNode; sub?: ReactNode; tone?: string }[] }) {
+function Slip({ cells }: { cells: { label: string; value: ReactNode; sub?: ReactNode; tone?: string; tip?: string }[] }) {
   return (
     <div className="ct-slip">
       {cells.map((c) => (
         <div key={c.label} className="ct-slip-c">
-          <span className="ct-slip-l">{c.label}</span>
+          <span className={`ct-slip-l${c.tip ? ' term' : ''}`} title={c.tip}>
+            {c.label}
+          </span>
           <b className={`ct-slip-v${c.tone ? ` ${c.tone}` : ''}`}>{c.value}</b>
           <span className="ct-slip-s">{c.sub ?? ' '}</span>
         </div>
@@ -350,6 +353,7 @@ function TenderCard(props: {
   const ordered = orderedH100e(s);
   const perCard = h100ePerCard(s);
   const deficit = totalNeed - ordered;
+  const rentCards = Math.ceil(deficit / perCard);
   const overload = model !== null && deficit > ordered * 0.02 + 1e-9;
   const poolShort = model !== null && !overload && totalNeed > contractsPool * 1.02 + 1e-9;
 
@@ -417,7 +421,7 @@ function TenderCard(props: {
   return (
     <div className="ct-doc">
       <DocHead clientId={t.clientId} sub={`${clientIndustry(t.clientId)}, ${kind}`}>
-        Нужна модель{rlhf ? ', обученная с RLHF,' : ''} с баллом не ниже <b>{fmtPct(t.requirement, 0)}</b> на <b>{bench.name}</b>. Работа займёт{' '}
+        Нужна модель{rlhf ? ', обученная с RLHF,' : ''} с баллом не ниже <b>{fmtPct(t.requirement, 0)}</b> на <b><Term text={bench.name}>{bench.name}</Term></b>. Работа займёт{' '}
         <b>{fmtDays(t.durationDays)}</b> после победы, оплата <b>{fmtMoney(t.payment)}</b> после сдачи.
       </DocHead>
 
@@ -433,6 +437,7 @@ function TenderCard(props: {
             value: chance === null ? '-' : fmtShare(chance, 0),
             tone: chanceTone(chance),
             sub: app ? 'заявка подана' : model ? `модель «${model.name}»` : released.length === 0 ? 'моделей ещё нет' : 'модель не подходит',
+            tip: 'Шанс растёт с репутацией и с запасом балла над требованием. Больше 92 % не бывает.',
           },
           { label: 'Срок работы', value: fmtDays(t.durationDays), sub: decideText(s, decide) },
         ]}
@@ -443,7 +448,7 @@ function TenderCard(props: {
           <h3 className="ct-h">{app ? 'Заявка' : 'Модель для заявки'}</h3>
           {picker}
           <div className="ct-req-h">
-            Балл на {bench.name}
+            <Term text={bench.name}>Балл на {bench.name}</Term>
             {rlhf && shownModel && <span className={shownModel.rlhf ? 'good' : 'bad'}>{shownModel.rlhf ? ', RLHF есть' : ', нет RLHF'}</span>}
           </div>
           <ScoreGauge req={t.requirement} shown={shown} honest={honest} />
@@ -454,11 +459,11 @@ function TenderCard(props: {
           <dl className="ct-kv">
             <dt>Требование</dt>
             <dd>
-              {bench.name} от {fmtPct(t.requirement, 0)}
+              <Term text={bench.name}>{bench.name}</Term> от {fmtPct(t.requirement, 0)}
             </dd>
             <dt title="Списывается при отказе, просрочке и балле ниже требования; оплаты в этом случае нет">Если сорвать</dt>
             <dd className="bad">
-              штраф {fmtMoney(t.penalty)}, репутация −{Math.abs(REP_CONTRACT_FAIL)}
+              штраф {fmtMoney(t.penalty)}, репутация -{Math.abs(REP_CONTRACT_FAIL)}
             </dd>
             {rlhf && (
               <>
@@ -490,7 +495,7 @@ function TenderCard(props: {
         <Alert tone="bad" action={{ label: 'Мощности', onClick: () => open('compute') }}>
           {others > 0 ? `Не потянете вместе с ${others === 1 ? 'уже взятым' : `ещё ${others}`}` : 'Не потянете'}: нужно {perDay(totalNeed)}, всей мощности{' '}
           {perDay(have)}
-          {ordered > have + 1e-9 ? `, с заказанными картами ${perDay(ordered)}` : ''}. Арендуйте ещё ≈{fmtInt(Math.ceil(deficit / perCard))} карт или не подавайте заявку.
+          {ordered > have + 1e-9 ? `, с заказанными картами ${perDay(ordered)}` : ''}. Арендуйте ещё ≈{fmtInt(rentCards)} {ruPlural(rentCards, 'карту', 'карты', 'карт')} или не подавайте заявку.
         </Alert>
       )}
       {poolShort &&
@@ -589,7 +594,7 @@ function ContractCard({ s, c, open }: { s: GameState; c: Contract; open: OpenFn 
             value: fmtMoney(t.payment),
             sub: (
               <span className="bad" title="Списывается при отказе, просрочке и балле ниже требования; оплаты в этом случае нет">
-                если сорвать: штраф {fmtMoney(t.penalty)}, репутация −{Math.abs(REP_CONTRACT_FAIL)}
+                если сорвать: штраф {fmtMoney(t.penalty)}, репутация -{Math.abs(REP_CONTRACT_FAIL)}
               </span>
             ),
           },

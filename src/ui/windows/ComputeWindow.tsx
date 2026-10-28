@@ -1,5 +1,5 @@
 // Окно «Мощности»: слева крупно машинный зал (стойки окрашены по задачам), справа мощность, аренда и карты;
-// внизу одна полоса долей мощности: границы тянутся мышью, отпустили - доли применены; «Как нужно» - по потребностям.
+// внизу одна полоса долей мощности: границы тянутся мышью, отпустили - доли применены; «Подобрать доли» - по потребностям.
 // Аренда - одна кнопка «Арендовать»: диалог выбора карты с 3D-превью, количеством и итогом.
 // Будущее не раскрывается: в выборе только вышедшие карты, мощность сравнивается с самой мощной из них.
 
@@ -47,6 +47,7 @@ import {
   type SoldChannels,
 } from '../alloc';
 import { Cards } from '../components/Cards';
+import { Term } from '../components/Term';
 import { contractsNeedWithApplications, researchDaysAt, trainingDaysAt } from '../forecast';
 import { ConfirmDialog, Dialog, GuardButton, NewBadge, Range } from '../components/common';
 import { fmtH100e as fmtH, fmtInt, fmtMoney, fmtNum, h100ePerCard, ruPlural } from '../format';
@@ -179,7 +180,9 @@ function Side({ s, onRent }: { s: GameState; onRent: () => void }) {
       </div>
       <div className={`cw-fig-value${total > 0 ? '' : ' dim'}`}>
         {fmtH(total)}
-        <span>H100e</span>
+        <Term text="H100e">
+          <span>H100e</span>
+        </Term>
       </div>
       <div className="cw-fig-sub">
         {layout.cards > 0 ? `${fmtCardsCount(layout.cards)} в аренде, ${racks}` : 'Карт в аренде нет'}
@@ -328,7 +331,7 @@ function RentDialog({ s, target, onClose, onDone }: { s: GameState; target: Rent
       footer={
         <>
           <button className="btn" onClick={onClose}>
-            Отмена
+            Отменить
           </button>
           <GuardButton className="btn primary cw-rd-submit" data-tutorial="rent-confirm" reason={reason} onClick={submit}>
             {label}
@@ -437,7 +440,7 @@ function Delta({ value, good, fmt }: { value: number | null; good: (v: number) =
   if (value === null || value === 0) return <small>без изменений</small>;
   return (
     <small className={good(value) ? 'good' : 'bad'}>
-      {value > 0 ? '+' : '−'}
+      {value > 0 ? '+' : '-'}
       {fmt(Math.abs(value))}
     </small>
   );
@@ -535,7 +538,7 @@ function RowEffect({ s, k, share }: { s: GameState; k: 'training' | 'experiments
  * Доли «как нужно»: контрактам и клиентам - сколько им нужно сейчас (+5 %), остальное - обучению и исследованиям:
  * идущему обучению две трети, исследованию треть; если идёт только что-то одно - почти всё ему.
  */
-/** Наименьшая доля «Как нужно» для канала, где есть модель в продаже, %. */
+/** Наименьшая доля «Подобрать доли» для канала, где есть модель в продаже, %. */
 const SERVE_FLOOR_PCT = 5;
 
 export function autoPercents(s: GameState, cur: Percents): Percents {
@@ -547,10 +550,10 @@ export function autoPercents(s: GameState, cur: Percents): Percents {
   let api = need ? pct(need.api) : cur.api;
   let subs = need ? pct(need.subs) : cur.subs;
   // Модель в продаже не остаётся без мощности, даже если спроса пока нет (плейтест 18.10: только что выпущенная модель
-  // с нулём клиентов получала 0 %, и «Как нужно» сразу спрашивал, остановить ли продажи по API).
+  // с нулём клиентов получала 0 %, и «Подобрать доли» сразу спрашивал, остановить ли продажи по API).
   if (s.models.some((m) => m.releasedDay !== null && m.onApi)) api = Math.max(api, SERVE_FLOOR_PCT);
   if (s.models.some((m) => m.onSubs)) subs = Math.max(subs, SERVE_FLOOR_PCT);
-  // Идущие обучение и исследование «Как нужно» не обнуляет (плейтест 17.10: контракту не хватало и с 100 %, а модель
+  // Идущие обучение и исследование «Подобрать доли» не обнуляет (плейтест 17.10: контракту не хватало и с 100 %, а модель
   // встала): им остаётся хотя бы нынешняя доля, но не больше 30 % и 15 %. Чего не хватит контрактам - видно в строке «Нужно».
   const research = s.research.current !== null;
   const training = s.trainings.some((r) => !r.failed);
@@ -563,7 +566,7 @@ export function autoPercents(s: GameState, cur: Percents): Percents {
     [contracts, api, subs] = distribute([contracts, api, subs], room);
   }
   const rest = 100 - contracts - api - subs;
-  // Обучению доля остаётся всегда: если модель сейчас не учится, её скоро начнут (плейтест 16.10 - «Как нужно» обнулял
+  // Обучению доля остаётся всегда: если модель сейчас не учится, её скоро начнут (плейтест 16.10 - «Подобрать доли» обнулял
   // обучение, и новую модель было не начать). Исследованиям - только пока исследование идёт.
   // Веса не зависят от прежних долей: раньше остаток делился «в прежнем соотношении», и стоило обучению один раз
   // упасть почти до нуля (модель не училась), как дальше исследования забирали 90 % и больше, а модель шла месяцами.
@@ -719,7 +722,7 @@ function SplitPanel({ s, open }: { s: GameState; open: WindowProps['open'] }) {
           {error ?? (total > 0 ? occ.text : arrival ? `Мощности пока нет: доли заработают, когда придут карты (${formatDateShort(arrival.day)}).` : 'Мощности пока нет: доли заработают после аренды.')}
         </div>
         <GuardButton className="btn small" reason={total > 0 ? (autoSame ? 'Доли уже такие, как нужно сейчас' : null) : arrival ? 'Карты ещё в пути' : 'Сначала арендуйте карты'} onClick={() => apply(auto)}>
-          Как нужно
+          Подобрать доли
         </GuardButton>
       </div>
       <SplitBar rows={rows} shown={shown} onDrag={setDraft} onDone={apply} />

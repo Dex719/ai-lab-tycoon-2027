@@ -90,7 +90,7 @@ export function hireTeam(s: GameState, id: TeamId): Result {
     kind: 'finance',
     title: `${def.name} в лаборатории`,
     read: true,
-    body: `${def.name} (руководитель - ${def.leader}) приступила к работе. ${def.effect}. Подъёмные ${dealMoney(def.signing)}, зарплата ${dealMoney(def.salary)} в месяц.`,
+    body: `${def.name} (руководитель - ${def.leader}) приступила к работе. ${def.effect}. Разовая выплата ${dealMoney(def.signing)}, зарплата ${dealMoney(def.salary)} в месяц.`,
   });
   return { ok: true };
 }

@@ -41,7 +41,6 @@
 .nm-delta { font-size: 15px; font-weight: var(--fw-strong); letter-spacing: 0; }
 .nm-delta.up { color: var(--good-ink); }
 .nm-delta.down { color: var(--bad-ink); }
-.nm-rough-short { display: none; }
 .nm-chip { display: block; margin-top: 3px; font-size: 13px; font-weight: var(--fw-small); color: var(--text-2); }
 .nm-chip.warn { color: var(--warn-ink); font-weight: var(--fw-strong); }
 
@@ -159,8 +158,6 @@
   }
   .nm-kpi { padding: 6px 14px 8px; }
   .nm-kpi-main .nm-kpi-v { font-size: 28px; }
-  .nm-rough-long { display: none; }
-  .nm-rough-short { display: inline; }
 }
 @container (max-width: 520px) {
   .nm-hero { grid-template-columns: 1fr; }

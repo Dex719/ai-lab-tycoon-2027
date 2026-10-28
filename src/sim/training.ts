@@ -117,7 +117,7 @@ function fmtPct(x: number): string {
 /** «$1,2 млн», «$350 тыс.», «$800». Пороги чуть ниже круглых чисел, чтобы после округления не вышло «$1000 тыс.» или «$1000 млн». */
 function fmtMoney(v: number): string {
   const a = Math.abs(v);
-  const sign = v < 0 ? '−' : '';
+  const sign = v < 0 ? '-' : '';
   const dec = (x: number): string => x.toFixed(1).replace(/\.0$/, '').replace('.', ',');
   if (a >= 1e9 - 5e6) return `${sign}$${dec(a / 1e9)} млрд`;
   if (a >= 1e6 - 500) return `${sign}$${dec(a / 1e6)} млн`;
@@ -253,14 +253,14 @@ export function archFor(s: GameState): Arch {
   return s.research.done.includes('attention') ? 'transformer' : 'lstm';
 }
 
-/** chin = exp(−0,2 × ln²((D/N)/20)); лучшее соотношение данных и параметров - 20 токенов на параметр. */
+/** chin = exp(-0,2 × ln²((D/N)/20)); лучшее соотношение данных и параметров - 20 токенов на параметр. */
 export function chinchillaFactor(paramsB: number, tokensB: number): number {
   if (!(paramsB > 0) || !(tokensB > 0)) return 0;
   const l = Math.log(tokensB / paramsB / CHIN_OPT_RATIO);
   return Math.exp(-CHIN_K * l * l);
 }
 
-/** E = 6·N·D·(1 − b)·arch·algoMult·chin (без надбавки RLHF). */
+/** E = 6·N·D·(1 - b)·arch·algoMult·chin (без надбавки RLHF). */
 export function effectiveCompute(plan: TrainingPlan, algoLevel: number, arch: Arch): number {
   const flop = 6 * plan.paramsB * 1e9 * plan.tokensB * 1e9;
   return (
@@ -272,7 +272,7 @@ export function effectiveCompute(plan: TrainingPlan, algoLevel: number, arch: Ar
   );
 }
 
-/** base = 10·(log10 E − 18). */
+/** base = 10·(log10 E - 18). */
 export function baseLevel(effective: number): number {
   if (!(effective > 0)) return -100;
   return 10 * (Math.log10(effective) - CAP_BASE_OFFSET);
@@ -288,7 +288,7 @@ export function techCapBonus(plan: TrainingPlan, d: DomainId, techs: readonly Te
 }
 
 /**
- * cap_d = base + 8·(3·m_d − 1) − 15·b − failPenalty; у языка ещё +2 при RLHF; +3 с чужими данными; плюс прибавки технологий снимка
+ * cap_d = base + 8·(3·m_d - 1) - 15·b - failPenalty; у языка ещё +2 при RLHF; +3 с чужими данными; плюс прибавки технологий снимка
  * (techs: «Обучение на коде», «Цепочки рассуждений», «Дистилляция» у лёгких).
  */
 export function capsFromPlan(

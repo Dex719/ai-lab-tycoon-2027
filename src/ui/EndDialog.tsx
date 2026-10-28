@@ -170,7 +170,7 @@ export function EndDialog({ s, onWatch }: { s: GameState; onWatch: () => void })
 
           <dl className="end-stats">
             <dt>Лучшее место за игру</dt>
-            <dd>{bestPlace !== null ? `${bestPlace}-е` : 'без места'}</dd>
+            <dd>{bestPlace !== null ? `${bestPlace}-е` : 'Без места'}</dd>
             <dt>Месяцев на 1-м месте</dt>
             <dd>{fmtNum(months)}</dd>
             <dt>Лучшая модель</dt>

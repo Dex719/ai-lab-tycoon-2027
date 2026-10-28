@@ -241,7 +241,7 @@ export function ConfirmDialog(props: {
       footer={
         <>
           <button className="btn" onClick={props.onClose}>
-            Отмена
+            Отменить
           </button>
           <button className={`btn ${props.danger ? 'danger' : 'primary'}`} data-tutorial={props.tutorial} onClick={confirm}>
             {props.confirmLabel}

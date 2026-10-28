@@ -16,6 +16,7 @@ import { personalityOf } from '../data/labPersonalities';
 import type { GameState, LabId, PlayerModel, Tier } from '../sim/types';
 import { distribute, ALLOC_ROWS } from './alloc';
 import { fmtH100e, fmtMoney, fmtNum, fmtShare, ruPlural } from './format';
+import { glossFor } from './terms';
 import { openDossier } from './dossier';
 import { nextStep, type NextStep } from './nextStep';
 import { raceMetricOf, raceRows } from './race';
@@ -382,7 +383,7 @@ function NextPlate({ step, open }: { step: NextStep; open: Open }) {
       <div className="lf-next-t">
         <span>Следующий шаг</span>
         <b>{step.title}</b>
-        <small>{step.detail}</small>
+        <small title={glossFor(step.detail)}>{step.detail}</small>
       </div>
       {step.action && (
         <button type="button" className="btn primary" onClick={() => (step.open === 'play' ? store.setSpeed(1) : open(step.open))}>
@@ -434,7 +435,7 @@ function LabFloorView({ s, open }: { s: GameState; open: Open; version?: number 
         <Tag
           at={at.research}
           k={f.research ? `Исследование · ${fmtShare(f.research.frac, 0)}` : 'Исследования'}
-          v={f.research ? f.research.name : 'Не идут: выбрать'}
+          v={f.research ? f.research.name : 'Нет исследования: выбрать'}
           frac={f.research ? f.research.frac : undefined}
           color="var(--dir-research)"
           warn={!f.research || !f.research.busy}
@@ -477,8 +478,8 @@ function LabFloorView({ s, open }: { s: GameState; open: Open; version?: number 
         <Plus at={at.seats} label={`Нанять (${fmtNum(f.freeSeats)} ${ruPlural(f.freeSeats, 'место', 'места', 'мест')})`} onClick={() => open('team')} />
         {/* Кнопка «+» - только если подпись рядом не предлагает то же самое: иначе пузыри дублировали друг друга и
             налезали («Свободно: новая модель» и «+ Новая модель», плейтест 17.10). */}
-        {f.research && <Plus at={at.researchSlot} label="Исследование в очередь" onClick={() => open('research')} />}
-        {f.training && <Plus at={at.trainSlot} label="Ещё модель" onClick={() => open('newModel')} />}
+        {f.research && <Plus at={at.researchSlot} label="Добавить исследование" onClick={() => open('research')} />}
+        {f.training && <Plus at={at.trainSlot} label="Новая модель" onClick={() => open('newModel')} />}
       </div>
       {next && <NextPlate step={next} open={open} />}
     </div>

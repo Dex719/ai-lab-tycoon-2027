@@ -29,13 +29,13 @@ function sigmoid(x: number): number {
   return 1 / (1 + Math.exp(-x));
 }
 
-/** score = 100 × (g + (1 − g) × σ((cap + overfit − Dif) / S)), в %. */
+/** score = 100 × (g + (1 - g) × σ((cap + overfit - Dif) / S)), в %. */
 export function benchScore(id: BenchmarkId, cap: number, overfit = 0): number {
   const d = benchDef(id);
   return 100 * (d.guess + (1 - d.guess) * sigmoid((cap + overfit - d.difficulty) / d.spread));
 }
 
-/** Обратная формула: способность по баллу; балл обрезается в (g, 100) с запасом, итог - в [Dif − 40, Dif + 40]. */
+/** Обратная формула: способность по баллу; балл обрезается в (g, 100) с запасом, итог - в [Dif - 40, Dif + 40]. */
 export function capFromScore(id: BenchmarkId, score: number): number {
   const d = benchDef(id);
   const p = Math.min(1 - SCORE_EPS, Math.max(SCORE_EPS, (score / 100 - d.guess) / (1 - d.guess)));

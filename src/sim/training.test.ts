@@ -593,7 +593,7 @@ describe('validatePlan: минус на счету', () => {
     const error = validatePlan(s, p);
     expect(error).toMatch(/разметчик/);
     expect(error).toContain('нужно $400 тыс.');
-    expect(error).toContain('на счету −$250 тыс.');
+    expect(error).toContain('на счету -$250 тыс.');
     expect(startTraining(s, p)).toMatchObject({ ok: false });
     expect(s.trainings).toEqual([]);
   });
@@ -612,7 +612,7 @@ describe('validatePlan: минус на счету', () => {
     s.cash = 150;
     expect(validatePlan(s, p)).toMatch(/на счету \$150\.$/);
     s.cash = -2_000_000;
-    expect(validatePlan(s, p)).toMatch(/на счету −\$2 млн\.$/);
+    expect(validatePlan(s, p)).toMatch(/на счету -\$2 млн\.$/);
   });
 });
 

@@ -49,6 +49,8 @@ import {
   type TrainingRun,
 } from '../../sim/types';
 import { Cards } from '../components/Cards';
+import { Term } from '../components/Term';
+import { glossFor } from '../terms';
 import { Alert, ConfirmDialog, DenyNote, ErrorText, GuardButton, ProgressBar, useFlash } from '../components/common';
 import { ModelEmblem } from '../components/ModelEmblem';
 import { TierBadge } from '../components/TierBadge';
@@ -152,7 +154,7 @@ export function parseSubsPrice(text: string): { price: number | null; error: str
 export function versusMarket(price: number, ref: number): string {
   const rel = Math.round((price / ref - 1) * 100);
   if (rel === 0) return 'На уровне рынка';
-  return `${rel > 0 ? '+' : '−'}${fmtPct(Math.abs(rel), 0)} к рынку`;
+  return `${rel > 0 ? '+' : '-'}${fmtPct(Math.abs(rel), 0)} к рынку`;
 }
 
 /** Продажи модели игрока за вчера по каналам; у выключенного канала значения нет (undefined). */
@@ -211,7 +213,7 @@ function RedTeamBlock({ s, m }: { s: GameState; m: PlayerModel }) {
       : 'Не проверялась: уязвимостей неизвестно. Каждая может всплыть инцидентом, пока модель в продаже.';
   return (
     <section className="mw-release">
-      <h3 className="mw-h">Ред-тиминг</h3>
+      <h3 className="mw-h">Проверка модели</h3>
       <div className="mw-panel">
         <p className="mw-rt-s">{status}</p>
         <div className="mw-rt-btns">
@@ -229,7 +231,7 @@ function RedTeamBlock({ s, m }: { s: GameState; m: PlayerModel }) {
             </GuardButton>
           ))}
         </div>
-        <span className="mw-rt-note">Быстрый закрывает около половины уязвимостей, полный - почти все. Пока идёт проверка, модель не выпустить.</span>
+        <span className="mw-rt-note">Быстрая закрывает около половины уязвимостей, полная - почти все. Пока идёт проверка, модель не выпустить.</span>
         <ErrorText error={err} />
       </div>
     </section>
@@ -280,7 +282,7 @@ function ModelList(props: {
                 1-е
               </b>
             )}
-            <span className="mw-item-elo" title="Рейтинг Эло">
+            <span className="mw-item-elo" title={glossFor('Рейтинг Эло')}>
               <FlashNum value={m.arenaElo} frac={0} minAbs={2} className="on-light">{fmtElo(m.arenaElo)}</FlashNum>
             </span>
           </span>
@@ -927,10 +929,16 @@ function Hero(props: {
         <dl className="mw-facts">
           {facts.map((k) => (
             <Fragment key={k.label}>
-              <dt>{k.label}</dt>
+              <dt>
+                <Term text={k.label}>{k.label}</Term>
+              </dt>
               <dd title={k.title}>
                 <span className={k.tone ? `mw-v ${k.tone}` : 'mw-v'}>{k.value}</span>
-                {k.sub && <small>{k.sub}</small>}
+                {k.sub && (
+                  <small>
+                    <Term text={k.sub}>{k.sub}</Term>
+                  </small>
+                )}
               </dd>
             </Fragment>
           ))}
@@ -965,7 +973,7 @@ function kpisOf(s: GameState, m: PlayerModel, metric: RaceMetric | null, rank: n
     {
       label: placeLabel(metric),
       value: rank !== null ? `${fmtNum(rank)}-е` : '-',
-      sub: rank === null ? `${rivals ? 'Не в зачёте' : 'Соперников пока нет'}, Эло ${fmtElo(m.arenaElo)}` : `Эло ${fmtElo(m.arenaElo)}`,
+      sub: rank === null ? `${rivals ? 'Места нет' : 'Соперников пока нет'}, Эло ${fmtElo(m.arenaElo)}` : `Эло ${fmtElo(m.arenaElo)}`,
       title: `${placeTitle(metric)} Подгонка под тесты Эло не повышает.`,
       tone: rank === 1 ? 'gold' : undefined,
     },
@@ -1124,7 +1132,7 @@ function TrainingCard({ s, t, open }: { s: GameState; t: TrainingRun; open: Wind
             onClose={() => setStopping(false)}
           >
             <p>
-              «{t.plan.name}» готова на {fmtShare(frac, 0)}. Модели не будет, вычисления пропадут. Ничего не возвращается: аренда за прошедшие дни и
+              «{t.plan.name}» готова на {fmtShare(frac, 0)}. Модели не будет, мощность пропадёт впустую. Ничего не возвращается: аренда за прошедшие дни и
               разметчики уже оплачены. Доля «Обучение» освободится для нового проекта.
             </p>
           </ConfirmDialog>

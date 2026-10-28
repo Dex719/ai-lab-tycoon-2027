@@ -321,14 +321,14 @@ function NewGameDialog({ onClose }: { onClose: () => void }) {
                 </span>
               </div>
               <label className="ng-ch-row ng-tutor">
-                <span>Обучение игре: подсказки по шагам</span>
+                <span>Подсказки по шагам</span>
                 <input type="checkbox" className="ng-switch" checked={tutorial} onChange={(e) => setTutorial(e.target.checked)} />
               </label>
             </section>
           </div>
           <div className="ng-foot">
             <button type="button" className="btn" onClick={onClose}>
-              Отмена
+              Отменить
             </button>
             <span className="guard ng-start-wrap">
               <button type="submit" className="btn primary big ng-start" aria-disabled={!valid || undefined}>
@@ -423,7 +423,7 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
                       Загрузить
                     </button>
                     <button className="btn small" onClick={() => setLoadAsk(null)}>
-                      Отмена
+                      Отменить
                     </button>
                   </>
                 ) : (
@@ -453,7 +453,7 @@ export function SlotsDialog({ mode, onClose }: { mode: 'load' | 'save'; onClose:
                       Перезаписать
                     </button>
                     <button className="btn small" onClick={() => setConfirm(null)}>
-                      Отмена
+                      Отменить
                     </button>
                   </>
                 ) : (

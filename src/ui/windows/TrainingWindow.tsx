@@ -63,10 +63,11 @@ import {
   fmtPrice,
   fmtTokens,
 } from '../format';
-import { timesWord } from '../../sim/text';
+import { timesWord, tokensWord } from '../../sim/text';
 import { IconLock } from '../icons';
 import { actions, store } from '../store';
 import { playSound } from '../sound';
+import { Term } from '../components/Term';
 import { pushNotice } from '../Toasts';
 import { disputeWarning, planDisputes } from '../../sim/cofounder';
 import './TrainingWindow.css';
@@ -248,7 +249,7 @@ function theftLine(s: GameState): string {
   const where = c === 'cn' ? ' В Китае такие иски редки.' : c === 'eu' ? ' Во Франции суды строже.' : '';
   return (
     `Пока модель продаётся, каждый месяц могут подать иск: шанс ${fmtPct(theftChance(s) * 100, 0)}, штраф от ${fmtMoney(theftFine(s, { earned: 0 }))}, ` +
-    `репутация −${fmtNum(theftRepLoss(s))}${theftPulls(s) ? ', модель снимут с продажи' : ''}.${where}`
+    `репутация -${fmtNum(theftRepLoss(s))}${theftPulls(s) ? ', модель снимут с продажи' : ''}.${where}`
   );
 }
 
@@ -269,7 +270,7 @@ function Slider({ label, text, value, min, max, onChange, ends, color, title, ar
   return (
     <div className="nm-sl" title={title}>
       <div className="nm-sl-top">
-        <span className="nm-sl-l">{label}</span>
+        <span className="nm-sl-l"><Term text={typeof label === 'string' ? label : undefined}>{label}</Term></span>
         <span className="nm-sl-v num">{text}</span>
       </div>
       <Range value={value} min={min} max={max} onChange={onChange} color={color} label={ariaLabel} valueText={text} />
@@ -307,8 +308,8 @@ function ContextSeg(props: { s: GameState; value: number; onChange: (v: number) 
   const [note, flash] = useFlash();
   return (
     <div className="nm-ctx-wrap">
-      <div className="nm-lbl" title="Модели с контекстом длиннее обычного покупают охотнее, с коротким - реже.">
-        Контекст <span className="muted">· обычный на рынке {contextLabel(market)}</span>
+      <div className="nm-lbl" title="Сколько текста модель видит за раз, в токенах. Модели с контекстом длиннее обычного покупают охотнее, с коротким - реже.">
+        Контекст <span className="muted">· обычный на рынке {contextLabel(market)} {tokensWord(market)}</span>
       </div>
       <div className="nm-seg" role="radiogroup" aria-label="Длина контекста">
         {shown.map(([tokens], i) => {
@@ -352,7 +353,10 @@ function CheckpointSeg(props: { s: GameState; value: CheckpointMode; onChange: (
   const chance = Math.round(clusterFailChance(props.s) * 100);
   return (
     <div className="nm-ctx-wrap">
-      <div className="nm-lbl" title="Сбой кластера откатывает обучение к последнему сохранению. Чем больше карт, тем чаще сбои.">
+      <div
+        className="nm-lbl"
+        title="Как часто сохранять модель во время обучения: реже - быстрее, но сбой отбросит дальше назад. Сбой кластера откатывает обучение к последнему сохранению; чем больше карт, тем чаще сбои."
+      >
         Сохранять прогресс <span className="muted">· шанс сбоя за неделю {chance} %</span>
       </div>
       <div className="nm-seg" role="radiogroup" aria-label="Сохранять прогресс">
@@ -507,14 +511,14 @@ function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
   return (
     <div className="nm-hero">
       <div className="nm-kpi nm-kpi-main">
-        <div className="nm-kpi-l">Прогноз Эло</div>
+        <div className="nm-kpi-l"><Term text="Прогноз Эло">Прогноз Эло</Term></div>
         {fc ? (
           <>
             <div className="nm-kpi-v">
               {fmtElo(fc.elo)}
               {delta !== null && prevBest && (
                 <span className={`nm-delta ${delta >= 0 ? 'up' : 'down'}`}>
-                  {delta >= 0 ? '+' : '−'}
+                  {delta >= 0 ? '+' : '-'}
                   {fmtNum(Math.abs(delta))} к «{prevBest}»
                 </span>
               )}
@@ -541,17 +545,9 @@ function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
             <div className="nm-kpi-s">
               {est.roughElo === null
                 ? 'Прогноз откроется после исследования'
-                : (
-                    <>
-                      <span className="nm-rough-long">
-                        Грубо, по алгоритмам уровня {s.research.algoLevel} на день старта (улучшения во время обучения модель не получит). Точный
-                        прогноз и место откроет исследование
-                      </span>
-                      <span className="nm-rough-short">Точный прогноз - после исследования</span>
-                    </>
-                  )}{' '}
+                : 'Точный прогноз - после исследования'}{' '}
               <button className="nm-link" onClick={() => open('research')}>
-                «Законы масштабирования»
+                <Term text="Законы масштабирования">«Законы масштабирования»</Term>
               </button>
             </div>
           </>
@@ -567,7 +563,7 @@ function Hero(props: { s: GameState; est: Est | null; open: OpenFn }) {
         </div>
         {overhead >= 1.05 && (
           <span className="nm-chip warn" title="Фреймворки и сети ранних лет медленные; множитель падает каждый месяц, к середине 2020 года - обычная скорость.">
-            Обучение {timesWord(overhead >= 10 ? Math.round(overhead) : overhead)} медленнее: ранние фреймворки, с каждым месяцем быстрее
+            Обучение {timesWord(overhead >= 10 ? Math.round(overhead) : overhead)} медленнее, к 2020 году ускорится
           </span>
         )}
       </div>
@@ -680,7 +676,7 @@ function StartConfirm(props: { s: GameState; plan: TrainingPlan; est: Est; onCon
         <dd>{formatDateShort(END_DAY)}</dd>
         <dt>Мощность</dt>
         <dd>
-          {fmtH100e(power)} H100e <Cards s={s} h100e={power} />
+          {fmtH100e(power)} <Term text="H100e">H100e</Term> <Cards s={s} h100e={power} />
         </dd>
       </dl>
       {days !== null && days > LONG_RUN_DAYS && (
@@ -771,7 +767,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
       ? `${fmtTokens(tokens)} токенов: хорошо подходит к размеру`
       : tokens > wantTokens
         ? `${fmtTokens(tokens)} токенов: больше, чем выгодно. Качество выше, обучение дороже.`
-        : `${fmtTokens(tokens)} токенов: мало для такого размера. Часть вычислений пропадёт.`;
+        : `${fmtTokens(tokens)} токенов: мало для такого размера. Часть мощности пропадёт впустую.`;
   const dataTone = (autoData && !dataShort) || (!autoData && eff >= EFF_GOOD) ? 'good' : eff >= EFF_BAD ? 'warn' : 'bad';
 
   const rlhfCost = labelersCost({ ...plan, rlhf: true });
@@ -817,7 +813,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
   const fitLine =
     d.share > 0 && d.targets.length === 0
       ? 'Тесты не выбраны: доля данных потратится впустую.'
-      : `Каждый месяц подгонку могут раскрыть: репутация −${fmtNum(Math.abs(EXPOSE_REP))}, шумиха −${fmtPct((1 - EXPOSE_HYPE_MULT) * 100, 0)}.`;
+      : `Каждый месяц подгонку могут раскрыть: репутация -${fmtNum(Math.abs(EXPOSE_REP))}, шумиха -${fmtPct((1 - EXPOSE_HYPE_MULT) * 100, 0)}.`;
 
   const footInfo = slotsFull
     ? 'Идут два проекта обучения: новый можно начать после завершения одного из них.'
@@ -854,7 +850,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
               max={POS_MAX}
               onChange={(v) => patch({ paramsB: fromPos(v, sizeMin, sizeMax) })}
               ends={[fmtParams(sizeMin), fmtParams(sizeMax)]}
-              title={`Размер ограничен уровнем «${TIER_NAMES[tier]}». Больше параметров - модель сильнее, но обучение дольше и каждый запрос клиента дороже.`}
+              title={`Размер модели: больше - умнее, но дольше и дороже. Размер ограничен уровнем «${TIER_NAMES[tier]}».`}
               ariaLabel="Параметры"
             />
             {!autoData && (
@@ -871,7 +867,9 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
               />
             )}
             <div className={`nm-data ${dataTone}`}>
-              <span>{dataLine}</span>
+              <span>
+                <Term text={dataLine}>{dataLine}</Term>
+              </span>
               <button type="button" className="nm-link" onClick={() => patch(autoData ? { autoData: false, tokensB: tokens } : { autoData: true })}>
                 {autoData ? 'Настроить вручную' : 'Подбирать под размер'}
               </button>
@@ -907,7 +905,9 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
                   valueText={fmtPct(d.mix[k], 0)}
                   onChange={(v) => patch({ mix: rescaleMix(d.mix, k, v) })}
                 />
-                <span className="nm-mix-what">{mixGrowth(s, k)}</span>
+                <span className="nm-mix-what">
+                  <Term text={mixGrowth(s, k)}>{mixGrowth(s, k)}</Term>
+                </span>
               </div>
             ))}
           </section>
@@ -918,7 +918,7 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
             </h2>
             <label
               className={`nm-opt${rlhfDone ? '' : ' off'}${plan.rlhf ? ' on' : ''}`}
-              title={rlhfDone ? `Вычислений нужно на ${fmtPct(RLHF_FLOP_EXTRA * 100, 0)} больше. Разметчикам платят при старте.` : undefined}
+              title={rlhfDone ? `Мощности нужно на ${fmtPct(RLHF_FLOP_EXTRA * 100, 0)} больше. Разметчикам платят при старте.` : undefined}
             >
               <span className="nm-opt-top">
                 <span>Отзывы людей (RLHF)</span>
@@ -941,14 +941,20 @@ export default function TrainingWindow({ s, open, close }: WindowProps) {
               </span>
             </label>
 
-            <label className={`nm-opt risk${stolen ? ' on' : ''}`}>
+            <label
+              className={`nm-opt risk${stolen ? ' on' : ''}`}
+              title={`Книги, сайты и ответы чужих моделей без разрешения: данных в ${fmtNum(STOLEN_TOKENS_MULT)} раза больше, Эло выше на ${fmtNum(
+                STOLEN_CAP_BONUS * ELO_PER_CAP,
+              )}. ${honestRun ? 'Закрыто испытанием «Честная лаборатория».' : theftLine(s)}`}
+            >
               <span className="nm-opt-top">
                 <span>Чужие данные</span>
                 <GuardCheck className="nm-switch" checked={stolen} reason={honestRun ? HONEST_LOCKED : null} onChange={(v) => patch({ stolen: v })} />
               </span>
               <span className="nm-opt-d">
-                Книги, сайты и ответы чужих моделей без разрешения: данных в {fmtNum(STOLEN_TOKENS_MULT)} раза больше, Эло выше на{' '}
-                {fmtNum(STOLEN_CAP_BONUS * ELO_PER_CAP)}. {honestRun ? 'Закрыто испытанием «Честная лаборатория».' : theftLine(s)}
+                {honestRun
+                  ? 'Закрыто испытанием «Честная лаборатория».'
+                  : `Данных в ${fmtNum(STOLEN_TOKENS_MULT)} раза больше, Эло +${fmtNum(STOLEN_CAP_BONUS * ELO_PER_CAP)}, риск иска`}
               </span>
             </label>
 

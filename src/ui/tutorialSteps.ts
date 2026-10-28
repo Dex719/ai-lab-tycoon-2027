@@ -120,7 +120,7 @@ export const TUTORIAL: TutorialStep[] = [
   // Окно «Цели 2017 года» открывается сразу и держит время: первый шаг - выбрать цели в нём.
   {
     title: 'Цели года',
-    text: 'Отметьте три цели на 2017 год и нажмите «Принять цели». За каждую выполненную - награда.',
+    text: 'Игра пока на паузе. Отметьте три цели на 2017 год и нажмите «Принять цели». За каждую выполненную - награда.',
     targets: ['goals-accept'],
     done: (s) => !goalOfferOpen(s),
   },
@@ -138,7 +138,7 @@ export const TUTORIAL: TutorialStep[] = [
   },
   {
     title: 'Первая модель',
-    text: 'Откройте «Новая модель» и нажмите «Начать обучение». Настройки по умолчанию подойдут.',
+    text: 'Откройте «Новая модель» и нажмите «Начать обучение». Это пробная модель: сильные пойдут после «Механизма внимания».',
     targets: ['train-confirm', 'train-start', 'icon-newModel'],
     done: (s) => s.trainings.length > 0 || s.models.length > 0,
   },
@@ -148,7 +148,7 @@ export const TUTORIAL: TutorialStep[] = [
       const run = s.trainings.find((t) => !t.failed);
       const left = run ? trainingDaysAt(s, run, s.compute.alloc.training) : null;
       const when = left !== null ? ` Модель будет готова ${formatDateShort(s.day + left)}.` : '';
-      return `Нажмите ▶▶▶ рядом с датой, время пойдёт быстро.${when} Игра сама встанет на паузу.`;
+      return `Нажмите «Скорость ×4» рядом с датой, время пойдёт быстро.${when} Игра сама встанет на паузу.`;
     },
     targets: ['speed-fast', 'speed-play'],
     done: (s, ctx) => ctx.speed > 0 || s.models.length > 0,
@@ -162,9 +162,9 @@ export const TUTORIAL: TutorialStep[] = [
         const left = trainingDaysAt(s, run, s.compute.alloc.training);
         return left !== null
           ? `Модель учится и будет готова ${formatDateShort(s.day + left)}. Ждите: игра встанет на паузу.`
-          : 'Модели не хватает мощности: в «Мощностях» нажмите «Как нужно».';
+          : 'Модели не хватает мощности: в «Мощностях» нажмите «Подобрать доли».';
       }
-      return 'Модель готова. Откройте «Модели» и нажмите «Выпустить». Ред-тиминг в том же окне понадобится со второй модели.';
+      return 'Модель готова. Откройте «Модели» и нажмите «Выпустить». Без «Проверки модели» в ней могут остаться уязвимости.';
     },
     targets: (s) =>
       s.models.length > 0 ? ['release', 'icon-models'] : s.trainings.length > 0 ? ['speed-fast', 'icon-models'] : ['train-confirm', 'train-start', 'icon-newModel'],
@@ -182,7 +182,7 @@ export const TUTORIAL: TutorialStep[] = [
         const more = goal.count - orderedCount(s, goal.id);
         return `Тендерам нужно больше карт. В «Мощностях» нажмите «Арендовать»: нужное число (ещё ${fmtInt(more)} ${ruPlural(more, 'карта', 'карты', 'карт')}) уже подставлено.`;
       }
-      return 'Подходящий тендер появится в ближайшие недели. Нажмите ▶ и откройте «Контракты», когда он придёт.';
+      return 'Подходящий тендер появится в ближайшие недели. Нажмите «Скорость ×1» и откройте «Контракты», когда он придёт.';
     },
     targets: (s) => {
       const { fit, minNeed } = tutorialTender(s);

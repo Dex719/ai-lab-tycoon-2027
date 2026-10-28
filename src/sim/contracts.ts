@@ -119,8 +119,8 @@ function pickBenchmark(s: GameState, rlhf: boolean, level: number): BenchmarkId 
 
 /**
  * Раз в месяц: TENDERS_PER_MONTH(год) + randInt(0, 1) новых тендеров (1…2) по правилам design.md («Тендеры»).
- * Требование = max(угадывание + 3, балл при способности «уровень года − 0…15»);
- * оплата умножается на 1 + (требование − угадывание) / 100: сложнее бенчмарк - дороже тендер.
+ * Требование = max(угадывание + 3, балл при способности «уровень года - 0…15»);
+ * оплата умножается на 1 + (требование - угадывание) / 100: сложнее бенчмарк - дороже тендер.
  * Письма о новых тендерах нет; при включённом автоподборе (s.autoApply) заявки подаются сразу, одним письмом.
  */
 export function generateMonthly(s: GameState): void {
@@ -310,7 +310,7 @@ function failContract(s: GameState, c: Contract, title: string, reason: string, 
   addMail(s, {
     kind: 'contract',
     title: `${title}: ${clientName(t.clientId)}`,
-    body: `${reason} Штраф ${fmtMoney(t.penalty)}, репутация −${Math.abs(REP_CONTRACT_FAIL)}.`,
+    body: `${reason} Штраф ${fmtMoney(t.penalty)}, репутация -${Math.abs(REP_CONTRACT_FAIL)}.`,
     important,
   });
 }
@@ -526,7 +526,7 @@ function warnIfLate(s: GameState, c: Contract, share: number): void {
     body:
       `До срока ${ruDays(left)}, а ${pace}. Чтобы успеть, контракту нужно ${h100e(need)} H100e в день, сейчас - ${h100e(share)}. ` +
       'Поднимите долю «Контракты» в «Мощностях» или арендуйте карты. ' +
-      `Если сорвать: штраф ${fmtMoney(c.tender.penalty)}, репутация −${Math.abs(REP_CONTRACT_FAIL)}, оплаты не будет.`,
+      `Если сорвать: штраф ${fmtMoney(c.tender.penalty)}, репутация -${Math.abs(REP_CONTRACT_FAIL)}, оплаты не будет.`,
   });
 }
 

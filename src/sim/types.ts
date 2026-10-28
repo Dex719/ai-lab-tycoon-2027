@@ -80,6 +80,7 @@ export interface BenchmarkDef {
   spread: number; // S
   saturation: number; // порог насыщения в %
   description: string; // одна строка для интерфейса
+  about?: string; // одна строка для подсказки: что за тест, при первом показе
 }
 
 export interface LabDef {

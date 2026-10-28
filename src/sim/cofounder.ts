@@ -20,9 +20,9 @@ export interface CofounderDef {
 }
 
 export const COFOUNDERS: readonly CofounderDef[] = [
-  { id: 'engineer', role: 'Инженер', name: 'Артём Лавров', perk: 'Аренда карт дешевле на 8 %', short: 'аренда карт −8 %', voice: 'Я строил этот кластер не для того, чтобы мы обманывали' },
+  { id: 'engineer', role: 'Инженер', name: 'Артём Лавров', perk: 'Аренда карт дешевле на 8 %', short: 'аренда карт -8 %', voice: 'Я строил этот кластер не для того, чтобы мы обманывали' },
   { id: 'seller', role: 'Продавец', name: 'Мира Холт', perk: 'Спрос на API и подписки выше на 6 %', short: 'спрос +6 %', voice: 'Клиенты покупают у нас, потому что верят нам' },
-  { id: 'scientist', role: 'Учёный', name: 'Ева Штерн', perk: 'Исследования дешевле на 12 %', short: 'исследования −12 %', voice: 'Если результаты подогнаны, это уже не наука' },
+  { id: 'scientist', role: 'Учёный', name: 'Ева Штерн', perk: 'Исследования дешевле на 12 %', short: 'исследования -12 %', voice: 'Если результаты подогнаны, это уже не наука' },
 ];
 export const COFOUNDER_IDS: readonly CofounderId[] = ['engineer', 'seller', 'scientist'];
 
@@ -37,7 +37,7 @@ export type Dispute = 'overfit' | 'stolen' | 'holes';
 const DISPUTE_TEXT: Record<Dispute, string> = {
   overfit: 'подгонка модели под тесты',
   stolen: 'обучение на чужих данных',
-  holes: 'выпуск модели без ред-тиминга',
+  holes: 'выпуск модели без проверки',
 };
 
 export function cofounderDef(id: CofounderId): CofounderDef {
@@ -118,6 +118,6 @@ export function dispute(s: GameState, disputes: readonly Dispute[]): void {
     body:
       `«${c.voice}». После третьего спора (${what}) сооснователь ушёл` +
       (leaving.length ? ` и увёл ${leaving.length} ${leaving.length === 1 ? 'сотрудника' : 'сотрудников'}` : '') +
-      `. Выгода пропала: ${c.perk.charAt(0).toLowerCase()}${c.perk.slice(1)} - больше нет. Репутация −${LEAVE_REP}.`,
+      `. Выгода пропала: ${c.perk.charAt(0).toLowerCase()}${c.perk.slice(1)} - больше нет. Репутация -${LEAVE_REP}.`,
   });
 }
